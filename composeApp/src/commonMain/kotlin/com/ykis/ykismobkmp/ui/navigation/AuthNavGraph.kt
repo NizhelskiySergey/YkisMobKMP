@@ -1,0 +1,54 @@
+package com.ykis.ykismobkmp.ui.navigation
+
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.composable
+import androidx.navigation.navigation
+import com.ykis.mob.ui.navigation.SignInScreen
+import com.ykis.mob.ui.navigation.SignUpScreen
+import com.ykis.mob.ui.navigation.VerifyEmailScreen
+import com.ykis.ykismobkmp.ui.screens.auth.sign_in.SignInScreen
+import com.ykis.ykismobkmp.ui.screens.auth.sign_up.SignUpScreen
+import com.ykis.ykismobkmp.ui.screens.auth.sign_up.SignUpViewModel
+import com.ykis.ykismobkmp.ui.screens.auth.verify_email.VerifyEmailScreen
+import org.koin.compose.viewmodel.koinViewModel
+
+fun NavGraphBuilder.authNavGraph(
+  navController: NavHostController,signUpViewModel: SignUpViewModel
+) {
+  navigation(
+    route = Graph.AUTHENTICATION,
+    startDestination = SignInScreen.route
+  ) {
+    composable(SignInScreen.route) {
+      SignInScreen(
+        openScreen = { route -> navController.navigate(route) },
+        navController = navController
+      )
+    }
+
+    composable(SignUpScreen.route) {
+      // ViewModel создается только для этого экрана
+      val viewModel: SignUpViewModel = koinViewModel()
+      SignUpScreen(
+        viewModel = viewModel,
+        navController = navController
+      )
+    }
+
+    composable(VerifyEmailScreen.route) {
+      val viewModel: SignUpViewModel = koinViewModel()
+      VerifyEmailScreen(
+        restartApp = { route ->
+          navController.navigate(route) {
+            // Очищаем ВООБЩЕ всё под ноль
+            popUpTo(0) { inclusive = true }
+          }
+        },
+        viewModel = viewModel,
+        navController = navController
+      )
+    }
+
+  }
+}

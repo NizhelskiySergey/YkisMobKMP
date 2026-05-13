@@ -1,3 +1,7 @@
+import com.sun.tools.javac.resources.compiler
+import org.gradle.internal.impldep.org.jsoup.nodes.Entities
+import org.gradle.kotlin.dsl.implementation
+import org.jetbrains.compose.ComposePlugin.CommonComponentsDependencies.uiToolingPreview
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -7,14 +11,19 @@ plugins {
   alias(libs.plugins.androidApplication)
   alias(libs.plugins.composeMultiplatform)
   alias(libs.plugins.composeCompiler)
+  alias(libs.plugins.googleServices)
   alias(libs.plugins.composeHotReload)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.sqldelight)
+  alias(libs.plugins.crashlytics)
+
+
 }
 
 kotlin {
   androidTarget {
     compilerOptions {
-      jvmTarget.set(JvmTarget.JVM_11)
+      jvmTarget.set(JvmTarget.JVM_21)
     }
   }
 
@@ -35,36 +44,117 @@ kotlin {
     binaries.executable()
   }
 
-  @OptIn(ExperimentalWasmDsl::class)
-  wasmJs {
-    browser()
-    binaries.executable()
-  }
+  // Wasm временно отключен, как мы и договаривались, из-за Firebase
+  // wasmJs { ... }
 
   sourceSets {
-    androidMain.dependencies {
-      implementation(libs.compose.uiToolingPreview)
-      implementation(libs.androidx.activity.compose)
-    }
     commonMain.dependencies {
+      // 1. COMPOSE
       implementation(libs.compose.runtime)
       implementation(libs.compose.foundation)
       implementation(libs.compose.material3)
+      implementation(libs.compose.material3.windowSizeClass)
+      implementation(libs.material.icons.extended)
       implementation(libs.compose.ui)
+      implementation(libs.compose.ui.tooling.preview)
       implementation(libs.compose.components.resources)
-      implementation(libs.compose.uiToolingPreview)
+      // Примечание:
+
+      // 2. ЖИЗНЕННЫЙ ЦИКЛ
       implementation(libs.androidx.lifecycle.viewmodelCompose)
       implementation(libs.androidx.lifecycle.runtimeCompose)
+
+      // 3. KOIN
+      implementation(libs.koin.core)
+      implementation(libs.koin.compose)
+      implementation(libs.koin.compose.viewmodel)
+
+      // 4. VOYAGER (Навигация)
+      implementation(libs.voyager.navigator)
+      implementation(libs.voyager.screenmodel)
+      implementation(libs.voyager.koin)
+      implementation(libs.voyager.transitions)
+
+      // 5. KTOR (Сеть)
+      implementation(libs.ktor.client.core)
+      implementation(libs.ktor.client.content.negotiation)
+      implementation(libs.ktor.serialization.json)
+      implementation(libs.ktor.client.logging)
+      implementation(libs.kotlinx.serialization.json)
+
+      // 6. SQL DELIGHT (БД)
+      implementation(libs.sqldelight.runtime)
+      implementation(libs.sqldelight.coroutines)
+      implementation(libs.sqldelight.primitive.adapters)
+
+      // 7. FIREBASE KMP (GitLive) - Базовые модули
+      implementation(libs.firebase.common)
+      implementation(libs.firebase.auth)
+      implementation(libs.firebase.functions)
+      implementation(libs.firebase.messaging)
+      implementation(libs.firebase.firestore)
+      implementation(libs.firebase.database)
+      implementation(libs.firebase.storage)
+
+      // Наш мультиплатформенный логгер
+      implementation(libs.napier)
     }
-    commonTest.dependencies {
-      implementation(libs.kotlin.test)
+
+    androidMain.dependencies {
+      implementation(libs.androidx.activity.compose)
+      implementation(libs.androidx.splashscreen)
+      implementation(libs.ktor.client.okhttp)
+      implementation(libs.koin.android)
+      implementation(libs.sqldelight.android)
+      implementation(libs.compose.uiTooling)
+      implementation(libs.firebase.crashlytics)
+      implementation(libs.firebase.analytics)
+      implementation(libs.firebase.common.ktx)
+      implementation(libs.androidx.ui.viewbinding)
+      implementation(libs.androidx.camera.core)
+      implementation(libs.androidx.camera.camera2)
+      implementation(libs.androidx.camera.lifecycle)
+      implementation(libs.androidx.camera.view)
+
     }
+
+    // Исправлено: iosMain должен быть внутри sourceSets
+    val iosMain by creating {
+      dependsOn(commonMain.get())
+      dependencies {
+        implementation(libs.firebase.crashlytics)
+        implementation(libs.native.driver)
+      }
+    }
+
+    // Связываем конкретные таргеты с общим iosMain
+    val iosArm64Main by getting { dependsOn(iosMain) }
+    val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
+
+    // Исправлено: перенесено ВНУТРЬ блока sourceSets
     jvmMain.dependencies {
       implementation(compose.desktop.currentOs)
       implementation(libs.kotlinx.coroutinesSwing)
+      implementation(libs.sqldelight.jvm)
+      implementation(libs.ktor.client.java)
+      // For Desktop (Mac) in jvmMain or commonMain
+      implementation(libs.ktor.client.okhttp)
+      implementation(libs.ktor.client.cio)
+      implementation(libs.webcam.capture)
+
+
+    }
+
+    // Блок для обычного JS (раз Wasm отключен)
+    val jsMain by getting {
+      dependencies {
+        implementation(libs.ktor.client.js)
+      }
     }
   }
 }
+
+
 
 android {
   namespace = "com.ykis.ykismobkmp"
@@ -88,19 +178,18 @@ android {
     }
   }
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
   }
 }
-
 dependencies {
   debugImplementation(libs.compose.uiTooling)
-}
 
+
+}
 compose.desktop {
   application {
     mainClass = "com.ykis.ykismobkmp.MainKt"
-
     nativeDistributions {
       targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
       packageName = "com.ykis.ykismobkmp"
@@ -108,3 +197,13 @@ compose.desktop {
     }
   }
 }
+sqldelight {
+  databases {
+    create("YkisDatabases") {
+      // Пакет должен быть ТАКИМ ЖЕ, как путь к папкам
+      packageName.set("com.ykis.ykismobkmp.db")
+      generateAsync.set(false)
+    }
+  }
+}
+
