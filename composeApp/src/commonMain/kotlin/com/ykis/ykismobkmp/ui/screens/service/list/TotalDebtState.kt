@@ -1,7 +1,7 @@
 package com.ykis.ykismobkmp.ui.screens.service.list
 
 import com.ykis.mob.domain.service.ServiceEntity
-import com.ykis.mob.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 
 data class TotalDebtState(
     val showDetail : Boolean = false,

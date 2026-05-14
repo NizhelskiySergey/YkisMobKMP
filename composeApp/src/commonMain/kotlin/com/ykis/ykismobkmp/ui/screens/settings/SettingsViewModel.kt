@@ -9,7 +9,7 @@ import com.ykis.mob.core.snackbar.SnackbarManager
 import com.ykis.mob.data.cache.preferences.AppSettingsRepository
 import com.ykis.mob.domain.ClearDatabase
 import com.ykis.mob.firebase.messaging.removeFcmTokenOnLogout
-import com.ykis.mob.firebase.service.repo.FirebaseService
+import com.ykis.ykismobkmp.domain.services.FirebaseService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay

@@ -21,7 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ykis.mob.R
-import com.ykis.mob.ui.navigation.NavigationType
+import com.ykis.ykismobkmp.ui.navigation.NavigationType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

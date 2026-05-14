@@ -1,21 +1,91 @@
 package com.ykis.ykismobkmp.domain.services
 
+import dev.gitlive.firebase.auth.FirebaseUser // ИСПРАВЛЕНО: Кроссплатформенный тип GitLive вместо com.google...
+import com.ykis.ykismobkmp.core.utils.Resource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
-import com.ykis.ykismobkmp.core.utils.Log
-import dev.gitlive.firebase.Firebase
-import dev.gitlive.firebase.auth.auth
+// Системные псевдонимы типов (Typealiases), очищенные от Android-зависимостей
+typealias SignInWithGoogleResponse = Resource<Boolean>
+typealias SignUpResponse = Resource<Boolean>
+typealias SendEmailVerificationResponse = Resource<Boolean>
+typealias SignInResponse = Resource<Boolean>
+typealias addUserFirestoreResponse = Resource<Boolean>
+typealias ReloadUserResponse = Resource<Boolean>
+typealias SendPasswordResetEmailResponse = Resource<Boolean>
+typealias AuthStateResponse = StateFlow<Boolean>
 
+/**
+ * [FirebaseService] — Кроссплатформенный контракт авторизации и профиля ЮКИС.
+ * Полностью очищен от Android SDK (Context, CredentialManager) и готов к работе на Mac Desktop и Android.
+ */
+interface FirebaseService {
+  val isUserAuthenticatedInFirebase: Boolean
+  val uid: String
+  val hasUser: Boolean
+  val isEmailVerified: Boolean?
+  val currentUser: FirebaseUser? // Использует кроссплатформенную обертку GitLive
+  val displayName: String
+  val providerId: String
+  val photoUrl: String
+  val email: String
+  val isWiFiCheckConfig: Boolean
+  val isMobileCheckConfig: Boolean
+  val agreementTitle: String
+  val agreementText: String
 
-class FirebaseService {
-  private val className = "FirebaseService"
+  suspend fun fetchConfiguration(): Boolean
 
-  // Получаем текущего пользователя через KMP SDK
-  val currentUser get() = Firebase.auth.currentUser
-  val uid get() = currentUser?.uid
+  // ИСПРАВЛЕНО: методы соглашения лицензии приведены к одному стандарту имени с Use Cases
+  suspend fun isUserAgreed(): Boolean
+  suspend fun setUserAgreed(agreed: Boolean) // Переименовано с setAgreement для стыковки с UI
 
-  fun isUserAgreed(): Boolean {
-    // Здесь твоя логика проверки согласия (например, через Settings/Preferences)
-    Log.d("YkisLog", "[$className.isUserAgreed]: Проверка согласия")
-    return true
-  }
+  suspend fun authenticate(email: String, password: String)
+  suspend fun sendRecoveryEmail(email: String)
+  suspend fun linkAccount(email: String, password: String)
+  suspend fun deleteAccount()
+  suspend fun logoutDirectly()
+
+  fun signOut(): Flow<Resource<Boolean>>
+
+  // ИСПРАВЛЕНО: метод удален из commonMain интерфейса.
+  // Нативная авторизация Google (Credential Manager) теперь вызывается изолированно внутри Android-кнопки GoogleAuthButton,
+  // а в общий код передается только чистая строка токена idToken!
+  // suspend fun oneTapSignInWithGoogle(context: Context): OneTapSignInResponse
+
+  // ИСПРАВЛЕНО: Теперь принимает чистую строковую переменную idToken, стабильную на Mac и Android
+  suspend fun firebaseSignInWithGoogle(idToken: String): SignInWithGoogleResponse
+
+  suspend fun firebaseSignUpWithEmailAndPassword(email: String, password: String): SignUpResponse
+  suspend fun sendEmailVerification(): SendEmailVerificationResponse
+  suspend fun sendPasswordResetEmail(email: String): SendPasswordResetEmailResponse
+  fun getProvider(viewModelScope: CoroutineScope): String
+
+  suspend fun firebaseSignInWithEmailAndPassword(email: String, password: String)
+  suspend fun reloadFirebaseUser(): ReloadUserResponse
+
+  fun revokeAccess(): Flow<Resource<Boolean>>
+  suspend fun addUserFirestore(): addUserFirestoreResponse
+  fun revokeAccessEmail(): Flow<Resource<Boolean>>
+  fun getAuthState(viewModelScope: CoroutineScope): AuthStateResponse
+  suspend fun getUserProfile(): UserFirebase
+
+  // ИСПРАВЛЕНО: Параметры ID переведены на Long или приведены к платформенной безопасности
+  suspend fun updateUserRoleAndPermissions(
+    uid: String,
+    addressId: Long?, // Переведено на Long под типы SQLDelight
+    userRole: UserRole,
+    osbbId: Long?,    // Переведено на Long под типы SQLDelight
+    displayName: String? = null
+  )
+
+  suspend fun getUid(): String
+  suspend fun getEmail(): String
+  suspend fun getDisplayName(): String
+
+  // Добавляем метод привязки пушей, который мы искали в прошлый раз
+  suspend fun addFcmToken()
+
+  fun stopAllListeners()
 }

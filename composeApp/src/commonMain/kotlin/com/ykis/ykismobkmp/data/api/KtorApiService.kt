@@ -7,6 +7,7 @@ import com.ykis.ykismobkmp.data.responses.GetFamilyResponse
 import com.ykis.ykismobkmp.data.responses.GetHeatMeterResponse
 import com.ykis.ykismobkmp.data.responses.GetHeatReadingResponse
 import com.ykis.ykismobkmp.data.responses.GetHousesResponse
+import com.ykis.ykismobkmp.data.responses.GetLastHeatReadingResponse
 import com.ykis.ykismobkmp.data.responses.GetLastWaterReadingResponse
 import com.ykis.ykismobkmp.data.responses.GetPaymentResponse
 import com.ykis.ykismobkmp.data.responses.GetRaionsResponse
@@ -30,153 +31,169 @@ class KtorApiService(private val client: HttpClient) {
   //  private val baseUrl = "http://10.0.2.2/YkisPAM/YkisMobileRest/rest_api/"
 //  private val baseUrl = "http://192.168.0.77:8080/YkisMobileRest/rest_api/"
 //  private val baseUrl = "http://192.168.0.177/YkisPAM/YkisMobileRest/rest_api/"
-  private val tag = "KtorApiService"
 
-  /**
-   * Универсальный метод для POST FormUrlEncoded (Кроссплатформенный аналог submitForm)
-   */
-  private suspend inline fun <reified T> postForm(path: String, params: Map<String, String>): T {
-    val fullUrl = baseUrl + path
-    println("[$tag.postForm]: Sending request to $fullUrl with params: $params")
+    private val tag = "KtorApiService"
+    private val className = "KtorApiServiceImpl"
 
-    return client.submitForm(
-      url = fullUrl,
-      formParameters = parameters {
-        params.forEach { (key, value) -> append(key, value) }
-      }
-    ) {
-      header(HttpHeaders.Accept, ContentType.Application.Json)
-    }.body()
+    /**
+     * [postForm] — Универсальный приватный метод для POST FormUrlEncoded (Кроссплатформенный)
+     */
+    private suspend inline fun <reified T> postForm(path: String, params: Map<String, String>): T {
+      val fullUrl = baseUrl + path
+      println("[$tag.postForm]: Sending request to $fullUrl with params: $params")
+
+      return client.submitForm(
+        url = fullUrl,
+        formParameters = parameters {
+          params.forEach { (key, value) -> append(key, value) }
+        }
+      ) {
+        header(HttpHeaders.Accept, ContentType.Application.Json)
+      }.body()
+    }
+
+    // ==========================================
+    // --- МОДУЛЬ КВАРТИР И АДМИН-ФУНКЦИЙ ---
+    // ==========================================
+
+    suspend fun getApartmentList(uid: String): GetApartmentsResponse {
+      return postForm("getApartmentsByUser.php", mapOf("uid" to uid))
+    }
+
+    suspend fun getApartment(addressId: Long, uid: String): GetApartmentResponse {
+      return postForm("getFlatById.php", mapOf("address_id" to addressId.toString(), "uid" to uid))
+    }
+
+    suspend fun addApartmentUser(code: String, uid: String): GetSimpleResponse {
+      return postForm("addMyFlatByUser.php", mapOf("code" to code, "uid" to uid))
+    }
+
+    suspend fun deleteApartment(addressId: Long, uid: String): GetSimpleResponse {
+      return postForm("deleteFlatByUser.php", mapOf("address_id" to addressId.toString(), "uid" to uid))
+    }
+
+    suspend fun getOsbbApartmentsList(targetId: Long, uid: String): GetApartmentsResponse {
+      return postForm("getOsbbApartmentsList.php", mapOf("target_id" to targetId.toString(), "uid" to uid))
+    }
+
+    suspend fun verifyAdminSecretWord(code: String, uid: String): GetSimpleResponse {
+      return postForm("getSecretCode.php", mapOf("code" to code, "uid" to uid))
+    }
+
+    suspend fun getRaionList(uid: String): GetRaionsResponse {
+      return postForm("getRaionList.php", mapOf("uid" to uid))
+    }
+
+    suspend fun getHouseByRaionList(raionId: Long, uid: String): GetHousesResponse {
+      return postForm("getHousesByRaion.php", mapOf("raion_id" to raionId.toString(), "uid" to uid))
+    }
+
+    suspend fun saveUserUid(uid: String, email: String): GetSimpleResponse {
+      return postForm("saveUserUid.php", mapOf("uid" to uid, "email" to email))
+    }
+
+    suspend fun deleteUserAccount(uid: String): GetSimpleResponse {
+      return postForm("deleteUserAccount.php", mapOf("uid" to uid))
+    }
+
+    suspend fun updateBti(addressId: Long, area: Double, uid: String): GetSimpleResponse {
+      return postForm("updateBti.php", mapOf("address_id" to addressId.toString(), "area" to area.toString(), "uid" to uid))
+    }
+
+    suspend fun getFamilyList(addressId: Long, uid: String): GetFamilyResponse {
+      return postForm("getFamilyFromFlat.php", mapOf("address_id" to addressId.toString(), "uid" to uid))
+    }
+
+    // ==========================================
+    // --- МОДУЛЬ СЧЕТЧИКОВ ВОДЫ ---
+    // ==========================================
+
+    suspend fun getWaterMeterList(addressId: Long, uid: String): GetWaterMeterResponse {
+      println("[$className.getWaterMeterList]: addressId=$addressId, uid=${uid.takeLast(5)}")
+      return postForm("getWaterMeter.php", mapOf("address_id" to addressId.toString(), "uid" to uid))
+    }
+
+    suspend fun getWaterReadings(vodomerId: Long, uid: String): GetWaterReadingsResponse {
+      println("[$className.getWaterReadings]: vodomerId=$vodomerId, uid=${uid.takeLast(5)}")
+      return postForm("getWaterReadings.php", mapOf("vodomer_id" to vodomerId.toString(), "uid" to uid))
+    }
+
+    suspend fun addWaterReading(vodomerId: Long, currentValue: Double, newValue: Double, uid: String): GetSimpleResponse {
+      println("[$className.addWaterReading]: vodomerId=$vodomerId, cur=$currentValue, new=$newValue")
+      return postForm(
+        "addCurrentWaterReading.php",
+        mapOf(
+          "vodomer_id" to vodomerId.toString(),
+          "current_value" to currentValue.toString(),
+          "new_value" to newValue.toString(),
+          "uid" to uid
+        )
+      )
+    }
+
+    suspend fun deleteLastWaterReading(readingId: Long, uid: String): GetSimpleResponse {
+      println("[$className.deleteLastWaterReading]: readingId=$readingId, uid=${uid.takeLast(5)}")
+      return postForm("deleteCurrentWaterReading.php", mapOf("pok_id" to readingId.toString(), "uid" to uid))
+    }
+
+    suspend fun getLastWaterReading(vodomerId: Long, uid: String): GetLastWaterReadingResponse {
+      println("[$className.getLastWaterReading]: vodomerId=$vodomerId, uid=${uid.takeLast(5)}")
+      return postForm("getLastWaterReading.php", mapOf("vodomer_id" to vodomerId.toString(), "uid" to uid))
+    }
+
+    // ==========================================
+    // --- МОДУЛЬ СЧЕТЧИКОВ ТЕПЛА ---
+    // ==========================================
+
+    suspend fun getHeatMeterList(addressId: Long, uid: String): GetHeatMeterResponse {
+      println("[$className.getHeatMeterList]: addressId=$addressId, uid=${uid.takeLast(5)}")
+      return postForm("getHeatMeter.php", mapOf("address_id" to addressId.toString(), "uid" to uid))
+    }
+
+    suspend fun getHeatReadings(teplomerId: Long, uid: String): GetHeatReadingResponse {
+      println("[$className.getHeatReadings]: teplomerId=$teplomerId, uid=${uid.takeLast(5)}")
+      return postForm("getHeatReadings.php", mapOf("teplomer_id" to teplomerId.toString(), "uid" to uid))
+    }
+
+    suspend fun addHeatReading(teplomerId: Long, currentValue: Double, newValue: Double, uid: String): GetSimpleResponse {
+      println("[$className.addHeatReading]: teplomerId=$teplomerId, cur=$currentValue, new=$newValue")
+      return postForm(
+        "addCurrentHeatReading.php",
+        mapOf(
+          "teplomer_id" to teplomerId.toString(),
+          "current_value" to currentValue.toString(),
+          "new_value" to newValue.toString(),
+          "uid" to uid
+        )
+      )
+    }
+  suspend fun getLastHeatReading(teplomerId: Long, uid: String): GetLastHeatReadingResponse {
+    println("[$className.getLastHeatReading]: teplomerId=$teplomerId, uid=${uid.takeLast(5)}")
+    return postForm("getLastHeatReading.php", mapOf("teplomer_id" to teplomerId.toString(), "uid" to uid))
+  }
+    suspend fun deleteLastHeatReading(readingId: Long, uid: String): GetSimpleResponse {
+      println("[$className.deleteLastHeatReading]: readingId=$readingId, uid=${uid.takeLast(5)}")
+      return postForm("deleteCurrentHeatReading.php", mapOf("pok_id" to readingId.toString(), "uid" to uid))
+    }
+
+    // ==========================================
+    // --- МОДУЛЬ НАЧИСЛЕНИЙ И ОПЛАТ ---
+    // ==========================================
+
+    suspend fun getFlatService(addressId: Long, uid: String): GetServiceResponse {
+      return postForm("getFlatServices.php", mapOf("address_id" to addressId.toString(), "uid" to uid))
+    }
+
+    suspend fun getFlatPayment(addressId: Long, uid: String): GetPaymentResponse {
+      return postForm("getFlatPayments.php", mapOf("address_id" to addressId.toString(), "uid" to uid))
+    }
+
+    suspend fun insertPayment(paymentId: String, amount: Double, uid: String): InsertPaymentResponse {
+      return postForm(
+        "newPaymentXpay.php",
+        mapOf("payment_id" to paymentId, "amount" to amount.toString(), "uid" to uid)
+      )
+    }
   }
 
-  // --- БЛОК КВАРТИР ---
-
-  // ИСПРАВЛЕНО: Теперь принимает готовую мапу из репозитория, убирая ошибку 'String expected'
-  suspend fun getApartmentList(map: Map<String, String>): GetApartmentsResponse {
-    return postForm("getApartmentsByUser.php", map)
-  }
-
-  // ИСПРАВЛЕНО: Принимает адрес как Long и мапу параметров
-  suspend fun getApartment(addressId: Long, map: Map<String, String>): GetApartmentResponse {
-    return postForm("getFlatById.php", map)
-  }
-
-  // ИСПРАВЛЕНО: Принимает готовую мапу
-  suspend fun addApartmentUser(code: String, uid: String, map: Map<String, String>): GetSimpleResponse {
-    return postForm("addMyFlatByUser.php", map)
-  }
-
-  // ИСПРАВЛЕНО: Принимает адрес как Long и мапу параметров
-  suspend fun deleteApartment(addressId: Long, map: Map<String, String>): GetSimpleResponse {
-    return postForm("deleteFlatByUser.php", map)
-  }
-
-  // --- БЛОК АДМИНИСТРАТОРА ---
-
-  // ИСПРАВЛЕНО: Принимает targetId как Long и мапу параметров
-  suspend fun getOsbbApartmentsList(targetId: Long, map: Map<String, String>): GetApartmentsResponse {
-    return postForm("getOsbbApartmentsList.php", map)
-  }
-
-  suspend fun verifyAdminSecretWord(code: String, map: Map<String, String>): GetSimpleResponse {
-    return postForm("getSecretCode.php", map)
-  }
-
-  // --- СПРАВОЧНИКИ ---
-
-  suspend fun getRaionList(map: Map<String, String>): GetRaionsResponse {
-    return postForm("getRaionList.php", map)
-  }
-
-  // ИСПРАВЛЕНО: Принимает raionId как Long и мапу параметров
-  // [KtorApiService.kt]
-  suspend fun getHouseByRaionList(raionId: Long, map: Map<String, String>): GetHousesResponse {
-    return postForm("getHousesByRaion.php", map)
-  }
-
-
-  // --- ПРОФИЛЬ И СЕРВИСНЫЕ ---
-
-  suspend fun saveUserUid(map: Map<String, String>): GetSimpleResponse {
-    return postForm("saveUserUid.php", map)
-  }
-
-  suspend fun deleteUserAccount(map: Map<String, String>): GetSimpleResponse {
-    return postForm("deleteUserAccount.php", map)
-  }
-
-  // ИСПРАВЛЕНО: Принимает готовую мапу из репозитория
-  suspend fun updateBti(map: Map<String, String>): GetSimpleResponse {
-    return postForm("updateBti.php", map)
-  }
-
-  // --- ЖИЛЬЦЫ И СЧЕТЧИКИ (Перевод всех ИД из Int в Long) ---
-
-  // [KtorApiService.kt]
-// Теперь Ktor автоматически десериализует JSON в объект GetFamilyResponse
-  suspend fun getFamilyList(map: Map<String, String>): GetFamilyResponse {
-    return postForm("getFamilyFromFlat.php", map)
-  }
-
-
-  suspend fun getWaterMeterList(addressId: Long): GetWaterMeterResponse {
-    return postForm("getWaterMeter.php", mapOf("address_id" to addressId.toString()))
-  }
-
-  suspend fun getWaterReadings(vodomerId: Long): GetWaterReadingsResponse {
-    return postForm("getWaterReadings.php", mapOf("vodomer_id" to vodomerId.toString()))
-  }
-
-  suspend fun addWaterReading(vodomerId: Long, value: Double, date: String): GetSimpleResponse {
-    return postForm("addCurrentWaterReading.php", mapOf(
-      "vodomer_id" to vodomerId.toString(),
-      "current_value" to value.toString(),
-      "date" to date
-    ))
-  }
-
-  suspend fun deleteLastWaterReading(readingId: Long): GetSimpleResponse {
-    return postForm("deleteCurrentWaterReading.php", mapOf("pok_id" to readingId.toString()))
-  }
-
-  suspend fun getLastWaterReading(vodomerId: Long): GetLastWaterReadingResponse {
-    return postForm("getLastWaterReading.php", mapOf("vodomer_id" to vodomerId.toString()))
-  }
-
-  // --- ТЕПЛО (Перевод всех ИД из Int в Long) ---
-
-  suspend fun getHeatMeterList(addressId: Long): GetHeatMeterResponse {
-    return postForm("getHeatMeter.php", mapOf("address_id" to addressId.toString()))
-  }
-
-  suspend fun getHeatReadings(teplomerId: Long): GetHeatReadingResponse {
-    return postForm("getHeatReadings.php", mapOf("teplomer_id" to teplomerId.toString()))
-  }
-
-  suspend fun addHeatReading(teplomerId: Long, value: Double, date: String): GetSimpleResponse {
-    return postForm("addCurrentHeatReading.php", mapOf(
-      "teplomer_id" to teplomerId.toString(),
-      "current_value" to value.toString(),
-      "date" to date
-    ))
-  }
-
-  suspend fun deleteLastHeatReading(readingId: Long): GetSimpleResponse {
-    return postForm("deleteCurrentHeatReading.php", mapOf("pok_id" to readingId.toString()))
-  }
-
-  // --- УСЛУГИ И ПЛАТЕЖИ ---
-
-  suspend fun getFlatService(addressId: Long): GetServiceResponse {
-    return postForm("getFlatServices.php", mapOf("address_id" to addressId.toString()))
-  }
-
-  suspend fun getFlatPayment(addressId: Long): GetPaymentResponse {
-    return postForm("getFlatPayments.php", mapOf("address_id" to addressId.toString()))
-  }
-
-  suspend fun insertPayment(params: Map<String, String>): InsertPaymentResponse {
-    return postForm("newPaymentXpay.php", params)
-  }
-}
 

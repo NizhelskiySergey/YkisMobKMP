@@ -1,48 +1,42 @@
 package com.ykis.ykismobkmp.di
 
 import android.content.Context
-import com.ykis.ykismobkmp.domain.ai.GeminiAiManager
-import com.ykis.ykismobkmp.domain.services.LogService
-import com.ykis.ykismobkmp.services.AndroidAiManager
-import com.ykis.ykismobkmp.services.LocalAiEngine
-import com.ykis.ykismobkmp.services.LogServiceImpl
-import org.koin.android.ext.koin.androidContext
-import org.koin.core.context.startKoin
+import androidx.preference.PreferenceManager
+import com.russhwolf.settings.Settings
+import com.russhwolf.settings.SharedPreferencesSettings
+import com.ykis.ykismobkmp.db.DatabaseDriverFactory
+import org.koin.core.module.Module
 import org.koin.dsl.module
 
 /**
- * [androidModule] — Платформенные зависимости для операционной системы Android.
- * Передает контекст приложения в конструктор нативного ИИ-менеджера.
+ * [androidPlatformModule] — Основной нативный граф для Android.
  */
-val androidModule = module {
-  // 1. Нативная реализация логгера (с Firebase Analytics для Android)
-  single<LogService> { LogServiceImpl() }
-
-  // 2. Нативная реализация ИИ-менеджера (с Gemini Nano)
-  single<GeminiAiManager> {
-    // get() автоматически достанет Context, переданный через androidContext(context)
-    AndroidAiManager(
-      context = get(),
-      localEngine = LocalAiEngine()
-    )
+val androidPlatformModule: Module = module {
+  // Кроссплатформенный кэш настроек на базе SharedPreferences.
+  // Зависимость Context подтянется автоматически через get()
+  single<Settings> {
+    SharedPreferencesSettings(PreferenceManager.getDefaultSharedPreferences(get()))
   }
+
+  // Создание Android-драйвера для базы данных SQLDelight 2.x
+  single { DatabaseDriverFactory(get()) }
+
+  // Твоя нативная логика AndroidAiManager / `LogService.android`, если они требуют get()
 }
 
 /**
- * [initAndroidKoin] — Точка старта DI-графа при запуске Android-приложения.
- * Вызывается внутри Вашего класса Application (например, в BaseApplication.onCreate).
+ * [initAndroidKoin] — Точка запуска DI со стороны Android Application.
+ * РЕШЕНИЕ: Регистрируем Context напрямую через single { context }, убирая ошибку 'None of the following candidates'.
  */
 fun initAndroidKoin(context: Context) {
-  startKoin {
-    // КРИТИЧНО ДЛЯ ANDROID: Регистрирует Context в графе Koin, чтобы его мог взять AndroidAiManager
-    androidContext(context)
+  initKoin(
+    platformModule = module {
+      // 1. Внедряем чистый Context как синглтон в граф Koin.
+      // Это полностью заменяет проблемный метод androidContext(context)
+      single<Context> { context }
 
-    modules(
-      commonModule,
-      databaseModule,
-      domainModule,
-      androidModule
-    )
-  }
+      // 2. Включаем наш основной платформенный модуль Android
+      includes(androidPlatformModule)
+    }
+  )
 }
-

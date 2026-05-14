@@ -49,7 +49,7 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.mob.ui.components.EmptyListState
 import com.ykis.mob.ui.components.GroupFilterChip
-import com.ykis.mob.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.screens.service.ServiceViewModel
 import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 import org.koin.compose.viewmodel.koinViewModel

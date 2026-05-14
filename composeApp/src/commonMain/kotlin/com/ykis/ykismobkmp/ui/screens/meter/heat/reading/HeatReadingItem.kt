@@ -1,108 +1,99 @@
 package com.ykis.ykismobkmp.ui.screens.meter.heat.reading
 
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
-import com.ykis.mob.R
-import com.ykis.mob.domain.meter.heat.reading.HeatReadingEntity
-import com.ykis.ykismobkmp.ui.components.BaseCard
-import com.ykis.mob.ui.components.LabelTextWithText
-import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
+import androidx.compose.ui.unit.dp
+import com.ykis.ykismobkmp.domain.entity.HeatReadingEntity
+import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 
+private const val tag = "HeatReadingItemContent"
 
-@Composable
-fun HeatReadingItem(
-    reading: HeatReadingEntity,
-    isAverage : Boolean
-) {
-    BaseCard(
-        label = if(isAverage) stringResource(id = R.string.average) else null
-    ) {
-        HeatReadingItemContent(
-            reading = reading,
-            isAverage = isAverage
-        )
-    }
-}
-
-
+/**
+ * [HeatReadingItemContent] — Кроссплатформенный Stateless-компонент отрисовки полей строки истории опалення.
+ * Динамически переключает верстку на основе флага расчета по среднему нормативу или по прибору учета.
+ */
 @Composable
 fun HeatReadingItemContent(
-    modifier: Modifier = Modifier,
-    reading: HeatReadingEntity,
-    isAverage: Boolean
+  modifier: Modifier = Modifier,
+  reading: HeatReadingEntity,
+  isAverage: Boolean
 ) {
+  Column(modifier = modifier.fillMaxWidth()) {
+    // ИСПРАВЛЕНО: Заменена нативная функция stringResource(R.string.date_format) на чистую интерполяцию строк Котлина
+    LabelTextWithText(
+      modifier = Modifier.padding(vertical = 2.dp),
+      labelText = "Період нарахування: ",
+      valueText = "${reading.dateOt} — ${reading.dateDo}"
+    )
+
     if (isAverage) {
-        LabelTextWithText(
-            labelText = stringResource(id = R.string.period_colon),
-            valueText = stringResource(
-                R.string.date_format,
-                reading.dateOt,
-                reading.dateDo
-            )
-        )
-        LabelTextWithText(
-            labelText = stringResource(id = R.string.days_colon),
-            valueText = reading.dayAvg
-        )
-        LabelTextWithText(
-            labelText = stringResource(id = R.string.gkal_rasch_colon),
-            valueText = reading.gkalRasch
-        )
-        LabelTextWithText(
-            labelText = stringResource(id = R.string.gkal_day_colon),
-            valueText = reading.gkalDay
-        )
+      // Отображение полей начисления по среднему нормативу теплосети г. Южного
+      LabelTextWithText(
+        modifier = Modifier.padding(vertical = 2.dp),
+        labelText = "Розрахункові дні (середнє): ",
+        valueText = reading.dayAvg
+      )
+      LabelTextWithText(
+        modifier = Modifier.padding(vertical = 2.dp),
+        labelText = "Розрахунковий Гкал: ",
+        valueText = reading.gkalRasch
+      )
+      LabelTextWithText(
+        modifier = Modifier.padding(vertical = 2.dp),
+        labelText = "Споживання Гкал/день: ",
+        valueText = reading.gkalDay
+      )
     } else {
-        LabelTextWithText(
-            labelText = stringResource(id = R.string.period_colon),
-            valueText = stringResource(
-                R.string.date_format,
-                reading.dateOt,
-                reading.dateDo
-            )
-        )
-        LabelTextWithText(
-            labelText = stringResource(id = R.string.days_colon),
-            valueText = reading.days.toString()
-        )
-        Row {
-            LabelTextWithText(
-                modifier = modifier.weight(0.5f),
-                labelText = stringResource(id = R.string.last_colon),
-                valueText = reading.last.toString()
-            )
-            LabelTextWithText(
-                modifier = modifier.weight(0.5f),
-                labelText = stringResource(id = R.string.current_colon),
-                valueText = reading.current.toString()
-            )
-        }
+      // Стандартное отображение физического съема показаний тепломера
+      LabelTextWithText(
+        modifier = Modifier.padding(vertical = 2.dp),
+        labelText = "Кількість днів: ",
+        valueText = reading.days.toString()
+      )
 
+      // Внутренняя лента фиксации разницы показаний
+      Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
         LabelTextWithText(
-            labelText = stringResource(id = R.string.qty_colon),
-            valueText = reading.qty.toString()
+          // ИСПРАВЛЕНО: Заменен входящий modifier на изолированный Modifier.weight(0.5f) для защиты разметки
+          modifier = Modifier.weight(0.5f),
+          labelText = "Попередні: ",
+          valueText = reading.last.toString()
         )
         LabelTextWithText(
-            labelText = stringResource(id = R.string.gkal_colon),
-            valueText = reading.gkal.toString()
+          modifier = Modifier.weight(0.5f),
+          labelText = "Поточні: ",
+          valueText = reading.current.toString()
         )
-        LabelTextWithText(
-            labelText = stringResource(id = R.string.rate_colon),
-            valueText = reading.tarif.toString()
-        )
-    }
-}
+      }
 
-@Preview(showBackground = true)
-@Composable
-private fun PreviewHeatReadingItem() {
-    YkisPAMTheme {
-            HeatReadingItem(
-                reading = HeatReadingEntity(),
-                isAverage = true
-            )
+      Spacer(modifier = Modifier.height(2.dp))
+
+      LabelTextWithText(
+        modifier = Modifier.padding(vertical = 2.dp),
+        labelText = "Об'єм (qty): ",
+        valueText = reading.qty.toString()
+      )
+      LabelTextWithText(
+        modifier = Modifier.padding(vertical = 2.dp),
+        labelText = "Спожито теплоенергії: ",
+        valueText = "${reading.gkal} Гкал"
+      )
+      LabelTextWithText(
+        modifier = Modifier.padding(vertical = 2.dp),
+        labelText = "Діючий тариф: ",
+        valueText = "${reading.tarif} грн/Гкал"
+      )
     }
+  }
 }

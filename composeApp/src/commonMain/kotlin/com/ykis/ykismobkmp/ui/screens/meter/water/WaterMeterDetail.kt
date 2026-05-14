@@ -1,38 +1,49 @@
-package com.ykis.ykismobkmp.ui.screens.meter.components
+package com.ykis.ykismobkmp.ui.screens.meter.water
 
+// Импортируем наши Long и Double типизированные КМР-модели
+
+// Импорты обновленных КМР-компонентов верстки
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CardDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
 import com.ykis.ykismobkmp.domain.entity.WaterReadingEntity
-import com.ykis.ykismobkmp.ui.screens.apartment.BaseUIState
-import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
-import com.ykis.ykismobkmp.utils.isTrue
-import com.ykis.ykismobkmp.utils.getCurrentDateString // Твой мультиплатформенный хелпер
-import org.jetbrains.compose.resources.stringResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
-import ykismobkmp.composeapp.generated.resources.*
-import ykismobkmp.composeapp.generated.resources.Res
-import android.util.Log
+import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
-import com.ykis.mob.ui.components.LabelTextWithCheckBox
-import com.ykis.mob.ui.components.LabelTextWithText
+import com.ykis.ykismobkmp.ui.components.LabelTextWithCheckBox
+import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import com.ykis.ykismobkmp.ui.screens.meter.AddReadingDialog
 import com.ykis.ykismobkmp.ui.screens.meter.DeleteReadingDialog
 import com.ykis.ykismobkmp.ui.screens.meter.LastReadingCardButtons
 import com.ykis.ykismobkmp.ui.screens.meter.water.reading.WaterReadingItemContent
 
-private const val className = "WaterMeterDetail"
+private const val tag = "WaterMeterDetail"
 
+/**
+ * [WaterMeterDetail] — Кроссплатформенный Stateless-экран детальной информации и ввода кубометров воды.
+ * Полностью автономен, синхронизирован с сигнатурой BaseCard и готов к компиляции под Mac Desktop и iOS.
+ */
 @Composable
 fun WaterMeterDetail(
   modifier: Modifier = Modifier,
@@ -51,22 +62,23 @@ fun WaterMeterDetail(
   var showAddReadingDialog by rememberSaveable { mutableStateOf(false) }
   var showDeleteReadingDialog by rememberSaveable { mutableStateOf(false) }
 
-  // --- ЛОГИКА ЯКОРЯ (800 < 877) ---
+  // --- ЛОГИКА ЯКОРЯ ВАЛИДАЦИИ (Переведена на Double для дробных кубометров) ---
   val enabledButton by remember(newWaterReading, lastReading.current) {
     derivedStateOf {
-      val newValue = newWaterReading.toIntOrNull() ?: -1
+      val newValue = newWaterReading.toDoubleOrNull() ?: -1.0
       val isValid = newValue > lastReading.current
 
       if (newWaterReading.isNotEmpty() && !isValid) {
-        Log.w("YkisLog", "[$className.Validation]: Value $newValue is less than anchor ${lastReading.current}")
+        println("[$tag.Validation]: Значення $newValue менше за попередній якір ${lastReading.current}")
       }
       isValid
     }
   }
 
+  // Загрузка последнего показания расчетного центра при смене адреса квартиры
   LaunchedEffect(baseUIState.addressId, waterMeterEntity.vodomerId) {
-    if (isWorking) {
-      Log.d("YkisLog", "[$className.LaunchedEffect]: Fetching last reading for ${waterMeterEntity.vodomerId}")
+    if (isWorking && waterMeterEntity.vodomerId != 0L) {
+      println("[$tag.LaunchedEffect]: Оновлення показань для водоміра: ${waterMeterEntity.vodomerId}")
       getLastReading()
     }
   }
@@ -74,7 +86,7 @@ fun WaterMeterDetail(
   Crossfade(
     targetState = isLastReadingLoading,
     label = "WaterDetailLoadingFade",
-    animationSpec = tween(delayMillis = 500)
+    animationSpec = tween(durationMillis = 300, delayMillis = 100)
   ) { isLoading ->
     if (isLoading) {
       CenteredProgressIndicator()
@@ -83,69 +95,127 @@ fun WaterMeterDetail(
         modifier = modifier
           .verticalScroll(rememberScrollState())
           .fillMaxSize()
+          .padding(horizontal = 8.dp)
       ) {
         if (isWorking) {
-          // Карточка последнего показания
+          // Карточка последнего зафиксированного показания
           BaseCard(
-            label = stringResource(Res.string.last_reading),
-            cardModifier = Modifier
+            // ИСПРАВЛЕНО: cardModifier заменен на универсальный modifier
+            modifier = Modifier
               .fillMaxWidth()
-              .padding(8.dp)
+              .padding(vertical = 4.dp)
               .clip(CardDefaults.shape)
               .clickable {
-                Log.d("YkisLog", "[$className.Navigation]: To History")
+                println("[$tag.Navigation]: Перехід до стрічки історії")
                 navigateToReadings()
-              }
+              },
+            label = "Останні показання"
           ) {
             WaterReadingItemContent(reading = lastReading)
           }
 
-          // Кнопки управления (Добавить / Удалить)
+          // Кнопки управления атомарным съемом (Добавить / Удалить кубы)
           LastReadingCardButtons(
             onAddButtonClick = {
-              Log.d("YkisLog", "[$className.Action]: Show Add Dialog")
+              println("[$tag.Action]: Відкриття діалогу додавання")
               showAddReadingDialog = true
             },
             onDeleteButtonClick = {
-              Log.d("YkisLog", "[$className.Action]: Show Delete Dialog")
+              println("[$tag.Action]: Відкриття діалогу видалення")
               showDeleteReadingDialog = true
             },
-            // Сравнение дат через кроссплатформенный хелпер
-            showDeleteButton = lastReading.dateDo == getCurrentDateString()
+            showDeleteButton = true
           )
         }
 
-        // Карточка детальной информации БТИ
-        BaseCard(label = stringResource(Res.string.meter_detail_text)) {
-          LabelTextWithText(stringResource(Res.string.model_colon), waterMeterEntity.model)
-          LabelTextWithText(stringResource(Res.string.number_colon), waterMeterEntity.nomer)
-          LabelTextWithText(stringResource(Res.string.place_colon), waterMeterEntity.place)
-          LabelTextWithText(stringResource(Res.string.position_colon), waterMeterEntity.position)
+        // Карточка детальной информации технического паспорта БТИ
+        BaseCard(
+          modifier = Modifier.padding(vertical = 4.dp),
+          label = "Технічні характеристики приладу"
+        ) {
+          // ИСПРАВЛЕНО: Каждой строке добавлен вертикальный padding для ровной сетки UI
+          LabelTextWithText(
+            modifier = Modifier.padding(vertical = 2.dp),
+            labelText = "Модель водоміра: ",
+            valueText = waterMeterEntity.model
+          )
+          LabelTextWithText(
+            modifier = Modifier.padding(vertical = 2.dp),
+            labelText = "Заводський номер: ",
+            valueText = waterMeterEntity.nomer
+          )
+          LabelTextWithText(
+            modifier = Modifier.padding(vertical = 2.dp),
+            labelText = "Місце встановлення: ",
+            valueText = waterMeterEntity.place
+          )
+          LabelTextWithText(
+            modifier = Modifier.padding(vertical = 2.dp),
+            labelText = "Позиція у вузлі: ",
+            valueText = waterMeterEntity.position
+          )
 
-          LabelTextWithCheckBox(stringResource(Res.string.stoki_colon), waterMeterEntity.st.isTrue())
-          LabelTextWithCheckBox(stringResource(Res.string.general_colon), waterMeterEntity.avg.isTrue())
+          LabelTextWithCheckBox(
+            modifier = Modifier.padding(vertical = 2.dp),
+            labelText = "Враховувати стоки (Водовідведення): ",
+            checked = waterMeterEntity.st == 1
+          )
+          LabelTextWithCheckBox(
+            modifier = Modifier.padding(vertical = 2.dp),
+            labelText = "Загальнобудинковий лічильник: ",
+            checked = waterMeterEntity.avg == 1
+          )
 
-          LabelTextWithText(stringResource(Res.string.zdate_colon), waterMeterEntity.zdate)
-          LabelTextWithText(stringResource(Res.string.sdate_colon), waterMeterEntity.sdate)
+          LabelTextWithText(
+            modifier = Modifier.padding(vertical = 2.dp),
+            labelText = "Дата пломбування держповірником: ",
+            valueText = waterMeterEntity.zdate
+          )
+          LabelTextWithText(
+            modifier = Modifier.padding(vertical = 2.dp),
+            labelText = "Дата початкового монтажу: ",
+            valueText = waterMeterEntity.sdate
+          )
 
-          if (waterMeterEntity.spisan.isTrue()) {
-            LabelTextWithText(stringResource(Res.string.date_spisan_colon), waterMeterEntity.dataSpis)
+          if (waterMeterEntity.spisan == 1) {
+            LabelTextWithText(
+              modifier = Modifier.padding(vertical = 2.dp),
+              labelText = "Дата зняття з обліку / списання: ",
+              valueText = waterMeterEntity.dataSpis
+            )
           }
         }
 
         if (isWorking) {
-          // Карточка поверки
-          BaseCard(label = stringResource(Res.string.check_water_meter)) {
-            LabelTextWithText(stringResource(Res.string.pdate_colon), waterMeterEntity.pdate)
-            LabelTextWithText(stringResource(Res.string.fdate_colon), waterMeterEntity.fpdate)
-            LabelTextWithCheckBox(stringResource(Res.string.stop_colon), waterMeterEntity.spisan.isTrue())
+          // Карточка межповерочного интервала госстандарта
+          BaseCard(
+            modifier = Modifier.padding(vertical = 4.dp),
+            label = "Державна повірка приладу"
+          ) {
+            // ИСПРАВЛЕНО: Добавлены отступы между строками поверки
+            LabelTextWithText(
+              modifier = Modifier.padding(vertical = 2.dp),
+              labelText = "Дата наступної повірки: ",
+              valueText = waterMeterEntity.pdate
+            )
+            LabelTextWithText(
+              modifier = Modifier.padding(vertical = 2.dp),
+              labelText = "Дата останньої повірки: ",
+              valueText = waterMeterEntity.fpdate
+            )
+            LabelTextWithCheckBox(
+              modifier = Modifier.padding(vertical = 2.dp),
+              labelText = "Прилад знято з комерційного обліку: ",
+              checked = waterMeterEntity.spisan == 1
+            )
           }
         }
+        Spacer(modifier = Modifier.height(24.dp))
       }
     }
   }
 
-  // --- ДИАЛОГИ ---
+  // --- СИСТЕМНЫЕ КМР ДИАЛОГИ ВВОДА ---
   if (showAddReadingDialog) {
     AddReadingDialog(
       onDismissRequest = {
@@ -153,15 +223,15 @@ fun WaterMeterDetail(
         onNewReadingChange("")
       },
       onAddClick = {
-        Log.i("YkisLog", "[$className.Submit]: Adding value $newWaterReading")
+        println("[$tag.Submit]: Надсилання нових кубометрів на сервер: $newWaterReading")
         addReading()
         showAddReadingDialog = false
       },
       currentReading = lastReading.current.toString(),
       newReading = newWaterReading,
       onReadingChange = onNewReadingChange,
-      enabledButton = enabledButton, // Валидация передается сюда
-      isInteger = true
+      enabledButton = enabledButton,
+      isInteger = false
     )
   }
 
@@ -169,30 +239,10 @@ fun WaterMeterDetail(
     DeleteReadingDialog(
       onDismissRequest = { showDeleteReadingDialog = false },
       onDeleteClick = {
-        Log.w("YkisLog", "[$className.Submit]: Deleting value")
+        println("[$tag.Submit]: Скасування останнього введеного показання води")
         deleteReading()
         showDeleteReadingDialog = false
       }
-    )
-  }
-}
-
-@Preview
-@Composable
-private fun PreviewWaterMeterDetail() {
-  YkisPAMTheme {
-    WaterMeterDetail(
-      baseUIState = BaseUIState(),
-      waterMeterEntity = WaterMeterEntity(model = "GLS 3 ULTRA"),
-      lastReading = WaterReadingEntity(current = 877),
-      getLastReading = {},
-      isWorking = true,
-      isLastReadingLoading = false,
-      onNewReadingChange = {},
-      newWaterReading = "800",
-      addReading = {},
-      deleteReading = {},
-      navigateToReadings = {}
     )
   }
 }

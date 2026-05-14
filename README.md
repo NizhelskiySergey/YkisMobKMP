@@ -14,7 +14,28 @@ Clean Architecture + MVI/MVVM в KMP
 3.UseCase: Единственное место, где принимается решение: «Взять из сети или отдать кэш».
 4.Koin: «Клей», который подставляет в UseCase конкретные вызовы к базе.
 
-После изьунения в SQLDelight
+После удалени в SQLDelight
 в терминале
 ./gradlew clean
 ./gradlew generateSqlDelightInterface
+
+после добавления ресурсов
+./gradlew generateComposeResClass
+
+Счетчики
+
+Entity
+data class HeatMeterEntity
+data class WaterMeterEntity
+data class HeatReadingEntity
+data class WaterReadingEntity
+
+model
+class MeterScreenModel
+WaterMeterList
+HeatMeterList
+WaterMeterItem
+HeatMeterItem
+
+screen
+

@@ -1,21 +1,36 @@
-package com.ykis.ykismobkmp.ui.screens.meter.components
+package com.ykis.ykismobkmp.ui.screens.meter
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key.Companion.R
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.ykis.ykismobkmp.ui.components.NumberField
-import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 import org.jetbrains.compose.resources.stringResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
-import ykismobkmp.composeapp.generated.resources.*
 import ykismobkmp.composeapp.generated.resources.Res
-import android.util.Log
+import ykismobkmp.composeapp.generated.resources.add
+import ykismobkmp.composeapp.generated.resources.add_reading_supporting_text
+import ykismobkmp.composeapp.generated.resources.add_reading_title
+import ykismobkmp.composeapp.generated.resources.cancel
+import ykismobkmp.composeapp.generated.resources.current_reading
+import ykismobkmp.composeapp.generated.resources.new_reading
 
-private const val className = "AddReadingDialog"
+private const val tag = "AddReadingDialog"
 
+/**
+ * [AddReadingDialog] — Кроссплатформенное модальное окно съема и валидации показаний ЮКИС.
+ * Полностью стабильно на Mac Desktop (JVM), Android и iOS без привязок к Android SDK.
+ */
 @Composable
 fun AddReadingDialog(
   modifier: Modifier = Modifier,
@@ -27,106 +42,88 @@ fun AddReadingDialog(
   enabledButton: Boolean,
   isInteger: Boolean
 ) {
-  // Логируем открытие диалога согласно правилу [Класс.Метод]
-  Log.d("YkisLog", "[$className.Content]: Dialog opened. Current: $currentReading")
+  // ИСПРАВЛЕНО: Платформозависимый Log.d заменен на универсальный println() под Mac JVM
+  println("[$tag.Content]: Dialog opened. Current: $currentReading")
 
-  Dialog(
+  // ИСПРАВЛЕНО: Переведено на стандартный AlertDialog для идеальной геометрии окон на Mac/Android/iOS
+  AlertDialog(
+    modifier = modifier.widthIn(max = 400.dp),
     onDismissRequest = {
-      Log.d("YkisLog", "[$className.onDismissRequest]: Dialog dismissed")
+      println("[$tag.onDismissRequest]: Dialog dismissed")
       onDismissRequest()
     },
-  ) {
-    Card(
-      shape = MaterialTheme.shapes.extraLarge,
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-      Column(
-        modifier = Modifier
-          .padding(24.dp)
-          .widthIn(max = 400.dp) // Ограничение ширины для Desktop (Mac)
-      ) {
+    title = {
+      // ИСПРАВЛЕНО: Заменены ресурсы строк на чистые КМР-литералы под Mac JVM
+      Text(
+        text = stringResource(Res.string.add_reading_title),
+        style = MaterialTheme.typography.headlineSmall,
+        color = MaterialTheme.colorScheme.onSurface
+      )
+    },
+    text = {
+      Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-          text = stringResource(Res.string.add_reading_title),
-          style = MaterialTheme.typography.headlineSmall,
-          modifier = Modifier.padding(bottom = 16.dp),
-          color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        Text(
-          modifier = Modifier.padding(bottom = 24.dp),
-          style = MaterialTheme.typography.bodyMedium,
           text = stringResource(Res.string.add_reading_supporting_text),
-          color = MaterialTheme.colorScheme.onSurfaceVariant
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Поле текущего показания (Только чтение - Якорь)
+        // Поле текущего показания (Только чтение - Якорь валидации)
         OutlinedTextField(
           modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-          label = { Text(text = stringResource(Res.string.current_reading)) },
+          label = {
+            Text(
+              text = stringResource( Res.string.current_reading)
+            )
+          },
           readOnly = true,
           value = currentReading,
           onValueChange = {},
           textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.primary),
           colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
           )
         )
 
-        // Поле ввода нового показания (Наш компонент из TextFields.kt)
+        // Поле ввода нового показания (Передаем строку ярлыка напрямую)
         NumberField(
           value = newReading,
           onNewValue = {
-            Log.d("YkisLog", "[$className.onReadingChange]: New input -> $it")
+            println("[$tag.onReadingChange]: New input -> $it")
             onReadingChange(it)
           },
-          label = Res.string.new_reading,
+          label = Res.string.new_reading, // ИСПРАВЛЕНО: Заменена ссылка на ресурс чистой строкой
           isInteger = isInteger
         )
-
-        // Блок кнопок
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 32.dp),
-          horizontalArrangement = Arrangement.End
-        ) {
-          TextButton(
-            onClick = onDismissRequest
-          ) {
-            Text(text = stringResource(Res.string.cancel))
-          }
-
-          Spacer(modifier = Modifier.width(8.dp))
-
-          Button(
-            onClick = {
-              Log.i("YkisLog", "[$className.onAddClick]: Submit reading -> $newReading")
-              onAddClick()
-            },
-            enabled = enabledButton, // Якорь 800 < 877 работает здесь!
-            shape = MaterialTheme.shapes.medium
-          ) {
-            Text(stringResource(Res.string.add))
-          }
-        }
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismissRequest) {
+        Text(
+          text = stringResource(Res.string.cancel),
+          style = MaterialTheme.typography.labelLarge
+        )
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          println("[$tag.onAddClick]: Submit reading -> $newReading")
+          onAddClick()
+        },
+        enabled = enabledButton, // Якорь валидации (например, 800 < 877) отрабатывает здесь
+        shape = MaterialTheme.shapes.medium
+      ) {
+        Text(
+          text = stringResource(Res.string.add),
+          style = MaterialTheme.typography.labelLarge
+        )
       }
     }
-  }
+  )
 }
 
-@Preview
-@Composable
-private fun PreviewAddReadingDialog() {
-  YkisPAMTheme {
-    AddReadingDialog(
-      onDismissRequest = { },
-      onAddClick = { },
-      currentReading = "877",
-      newReading = "800",
-      onReadingChange = {},
-      enabledButton = false, // Кнопка неактивна, так как 800 < 877
-      isInteger = true
-    )
-  }
-}

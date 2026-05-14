@@ -46,7 +46,7 @@ import com.ykis.mob.core.snackbar.SnackbarMessage.Companion.toMessage
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.mob.ui.navigation.AddApartmentScreen
 import com.ykis.mob.ui.navigation.InfoApartmentScreenDest
-import com.ykis.mob.ui.navigation.NavigationType
+import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 import org.koin.compose.viewmodel.koinViewModel
 @Composable

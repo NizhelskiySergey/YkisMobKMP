@@ -7,8 +7,8 @@ import androidx.compose.ui.res.stringResource
 import com.ykis.mob.R
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.mob.ui.navigation.ContentDetail
-import com.ykis.mob.ui.navigation.NavigationType
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.service.detail.ServiceDetailContent
 import com.ykis.ykismobkmp.ui.screens.service.list.TotalDebtState
 import com.ykis.ykismobkmp.ui.screens.service.payment.choice.PaymentChoiceStateful

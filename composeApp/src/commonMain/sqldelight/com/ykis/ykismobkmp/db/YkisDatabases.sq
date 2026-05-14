@@ -381,13 +381,13 @@ insertHeatMeter:
 INSERT OR REPLACE INTO heatMeterEntity VALUES ?;
 
 getHeatMeterByApartment:
-SELECT * FROM heatMeterEntity WHERE addressId = ? ORDER BY work;
+SELECT * FROM heatMeterEntity WHERE addressId = :addressId ORDER BY work;
 
 deleteAllHeatMeters:
 DELETE FROM heatMeterEntity;
 
-deleteHeatMetersNotInIds:
-DELETE FROM heatMeterEntity WHERE addressId NOT IN ?;
+deleteHeatMetersByApartment:
+DELETE FROM heatMeterEntity WHERE addressId = :addressId;
 
 
 -- ==========================================
@@ -404,13 +404,17 @@ ORDER BY dateReading DESC;
 deleteAllHeatReadings:
 DELETE FROM heatReadingEntity;
 
-deleteHeatReadingsNotInIds:
-DELETE FROM heatReadingEntity WHERE addressId NOT IN ?;
+deleteHeatReadingsMeter:
+DELETE FROM heatReadingEntity WHERE teplomerId =:teplomerId ;
 
-deleteHeatReadingById:
-DELETE FROM heatReadingEntity WHERE pokId NOT IN ?;
+deleteHeatReadingByPokId:
+DELETE FROM heatReadingEntity WHERE pokId =:pokId;
 
 
+getLastHeatReadingByMeter:
+SELECT last, current FROM heatReadingEntity
+WHERE teplomerId = :teplomerId
+ORDER BY dateReading DESC LIMIT 1;
 -- ==========================================
 -- 9. DAO WATER METER (Водомеры)
 -- ==========================================
@@ -425,8 +429,8 @@ ORDER BY work;
 deleteAllWaterMeters:
 DELETE FROM waterMeterEntity;
 
-deleteWaterMetersNotInIds:
-DELETE FROM waterMeterEntity WHERE addressId NOT IN ?;
+deleteWaterMetersApartment:
+DELETE FROM waterMeterEntity WHERE addressId =:addressId;
 
 
 -- ==========================================
@@ -443,14 +447,14 @@ ORDER BY dateReadings DESC;
 deleteAllWaterReadings:
 DELETE FROM waterReadingEntity;
 
-deleteWaterReadingsNotInIds:
-DELETE FROM waterReadingEntity WHERE addressId NOT IN ?;
+deleteWaterReadingsMeter:
+DELETE FROM waterReadingEntity WHERE vodomerId = :vodomerId;
 
-deleteWaterReadingById:
-DELETE FROM waterReadingEntity WHERE pokId NOT IN ?;
+deleteWaterReadingByPokId:
+DELETE FROM waterReadingEntity WHERE pokId =:pokId;
 
-getLastReadingForMeter:
+getLastWaterReadingByMeter:
 SELECT lastValue, currentValue FROM waterReadingEntity
-WHERE vodomerId = ?
+WHERE vodomerId = :vodomerId
 ORDER BY dateReadings DESC LIMIT 1;
 

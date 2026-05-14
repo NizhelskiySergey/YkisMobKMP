@@ -28,7 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ykis.mob.domain.payment.request.InsertPaymentParams
 import com.ykis.mob.domain.service.request.ServiceParams
 import com.ykis.ykismobkmp.ui.BaseUIState
-import com.ykis.mob.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.screens.service.ServiceViewModel
 import com.ykis.ykismobkmp.ui.screens.service.list.TotalDebtState
 import com.ykis.ykismobkmp.ui.screens.service.list.assembleServiceList

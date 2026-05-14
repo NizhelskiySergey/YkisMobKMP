@@ -91,10 +91,13 @@ kotlin {
       implementation(libs.firebase.common)
       implementation(libs.firebase.auth)
       implementation(libs.firebase.functions)
+      implementation(libs.firebase.config)
       implementation(libs.firebase.messaging)
       implementation(libs.firebase.firestore)
       implementation(libs.firebase.database)
       implementation(libs.firebase.storage)
+      implementation(libs.multiplatform.settings)
+
 
       // Наш мультиплатформенный логгер
       implementation(libs.napier)
@@ -110,11 +113,15 @@ kotlin {
       implementation(libs.firebase.crashlytics)
       implementation(libs.firebase.analytics)
       implementation(libs.firebase.common.ktx)
+      implementation(libs.androidx.preference.ktx)
       implementation(libs.androidx.ui.viewbinding)
       implementation(libs.androidx.camera.core)
       implementation(libs.androidx.camera.camera2)
       implementation(libs.androidx.camera.lifecycle)
       implementation(libs.androidx.camera.view)
+      implementation(libs.googleid)
+      implementation(libs.androidx.credentials)
+      implementation(libs.androidx.credentials.play.services.auth)
 
     }
 

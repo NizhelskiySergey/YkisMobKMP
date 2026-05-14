@@ -2,7 +2,7 @@ package com.ykis.ykismobkmp.ui.screens.service
 
 import androidx.lifecycle.viewModelScope
 import com.ykis.mob.data.remote.service.ServiceParams
-import com.ykis.mob.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.core.utils.Log
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.data.payment.InsertPaymentParams

@@ -4,14 +4,9 @@ import com.ykis.ykismobkmp.data.responses.GetLastWaterReadingResponse
 import com.ykis.ykismobkmp.data.responses.GetSimpleResponse
 import com.ykis.ykismobkmp.data.responses.GetWaterMeterResponse
 import com.ykis.ykismobkmp.data.responses.GetWaterReadingsResponse
+import com.ykis.ykismobkmp.domain.repository.meter.AddWaterReadingParams
 
 
-data class AddWaterReadingParams(
-  val uid : String,
-  val meterId: Int,
-  val newValue: Int,
-  val currentValue: Int
-)
 interface WaterMeterRemoteRepository {
   suspend fun getWaterMeterList(uid: String, addressId: Int): GetWaterMeterResponse
   suspend fun getWaterReadings(uid: String, vodomerId: Int): GetWaterReadingsResponse

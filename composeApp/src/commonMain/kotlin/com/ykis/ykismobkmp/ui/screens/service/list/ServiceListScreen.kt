@@ -29,8 +29,8 @@ import com.ykis.mob.domain.UserRole
 import com.ykis.mob.domain.service.request.ServiceParams
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.mob.ui.navigation.ContentDetail
-import com.ykis.mob.ui.navigation.NavigationType
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.theme.extendedColor
 
 @Composable

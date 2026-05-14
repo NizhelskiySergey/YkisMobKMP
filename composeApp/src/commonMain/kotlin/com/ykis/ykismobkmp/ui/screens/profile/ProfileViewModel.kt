@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.ykis.mob.core.Resource
 import com.ykis.mob.domain.ClearDatabase
-import com.ykis.mob.firebase.service.repo.FirebaseService
+import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.mob.firebase.service.repo.LogService
 import com.ykis.ykismobkmp.ui.BaseViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

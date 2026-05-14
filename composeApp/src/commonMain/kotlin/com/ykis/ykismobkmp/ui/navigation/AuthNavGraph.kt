@@ -7,14 +7,12 @@ import androidx.navigation.navigation
 import com.ykis.mob.ui.navigation.SignInScreen
 import com.ykis.mob.ui.navigation.SignUpScreen
 import com.ykis.mob.ui.navigation.VerifyEmailScreen
-import com.ykis.ykismobkmp.ui.screens.auth.sign_in.SignInScreen
-import com.ykis.ykismobkmp.ui.screens.auth.sign_up.SignUpScreen
-import com.ykis.ykismobkmp.ui.screens.auth.sign_up.SignUpViewModel
-import com.ykis.ykismobkmp.ui.screens.auth.verify_email.VerifyEmailScreen
+import com.ykis.ykismobkmp.ui.screens.auth.SignUpScreen
+import com.ykis.ykismobkmp.ui.screens.auth.SignUpScreenModel
 import org.koin.compose.viewmodel.koinViewModel
 
 fun NavGraphBuilder.authNavGraph(
-  navController: NavHostController,signUpViewModel: SignUpViewModel
+  navController: NavHostController,signUpViewModel: SignUpScreenModel
 ) {
   navigation(
     route = Graph.AUTHENTICATION,
@@ -29,7 +27,7 @@ fun NavGraphBuilder.authNavGraph(
 
     composable(SignUpScreen.route) {
       // ViewModel создается только для этого экрана
-      val viewModel: SignUpViewModel = koinViewModel()
+      val viewModel: SignUpScreenModel = koinViewModel()
       SignUpScreen(
         viewModel = viewModel,
         navController = navController
@@ -37,7 +35,7 @@ fun NavGraphBuilder.authNavGraph(
     }
 
     composable(VerifyEmailScreen.route) {
-      val viewModel: SignUpViewModel = koinViewModel()
+      val viewModel: SignUpScreenModel = koinViewModel()
       VerifyEmailScreen(
         restartApp = { route ->
           navController.navigate(route) {

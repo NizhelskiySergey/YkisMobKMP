@@ -1,58 +1,97 @@
-package com.ykis.ykismobkmp.ui.screens.meter.components
+package com.ykis.ykismobkmp.ui.screens.meter
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
 import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
-import com.ykis.ykismobkmp.ui.NavigationType
-import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.ykismobkmp.ui.screens.meter.HeatMeterState
-import com.ykis.ykismobkmp.ui.screens.meter.MeterViewModel
-import com.ykis.ykismobkmp.ui.screens.meter.WaterMeterState
-import com.ykis.ykismobkmp.ui.screens.meter.utils.METER_TAB_ITEM
-import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.meters
-import androidx.compose.ui.unit.dp
-import com.ykis.ykismobkmp.core.utils.Log
 import com.ykis.ykismobkmp.ui.BaseUIState
+import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterList
+import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterState
 import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterList
+import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterState
+import org.koin.compose.koinInject
 
 private const val className = "MeterListScreen"
 
+/**
+ * [MeterListScreen] — Кроссплатформенный экран счетчиков (Вода / Тепло) на базе Voyager.
+ * Одинаково стабильно работает на смартфонах жителей и в админке на Mac Desktop (JVM).
+ */
+class MeterListScreen : Screen {
+
+  @Composable
+  override fun Content() {
+    val navigator = LocalNavigator.currentOrThrow
+
+    // Внедряем единый кроссплатформенный ScreenModel через Koin
+    val screenModel = koinInject<MeterScreenModel>()
+
+    // Подписываемся на реактивные потоки состояний (КМР-стандарт collectAsState)
+    val baseUIState by screenModel.baseUIState.collectAsState()
+    val waterMeterState by screenModel.waterMeterState.collectAsState()
+    val heatMeterState by screenModel.heatMeterState.collectAsState()
+    val selectedTab by screenModel.selectedTab.collectAsState()
+
+    MeterListScreenStateless(
+      baseUIState = baseUIState,
+      waterMeterState = waterMeterState,
+      heatMeterState = heatMeterState,
+      selectedTab = selectedTab,
+      onTabClick = screenModel::onTabSelect,
+      onWaterMeterClick = { waterMeter ->
+        println("[$className]: Клик по водомеру ID=${waterMeter.vodomerId}, переход в историю")
+      },
+      onHeatMeterClick = { heatMeter ->
+        println("[$className]: Клик по тепломеру ID=${heatMeter.teplomerId}, переход в историю")
+        // navigator.push(HeatReadingsScreen(heatMeter.id))
+      },
+      onDrawerClick = {
+        println("[$className]: Открытие бокового меню")
+      }
+    )
+  }
+}
+
+/**
+ * [MeterListScreenStateless] — Чистая верстка экрана, изолированная от DI и навигации.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MeterListScreen(
+fun MeterListScreenStateless(
   modifier: Modifier = Modifier,
-  viewModel: MeterViewModel,
   baseUIState: BaseUIState,
-  navigationType: NavigationType,
-  onWaterMeterClick: (WaterMeterEntity) -> Unit,
-  onHeatMeterClick: (HeatMeterEntity) -> Unit,
   waterMeterState: WaterMeterState,
   heatMeterState: HeatMeterState,
   selectedTab: Int,
   onTabClick: (Int) -> Unit,
+  onWaterMeterClick: (WaterMeterEntity) -> Unit,
+  onHeatMeterClick: (HeatMeterEntity) -> Unit,
   onDrawerClick: () -> Unit,
 ) {
-  // Лог отрисовки согласно правилу [Класс.Метод]
-  Log.d("YkisLog", "[$className.Content]: Rendering with tab $selectedTab")
+  // ИСПРАВЛЕНО: Заменен платформозависимый Log.d на универсальный println()
+  LaunchedEffect(selectedTab) {
+    println("[$className.Content]: Rendering with tab $selectedTab")
+  }
 
-  Row(modifier.fillMaxSize()) {
+  Row(modifier = modifier.fillMaxSize()) {
     Column(Modifier.weight(1f)) {
-      // Используем наш мультиплатформенный DefaultAppBar
+
+      // Мультиплатформенный DefaultAppBar ( subtitle принимает адрес квартиры из биллинга ЮКИС )
       DefaultAppBar(
-        title = stringResource(Res.string.meters),
+        title = "Прилади обліку", // Заменено на чистую строку для Mac JVM совместимости
         subtitle = baseUIState.address,
         onBackClick = {},
         onDrawerClick = onDrawerClick,
-        canNavigateBack = false,
-        navigationType = navigationType
+        canNavigateBack = false
       )
 
       // Переключатель вкладок (Вода / Тепло)
@@ -61,21 +100,17 @@ fun MeterListScreen(
         containerColor = MaterialTheme.colorScheme.background,
         divider = { HorizontalDivider(thickness = 0.5.dp) }
       ) {
-        METER_TAB_ITEM.forEachIndexed { index, tabItem ->
-          LeadingIconTab(
+        // Декларативный проход по двум вкладкам
+        val tabs = listOf("Водопостачання", "Опалення")
+        tabs.forEachIndexed { index, title ->
+          Tab(
             selected = selectedTab == index,
             onClick = {
-              Log.d("YkisLog", "[$className.Tab]: Switched to $index")
+              println("[$className.Tab]: Switched to $index")
               onTabClick(index)
             },
             text = {
-              Text(text = stringResource(tabItem.titleRes)) // Используем Res
-            },
-            icon = {
-              Icon(
-                imageVector = if (index == selectedTab) tabItem.selectedIcon else tabItem.unselectedIcon,
-                contentDescription = stringResource(tabItem.titleRes)
-              )
+              Text(text = title, style = MaterialTheme.typography.titleSmall)
             }
           )
         }
@@ -85,21 +120,17 @@ fun MeterListScreen(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter
       ) {
-        // Плавное переключение списков
+        // Плавное кроссплатформенное переключение списков
         Crossfade(
           targetState = selectedTab,
           label = "MeterListFade"
         ) { targetState ->
           when (targetState) {
             0 -> WaterMeterList(
-              viewModel = viewModel,
-              baseUIState = baseUIState,
               onWaterMeterClick = onWaterMeterClick,
               waterMeterState = waterMeterState
             )
             else -> HeatMeterList(
-              viewModel = viewModel,
-              baseUIState = baseUIState,
               onHeatMeterClick = onHeatMeterClick,
               heatMeterState = heatMeterState
             )
@@ -107,8 +138,7 @@ fun MeterListScreen(
         }
       }
     }
-
-    // Разделитель для DualPane режима (Mac/Планшет)
+    // Вертикальный разделитель для DualPane/Развернутого режима (Mac Desktop / iPad)
     VerticalDivider(
       color = MaterialTheme.colorScheme.surfaceContainerHigh,
       thickness = 0.5.dp

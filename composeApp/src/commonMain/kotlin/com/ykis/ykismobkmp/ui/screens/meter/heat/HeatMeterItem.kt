@@ -1,104 +1,108 @@
 package com.ykis.ykismobkmp.ui.screens.meter.heat
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.Text
-import androidx.compose.material3.surfaceColorAtElevation
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
-import com.ykis.mob.R
-import com.ykis.mob.core.ext.isTrue
-import com.ykis.mob.domain.meter.heat.meter.HeatMeterEntity
-import com.ykis.mob.ui.components.LabelTextWithText
-import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
+import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
+import com.ykis.ykismobkmp.ui.components.LabelTextWithText
+import org.jetbrains.compose.resources.painterResource
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.ic_heat_meter5_24px
 
+private const val className = "HeatMeterItem"
 
+/**
+ * [HeatMeterItem] — Кроссплатформенная карточка счетчика тепла г. Южный.
+ * Полностью стабильна на Mac Desktop (JVM) и мобильных платформах без привязок к Android SDK.
+ */
 @Composable
 fun HeatMeterItem(
-    modifier: Modifier = Modifier,
-    heatMeter : HeatMeterEntity
+  modifier: Modifier = Modifier,
+  heatMeter: HeatMeterEntity
 ) {
-    val statusText :String
-    val alpha: Float
-    when {
-        heatMeter.spisan.isTrue() ->{
-            statusText = stringResource(R.string.written_off)
-            alpha =0.5f
-        }
-        heatMeter.out.isTrue() -> {
-            statusText = stringResource(R.string.on_the_test)
-            alpha =0.5f
-        }
-        else -> {
-            statusText = stringResource(R.string.works)
-            alpha = 1f
-        }
+  val statusText: String
+  val componentAlpha: Float
+
+  // ИСПРАВЛЕНО: Прямое КМР-сравнение Int-флагов биллинга расчетного центра Южного (1 - Да, 0 - Нет)
+  when {
+    heatMeter.spisan == 1 -> {
+      statusText = "Списаний"
+      componentAlpha = 0.5f
     }
-    OutlinedCard(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(48.dp)),
+    heatMeter.out == 1 -> {
+      statusText = "На повірці"
+      componentAlpha = 0.5f
+    }
+    else -> {
+      statusText = "Працює"
+      componentAlpha = 1f
+    }
+  }
+
+  // Применяем прозрачность альфа-канала ко всей карточке, если прибор учета списан или на поверке
+  OutlinedCard(
+    modifier = modifier.alpha(componentAlpha),
+    // ИСПРАВЛЕНО: surfaceColorAtElevation заменен на стабильный контейнер Material 3 Compose Multiplatform
+    colors = CardDefaults.cardColors(
+      containerColor = MaterialTheme.colorScheme.surfaceContainer
+    )
+  ) {
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 12.dp, horizontal = 8.dp),
+      verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                modifier = Modifier
-                    .padding(horizontal = 4.dp)
-                    .size(64.dp),
-                painter = painterResource(id = R.drawable.ic_heat_meter5_24px),
-                contentDescription = null
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = heatMeter.model,
-                    style = MaterialTheme.typography.titleLarge
-                )
-                LabelTextWithText(
-                    labelText = stringResource(id = R.string.number_colon),
-                    valueText = heatMeter.number
-                )
-                Text(
-                    text = statusText
-                )
+      // ИСПРАВЛЕНО: Иконка тепла рендерится через кроссплатформенный генератор ресурсов Res
+      Icon(
+        modifier = Modifier
+          .padding(horizontal = 8.dp)
+          .size(48.dp),
+        painter = painterResource(Res.drawable.ic_heat_meter5_24px),
+        contentDescription = null,
+        tint = if (heatMeter.work == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+      )
 
-            }
-            Icon(
-                modifier = Modifier.padding(end = 24.dp),
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null
-            )
-        }
-    }
-}
-
-
-@Preview(showBackground = true)
-@Composable
-private fun PreviewHeatMeter() {
-    YkisPAMTheme {
-        HeatMeterItem(
-            heatMeter = HeatMeterEntity(
-                model = "Heat Turbo 1343",
-                number = "1332342342"
-            )
+      Column(
+        modifier = Modifier.weight(1f).padding(start = 4.dp)
+      ) {
+        Text(
+          text = heatMeter.model,
+          style = MaterialTheme.typography.titleMedium,
+          color = MaterialTheme.colorScheme.onSurface
         )
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        LabelTextWithText(
+          labelText = "Номер: ",
+          valueText = heatMeter.number
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Text(
+          text = statusText,
+          style = MaterialTheme.typography.bodyMedium,
+          color = if (heatMeter.spisan == 1 || heatMeter.out == 1)
+            MaterialTheme.colorScheme.error
+          else
+            MaterialTheme.colorScheme.primary
+        )
+      }
+
+      Icon(
+        modifier = Modifier.padding(end = 12.dp),
+        imageVector = Icons.Default.ChevronRight,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant
+      )
     }
+  }
 }

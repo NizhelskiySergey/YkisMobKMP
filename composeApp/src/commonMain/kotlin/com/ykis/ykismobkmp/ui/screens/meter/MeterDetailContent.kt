@@ -5,9 +5,8 @@ import androidx.compose.runtime.Composable
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.screens.apartment.BaseUIState
 import com.ykis.ykismobkmp.ui.screens.meter.HeatMeterState
-import com.ykis.ykismobkmp.ui.screens.meter.MeterViewModel
+import com.ykis.ykismobkmp.ui.screens.meter.MeterScreenModel
 import com.ykis.ykismobkmp.ui.screens.meter.WaterMeterState
-import com.ykis.ykismobkmp.utils.isTrue // Твой экстеншн для Byte/Int -> Boolean
 import android.util.Log
 import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterDetail
 import com.ykis.ykismobkmp.ui.screens.meter.heat.reading.HeatReadings
@@ -18,11 +17,11 @@ private const val className = "MeterDetailContent"
 
 @Composable
 fun MeterDetailContent(
-  baseUIState: BaseUIState,
-  contentDetail: ContentDetail,
-  waterMeterState: WaterMeterState,
-  viewModel: MeterViewModel,
-  heatMeterState: HeatMeterState
+    baseUIState: BaseUIState,
+    contentDetail: ContentDetail,
+    waterMeterState: WaterMeterState,
+    viewModel: MeterScreenModel,
+    heatMeterState: HeatMeterState
 ) {
   // Логируем смену контента согласно правилу [Класс.Метод]
   Log.d("YkisLog", "[$className.Content]: Switching to $contentDetail")
@@ -50,7 +49,10 @@ fun MeterDetailContent(
             viewModel.onNewWaterReadingChange(newValue.filter { it.isDigit() })
           },
           addReading = {
-            Log.i("YkisLog", "[$className.Water]: Adding reading ${waterMeterState.newWaterReading}")
+            Log.i(
+              "YkisLog",
+              "[$className.Water]: Adding reading ${waterMeterState.newWaterReading}"
+            )
             viewModel.addWaterReading(
               uid = baseUIState.uid.toString(),
               currentValue = waterMeterState.lastWaterReading.current,

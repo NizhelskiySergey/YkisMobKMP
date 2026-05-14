@@ -3,16 +3,21 @@ package com.ykis.ykismobkmp.domain.entity
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * [HeatReadingEntity] — Кроссплатформенная доменная модель показаний счетчика тепла.
+ * Полностью типизирована под Long для бесшовной интеграции с SQLDelight и Ktor.
+ */
 @Serializable
 data class HeatReadingEntity(
+  // ИСПРАВЛЕНО: Все ключевые ЖКХ-идентификаторы переведены на тип Long
   @SerialName("address_id")
-  val addressId: Int = 0,
+  val addressId: Long = 0L,
 
   @SerialName("pok_id")
-  val pokId: Int = 0,
+  val pokId: Long = 0L,
 
   @SerialName("teplomer_id")
-  val teplomerId: Int = 0,
+  val teplomerId: Long = 0L,
 
   @SerialName("date_readings")
   val dateReading: String = "Unknown",
@@ -23,14 +28,33 @@ data class HeatReadingEntity(
   @SerialName("date_do")
   val dateDo: String = "2024-01-01",
 
+  @SerialName("edizm")
   val edizm: String = "Unknown",
+
+  @SerialName("koef")
   val koef: String = "Unknown",
-  val days: Short = 0,
+
+  // ИСПРАВЛЕНО: Платформозависимый Short изменен на универсальный Int
+  @SerialName("days")
+  val days: Int = 0,
+
+  @SerialName("last")
   val last: Double = 0.0,
+
+  @SerialName("current")
   val current: Double = 0.0,
+
+  @SerialName("gkal")
   val gkal: Double = 0.0,
-  val avg: Byte = 0,
+
+  // ИСПРАВЛЕНО: Платформозависимый Byte изменен на универсальный Int
+  @SerialName("avg")
+  val avg: Int = 0,
+
+  @SerialName("tarif")
   val tarif: Double = 0.0,
+
+  @SerialName("qty")
   val qty: Double = 0.0,
 
   @SerialName("pok_ot")
@@ -54,6 +78,8 @@ data class HeatReadingEntity(
   @SerialName("data_in")
   val dateIn: String = "Unknown",
 
+  @SerialName("operator")
   val operator: String = "Unknown"
 )
+
 

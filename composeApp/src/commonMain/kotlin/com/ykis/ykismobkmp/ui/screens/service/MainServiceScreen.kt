@@ -25,9 +25,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.layout.DisplayFeature
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.mob.ui.components.BaseDualPanelContent
-import com.ykis.mob.ui.navigation.ContentDetail
-import com.ykis.mob.ui.navigation.ContentType
-import com.ykis.mob.ui.navigation.NavigationType
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.navigation.ContentType
+import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.service.list.ServiceListScreen
 import com.ykis.ykismobkmp.ui.screens.service.list.TotalDebtState
 

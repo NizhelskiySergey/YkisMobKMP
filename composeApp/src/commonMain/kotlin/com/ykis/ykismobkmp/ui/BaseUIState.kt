@@ -5,7 +5,7 @@ package com.ykis.ykismobkmp.ui
  * Содержит данные профиля, текущей квартиры и метаданные для навигации.
  */
 
-import com.ykis.mob.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.entity.RaionEntity
 import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
@@ -62,12 +62,4 @@ data class BaseUIState(
 /**
  * Роли пользователей в системе Ykis
  */
-enum class UserRole {
-  StandardUser,    // Житель
-  OsbbUser,        // Админ ОСББ
-  VodokanalUser,   // Водоканал (9998)
-  YtkeUser,        // Теплосеть (9997)
-  TboUser,         // Вывоз мусора (9999)
-  Unknown          // Начальное состояние
-}
 

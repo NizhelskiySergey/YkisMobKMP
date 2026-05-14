@@ -1,6 +1,6 @@
 package com.ykis.ykismobkmp.ui.screens.chat
 import cafe.adriel.voyager.core.model.screenModelScope
-import com.ykis.mob.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.core.utils.Log
 import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import com.ykis.ykismobkmp.data.responses.BaseResponse

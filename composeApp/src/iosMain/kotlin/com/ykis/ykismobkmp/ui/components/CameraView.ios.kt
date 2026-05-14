@@ -6,17 +6,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.interop.UIKitView
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.interop.UIKitView
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.readValue
 import platform.AVFoundation.*
 import platform.CoreGraphics.CGRectZero
-import platform.Foundation.NSTemporaryDirectory
-import platform.Foundation.NSUUID
-import platform.Foundation.writeToFile
 import platform.UIKit.UIView
+import platform.Foundation.NSUUID
+import platform.Foundation.NSTemporaryDirectory
+import platform.Foundation.NSData
+import platform.Foundation.writeToFile
 import platform.darwin.NSObject
+
+private const val tag = "CameraView"
 
 /**
  * [PhotoCaptureDelegate] — Нативный Objective-C делегат для захвата фото.
@@ -34,18 +37,17 @@ class PhotoCaptureDelegate(
     error: platform.Foundation.NSError?
   ) {
     if (error == null) {
-      // Извлекаем байты JPEG напрямую из современного объекта AVCapturePhoto
       val imageData = didFinishProcessingPhoto.fileDataRepresentation()
       if (imageData != null) {
         val rawPath = NSTemporaryDirectory() + NSUUID.UUID().UUIDString() + ".jpg"
         imageData.writeToFile(rawPath, true)
-        println("[CameraView.ios]: Фото збережено за шляхом: $rawPath")
+        println("[$tag.ios]: Фото збережено за шляхом: $rawPath")
         onCaptured(rawPath)
       }
     } else {
-      println("[CameraView.ios]: Помилка зйомки: ${error.localizedDescription}")
+      println("[$tag.ios]: Помилка зйомки: ${error.localizedDescription}")
     }
-    onFinished() // Сбрасываем флаг загрузки в Compose UI
+    onFinished()
   }
 }
 
@@ -62,7 +64,6 @@ actual fun CameraView(
   val photoOutput = remember { AVCapturePhotoOutput() }
   var isCapturing by remember { mutableStateOf(false) }
 
-  // Инициализация сессии камеры при старте экрана
   LaunchedEffect(Unit) {
     captureSession.sessionPreset = AVCaptureSessionPresetPhoto
     val device = AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo) ?: return@LaunchedEffect
@@ -74,7 +75,6 @@ actual fun CameraView(
     captureSession.startRunning()
   }
 
-  // Автоматическая остановка камеры при уходе с экрана
   DisposableEffect(captureSession) {
     onDispose {
       captureSession.stopRunning()
@@ -82,7 +82,6 @@ actual fun CameraView(
   }
 
   Box(modifier = Modifier.fillMaxSize()) {
-    // Отрисовка живого видеопотока iOS внутри Jetpack Compose холста
     UIKitView(
       modifier = Modifier.fillMaxSize(),
       factory = {
@@ -96,19 +95,17 @@ actual fun CameraView(
       }
     )
 
-    // Кнопка затвора камеры
     Button(
       modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp),
       enabled = !isCapturing,
       onClick = {
         isCapturing = true
 
-        // Настройки формата JPEG для сохранения на диск
         val photoSettings = AVCapturePhotoSettings.photoSettingsWithFormat(
           mapOf(AVVideoCodecKey to AVVideoCodecJPEG)
         )
 
-        // Запускаем захват, передавая наш NSObject-делегат
+        // ИСПРАВЛЕНО: Первый параметр называется 'settings', второй — 'delegate'
         photoOutput.capturePhotoWithSettings(
           settings = photoSettings,
           delegate = PhotoCaptureDelegate(
@@ -122,4 +119,3 @@ actual fun CameraView(
     }
   }
 }
-

@@ -47,7 +47,7 @@ import com.ykis.mob.R
 import com.ykis.mob.core.Resource
 import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.mob.ui.navigation.NavigationType
+import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.mob.ui.navigation.SignUpScreen
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -33,8 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import com.ykis.mob.R
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.mob.ui.navigation.ContentDetail
-import com.ykis.mob.ui.navigation.NavigationType
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.service.list.TotalDebtState
 import com.ykis.ykismobkmp.ui.screens.service.list.TotalServiceDebt
 import com.ykis.ykismobkmp.ui.screens.service.list.assembleServiceList

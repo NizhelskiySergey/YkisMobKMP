@@ -3,7 +3,7 @@
  * Адаптировано для проекта ykis.mob
  */
 
-package com.ykis.mob.ui.navigation
+package com.ykis.ykismobkmp.ui.navigation
 
 import android.graphics.Rect
 import androidx.window.layout.FoldingFeature

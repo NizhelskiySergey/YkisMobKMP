@@ -55,7 +55,7 @@ import com.ykis.ykismobkmp.ui.components.DialogCancelButton
 import com.ykis.ykismobkmp.ui.components.DialogConfirmButton
 import com.ykis.mob.ui.components.SingleSelectDialog
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.mob.ui.navigation.NavigationType
+import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 import firebase.com.protolitewrapper.BuildConfig
 

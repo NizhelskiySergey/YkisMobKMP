@@ -8,7 +8,9 @@ android-targetSdk = "37"
 material3WindowSizeClass = "1.7.3"
 material3WindowSizeClassVersion = "1.9.0"
 materialIconsExtended = "1.7.3"
+multiplatformSettings = "1.3.0"
 napier = "2.7.1"
+preferenceKtx = "1.2.1"
 sqlDelight = "2.3.2"
 androidx-activity = "1.13.0"
 androidx-appcompat = "1.7.1"
@@ -24,6 +26,7 @@ material3 = "1.10.0-alpha05"
 sqliteDriver = "2.0.2"
 uiViewbinding = "1.11.1"
 voyager = "1.1.0-beta02"
+credentials-play-services-auth = "1.6.0"
 koin = "4.2.1"
 ktor = "3.4.3"
 gitlive-firebase = "2.4.0"
@@ -32,7 +35,8 @@ coil = "3.4.0"
 splashscreen="1.2.0"
 google-services = "4.4.4"
 crashlytics = "3.0.7"
-
+googleid = "1.2.0"
+credentials = "1.6.0"
 playServicesMeasurementApi = "23.2.0"
 webcamCapture = "0.3.12"
 
@@ -41,6 +45,8 @@ androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.r
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCore" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraCore" }
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraCore" }
+androidx-preference-ktx = { module = "androidx.preference:preference-ktx", version.ref = "preferenceKtx" }
+multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatformSettings" }
 webcam-capture = { module = "com.github.sarxos:webcam-capture", version.ref = "webcamCapture" }
 
 
@@ -110,13 +116,16 @@ firebase-firestore = { module = "dev.gitlive:firebase-firestore", version.ref = 
 firebase-database = { module = "dev.gitlive:firebase-database", version.ref = "gitlive-firebase" }
 firebase-storage = { module = "dev.gitlive:firebase-storage", version.ref = "gitlive-firebase" }
 firebase-functions = { module = "dev.gitlive:firebase-functions", version.ref = "gitlive-firebase" }
+firebase-config = { module = "dev.gitlive:firebase-config", version.ref = "gitlive-firebase" }
 firebase-common = { module = "dev.gitlive:firebase-common", version.ref = "gitlive-firebase" }
 firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "gitlive-firebase" }
 firebase-messaging = { module = "dev.gitlive:firebase-messaging", version.ref = "gitlive-firebase" }
 firebase-crashlytics = { module = "dev.gitlive:firebase-crashlytics", version.ref = "gitlive-firebase" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics-ktx", version = "firebase-analytics" }
 firebase-common-ktx = { module = "com.google.firebase:firebase-common-ktx", version = "firebase-common-ktx" }
-
+googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
+androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials-play-services-auth" }
+androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
 # Изображения (Coil3 поддерживает KMP)
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
