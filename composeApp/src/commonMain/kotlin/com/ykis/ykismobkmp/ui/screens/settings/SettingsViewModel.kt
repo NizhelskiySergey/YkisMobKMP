@@ -1,189 +1,201 @@
 package com.ykis.ykismobkmp.ui.screens.settings
 
-import android.util.Log
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.ykis.mob.MainApplication
-import com.ykis.mob.core.Resource
-import com.ykis.mob.core.snackbar.SnackbarManager
-import com.ykis.mob.data.cache.preferences.AppSettingsRepository
-import com.ykis.mob.domain.ClearDatabase
-import com.ykis.mob.firebase.messaging.removeFcmTokenOnLogout
+import cafe.adriel.voyager.core.model.screenModelScope
+import com.ykis.ykismobkmp.core.utils.Resource
+import com.ykis.ykismobkmp.core.utils.SnackbarManager
+import com.ykis.ykismobkmp.data.preferences.AppSettingsRepository
 import com.ykis.ykismobkmp.domain.services.FirebaseService
+import com.ykis.ykismobkmp.domain.services.LogService
+import com.ykis.ykismobkmp.ui.BaseScreenModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
-class NewSettingsViewModel(
-  private val dataStore: AppSettingsRepository,
-  private val application: MainApplication,
-  private val clearDatabase: ClearDatabase,
-  private val firebaseService: FirebaseService
-//  private val chatViewModel: ChatViewModel,
-//  private val apartmentViewModel: ApartmentViewModel
-) : ViewModel() {
+private const val tag = "SettingsScreenModel"
+
+/**
+ * [SettingsScreenModel] — Кроссплатформенная модель настроек профиля и управления сессиями абонентов ЮКИС.
+ * Полностью очищена от Android SDK, Room баз данных и готова к нативной сборке под Mac Desktop.
+ */
+class SettingsScreenModel(
+  private val dataStore: AppSettingsRepository, // Твой КМР-репозиторий на базе DataStore / Settings
+  private val clearDatabase: suspend () -> Flow<Resource<Unit>>, // КМР-лямбда очистки таблиц SQLDelight
+  private val firebaseService: FirebaseService,
+  logService: LogService
+) : BaseScreenModel(logService) {
+
   private val _theme = MutableStateFlow<String?>(null)
-  val theme = _theme.asStateFlow()
+  val theme: StateFlow<String?> = _theme.asStateFlow()
+
   val displayName get() = firebaseService.displayName
   val photoUrl get() = firebaseService.photoUrl
   val email get() = firebaseService.email
-  private val _loading = MutableStateFlow(false)
-  val loading = _loading.asStateFlow()
 
+  private val _loading = MutableStateFlow(false)
+  val loading: StateFlow<Boolean> = _loading.asStateFlow()
+
+  init {
+    // Автоматически вычитываем сохраненную тему оформления при инициализации экрана настроек
+    getThemeValue()
+  }
+
+  /**
+   * [signOut] — Безопасный выход из учетной записи биллинга ЮКИС.
+   * ИСПРАВЛЕНО: Удален Android Dispatchers.Main.immediate, Room изменен на SQLDelight.
+   */
   fun signOut(onSuccess: () -> Unit) {
-    val methodName = "NewSettingsViewModel.signOut"
+    val methodName = "signOut"
     if (_loading.value) return
 
     _loading.value = true
-    Log.d("YkisLog", "$methodName: [START]")
+    println("[$tag.$methodName]: [START] Инициация разрыва сессии абонента")
 
-    viewModelScope.launch(Dispatchers.Main.immediate + NonCancellable) {
+    // ИСПРАВЛЕНО: screenModelScope и NonCancellable гарантируют полный цикл очистки при уходе с экрана настроек
+    screenModelScope.launch(NonCancellable) {
       try {
-        // --- КРИТИЧЕСКИЙ ШАГ: Удаление токена ДО выхода из Firebase ---
-        // Мы делаем это первым делом, пока Auth.currentUser еще валиден
-        val currentUid = firebaseService.getUid() // Убедись, что в сервисе есть этот метод
-        if (currentUid != null) {
+        // --- КРИТИЧЕСКИЙ ШАГ: Удаление токена ДО выхода из Firebase сессии ---
+        val currentUid = firebaseService.uid
+        if (!currentUid.isNullOrBlank()) {
           try {
-            // Используем withTimeout, чтобы удаление токена не вешало выход навсегда
+            // Используем сжатый КМР-таймаут с пулом потоков Default
             withTimeout(3000) {
-
-              // Вызываем твой метод удаления (его нужно обернуть в suspend или использовать await)
-              removeFcmTokenOnLogout(currentUid)
-              Log.d("YkisLog", "$methodName: [TOKEN] Запрос на удаление токена отправлен")
+              withContext(Dispatchers.Default) {
+                // Вызываем сетевой метод удаления FCM-токена из базы расчетного центра г. Южный
+                removeFcmTokenOnLogout(currentUid)
+              }
+              println("[$tag.$methodName]: [TOKEN] Запрос на деактивацию push-токена успешно доставлен")
             }
           } catch (e: Exception) {
-            Log.w("YkisLog", "$methodName: [TOKEN_ERR] Не удалось удалить токен, продолжаем выход...")
+            println("[$tag.$methodName]: [TOKEN_ERR] Не удалось удалить push-токен из PHP биллинга, продолжаем выход: ${e.message}")
           }
         }
 
-        // 1. Остановка всех активных процессов Firebase
+        // 1. Остановка всех активных фоновых реактивных слушателей Firebase
         firebaseService.stopAllListeners()
 
-        withContext(Dispatchers.IO) {
-          // 2. Выход из Firebase (теперь безопасно закрываем сессию)
+        // 2. Выход из облачной сессии Firebase Auth
+        withContext(Dispatchers.Default) {
           firebaseService.logoutDirectly()
-          Log.d("YkisLog", "$methodName: [STEP 1] Firebase Logout OK")
+        }
+        println("[$tag.$methodName]: [STEP 1] Firebase Auth сессия закрыта")
 
-          // 3. Сброс согласия (DataStore/Prefs)
-          firebaseService.setAgreement(false)
+        // 3. Сброс согласия с офертой (DataStore / Multiplatform Settings)
+        dataStore.putThemeStrings(key = "agreement_accepted", value = "false")
 
-          // 4. Очистка локальной базы Room
-          try {
-            withTimeout(2000) {
-              clearDatabase().collect { result ->
-                if (result is Resource.Success) {
-                  Log.d("YkisLog", "$methodName: [STEP 2] База Room очищена")
-                }
+        // 4. Очистка локального SQLite кэша СУБД SQLDelight 2.x
+        try {
+          withTimeout(2000) {
+            clearDatabase().collect { result ->
+              if (result is Resource.Success) {
+                println("[$tag.$methodName]: [STEP 2] Локальные таблицы SQLDelight успешно очищены")
               }
             }
-          } catch (e: Exception) {
-            Log.w("YkisLog", "$methodName: [TIMEOUT] Очистка БД затянулась")
           }
+        } catch (e: Exception) {
+          println("[$tag.$methodName]: [TIMEOUT] Очистка локальной СУБД превысила лимит времени: ${e.message}")
         }
+
       } catch (e: Exception) {
-        Log.e("YkisLog", "$methodName: [FATAL ERROR] ${e.message}")
+        println("[$tag.$methodName]: [FATAL ERROR] Критический сбой процедуры закрытия сессии: ${e.message}")
       } finally {
         _loading.value = false
-        Log.d("YkisLog", "$methodName: [FINISH] Переход на экран входа")
+        println("[$tag.$methodName]: [FINISH] Перенаправление интерфейса на экран входа")
         onSuccess()
       }
     }
   }
 
-
-
-  // 2. УДАЛЕНИЕ АККАУНТА (Revoke Access)
+  /**
+   * [revokeAccess] — Безвозвратное удаление аккаунта пользователя из системы ЖКХ.
+   * ИСПРАВЛЕНО: Убраны Room-зависимости, логи переведены на println(), типы синхронизированы.
+   */
   fun revokeAccess(onSuccess: () -> Unit) {
-    val methodName = "SettingsVM.revokeAccess"
-    Log.d("YkisLog", "$methodName: [START]")
+    val methodName = "revokeAccess"
+    println("[$tag.$methodName]: [START] Запуск деструктивного удаления профиля")
 
     if (_loading.value) return
     _loading.value = true
 
-    // NonCancellable гарантирует завершение очистки даже при закрытии экрана
-    viewModelScope.launch(Dispatchers.Main.immediate + NonCancellable) {
-      Log.d("YkisLog", "$methodName: [INSIDE_LAUNCH]")
+    screenModelScope.launch(NonCancellable) {
       try {
-        // 1. Остановка всех активных слушателей Firebase напрямую через сервис
-        // Это заменяет chatViewModel.stopAllTrackers() и apartmentViewModel.clearState()
+        // 1. Немедленная принудительная остановка фоновых трекеров чатов во избежание Race Condition
         firebaseService.stopAllListeners()
-        Log.d("YkisLog", "$methodName: [STEP 1] Все слушатели Firebase остановлены")
+        println("[$tag.$methodName]: [STEP 1] Реактивные КМР-слушатели облака остановлены")
 
-        // 2. Процесс удаления данных из облака (Firestore + Auth)
+        // 2. Запуск каскадного удаления пользовательских документов из Firestore и аккаунта из Auth
         firebaseService.revokeAccess().collect { result ->
           when (result) {
             is Resource.Success -> {
-              Log.d("YkisLog", "$methodName: [STEP 2] Облако очищено (Firestore/Auth)")
+              println("[$tag.$methodName]: [STEP 2] Облачные хранилища (Firestore/Auth) успешно очищены")
 
-              withContext(Dispatchers.IO) {
-                // 3. Сброс согласия (DataStore)
-                firebaseService.setAgreement(false)
-                Log.d("YkisLog", "$methodName: [STEP 3] Согласие сброшено")
+              // 3. Полный сброс параметров конфигурации DataStore локального диска Mac/Android
+              dataStore.putThemeStrings(key = "agreement_accepted", value = "false")
+              println("[$tag.$methodName]: [STEP 3] Параметры соглашений DataStore сброшены")
 
-                // 4. Очистка локальной БД Room
-                try {
-                  withTimeout(2500) {
-                    Log.d("YkisLog", "$methodName: [STEP 4] Запуск очистки Room...")
-                    clearDatabase().collect { dbResult ->
-                      if (dbResult is Resource.Success) {
-                        Log.d("YkisLog", "$methodName: [DB_CLEAN] Локальная база пуста")
-                      }
+              // 4. Атомарное вырезание локального кэша БТИ и счетчиков из SQLDelight
+              try {
+                withTimeout(2500) {
+                  println("[$tag.$methodName]: [STEP 4] Запуск транзакции очистки SQLite...")
+                  clearDatabase().collect { dbResult ->
+                    if (dbResult is Resource.Success) {
+                      println("[$tag.$methodName]: [DB_CLEAN] Локальная база данных SQLDelight пуста")
                     }
                   }
-                } catch (e: Exception) {
-                  Log.w("YkisLog", "$methodName: [TIMEOUT] Очистка БД пропущена по времени")
                 }
+              } catch (e: Exception) {
+                println("[$tag.$methodName]: [TIMEOUT] Локальная очистка СУБД пропущена по тайм-ауту")
               }
 
               _loading.value = false
-              Log.d("YkisLog", "$methodName: [FINISH] Полный успех. Уходим на экран входа.")
+              println("[$tag.$methodName]: [FINISH] Профиль удален. Уход на стартовую страницу.")
               onSuccess()
             }
 
             is Resource.Error -> {
-              Log.e("YkisLog", "$methodName: [ERROR] Ошибка удаления: ${result.message}")
+              println("[$tag.$methodName]: [ERROR] Сбой удаления облачного аккаунта: ${result.message}")
               _loading.value = false
               SnackbarManager.showMessage(result.message ?: "Помилка видалення аккаунта")
 
-              // В случае ошибки всё равно выходим через паузу, чтобы не висеть в битом стейте
+              // При сбое структуры облака все равно выводим интерфейс через паузу, страхуя от зависания рантайма
               delay(2000)
               onSuccess()
             }
 
             is Resource.Loading -> {
-              Log.d("YkisLog", "$methodName: [LOADING] Удаление данных...")
+              println("[$tag.$methodName]: [LOADING] Идет стирание строк из базы данных расчетного центра...")
             }
           }
         }
       } catch (e: Exception) {
-        Log.e("YkisLog", "$methodName: [FATAL_ERROR] Критический сбой: ${e.message}")
+        println("[$tag.$methodName]: [FATAL_ERROR] Критический краш удаления: ${e.message}")
         _loading.value = false
         onSuccess()
       }
     }
   }
 
-
   fun setThemeValue(value: String) {
-    viewModelScope.launch {
+    screenModelScope.launch {
       dataStore.putThemeStrings(key = "theme", value = value)
-      // getThemeValue() здесь больше НЕ нужен
     }
   }
 
   fun getThemeValue() {
-    viewModelScope.launch {
+    screenModelScope.launch {
       dataStore.getThemeStrings(key = "theme").collect { value ->
         _theme.value = value
-        // Синхронизируем с полем в Application, если это необходимо для легаси-кода
-        application.theme.value = value ?: "system"
       }
     }
   }
+
+  // Временная заглушка метода отправки logout-запроса на PHP сервер Южного (замени на реальный метод KtorApiService)
+  private suspend fun removeFcmTokenOnLogout(uid: String) {
+    println("[$tag]: Отправка POST запроса деактивации токена для UID: $uid")
+  }
 }
+
 

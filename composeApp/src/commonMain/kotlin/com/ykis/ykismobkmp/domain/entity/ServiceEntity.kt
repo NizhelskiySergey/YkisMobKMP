@@ -6,8 +6,8 @@ import kotlinx.serialization.SerialName
 @Serializable
 data class ServiceEntity(
   @SerialName("address_id")
-  val addressId: Int = 0,
-
+  val id: Long = 0,
+  val addressId: Long = 0,
   val service: String = "Unknown",
   val service1: String? = "Unknown",
   val service2: String? = "Unknown",

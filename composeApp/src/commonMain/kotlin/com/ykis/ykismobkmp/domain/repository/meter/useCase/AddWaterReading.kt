@@ -3,7 +3,7 @@ package com.ykis.ykismobkmp.domain.repository.meter.useCase
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import com.ykis.ykismobkmp.data.responses.GetSimpleResponse
-import com.ykis.ykismobkmp.domain.repository.meter.AddWaterReadingParams
+import com.ykis.ykismobkmp.domain.repository.meter.MeterReadingsParams
 import com.ykis.ykismobkmp.domain.repository.meter.WaterMeterRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -23,14 +23,14 @@ class AddWaterReading(
    * [invoke] — Выполнение Use Case.
    * ЯВНО ТИПИЗИРОВАНО: Возвращает Flow строго с типом Resource<GetSimpleResponse?>.
    */
-  operator fun invoke(addReadingParams: AddWaterReadingParams): Flow<Resource<GetSimpleResponse?>> =
+  operator fun invoke(meterReadingsParams: MeterReadingsParams): Flow<Resource<GetSimpleResponse?>> =
     flow<Resource<GetSimpleResponse?>> { // Принудительно задаем тип контекста всего потока
       val methodName = "invoke"
       try {
         emit(Resource.Loading())
 
         // Отправка новых кубометров через Ktor репозиторий напрямую
-        val response = repository.addWaterReading(addReadingParams)
+        val response = repository.addWaterReading(meterReadingsParams)
 
         if (response.success == 1) {
           // ЯВНО ТИПИЗИРУЕМ: Указываем генерик для Success, исключая mismatch типов

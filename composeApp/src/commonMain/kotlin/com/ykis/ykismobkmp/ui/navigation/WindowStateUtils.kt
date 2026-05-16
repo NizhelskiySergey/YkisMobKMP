@@ -4,9 +4,7 @@
  */
 
 package com.ykis.ykismobkmp.ui.navigation
-
-import android.graphics.Rect
-import androidx.window.layout.FoldingFeature
+import androidx.compose.ui.geometry.Rect
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 

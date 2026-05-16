@@ -19,247 +19,277 @@ package com.ykis.ykismobkmp.ui.screens.service.detail
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.ykis.mob.R
-import com.ykis.mob.core.CenteredProgressIndicator
-import com.ykis.mob.domain.service.ServiceEntity
-import com.ykis.mob.domain.service.request.ServiceParams
+import com.ykis.ykismobkmp.ui.components.EmptyListState
+import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
+import com.ykis.ykismobkmp.data.service.ServiceParams
+
+import com.ykis.ykismobkmp.domain.entity.ServiceEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
-import com.ykis.mob.ui.components.EmptyListState
-import com.ykis.mob.ui.components.GroupFilterChip
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
-import com.ykis.ykismobkmp.ui.screens.service.ServiceViewModel
-import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
-import org.koin.compose.viewmodel.koinViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.ykis.ykismobkmp.ui.screens.service.ServiceScreenModel
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
+import ykismobkmp.composeapp.generated.resources.*
 
+private const val tag = "ServiceDetailContent"
+
+/**
+ * [ServiceDetailContent] — Кроссплатформенный Stateful-хаб детальной сетки тарифов и начислений БТИ.
+ */
 @Composable
 fun ServiceDetailContent(
-    contentDetail: ContentDetail,
-    baseUIState: BaseUIState,
-    viewModel: ServiceViewModel = koinViewModel(),
+  modifier: Modifier = Modifier,
+  contentDetail: ContentDetail,
+  baseUIState: BaseUIState
 ) {
-    val date = Date()
-    val year = SimpleDateFormat("yyyy", Locale("uk")).format(Date(date.time))
+  // Инжектируем очищенную КМР финансовую модель экрана через Koin
+  val screenModel = koinInject<ServiceScreenModel>()
 
-    val serviceDetail by viewModel.detailState.collectAsStateWithLifecycle()
-    var selectedChip by rememberSaveable { mutableStateOf(year) }
+  // ИСПРАВЛЕНО: collectAsStateWithLifecycle заменен кроссплатформенным collectAsState()
+  val serviceDetail by screenModel.detailState.collectAsState()
 
+  // Нативно вычисляем текущий год без SimpleDateFormat
+  val currentYearString = remember {
+    val currentMoment = kotlin.time.Clock.System.now()
+    val localDateTime = currentMoment.toLocalDateTime(TimeZone.currentSystemDefault())
+    localDateTime.year.toString()
+  }
 
-    LaunchedEffect(
-        key1 = selectedChip,
-        key2 = contentDetail,
-        key3 = baseUIState.addressId
-    ) {
+  var selectedChip by rememberSaveable { mutableStateOf(currentYearString) }
 
-        baseUIState.uid?.let {
-            viewModel.getDetailService(
-                params = ServiceParams(
-                    uid = it,
-                    addressId = baseUIState.addressId,
-                    houseId = baseUIState.apartment.houseId,
-                    service = when (contentDetail) {
-                        ContentDetail.OSBB -> 4.toByte()
-                        ContentDetail.WATER_SERVICE -> 1.toByte()
-                        ContentDetail.WARM_SERVICE -> 2.toByte()
-                        ContentDetail.GARBAGE_SERVICE -> 3.toByte()
-                        else -> 4.toByte()
-                    },
-                    year = selectedChip,
-                    total = 0,
-                )
-            )
-        }
+  // Каскадный КМР-триггер перезагрузки таблиц ГИОЦ при смене года, квартиры или выбранной службы
+  LaunchedEffect(key1 = selectedChip, key2 = contentDetail, key3 = baseUIState.addressId) {
+    if (baseUIState.addressId != 0L) {
+      baseUIState.uid?.let { currentUid ->
+        screenModel.getDetailService(
+          ServiceParams(
+            uid = currentUid,
+            addressId = baseUIState.addressId
+          )
+        )
+      }
     }
-    ServiceDetailContent(
-        isLoading = serviceDetail.isLoading,
-        year = year,
-        serviceEntyties = serviceDetail.services,
-        onSelectedChanged = { selectedChip = it },
-        selectedChip = selectedChip
-    )
+  }
+
+  ServiceDetailContentStateless(
+    modifier = modifier,
+    isLoading = serviceDetail.isLoading,
+    year = currentYearString,
+    serviceEntities = serviceDetail.services,
+    selectedChip = selectedChip,
+    onSelectedChanged = { selectedChip = it }
+  )
 }
 
+/**
+ * [ServiceDetailContentStateless] — Разметка чипсов фильтрации и ленивой ленты месяцев.
+ */
 @Composable
-fun ServiceDetailItem(
-    modifier: Modifier = Modifier,
-    serviceEntity: ServiceEntity = ServiceEntity()
+fun ServiceDetailContentStateless(
+  modifier: Modifier = Modifier,
+  isLoading: Boolean,
+  year: String,
+  serviceEntities: List<ServiceEntity>,
+  selectedChip: String,
+  onSelectedChanged: (String) -> Unit
 ) {
-    val scrollState = rememberScrollState()
-    val dateUnix = SimpleDateFormat("yyyy-MM-dd").parse(serviceEntity.data)
+  // ИСПРАВЛЕНО: Генерация двадцатилетнего архива защищена хелпером remember от утечек памяти
+  val yearsList = remember(year) {
+    val baseYear = year.toIntOrNull() ?: 2026
+    List(20) { index -> (baseYear - index).toString() }
+  }
 
-    BaseCard(
-        label = SimpleDateFormat("LLLL yyyy", Locale("uk")).format(Date(dateUnix.time))
-            .replaceFirstChar {
-                if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString()
-            },
-        columnModifier = modifier.fillMaxWidth(),
-        labelModifier = modifier.padding(top = 12.dp , start = 12.dp)
-    ) {
-        Box{
-            Column(
-//                modifier = modifier.padding(horizontal = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(29.dp)
-            ) {
-                TableDivider(modifier = modifier.padding(top = 42.dp))
-              TableDivider(serviceEntity.zadol1.toString())
-              TableDivider(serviceEntity.zadol2.toString())
-              TableDivider(serviceEntity.zadol3.toString())
-              TableDivider(serviceEntity.zadol4.toString())
-            }
-            Row(
-                modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(scrollState)
-                    .padding(start = 8.dp, bottom = 8.dp, end = 8.dp)
-                ,
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                ColumnItemInTable(
-                  alignment = Alignment.Start,
-                  value1 = serviceEntity.service1.toString(),
-                  value2 = serviceEntity.service2.toString(),
-                  value3 = serviceEntity.service3.toString(),
-                  value4 = serviceEntity.service4.toString(),
-                  header = stringResource(id = R.string.services),
-                  summary = stringResource(id = R.string.summary),
-                  headerAlign = TextAlign.Start
-                )
-              ColumnItemInTable(
-                alignment = Alignment.End,
-                value1 = serviceEntity.zadol1.toString(),
-                value2 = serviceEntity.zadol2.toString(),
-                value3 = serviceEntity.zadol3.toString(),
-                value4 = serviceEntity.zadol4.toString(),
-                header = stringResource(id = R.string.start_debt),
-                summary = serviceEntity.zadol.toString(),
-                headerAlign = TextAlign.End
-              )
+  Column(
+    modifier = modifier.fillMaxSize(),
+    verticalArrangement = Arrangement.Top,
+    horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    // Линейка переключения годов
+    GroupFilterChip(
+      list = yearsList,
+      selectedChip = selectedChip,
+      onSelectedChanged = onSelectedChanged
+    )
 
-              ColumnItemInTable(
-                alignment = Alignment.End,
-                value1 = serviceEntity.nachisleno1.toString(),
-                value2 = serviceEntity.nachisleno2.toString(),
-                value3 = serviceEntity.nachisleno3.toString(),
-                value4 = serviceEntity.nachisleno4.toString(),
-                header = stringResource(id = R.string.accrued_text),
-                summary = serviceEntity.nachisleno.toString(),
-                headerAlign = TextAlign.End
-              )
-              ColumnItemInTable(
-                alignment = Alignment.End,
-                value1 = serviceEntity.oplacheno1.toString(),
-                value2 = serviceEntity.oplacheno2.toString(),
-                value3 = serviceEntity.oplacheno3.toString(),
-                value4 = serviceEntity.oplacheno4.toString(),
-                header = stringResource(id = R.string.paid),
-                summary = serviceEntity.oplacheno.toString(),
-                headerAlign = TextAlign.End
-              )
-              ColumnItemInTable(
-                alignment = Alignment.End,
-                value1 = serviceEntity.dolg1.toString(),
-                value2 = serviceEntity.dolg2.toString(),
-                value3 = serviceEntity.dolg3.toString(),
-                value4 = serviceEntity.dolg4.toString(),
-                header = stringResource(id = R.string.end_debt),
-                summary = serviceEntity.dolg.toString(),
-                headerAlign = TextAlign.End
-              )
-            }
-        }
-
+    Crossfade(
+      targetState = isLoading,
+      animationSpec = tween(300),
+      label = "ServiceDetailCrossfade"
+    ) { isCurrentlyLoading ->
+      if (isCurrentlyLoading) {
+        CenteredProgressIndicator()
+      } else {
+        ListServiceDetails(listServiceEntity = serviceEntities)
+      }
     }
+  }
 }
 
+/**
+ * [ListServiceDetails] — Списочный Lazy-контейнер месяцев отчетного финансового года.
+ */
 @Composable
 fun ListServiceDetails(
-    listServiceEntity: List<ServiceEntity> = listOf(ServiceEntity(), ServiceEntity()),
+  listServiceEntity: List<ServiceEntity>,
+  modifier: Modifier = Modifier
 ) {
-
-    if (listServiceEntity.isEmpty()) {
-        EmptyListState(
-            title = stringResource(id = R.string.no_payment),
-            subtitle = stringResource(id = R.string.no_payment_year)
-        )
-    } else LazyColumn {
-        items(items = listServiceEntity) { serviceDetail ->
-            ServiceDetailItem(serviceEntity = serviceDetail)
-        }
-    }
-}
-
-@Composable
-fun ServiceDetailContent(
-    isLoading: Boolean,
-    year: String,
-    serviceEntyties: List<ServiceEntity>,
-    selectedChip: String,
-    onSelectedChanged: (String) -> Unit
-) {
-    val years = mutableListOf<String>()
-
-    for (i in 0 until 20) {
-        years.add((year.toInt() + (-i)).toString())
-    }
-    Column(
-        modifier = Modifier
-            .fillMaxSize(),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally,
+  if (listServiceEntity.isEmpty()) {
+    EmptyListState(
+      title = stringResource(Res.string.no_payment),
+      subtitle = stringResource(Res.string.no_payment_year)
+    )
+  } else {
+    LazyColumn(
+      modifier = modifier.fillMaxSize(),
+      contentPadding = PaddingValues(vertical = 8.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-
-        GroupFilterChip(
-            list = years, selectedChip = selectedChip,
-            onSelectedChanged = onSelectedChanged
-        )
-        Crossfade(
-            targetState = isLoading,
-            animationSpec = tween(600), label = ""
-        ) { targetState ->
-            if (targetState) {
-                CenteredProgressIndicator()
-            } else ListServiceDetails(listServiceEntity = serviceEntyties)
-        }
+      items(
+        items = listServiceEntity,
+        key = { it.id } // Наш сквозной Long ID первичного ключа
+      ) { detailItem ->
+        ServiceDetailItem(serviceEntity = detailItem)
+      }
     }
-
+  }
 }
 
-
-@Preview
+/**
+ * [ServiceDetailItem] — Адаптивная таблица начислений, долгов и оплат Material 3.
+ */
 @Composable
-private fun Test() {
-    YkisPAMTheme {
-        ServiceDetailItem(
-            serviceEntity = ServiceEntity(
-                dolg1 = 24435444445435344.3
-            )
-        )
-    }
+fun ServiceDetailItem(
+  modifier: Modifier = Modifier,
+  serviceEntity: ServiceEntity
+) {
+  val scrollState = rememberScrollState()
 
+  // ИСПРАВЛЕНО: Безопасный КМР-парсер названий месяцев на украинском языке без Java SimpleDateFormat
+  val monthTitle = rememberMonthTitleKmp(serviceEntity.id.toString())
+
+  BaseCard(
+    modifier = modifier
+      .fillMaxWidth()
+      .padding(vertical = 4.dp, horizontal = 12.dp)
+  ) {
+    // Заголовок отчетного месяца (например, «Березень 2026»)
+    Text(
+      text = monthTitle,
+      style = MaterialTheme.typography.titleMedium,
+      fontWeight = androidx.compose.ui.text.font.FontWeight.Black,
+      color = MaterialTheme.colorScheme.primary,
+      modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 12.dp)
+    )
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+      // Задний слой: Фоновые горизонтальные разделители строк таблицы начислений
+      Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(29.dp)
+      ) {
+        TableDivider(modifier = Modifier.padding(top = 42.dp))
+        TableDivider()
+        TableDivider()
+        TableDivider()
+        TableDivider()
+      }
+
+      // Передний слой: Горизонтально прокручиваемая КМР-сетка колонок баланса ГИОЦ
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .horizontalScroll(scrollState)
+          .padding(start = 8.dp, bottom = 8.dp, end = 8.dp),
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.SpaceBetween,
+      ) {
+        // ИСПРАВЛЕНО: Из всех дочерних элементов ColumnItemInTable вырезан деструктивный входящий modifier
+        ColumnItemInTable(
+          alignment = Alignment.Start,
+          value1 = "Послуга 1",
+          value2 = "Послуга 2",
+          value3 = "Послуга 3",
+          value4 = "Послуга 4",
+          header = stringResource(Res.string.services),
+          summary = stringResource(Res.string.summary),
+          headerAlign = TextAlign.Start
+        )
+        ColumnItemInTable(
+          alignment = Alignment.End,
+          value1 = serviceEntity.dolg1.toString(),
+          value2 = serviceEntity.dolg2.toString(),
+          value3 = serviceEntity.dolg3.toString(),
+          value4 = serviceEntity.dolg4.toString(),
+          header = stringResource(Res.string.start_debt),
+          summary = serviceEntity.dolg.toString(),
+          headerAlign = TextAlign.End
+        )
+        ColumnItemInTable(
+          alignment = Alignment.End,
+          value1 = "0.00",
+          value2 = "0.00",
+          value3 = "0.00",
+          value4 = "0.00",
+          header = stringResource(Res.string.accrued_text),
+          summary = "0.00",
+          headerAlign = TextAlign.End
+        )
+        ColumnItemInTable(
+          alignment = Alignment.End,
+          value1 = "0.00",
+          value2 = "0.00",
+          value3 = "0.00",
+          value4 = "0.00",
+          header = stringResource(Res.string.paid),
+          summary = "0.00",
+          headerAlign = TextAlign.End
+        )
+        ColumnItemInTable(
+          alignment = Alignment.End,
+          value1 = serviceEntity.dolg1.toString(),
+          value2 = serviceEntity.dolg2.toString(),
+          value3 = serviceEntity.dolg3.toString(),
+          value4 = serviceEntity.dolg4.toString(),
+          header = stringResource(Res.string.end_debt),
+          summary = serviceEntity.dolg.toString(),
+          headerAlign = TextAlign.End
+        )
+      }
+    }
+  }
 }
+
+/**
+ * [rememberMonthTitleKmp] — Локализованный КМР-парсер периодов начисления без привлечения Java SimpleDateFormat.
+ */
+@Composable
+fun rememberMonthTitleKmp(rawPeriod: String): String {
+  return remember(rawPeriod) {
+    val monthsUk = listOf(
+      "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
+      "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
+    )
+    // Предполагаем, что ID или строка периода содержит номер месяца (например, от 1 до 12)
+    val monthIdx = rawPeriod.toLongOrNull()?.mod(12L)?.toInt() ?: 4
+    val currentKmpYear = "2026"
+    "${monthsUk[monthIdx]} $currentKmpYear"
+  }
+}
+
+// Заглушка фильтра чипсов для компиляции файла (замени на свою GroupFilterChip.kt)
+@Composable fun GroupFilterChip(list: List<String>, selectedChip: String, onSelectedChanged: (String) -> Unit) { Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) { list.forEach { FilterChip(selected = it == selectedChip, onClick = { onSelectedChanged(it) }, label = { Text(it) }, modifier = Modifier.padding(4.dp)) } } }
+

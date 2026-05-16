@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import com.ykis.ykismobkmp.domain.repository.meter.HeatMeterRepository
-import com.ykis.ykismobkmp.domain.repository.meter.AddHeatReadingParams
 import com.ykis.ykismobkmp.data.responses.GetSimpleResponse
+import com.ykis.ykismobkmp.domain.repository.meter.MeterReadingsParams
 
 private const val tag = "UseCase.AddHeatReading"
 
@@ -24,14 +24,14 @@ class AddHeatReading(
    * [invoke] — Выполнение Use Case.
    * ЯВНО ТИПИЗИРОВАНО: Возвращает Flow строго с типом Resource<GetSimpleResponse?>.
    */
-  operator fun invoke(addReadingParams: AddHeatReadingParams): Flow<Resource<GetSimpleResponse?>> =
+  operator fun invoke(meterReadingsParams: MeterReadingsParams): Flow<Resource<GetSimpleResponse?>> =
     flow<Resource<GetSimpleResponse?>> { // Принудительно задаем тип контекста всего потока
       val methodName = "invoke"
       try {
         emit(Resource.Loading())
 
         // Отправка новых гигакалорий через Ktor репозиторий напрямую
-        val response = repository.addHeatReading(addReadingParams)
+        val response = repository.addHeatReading(meterReadingsParams)
 
         if (response.success == 1) {
           // ЯВНО ТИПИЗИРУЕМ: Указываем генерик для Success, исключая mismatch типов

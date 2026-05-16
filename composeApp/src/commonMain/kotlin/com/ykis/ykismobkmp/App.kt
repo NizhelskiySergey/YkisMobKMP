@@ -3,52 +3,50 @@ package com.ykis.ykismobkmp
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.runtime.*
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import com.ykis.ykismobkmp.ui.YkisPamApp
-import com.ykis.ykismobkmp.ui.rememberAppState
-import com.ykis.ykismobkmp.ui.screens.settings.NewSettingsViewModel
-import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 import org.koin.compose.koinInject
 
+// Импорты инфраструктуры, настроек и адаптивной навигации ЮКИС
+import com.ykis.ykismobkmp.ui.navigation.SignInScreen
+import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreenModel
+import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
+
+private const val tag = "App"
+
 /**
- * [App] — Главная точка входа в UI Compose Multiplatform.
- * Скомпилируется нативно под Android, Mac Desktop, iOS и Web.
- * Вычисляет размер окна для адаптивной верстки ЖКХ-панели.
+ * [YkisPamApp] — Главное кроссплатформенное ядро приложения ЮКИС.
+ * Стабильно запускается на Mac Desktop (JVM), Android и iOS.
  */
 @Composable
-fun App(initialChatId: String? = null) {
-  val className = "App"
+fun YkisPamApp(
+  windowSize: WindowSizeClass,
+  displayFeatures: List<Any>, // КМР-совместимый супертип для поддержки складных экранов
+  initialChatId: String?       // Динамический токен уведомления для сквозного перехода
+) {
+  // ИСПРАВЛЕНО: Вместо Android koinViewModel() используем кроссплатформенный koinInject()
+  val settingsScreenModel = koinInject<SettingsScreenModel>()
+  val currentTheme by settingsScreenModel.theme.collectAsState()
 
-  // ИСПРАВЛЕНО: Кроссплатформенный вывод логов
-  println("[$className.App]: Start UI Multiplatform. initialChatId=$initialChatId")
-
-  // 1. Инициализация управления состоянием (Snackbar, навигация Voyager/Custom)
-  val coroutineScope = rememberCoroutineScope()
-  val appState = rememberAppState(coroutineScope = coroutineScope)
-
-  // 2. Получение настроек темы из общей кроссплатформенной ViewModel/ScreenModel
-  // Замени на koinViewModel(), если используешь библиотеку koin-compose-viewmodel
-  val settingsViewModel = koinInject<NewSettingsViewModel>()
-  val currentTheme by settingsViewModel.theme.collectAsState()
-
-  // 3. РЕШЕНИЕ: Вычисляем класс размера окна (WindowSizeClass) прямо на лету.
-  // На Mac Desktop это вернет расширенный режим (Expanded), на Android — мобильный (Compact)
-
-  // 4. Отрисовка интерфейса в единой дизайн-системе Material 3
+  // Внедряем твою тему оформления ЮКИС
   YkisPAMTheme(appTheme = currentTheme ?: "system") {
-    Surface(
-      modifier = Modifier.fillMaxSize(),
-      color = MaterialTheme.colorScheme.background
-    ) {
-      // ИСПРАВЛЕНО: Передаем обязательный параметр windowSize в каркас приложения
-      YkisPamApp(
-        appState = appState,
-        initialChatId = initialChatId,
-        windowSize = "expanded" // Ошибка 'No value passed' полностью закрыта!
-      )
+
+    // ШАГ 1: Аппаратно раскатываем вычисленный windowSize во все вложенные КМР-экраны
+    AdaptiveWindowSizeBridge(windowSize = windowSize) {
+
+      Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+      ) {
+        // ШАГ 2: Запускаем навигатор Voyager с базовым экраном авторизации
+        // Внутри SignInScreen adaptiveNavigationType считает стейт пушей автоматически
+        cafe.adriel.voyager.navigator.Navigator(
+          screen = com.ykis.ykismobkmp.ui.screens.auth.SignInScreen()
+        )
+      }
     }
   }
 }
-

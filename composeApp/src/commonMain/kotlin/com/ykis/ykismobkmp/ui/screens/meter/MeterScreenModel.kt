@@ -7,13 +7,13 @@ import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
 import com.ykis.ykismobkmp.domain.entity.HeatReadingEntity
 import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
 import com.ykis.ykismobkmp.domain.entity.WaterReadingEntity
-import com.ykis.ykismobkmp.domain.repository.meter.AddHeatReadingParams
-import com.ykis.ykismobkmp.domain.repository.meter.AddWaterReadingParams
 import com.ykis.ykismobkmp.domain.repository.meter.HeatMeterRepository
+import com.ykis.ykismobkmp.domain.repository.meter.MeterReadingsParams
 import com.ykis.ykismobkmp.domain.repository.meter.WaterMeterRepository
 import com.ykis.ykismobkmp.domain.services.LogService
 import com.ykis.ykismobkmp.ui.BaseScreenModel
 import com.ykis.ykismobkmp.ui.BaseUIState
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterState
 import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterState
 import kotlinx.coroutines.Dispatchers
@@ -29,9 +29,7 @@ import kotlin.collections.emptyList
 private const val tag = "MeterScreenModel"
 
 // Перечисление типов счетчиков (замени на свою КМР-сущность ContentDetail, если пакет другой)
-enum class ContentDetail {
-  WATER_METER, HEAT_METER
-}
+
 
 /**
  * [MeterScreenModel] — Кроссплатформенная модель управления списками счетчиков тепла и воды ЮКИС.
@@ -281,7 +279,7 @@ class MeterScreenModel(
       _waterMeterState.update { it.copy(isLastReadingLoading = true) }
       try {
         // Вызываем конструктор параметров счетчиков воды, который мы зафиксировали ранее
-        val params = AddWaterReadingParams(
+        val params = MeterReadingsParams(
           uid = uid,
           newValue = newValue,
           currentValue = currentValue,
@@ -313,7 +311,7 @@ class MeterScreenModel(
     screenModelScope.launch {
       _waterMeterState.update { it.copy(isLastReadingLoading = true) }
       try {
-        val response = waterMeterRepository.deleteLastReading(uid, readingId)
+        val response = waterMeterRepository.deleteLastWaterReading(uid, readingId)
 
         if (response.success == 1) {
           SnackbarManager.showMessage("Показання видалені")
@@ -365,7 +363,7 @@ class MeterScreenModel(
     screenModelScope.launch {
       _heatMeterState.update { it.copy(isLastReadingLoading = true) }
       try {
-        val params = AddHeatReadingParams(
+        val params = MeterReadingsParams(
           uid = uid,
           newValue = newValue,
           currentValue = currentValue,

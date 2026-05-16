@@ -1,175 +1,221 @@
 package com.ykis.ykismobkmp.ui.screens.service
 
-import androidx.lifecycle.viewModelScope
-import com.ykis.mob.data.remote.service.ServiceParams
-import com.ykis.ykismobkmp.ui.navigation.ContentDetail
-import com.ykis.ykismobkmp.core.utils.Log
+import cafe.adriel.voyager.core.model.screenModelScope
+import com.ykis.ykismobkmp.data.service.ServiceParams
 import com.ykis.ykismobkmp.core.utils.Resource
-import com.ykis.ykismobkmp.data.payment.InsertPaymentParams
+import com.ykis.ykismobkmp.domain.entity.ServiceEntity
+import com.ykis.ykismobkmp.domain.entity.PaymentEntity
 import com.ykis.ykismobkmp.domain.services.LogService
 import com.ykis.ykismobkmp.ui.BaseScreenModel
-import com.ykis.ykismobkmp.ui.screens.service.detail.ServiceState
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.screens.service.list.TotalDebtState
 import com.ykis.ykismobkmp.ui.screens.service.payment.list.PaymentState
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 
-class ServiceScreenModel (
-    private val getFlatService: GetFlatServices,
-    private val getTotalDebtServices: GetTotalDebtServices,
-    private val getPaymentListRepo : GetPaymentList,
-    private val insertPaymentRepo : InsertPayment,
-    private val logService: LogService
+private const val tag = "ServiceScreenModel"
+
+// Заглушки доменных сущностей и КМР стейтов финансового учета
+
+data class ServiceState(
+  val services: List<ServiceEntity> = emptyList(),
+  val isLoading: Boolean = false
+)
+
+data class TotalDebtState(
+  val totalDebt: ServiceEntity = ServiceEntity(),
+  val isLoading: Boolean = false,
+  val showDetail: Boolean = false,
+  val serviceDetail: ContentDetail = ContentDetail.UNKNOWN,
+  val error: String = ""
+)
+
+data class PaymentState(
+  val paymentList: List<PaymentEntity> = emptyList(),
+  val isLoading: Boolean = false
+)
+
+// ИСПРАВЛЕНО: Все жилищно-коммунальные ID внутри параметров переведены на сквозной Long под SQLDelight
+data class InsertPaymentParams(val uid: String, val addressId: Long, val amount: Double)
+
+// Определение функциональных типов КМР Use Cases финансового блока
+typealias GetFlatServices = (ServiceParams) -> Flow<Resource<List<ServiceEntity>>>
+typealias GetTotalDebtServices = (ServiceParams) -> Flow<Resource<ServiceEntity>>
+typealias GetPaymentList = (Long, String, String) -> Flow<Resource<List<PaymentEntity>>>
+typealias InsertPayment = (InsertPaymentParams) -> Flow<Resource<String>>
+
+/**
+ * [ServiceScreenModel] — Кроссплатформенная модель управления долгами, начислениями БТИ и платежами Xpay ЮКИС.
+ * Полностью типизирована под Long и готова к выполнению на Mac Desktop (JVM) и мобильных ОС.
+ */
+class ServiceScreenModel(
+  private val getFlatService: GetFlatServices,
+  private val getTotalDebtServices: GetTotalDebtServices,
+  private val getPaymentListRepo: GetPaymentList,
+  private val insertPaymentRepo: InsertPayment,
+  logService: LogService
 ) : BaseScreenModel(logService) {
 
-    private val _detailState = MutableStateFlow(ServiceState())
-    val detailState: StateFlow<ServiceState> = _detailState.asStateFlow()
+  private val _detailState = MutableStateFlow(ServiceState())
+  val detailState: StateFlow<ServiceState> = _detailState.asStateFlow()
 
-    private val _totalDebtState = MutableStateFlow(TotalDebtState())
-    val totalDebtState = _totalDebtState.asStateFlow()
+  private val _totalDebtState = MutableStateFlow(TotalDebtState())
+  val totalDebtState: StateFlow<TotalDebtState> = _totalDebtState.asStateFlow()
 
-    private val _paymentState = MutableStateFlow(PaymentState())
-    val paymentState = _paymentState.asStateFlow()
+  private val _paymentState = MutableStateFlow(PaymentState())
+  val paymentState: StateFlow<PaymentState> = _paymentState.asStateFlow()
 
-    private val _insertPaymentLoading = MutableStateFlow(false)
-    val insertPaymentLoading = _insertPaymentLoading.asStateFlow()
+  private val _insertPaymentLoading = MutableStateFlow(false)
+  val insertPaymentLoading: StateFlow<Boolean> = _insertPaymentLoading.asStateFlow()
 
-    fun setContentDetail (contentDetail: ContentDetail){
-        _totalDebtState.value = _totalDebtState.value.copy(
-            serviceDetail = contentDetail,
-            showDetail = true
-        )
+  fun setContentDetail(contentDetail: ContentDetail) {
+    _totalDebtState.update {
+      it.copy(serviceDetail = contentDetail, showDetail = true)
     }
-    fun closeContentDetail(){
-        _totalDebtState.value = _totalDebtState.value.copy(
-            showDetail = false
-        )
-    }
+  }
 
+  fun closeContentDetail() {
+    _totalDebtState.update {
+      it.copy(showDetail = false)
+    }
+  }
+
+  /**
+   * [getTotalServiceDebt] — Загрузка общего баланса лицевого счета (актуальный долг/переплата ГИОЦ Южное).
+   */
   fun getTotalServiceDebt(params: ServiceParams) {
-    val methodName = "ServiceVM.getTotalServiceDebt"
+    val methodName = "getTotalServiceDebt"
 
     // ПРЕДОХРАНИТЕЛЬ: Если ID квартиры или UID невалидны - выходим
-    if (params.addressId <= 0 || params.uid.isBlank()) {
-      Log.w("YkisLog", "$methodName: [CANCEL] Невалидные параметры: ID=${params.addressId}")
+    if (params.addressId <= 0L || params.uid.isBlank()) {
+      println("[$tag.$methodName]: [CANCEL] Невалідні параметри ЖКГ: ID=${params.addressId}")
       return
     }
 
-    this.getTotalDebtServices(params = params).onEach { result ->
-      when (result) {
-        is Resource.Success -> {
-          Log.d("YkisLog", "$methodName: [SUCCESS]")
-          this._totalDebtState.value = this._totalDebtState.value.copy(
-            totalDebt = result.data!!,
-            isLoading = false
-          )
-        }
-        is Resource.Error -> {
-          Log.e("YkisLog", "$methodName: [ERROR] ${result.message}")
-          this._totalDebtState.value = this._totalDebtState.value.copy(isLoading = false)
-        }
-        is Resource.Loading -> {
-          Log.d("YkisLog", "$methodName: [LOADING]...")
-          this._totalDebtState.value = this._totalDebtState.value.copy(isLoading = true)
+    getTotalDebtServices(params).onEach { result ->
+      _totalDebtState.update { currentState ->
+        when (result) {
+          is Resource.Success -> {
+            println("[$tag.$methodName]: [SUCCESS] Баланс успешно обновлен")
+            currentState.copy(totalDebt = result.data ?: ServiceEntity(), isLoading = false)
+          }
+
+          is Resource.Error -> {
+            println("[$tag.$methodName]: [ERROR] ${result.message}")
+            currentState.copy(isLoading = false, error = result.message ?: "Помилка завантаження")
+          }
+
+          is Resource.Loading -> {
+            println("[$tag.$methodName]: [LOADING] Запит фінансового балансу...")
+            currentState.copy(isLoading = true)
+          }
         }
       }
-    }.launchIn(this.viewModelScope)
+    }.launchIn(screenModelScope) // ИСПРАВЛЕНО: launchIn переведен на screenModelScope Voyager
   }
 
+  /**
+   * [getDetailService] — Получение детализации начислений по видам услуг (квартплата, отопление, вода).
+   */
   fun getDetailService(params: ServiceParams) {
-    val methodName = "ServiceVM.getDetailService"
-    this.getFlatService(params = params).onEach { result ->
+    val methodName = "getDetailService"
+
+    getFlatService(params).onEach { result ->
       when (result) {
         is Resource.Success -> {
-          Log.d("YkisLog", "$methodName: [SUCCESS] Список услуг: ${result.data?.size}")
-          this._detailState.value = detailState.value.copy(
-            services = result.data ?: emptyList(),
-            isLoading = false
-          )
+          println("[$tag.$methodName]: [SUCCESS] Отримано список послуг: ${result.data?.size}")
+          _detailState.update {
+            it.copy(services = result.data ?: emptyList(), isLoading = false)
+          }
         }
+
         is Resource.Error -> {
-          Log.e("YkisLog", "$methodName: [ERROR] ${result.message}")
-          // КРИТИЧНО: Явно выключаем лоадер, чтобы крутилка исчезла
-          this._totalDebtState.update { it.copy(isLoading = false, error = result.message ?: "Ошибка сети") }
+          println("[$tag.$methodName]: [ERROR] ${result.message}")
+          _detailState.update { it.copy(isLoading = false) }
+          _totalDebtState.update {
+            it.copy(isLoading = false, error = result.message ?: "Помилка білінгу")
+          }
         }
 
         is Resource.Loading -> {
-          Log.d("YkisLog", "$methodName: [LOADING]...")
-          this._detailState.value = detailState.value.copy(isLoading = true)
+          println("[$tag.$methodName]: [LOADING] Запит деталізації...")
+          _detailState.update { it.copy(isLoading = true) }
         }
       }
-    }.launchIn(this.viewModelScope)
+    }.launchIn(screenModelScope)
   }
 
-  fun getPaymentList(addressId: Int, year: String, uid: String) {
-    val methodName = "ServiceVM.getPaymentList"
-    this.getPaymentListRepo(addressId, year, uid).onEach { result ->
+  /**
+   * [getPaymentList] — Архив совершенных абонентом оплат по годам.
+   * ИСПРАВЛЕНО: addressId переведен на тип Long.
+   */
+  fun getPaymentList(addressId: Long, year: String, uid: String) {
+    val methodName = "getPaymentList"
+
+    getPaymentListRepo(addressId, year, uid).onEach { result ->
       when (result) {
         is Resource.Success -> {
-          Log.d("YkisLog", "$methodName: [SUCCESS] Платежей: ${result.data?.size}")
-          this._paymentState.value = paymentState.value.copy(
-            paymentList = result.data ?: emptyList(),
-            isLoading = false
-          )
+          println("[$tag.$methodName]: [SUCCESS] Отримано архів платіжок за рік $year: ${result.data?.size}")
+          _paymentState.update {
+            it.copy(paymentList = result.data ?: emptyList(), isLoading = false)
+          }
         }
+
         is Resource.Error -> {
-          Log.e("YkisLog", "$methodName: [ERROR] ${result.message}")
-          // КРИТИЧНО: Явно выключаем лоадер, чтобы крутилка исчезла
-          this._totalDebtState.update { it.copy(isLoading = false, error = result.message ?: "Ошибка сети") }
+          println("[$tag.$methodName]: [ERROR] ${result.message}")
+          _paymentState.update { it.copy(isLoading = false) }
+          _totalDebtState.update {
+            it.copy(isLoading = false, error = result.message ?: "Помилка мережі")
+          }
         }
 
         is Resource.Loading -> {
-          Log.d("YkisLog", "$methodName: [LOADING] (Year: $year)...")
-          this._paymentState.value = paymentState.value.copy(isLoading = true)
+          println("[$tag.$methodName]: [LOADING] Архів оплат (Рік: $year)...")
+          _paymentState.update { it.copy(isLoading = true) }
         }
       }
-    }.launchIn(this.viewModelScope)
+    }.launchIn(screenModelScope)
   }
 
-    fun insertPayment(
-      params: InsertPaymentParams,
-      onSuccess : (String) -> Unit
-    ){
-        this.insertPaymentRepo(
-            params
-        ).onEach { result ->
-            when (result) {
-                is Resource.Success -> {
-                    _insertPaymentLoading.value = false
-                    //if open in WebView
-                    onSuccess(result.data.toString().replace("/" , "*"))
-                    //if open in Browser
-//                    onSuccess(result.data.toString())
-                    Log.d("link_test" , result.data.toString())
-                }
+  /**
+   * [insertPayment] — Генерация защищенной ссылки на инвойс Xpay для оплаты в браузере или WebView.
+   */
+  fun insertPayment(
+    params: InsertPaymentParams,
+    onSuccess: (String) -> Unit
+  ) {
+    val methodName = "insertPayment"
 
-                is Resource.Error -> {
-                    _insertPaymentLoading.value = false
-                    Log.d("link_test" , "error")
-                }
+    insertPaymentRepo(params).onEach { result ->
+      when (result) {
+        is Resource.Success -> {
+          _insertPaymentLoading.value = false
+          val securedUrl = result.data.toString().replace("/", "*")
+          println("[$tag.$methodName]: [SUCCESS] Ссылка сгенерирована: $securedUrl")
+          onSuccess(securedUrl)
+        }
 
-                is Resource.Loading -> {
-                    _insertPaymentLoading.value = true
-                }
-            }
-        }.launchIn(this.viewModelScope)
-    }
-  // В ServiceViewModel
+        is Resource.Error -> {
+          _insertPaymentLoading.value = false
+          println("[$tag.$methodName]: [ERROR] Ошибка шлюза Xpay")
+        }
+
+        is Resource.Loading -> {
+          _insertPaymentLoading.value = true
+        }
+      }
+    }.launchIn(screenModelScope)
+  }
+
   fun resetState() {
-    Log.d("YkisLog", "ServiceVM: [RESET] Очистка данных для новой квартиры")
+    println("[$tag]: [RESET] Очистка финансовых метрик для переключения квартиры")
     _totalDebtState.update {
       it.copy(
-        totalDebt = ServiceEntity(), // Обнуляем долги
-        isLoading = true,            // Включаем лоадер
-        showDetail = false,          // Скрываем подробности
-        error = ""                   // Чистим ошибки
+        totalDebt = ServiceEntity(),
+        isLoading = true,
+        showDetail = false,
+        error = ""
       )
     }
   }
-
-
 }
+

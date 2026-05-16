@@ -1,7 +1,7 @@
 package com.ykis.ykismobkmp.domain.entity
 
 import com.ykis.ykismobkmp.core.utils.Log
-import com.ykis.ykismobkmp.ui.UserRole
+import com.ykis.ykismobkmp.domain.services.UserRole
 
 fun mapToUserEntity(uid: String, map: Map<String, Any?>): UserEntity {
   val methodName = "mapToUserEntity"

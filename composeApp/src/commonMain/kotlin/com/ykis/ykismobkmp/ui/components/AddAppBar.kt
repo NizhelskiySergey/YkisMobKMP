@@ -1,4 +1,4 @@
-package com.ykis.mob.ui.components.appbars
+package com.ykis.ykismobkmp.ui.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,75 +17,73 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.ykis.mob.R
-import com.ykis.ykismobkmp.ui.navigation.NavigationType
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.back_button
 
+private const val className = "AddAppBar"
+
+/**
+ * [AddAppBar] — Кроссплатформенная панель навигации для экранов добавления и привязки лицевых счетов.
+ * Полностью адаптивна, очищена от легаси-типов навигации и готова к рендерингу на любой ОС.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddAppBar(
-    modifier: Modifier = Modifier,
-    subtitle: String,
-    title: String,
-    onBackPressed: () -> Unit,
-    canNavigateBack : Boolean,
-    onDrawerClicked : () -> Unit,
-    navigationType: NavigationType
+  modifier: Modifier = Modifier,
+  title: String,
+  subtitle: String,
+  canNavigateBack: Boolean,
+  onBackPressed: () -> Unit,
+  onDrawerClicked: () -> Unit
 ) {
-
-    TopAppBar(
-        modifier = modifier,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        title = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    modifier = Modifier.padding(top = 4.dp),
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.outline
-                )
-            }
-        },
-        navigationIcon = {
-            if(!canNavigateBack && navigationType == NavigationType.BOTTOM_NAVIGATION) {
-                IconButton(
-                    onClick = onDrawerClicked
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Menu,
-                        contentDescription = stringResource(id = R.string.back_button),
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-            }else if(canNavigateBack) {
-                IconButton(
-                    onClick = onBackPressed,
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(id = R.string.back_button),
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-            }
-        },
-    )
+  TopAppBar(
+    // ИСПРАВЛЕНО: Принудительное заполнение ширины страхует шапку от сжатия в окнах Mac Desktop
+    modifier = modifier.fillMaxWidth(),
+    colors = TopAppBarDefaults.topAppBarColors(
+      containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ),
+    title = {
+      Column(
+        modifier = Modifier.fillMaxWidth().padding(end = 16.dp), // Небольшой отступ справа для баланса с иконкой
+        horizontalAlignment = Alignment.CenterHorizontally
+      ) {
+        Text(
+          text = title,
+          style = MaterialTheme.typography.titleLarge,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (subtitle.isNotEmpty()) {
+          Text(
+            text = subtitle,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.padding(top = 2.dp)
+          )
+        }
+      }
+    },
+    navigationIcon = {
+      if (canNavigateBack) {
+        IconButton(onClick = onBackPressed) {
+          Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = stringResource(Res.string.back_button),
+            modifier = Modifier.size(24.dp)
+          )
+        }
+      } else {
+        // Если назад идти нельзя (главный подэкран) — выводим кнопку вызова бокового Drawer-меню
+        IconButton(onClick = onDrawerClicked) {
+          Icon(
+            imageVector = Icons.Default.Menu,
+            contentDescription = "Меню",
+            modifier = Modifier.size(24.dp)
+          )
+        }
+      }
+    }
+  )
 }
 
-@Preview
-@Composable
-private fun PreviewAddAppBar() {
-    AddAppBar(subtitle = "За допомогою секретного коду", title = "Додати квартиру" , onBackPressed = {} , canNavigateBack = false, onDrawerClicked = {} , navigationType = NavigationType.BOTTOM_NAVIGATION)
-}

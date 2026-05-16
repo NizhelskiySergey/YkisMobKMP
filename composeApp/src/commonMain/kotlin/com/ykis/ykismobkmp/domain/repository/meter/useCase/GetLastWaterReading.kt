@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
 private const val tag = "UseCase.GetLastWaterReading"
-
 /**
  * [GetLastWaterReading] — Единый КМР-стандарт интерактора получения последнего показания водомера г. Южный.
  * Полностью изолирован от баз данных и типизирован под nullable-генерики для устранения Return type mismatch.

@@ -1,4 +1,4 @@
-package com.ykis.mob.domain.meter.water.reading.request
+package com.ykis.ykismobkmp.domain.repository.meter.useCase
 
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.core.utils.SnackbarManager

@@ -7,10 +7,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class HouseEntity(
   @SerialName("houseId")
-  val houseId: Int = 0,
+  val houseId: Long = 0,
 
   @SerialName("raionId")
-  val raionId: Int = 0,
+  val raionId: Long = 0,
 
   @SerialName("house")
   val house: String = ""

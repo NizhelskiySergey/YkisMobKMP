@@ -5,15 +5,18 @@ package com.ykis.ykismobkmp.ui
  * Содержит данные профиля, текущей квартиры и метаданные для навигации.
  */
 
-import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.entity.RaionEntity
+import com.ykis.ykismobkmp.domain.services.UserRole
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
+import kotlinx.serialization.Serializable
 
 /**
- * [BaseUIState] — единый источник истины для UI слоя.
- * Используется в ApartmentViewModel для управления состоянием на всех платформах.
+ * [BaseUIState] — Единый источник истины (Single Source of Truth) для UI слоя ЮКИС.
+ * Полностью типизирован под сквозной Long стандарт для бесшовной стыковки с СУБД SQLDelight.
  */
+@Serializable
 data class BaseUIState(
   // --- БЛОК АВТОРИЗАЦИИ (Firebase KMP) ---
   val uid: String? = null,
@@ -25,21 +28,25 @@ data class BaseUIState(
   // --- ДАННЫЕ ЖИЛЬЦА (SQLDelight / Ktor) ---
   val apartment: ApartmentEntity = ApartmentEntity(),
   val apartments: List<ApartmentEntity> = emptyList(),
-  val addressId: Int = 0,
+  // ИСПРАВЛЕНО: addressId изменен на тип Long под стандарты первичных ключей СУБД
+  val addressId: Long = 0L,
   val address: String = "",
   val kod: String = "",
   val addressNumber: String? = null,
   val isApartmentsLoaded: Boolean = false,
 
   // --- ДАННЫЕ АДМИНИСТРАТОРА (ОСББ / Горслужбы) ---
-  val osbbId: Int = 0,            // ID предприятия (9997, 9998, 9999 и т.д.)
-  val osmdId: Int = 0,            // Совместимость со старым API
-  val houseId: Int = 0,
+  // ИСПРАВЛЕНО: Все системные ИД предприятий и домов переведены на тип Long под архитектуру Use Cases
+  val osbbId: Long = 0L,            // ID предприятия (9997L, 9998L, 9999L и т.д.)
+  val osmdId: Long = 0L,            // Совместимость со старым API биллинга Южного
+  val houseId: Long = 0L,
   val osbb: String = "",
   val raions: List<RaionEntity> = emptyList(),
-  val selectedRegionId: Int? = null,
+  // ИСПРАВЛЕНО: Идентификатор региона Одесской обл. изменен с Int? на Long под .sq выборки
+  val selectedRaionId: Long = 0L,
   val houses: List<ApartmentEntity> = emptyList(),
-  val selectedHouseId: Int? = null,
+  // ИСПРАВЛЕНО: Идентификатор выбранного дома изменен с Int? на Long
+  val selectedHouseId: Long = 0L,
   val searchMode: Boolean = false,
   val listMode: ListMode = ListMode.APARTMENTS,
 
@@ -49,17 +56,14 @@ data class BaseUIState(
   val showDetail: Boolean = false,
   val isForwarding: Boolean = false,
   val isOpponentTyping: Boolean = false,
+
   // --- СТАТУСЫ ЗАГРУЗКИ (Системные лоадеры) ---
-  val isLoading: Boolean = false,       // Фоновый процесс
-  val mainLoading: Boolean = true,      // Холодный старт
-  val isGlobalLoading: Boolean = false, // Блокирующая загрузка (Add Apartment)
-  val apartmentLoading: Boolean = true, // Загрузка БТИ данных
+  val isLoading: Boolean = false,       // Фоновый процесс кэширования
+  val mainLoading: Boolean = true,      // Холодный старт экрана чатов
+  val isGlobalLoading: Boolean = false, // Блокирующая загрузка (Внесение лицевого счета)
+  val apartmentLoading: Boolean = true, // Загрузка БТИ данных из локальной базы
 
   // --- ОШИБКИ ---
   val error: String? = null
 )
-
-/**
- * Роли пользователей в системе Ykis
- */
 

@@ -1,42 +1,49 @@
 package com.ykis.ykismobkmp.ui.navigation
 
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.ykis.ykismobkmp.ui.BaseUIState
-import com.ykis.mob.ui.navigation.UserListScreen
-import com.ykis.mob.ui.navigation.getNavDestinations
-import com.ykis.ykismobkmp.ui.screens.chat.ChatViewModel
+import org.koin.compose.koinInject
 
+// Импорты общих сущностей, стейтов и моделей ЮКИС г. Южный
+import com.ykis.ykismobkmp.domain.services.UserRole
+import com.ykis.ykismobkmp.ui.BaseUIState
+import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
+
+// ИМПОРТЫ КРОСС ПЛАТФОРМЕННЫХ РЕСУРСОВ JETBRAINS:
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.*
+
+private const val tag = "BottomNavigationBar"
+
+/**
+ * [BottomNavigationBar] — Кроссплатформенная нижняя панель навигации для смартфонов (Android/iOS).
+ * Полностью очищена от Composable-конфликтов внутри remember.
+ */
 @Composable
 fun BottomNavigationBar(
+  modifier: Modifier = Modifier,
   selectedDestination: String,
   onClick: (String) -> Unit,
-  chatViewModel: ChatViewModel,
-  baseUIState: BaseUIState // Добавляем стейт, чтобы знать роль
+  baseUIState: BaseUIState // Используем стейт для динамического определения роли
 ) {
-  // 1. Получаем список дестинаций для текущей роли
-  val navDestinations = getNavDestinations(role = baseUIState.userRole)
+  // Инжектируем очищенную кроссплатформенную модель чатов через Koin KMP мост
+  val chatScreenModel = koinInject<ChatScreenModel>()
 
-  // 2. Подписываемся на счетчики
-  val unreadCounts by chatViewModel.unreadCounts.collectAsStateWithLifecycle()
+  // 1. ИСПРАВЛЕНО: Чистый Kotlin вызов внутри remember, так как getNavDestinations больше не Composable
+  val navDestinations = remember(baseUIState.userRole) {
+    getNavDestinations(role = baseUIState.userRole)
+  }
 
-  // Считаем общую сумму непрочитанных
+  val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
   val totalUnread = remember(unreadCounts) { unreadCounts.values.sum() }
 
   NavigationBar(
-    modifier = Modifier.fillMaxWidth(),
+    modifier = modifier.fillMaxWidth(),
     containerColor = MaterialTheme.colorScheme.surfaceContainer
   ) {
     navDestinations.forEach { destination ->
@@ -48,10 +55,8 @@ fun BottomNavigationBar(
         icon = {
           BadgedBox(
             badge = {
-              // 3. УНИВЕРСАЛЬНАЯ ПРОВЕРКА:
-              // Показываем Badge, если роут текущей иконки совпадает с роутом чата для этой роли
               val isChatRoute = destination.route == "service_selector" ||
-                destination.route == UserListScreen.route
+                destination.route == "user_list"
 
               if (isChatRoute && totalUnread > 0) {
                 Badge(
@@ -65,15 +70,37 @@ fun BottomNavigationBar(
           ) {
             Icon(
               imageVector = if (isSelected) destination.selectedIcon else destination.unselectedIcon,
-              contentDescription = stringResource(id = destination.labelId)
+              // ВЫЗОВ @Composable ТЕПЕРЬ ПРОИСХОДИТ СТРОГО ТУТ (Внутри контента NavigationBarItem)
+              contentDescription = stringResource(destination.labelId)
             )
           }
         },
-        label = { Text(stringResource(id = destination.labelId)) },
+        // ВЫЗОВ @Composable ТЕПЕРЬ ПРОИСХОДИТ СТРОГО ТУТ (Внутри контента NavigationBarItem)
+        label = { Text(stringResource(destination.labelId)) },
         alwaysShowLabel = false
       )
     }
   }
 }
 
-
+/**
+ * [getNavDestinations] — Чистая Kotlin функция без аннотации @Composable.
+ * Возвращает только ссылки на ресурсы метаданных, не вызывая инфлейт интерфейса.
+ */
+private fun getNavDestinations(role: UserRole): List<NavDestination> {
+  return listOf(
+    NavDestination(
+      route = "service_selector",
+      labelId = Res.string.chats,
+      selectedIcon = Icons.Default.Chat,
+      unselectedIcon = Icons.Default.Chat
+    ),
+    NavDestination(
+      route = "settings",
+      labelId = Res.string.settings,
+      selectedIcon = Icons.Default.Settings,
+      unselectedIcon = Icons.Default.Settings,
+      alwaysVisible = true
+    )
+  )
+}

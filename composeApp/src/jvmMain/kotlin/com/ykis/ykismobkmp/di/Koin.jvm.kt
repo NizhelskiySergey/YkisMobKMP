@@ -2,6 +2,8 @@ package com.ykis.ykismobkmp.di
 
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.PreferencesSettings
+import com.ykis.ykismobkmp.data.preferences.AppSettingsRepository
+import com.ykis.ykismobkmp.data.preferences.AppSettingsRepositoryImpl
 import com.ykis.ykismobkmp.db.DatabaseDriverFactory
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -16,8 +18,7 @@ val desktopPlatformModule: Module = module {
   single<Settings> {
     PreferencesSettings(Preferences.userNodeForPackage(DatabaseDriverFactory::class.java))
   }
-
-  // 2. Драйвер SQLite для SQLDelight 2.x на ПК
+  single<AppSettingsRepository> {AppSettingsRepositoryImpl(dataStore = get())}
   single { DatabaseDriverFactory() }
 }
 

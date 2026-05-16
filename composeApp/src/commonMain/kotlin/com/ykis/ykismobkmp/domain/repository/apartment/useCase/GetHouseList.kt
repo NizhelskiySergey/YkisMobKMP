@@ -42,7 +42,7 @@ class GetHouseList(
           // 3. ОБНОВЛЕНИЕ БАЗЫ ДАННЫХ И СИНХРОНИЗАЦИЯ
           if (remoteHouses.isNotEmpty()) {
               // Прошиваем raionId перед сохранением
-              val housesWithRaion = remoteHouses.map { it.copy(raionId = raionId.toInt()) }
+              val housesWithRaion = remoteHouses.map { it.copy(raionId = raionId) }
 
               // Сохраняем в кэш (в Koin тут будет транзакция SQLDelight)
               saveLocal(housesWithRaion)

@@ -296,7 +296,7 @@ DELETE FROM ServiceEntity;
 
 -- Передача списка IDs требует обязательных круглых скобок (?)
 deleteServiceByApartment:
-DELETE FROM ServiceEntity WHERE addressId NOT IN ?;
+DELETE FROM ServiceEntity WHERE addressId = :addressId;
 
 
 -- ==========================================
@@ -311,12 +311,11 @@ DELETE FROM apartmentEntity;
 deleteFlat:
 DELETE FROM apartmentEntity WHERE addressId NOT IN ?;
 
--- ИСПРАВЛЕНО: строгое равенство без скобок для получения ОДНОЙ квартиры по ID
 getFlatById:
-SELECT * FROM apartmentEntity WHERE addressId = ?;
+SELECT * FROM apartmentEntity WHERE addressId = :addressId;
 
 getApartmentListByUid:
-SELECT * FROM apartmentEntity WHERE uid = ?;
+SELECT * FROM apartmentEntity WHERE uid = :uid;
 
 getApartmentList:
 SELECT * FROM apartmentEntity;
@@ -331,30 +330,27 @@ INSERT OR REPLACE INTO familyEntity VALUES ?;
 getFamilyByApartment:
 SELECT * FROM familyEntity WHERE addressId = ?;
 
-deleteFamilyByApartmentIds:
-DELETE FROM familyEntity WHERE addressId NOT IN ?;
+deleteAllFamily:
+DELETE FROM familyEntity ;
 
 deleteFamilyByAddressId:
-DELETE FROM familyEntity WHERE addressId = ?;
+DELETE FROM familyEntity WHERE addressId = :addressId;
 
 
 -- ==========================================
 -- 5. DAO HOUSE (Дома)
 -- ==========================================
--- ИСПРАВЛЕНО: синтаксис VALUES ? принимает сгенерированный объект HouseEntity целиком
+
 insertHouse:
 INSERT OR REPLACE INTO houseEntity VALUES ?;
 getHousesByRaion:
-SELECT * FROM houseEntity WHERE raionId = ? ORDER BY house ASC;
-
+SELECT * FROM houseEntity WHERE raionId = :raionId ORDER BY house ASC;
 getHouseList:
 SELECT * FROM houseEntity;
-
 deleteAllHouses:
 DELETE FROM houseEntity;
-
 deleteHousesByRaionId:
-DELETE FROM houseEntity WHERE raionId  = ?;
+DELETE FROM houseEntity WHERE raionId  = :raionId;
 
 -- ==========================================
 -- 6. DAO PAYMENT (Платежи)
@@ -363,15 +359,14 @@ insertPayment:
 INSERT OR REPLACE INTO paymentEntity VALUES ?;
 
 getPaymentsByApartment:
-SELECT * FROM paymentEntity
-WHERE addressId = ?
+SELECT * FROM paymentEntity WHERE addressId = :addressId
 ORDER BY data DESC;
 
 deleteAllPayments:
 DELETE FROM paymentEntity;
 
 deletePaymentsByApartment:
-DELETE FROM paymentEntity WHERE addressId NOT IN ?;
+DELETE FROM paymentEntity WHERE addressId =:addressId;
 
 
 -- ==========================================
@@ -412,9 +407,10 @@ DELETE FROM heatReadingEntity WHERE pokId =:pokId;
 
 
 getLastHeatReadingByMeter:
-SELECT last, current FROM heatReadingEntity
+SELECT * FROM heatReadingEntity
 WHERE teplomerId = :teplomerId
 ORDER BY dateReading DESC LIMIT 1;
+
 -- ==========================================
 -- 9. DAO WATER METER (Водомеры)
 -- ==========================================
@@ -432,6 +428,8 @@ DELETE FROM waterMeterEntity;
 deleteWaterMetersApartment:
 DELETE FROM waterMeterEntity WHERE addressId =:addressId;
 
+deleteFdeleteWaterMetersNotInIds:
+DELETE FROM waterMeterEntity WHERE addressId NOT IN ?;
 
 -- ==========================================
 -- 10. DAO WATER READING (Показания воды)
@@ -454,7 +452,7 @@ deleteWaterReadingByPokId:
 DELETE FROM waterReadingEntity WHERE pokId =:pokId;
 
 getLastWaterReadingByMeter:
-SELECT lastValue, currentValue FROM waterReadingEntity
+SELECT * FROM waterReadingEntity
 WHERE vodomerId = :vodomerId
 ORDER BY dateReadings DESC LIMIT 1;
 

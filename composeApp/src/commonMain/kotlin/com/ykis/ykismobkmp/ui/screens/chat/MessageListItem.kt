@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ykis.mob.R
-import com.ykis.mob.ui.components.UserImage
+import com.ykis.ykismobkmp.ui.components.UserImage
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable

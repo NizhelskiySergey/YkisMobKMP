@@ -3,6 +3,7 @@ package com.ykis.ykismobkmp.domain.repository.apartment.useCase
 import com.ykis.ykismobkmp.core.utils.Log
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.data.responses.BaseResponse
+import com.ykis.ykismobkmp.data.responses.GetSimpleResponse
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentRepository
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +14,7 @@ import kotlinx.coroutines.flow.flowOn
 class UpdateBti(
     private val repository: ApartmentRepository,
 ) {
-  operator fun invoke(params: ApartmentEntity): Flow<Resource<BaseResponse>> = flow {
+  operator fun invoke(params: ApartmentEntity): Flow<Resource<GetSimpleResponse>> = flow {
       val methodName = "UseCase.UpdateBti"
       try {
           Log.d("YkisLog", "[$methodName]: [START] ID: ${params.addressId}")

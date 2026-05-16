@@ -2,6 +2,8 @@ package com.ykis.ykismobkmp.di
 
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.StorageSettings
+import com.ykis.ykismobkmp.data.preferences.AppSettingsRepository
+import com.ykis.ykismobkmp.data.preferences.AppSettingsRepositoryJsImpl
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -13,7 +15,7 @@ val jsPlatformModule: Module = module {
   // РЕШЕНИЕ: Пустой конструктор Settings() в jsMain автоматически развернет
   // работу с браузерным хранилищем LocalStorage для флага согласия лицензии.
   single<Settings> { StorageSettings() }
-
+  single<AppSettingsRepository> {AppSettingsRepositoryJsImpl()}
   // Заглушка драйвера базы данных для веб-версии.
   // Замени на актуальный Web-драйвер SQLDelight, если планируешь сохранять кэш в браузере.
   // single { DatabaseDriverFactory() }

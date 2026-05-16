@@ -8,9 +8,9 @@ import com.ykis.ykismobkmp.domain.entity.MessageEntity
 import com.ykis.ykismobkmp.domain.entity.UserEntity
 import com.ykis.ykismobkmp.domain.repository.chat.ChatRepository
 import com.ykis.ykismobkmp.domain.services.LogService
+import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseScreenModel
 import com.ykis.ykismobkmp.ui.BaseUIState
-import com.ykis.ykismobkmp.ui.UserRole
 import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
 import com.ykis.ykismobkmp.ui.screens.service.list.TotalServiceDebt
 import kotlinx.coroutines.Job

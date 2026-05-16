@@ -1,165 +1,182 @@
-package com.ykis.mob.ui.components.appbars
+package com.ykis.ykismobkmp.ui.components
 
+
+// КРОСС ПЛАТФОРМЕННЫЕ ИМПОРТЫ РЕСУРСОВ JETBRAINS:
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.ykis.mob.R
-import com.ykis.ykismobkmp.core.composable.DangerousCardEditor
-import com.ykis.ykismobkmp.ui.components.DialogCancelButton
-import com.ykis.ykismobkmp.ui.components.DialogConfirmButton
-import com.ykis.ykismobkmp.core.composable.RegularCardEditor
-import com.ykis.mob.core.ext.card
-import com.ykis.mob.R.drawable as AppIcon
-import com.ykis.mob.R.string as AppText
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.*
 
+private const val className = "ProfileTopBar"
 
+/**
+ * [ProfileTopBar] — Кроссплатформенная верхняя панель навигации профиля абонента ЮКИС.
+ * ИСПРАВЛЕНО: Убраны зависимости от R.string, выпадающие элементы переведены на DropdownMenuItem.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileTopBar(
-    modifier: Modifier = Modifier,
-    signOut: () -> Unit,
-    revokeAccess: () -> Unit,
-    navigateBack: () -> Unit,
+  modifier: Modifier = Modifier,
+  signOut: () -> Unit,
+  revokeAccess: () -> Unit,
+  navigateBack: () -> Unit
+) {
+  var openMenu by remember { mutableStateOf(false) }
 
-
-    ) {
-    var openMenu by remember { mutableStateOf(false) }
-
-
-    TopAppBar(
-        modifier = modifier,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
-        title = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = stringResource(id = R.string.profile),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        navigationIcon = {
-
-            IconButton(
-                onClick = navigateBack,
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(id = R.string.back_button),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        },
-        actions = {
-            IconButton(
-                onClick = { openMenu = !openMenu },
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(id = R.string.more_options_button),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            DropdownMenu(
-                expanded = openMenu,
-                onDismissRequest = { openMenu = !openMenu },
-                modifier = Modifier
-                    .wrapContentSize(align = Alignment.TopCenter)
-//                        .fillMaxWidth(0.5f)
-                    .background(color = MaterialTheme.colorScheme.background)
-            ) {
-                SignOutCard(signOut)
-                DeleteMyAccountCard(revokeAccess)
-            }
-
+  TopAppBar(
+    modifier = modifier.fillMaxWidth(),
+    colors = TopAppBarDefaults.topAppBarColors(
+      containerColor = MaterialTheme.colorScheme.surfaceContainer
+    ),
+    title = {
+      Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+      ) {
+        Text(
+          text = stringResource(Res.string.profile),
+          style = MaterialTheme.typography.titleLarge,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+      }
+    },
+    navigationIcon = {
+      IconButton(
+        onClick = navigateBack,
+        colors = IconButtonDefaults.iconButtonColors(
+          contentColor = MaterialTheme.colorScheme.onSurface
+        )
+      ) {
+        Icon(
+          imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+          contentDescription = stringResource(Res.string.back_button),
+          modifier = Modifier.size(24.dp)
+        )
+      }
+    },
+    actions = {
+      Box {
+        IconButton(onClick = { openMenu = !openMenu }) {
+          Icon(
+            imageVector = Icons.Default.MoreVert,
+            contentDescription = stringResource(Res.string.more_options_button),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+          )
         }
+
+        DropdownMenu(
+          expanded = openMenu,
+          onDismissRequest = { openMenu = false },
+          modifier = Modifier
+            .width(200.dp)
+            .background(color = MaterialTheme.colorScheme.surfaceContainerHigh)
+        ) {
+          // Элемент Выхода из сессии биллинга г. Южный
+          DropdownMenuSignOutItem(
+            onSignOutClick = {
+              openMenu = false
+              signOut()
+            }
+          )
+
+          // Элемент Безопасного удаления аккаунта
+          DropdownMenuDeleteAccountItem(
+            onDeleteClick = {
+              openMenu = false
+              revokeAccess()
+            }
+          )
+        }
+      }
+    }
+  )
+}
+
+/**
+ * [DropdownMenuSignOutItem] — Кроссплатформенная кнопка выхода с подтверждающим AlertDialog.
+ */
+@Composable
+fun DropdownMenuSignOutItem(onSignOutClick: () -> Unit) {
+  var showWarningDialog by remember { mutableStateOf(false) }
+
+  DropdownMenuItem(
+    text = { Text(stringResource(Res.string.sign_out)) },
+    leadingIcon = { Icon(Icons.Default.Logout, contentDescription = null) },
+    onClick = { showWarningDialog = true }
+  )
+
+  if (showWarningDialog) {
+    AlertDialog(
+      onDismissRequest = { showWarningDialog = false },
+      title = { Text(stringResource(Res.string.sign_out_title)) },
+      text = { Text(stringResource(Res.string.sign_out_description)) },
+      dismissButton = {
+        TextButton(onClick = { showWarningDialog = false }) {
+          Text(stringResource(Res.string.cancel))
+        }
+      },
+      confirmButton = {
+        Button(
+          onClick = {
+            showWarningDialog = false
+            onSignOutClick()
+          },
+          shape = RoundedCornerShape(12.dp)
+        ) {
+          Text(stringResource(Res.string.sign_out))
+        }
+      }
     )
+  }
 }
 
-
+/**
+ * [DropdownMenuDeleteAccountItem] — Кнопочный элемент деструктивного удаления профиля.
+ */
 @Composable
-fun SignOutCard(signOut: () -> Unit) {
-    var showWarningDialog by remember { mutableStateOf(false) }
+fun DropdownMenuDeleteAccountItem(onDeleteClick: () -> Unit) {
+  var showWarningDialog by remember { mutableStateOf(false) }
 
-    RegularCardEditor(AppText.sign_out, AppIcon.ic_exit, "", Modifier.card()) {
-        showWarningDialog = true
-    }
+  DropdownMenuItem(
+    text = { Text(stringResource(Res.string.delete_my_account), color = MaterialTheme.colorScheme.error) },
+    leadingIcon = { Icon(Icons.Default.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+    onClick = { showWarningDialog = true }
+  )
 
-    if (showWarningDialog) {
-        AlertDialog(
-            title = { Text(stringResource(AppText.sign_out_title)) },
-            text = { Text(stringResource(AppText.sign_out_description)) },
-            dismissButton = { DialogCancelButton(AppText.cancel) { showWarningDialog = false } },
-            confirmButton = {
-                DialogConfirmButton(AppText.sign_out) {
-                    signOut()
-                    showWarningDialog = false
-                }
-            },
-            onDismissRequest = { showWarningDialog = false }
-        )
-    }
-}
-
-
-@Composable
-fun DeleteMyAccountCard(deleteMyAccount: () -> Unit) {
-    var showWarningDialog by remember { mutableStateOf(false) }
-
-    DangerousCardEditor(
-        AppText.delete_my_account,
-        AppIcon.ic_delete_my_account,
-        "",
-        Modifier.card()
-    ) {
-        showWarningDialog = true
-    }
-
-    if (showWarningDialog) {
-        AlertDialog(
-            title = { Text(stringResource(AppText.delete_account_title)) },
-            text = { Text(stringResource(AppText.delete_account_description)) },
-            dismissButton = { DialogCancelButton(AppText.cancel) { showWarningDialog = false } },
-            confirmButton = {
-                DialogConfirmButton(AppText.delete_my_account) {
-                    deleteMyAccount()
-                    showWarningDialog = false
-                }
-            },
-            onDismissRequest = { showWarningDialog = false }
-        )
-    }
+  if (showWarningDialog) {
+    AlertDialog(
+      onDismissRequest = { showWarningDialog = false },
+      title = { Text(stringResource(Res.string.delete_account_title)) },
+      text = { Text(stringResource(Res.string.delete_account_description)) },
+      dismissButton = {
+        TextButton(onClick = { showWarningDialog = false }) {
+          Text(stringResource(Res.string.cancel))
+        }
+      },
+      confirmButton = {
+        Button(
+          onClick = {
+            showWarningDialog = false
+            onDeleteClick()
+          },
+          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+          shape = RoundedCornerShape(12.dp)
+        ) {
+          Text(stringResource(Res.string.delete_my_account))
+        }
+      }
+    )
+  }
 }
 

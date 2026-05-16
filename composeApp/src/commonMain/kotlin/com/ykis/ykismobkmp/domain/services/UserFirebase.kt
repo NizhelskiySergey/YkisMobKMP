@@ -60,8 +60,8 @@ fun UserFirebase.toEntity(): UserEntity {
     email = this.email,
     address = this.name ?: "",
     // Пробрасываем чистые Long идентификаторы напрямую в UI Entity структуру
-    osbbId = this.osbbId,
-    addressId = this.addressId,
+    osbbId = this.osbbId.toInt(),
+    addressId = this.addressId.toInt(),
     tokens = this.fcmTokens ?: emptyList()
   )
 }

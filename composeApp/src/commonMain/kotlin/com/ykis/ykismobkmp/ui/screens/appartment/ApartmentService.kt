@@ -1,16 +1,17 @@
 package com.ykis.ykismobkmp.ui.screens.appartment
 
-import com.ykis.mob.domain.apartment.request.AddApartment
-import com.ykis.mob.domain.apartment.request.DeleteApartment
-import com.ykis.mob.domain.apartment.request.DeleteUserAccount
-import com.ykis.mob.domain.apartment.request.GetApartment
-import com.ykis.mob.domain.apartment.request.GetApartmentList
-import com.ykis.mob.domain.apartment.request.GetHouseList
-import com.ykis.mob.domain.apartment.request.GetOsbbApartmentsList
-import com.ykis.mob.domain.apartment.request.GetRaionList
-import com.ykis.mob.domain.apartment.request.SaveUserUid
-import com.ykis.mob.domain.apartment.request.UpdateBti
-import com.ykis.mob.domain.apartment.request.VerifyAdminCode
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.AddApartment
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.DeleteApartment
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.DeleteUserAccount
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.GetApartment
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.GetApartmentList
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.GetHouseList
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.GetOsbbApartmentsList
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.GetRaionList
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.SaveUserUid
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.UpdateBti
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.VerifyAdminCode
+
 
 class ApartmentService(
   val getApartmentList: GetApartmentList,     // Для жильца (с БД)

@@ -10,8 +10,8 @@ import com.ykis.ykismobkmp.domain.entity.HouseEntity as DomainHouse
 fun DbHouse.toDomainHouse(): DomainHouse {
   return DomainHouse(
     // Конвертируем Long из БД обратно в Int доменной модели
-    houseId = this.houseId.toInt(),
-    raionId = this.raionId.toInt(),
+    houseId = this.houseId,
+    raionId = this.raionId,
     house = this.house      // String маппится напрямую символ в символ
   )
 }

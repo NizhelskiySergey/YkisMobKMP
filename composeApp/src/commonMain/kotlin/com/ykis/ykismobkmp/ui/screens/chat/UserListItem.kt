@@ -16,7 +16,7 @@ import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 import com.ykis.ykismobkmp.utils.formatTimestamp // Твой будущий хелпер
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import android.util.Log
-import com.ykis.mob.ui.components.UserImage
+import com.ykis.ykismobkmp.ui.components.UserImage
 
 private const val className = "UserListItem"
 

@@ -25,7 +25,7 @@ class DeleteApartment(
 
           // 1. ЗАПРОС В СЕТЬ (Ktor через Репозиторий)
           // Репозиторий принимает Long и сам каскадно зачистит локальный кэш при успехе
-          val response = repository.deleteApartment(addressId, uid)
+          val response = repository.deleteApartment(uid,addressId, )
 
           if (response.success == 1) {
               println("[$methodName]: [SUCCESS] Удалено на сервере и в локальной БД")

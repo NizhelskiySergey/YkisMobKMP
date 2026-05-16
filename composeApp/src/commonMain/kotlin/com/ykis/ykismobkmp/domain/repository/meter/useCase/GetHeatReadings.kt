@@ -2,6 +2,7 @@ package com.ykis.ykismobkmp.domain.repository.meter.useCase
 
 
 import com.ykis.ykismobkmp.core.utils.Resource
+import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.entity.HeatReadingEntity
 import com.ykis.ykismobkmp.domain.repository.meter.HeatMeterRepository
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,7 @@ class GetHeatReadings(
   private val getLocal: suspend (Long) -> List<HeatReadingEntity> = { emptyList() },
   private val saveLocal: suspend (Long, List<HeatReadingEntity>) -> Unit = { _, _ -> }
 ) {
+
   operator fun invoke(uid: String, teplomerId: Long): Flow<Resource<List<HeatReadingEntity>>> = flow {
     val methodName = "UseCase.GetHeatReadings"
     try {

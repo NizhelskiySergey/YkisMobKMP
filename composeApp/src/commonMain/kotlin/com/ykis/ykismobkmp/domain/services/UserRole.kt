@@ -1,6 +1,5 @@
 package com.ykis.ykismobkmp.domain.services
 
-import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.domain.services.UserRole.Companion.fromString
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -10,25 +9,24 @@ import kotlinx.serialization.Serializable
  * Управляет логикой разделения прав доступа между жильцами Южного и администрацией ЖКХ.
  */
 @Serializable
-enum class UserRole(val codeName: ContentDetail) {
+enum class UserRole {
   @SerialName("UNKNOWN")
-  Unknown(ContentDetail.UNKNOWN),
+  Unknown,
 
   @SerialName("STANDARD_USER")
-  StandardUser(ContentDetail.STANDARD_USER),
+  StandardUser,
 
   @SerialName("WATER_SERVICE")
-  VodokanalUser(ContentDetail.WATER_SERVICE),
+  VodokanalUser,
 
   @SerialName("WARM_SERVICE")
-  YtkeUser(ContentDetail.WARM_SERVICE),
+  YtkeUser,
 
   @SerialName("GARBAGE_SERVICE")
-  TboUser(ContentDetail.GARBAGE_SERVICE),
+  TboUser,
 
-  // ИСПРАВЛЕНО: "OSBB" из Firestore/JSON превратится в OsbbUser (Администратор ОСМД/Дома на Mac)
   @SerialName("OSBB")
-  OsbbUser(ContentDetail.OSBB);
+  OsbbUser;
 
   companion object {
     /**
@@ -38,24 +36,23 @@ enum class UserRole(val codeName: ContentDetail) {
     fun fromString(roleStr: String?): UserRole {
       if (roleStr.isNullOrBlank()) return StandardUser
 
-      // ИСПРАВЛЕНО: используем КМР-совместимое сравнение строк без привязки к Java/Android SDK
-      return entries.find { it.name.equals(roleStr, ignoreCase = true) }
-        ?: entries.find { it.codeName.name.equals(roleStr, ignoreCase = true) }
-        ?: StandardUser
+      // ИСПРАВЛЕНО: Прямое КМР-сравнение строк со всеми возможными форматами ответов бэкенда и Firestore
+      return entries.find {
+        it.name.equals(roleStr, ignoreCase = true) ||
+          it.getSerialName().equals(roleStr, ignoreCase = true)
+      } ?: StandardUser
+    }
+
+    // Хелпер для извлечения строкового значения SerialName в KMP рантайме
+    private fun UserRole.getSerialName(): String {
+      return when (this) {
+        Unknown -> "UNKNOWN"
+        StandardUser -> "STANDARD_USER"
+        VodokanalUser -> "WATER_SERVICE"
+        YtkeUser -> "WARM_SERVICE"
+        TboUser -> "GARBAGE_SERVICE"
+        OsbbUser -> "OSBB"
+      }
     }
   }
 }
-
-/**
- * [ContentDetail] — Системные идентификаторы служб ЖКХ.
- */
-@Serializable
-enum class ContentDetail {
-  UNKNOWN,
-  STANDARD_USER,
-  WATER_SERVICE,
-  WARM_SERVICE,
-  GARBAGE_SERVICE,
-  OSBB
-}
-

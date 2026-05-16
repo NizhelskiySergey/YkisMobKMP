@@ -1,135 +1,118 @@
 package com.ykis.ykismobkmp.ui.screens.appartment
 
-import android.util.Log
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavHostController
-import com.ykis.mob.R
-import com.ykis.mob.core.snackbar.SnackbarManager
-import com.ykis.mob.core.snackbar.SnackbarMessage.Companion.toMessage
+import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
+import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.mob.ui.navigation.AddApartmentScreen
-import com.ykis.mob.ui.navigation.InfoApartmentScreenDest
-import com.ykis.ykismobkmp.ui.navigation.NavigationType
+import com.ykis.ykismobkmp.ui.screens.meter.MeterListScreen
 import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
-import org.koin.compose.viewmodel.koinViewModel
-@Composable
-fun AddApartmentScreenContent(
-  modifier: Modifier = Modifier,
-  viewModel: ApartmentViewModel = koinViewModel(),
-  navController: NavHostController,
-  onDrawerClicked: () -> Unit,
-  navigationType: NavigationType,
-  closeContentDetail: () -> Unit
-) {
-  val secretCode by viewModel.secretCode.collectAsStateWithLifecycle("")
-  val snackbarHostState = remember { SnackbarHostState() }
-  val snackbarMessage by SnackbarManager.snackbarMessages.collectAsStateWithLifecycle()
-  val context = LocalContext.current
-  val keyboard = LocalSoftwareKeyboardController.current
+import org.koin.compose.koinInject
 
-  // СЛУШАТЕЛЬ ОШИБОК (Снэкбары)
-  LaunchedEffect(snackbarMessage) {
-    snackbarMessage?.let {
-      val text = it.toMessage(context.resources)
-      Log.d("YkisLog", "AddApartmentScreen: [DISPLAYING] $text")
+private const val className = "AddApartmentScreen"
 
-      // Показываем сообщение
-      snackbarHostState.showSnackbar(
-        message = text,
-        duration = SnackbarDuration.Short
-      )
+/**
+ * [AddApartmentScreen] — Кроссплатформенный экран ввода инфо-кодов и секретных слов ОСМД ЮКИС.
+ * Полностью автономен, интегрирован в Voyager и готов к запуску на Mac Desktop, Android и iOS.
+ */
+class AddApartmentScreen(
+  private val onDrawerClicked: () -> Unit,
+  private val closeContentDetail: () -> Unit
+) : Screen {
 
-      // ТОЛЬКО ТЕПЕРЬ очищаем стейт менеджера
-      SnackbarManager.clearMessage()
+  @Composable
+  override fun Content() {
+    val navigator = LocalNavigator.currentOrThrow
+    val keyboard = LocalSoftwareKeyboardController.current
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // ИСПРАВЛЕНО: Инжектируем очищенную KMP-модель через кроссплатформенный koinInject()
+    val screenModel = koinInject<ApartmentScreenModel>()
+
+    // ИСПРАВЛЕНО: Платформозависимый collectAsStateWithLifecycle заменен на КМР collectAsState()
+    val secretCode by screenModel.secretCode.collectAsState("")
+    val snackbarMessage by SnackbarManager.snackbarMessages.collectAsState(null)
+
+    // КРОСС ПЛАТФОРМЕННЫЙ СЛУШАТЬ ОШИБОК И СНЭКБАРОВ
+    LaunchedEffect(snackbarMessage) {
+      snackbarMessage?.let { msg ->
+        // Встроенный КМР менеджер сообщений отдает чистую строку без вызовов context.resources
+        val text = msg.toString()
+        println("[$className]: [DISPLAYING_SNACKBAR] $text")
+
+        snackbarHostState.showSnackbar(
+          message = text,
+          duration = SnackbarDuration.Short
+        )
+        SnackbarManager.clearMessage()
+      }
     }
-  }
 
+    Scaffold(
+      modifier = Modifier.fillMaxSize(),
+      snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
+      AddApartmentScreenStateless(
+        modifier = Modifier.padding(padding),
+        isButtonEnabled = secretCode.trim().isNotEmpty(),
+        onDrawerClicked = onDrawerClicked,
+        secretCode = secretCode,
+        onCodeChanged = { newValue ->
+          println("[$className]: [INPUT] Полозователь вводит: $newValue")
+          screenModel.onSecretCodeChange(newValue)
+        },
+        onAddClick = {
+          println("[$className]: [CLICK] Клик по кнопке отправки кода: $secretCode")
+          keyboard?.hide()
 
-  Scaffold(
-    modifier = modifier.fillMaxSize(),
-    snackbarHost = { SnackbarHost(snackbarHostState) } // Теперь ошибки будет видно!
-  ) { padding ->
-    AddApartmentScreenStateless(
-      modifier = Modifier.padding(padding),
-      isButtonEnabled = secretCode.trim().isNotEmpty(),
-      onDrawerClicked = onDrawerClicked,
-      onAddClick = {
-        Log.d("YkisLog", "AddApartmentScreen: [CLICK] Код: $secretCode")
-        keyboard?.hide()
+          // Запускаем привязку, передавая КМР лямбду перезапуска графа (restartApp)
+          screenModel.addApartment {
+            println("[$className]: [SUCCESS] Код успешно верифицирован биллингом г. Южный")
+            closeContentDetail()
 
-        viewModel.addApartment {
-          Log.d("YkisLog", "AddApartmentScreen: [SUCCESS] Переход на Info")
-          closeContentDetail()
-          navController.navigate(InfoApartmentScreenDest.route) {
-            popUpTo(AddApartmentScreen.route) { inclusive = true }
-            launchSingleTop = true
+            // ИСПРАВЛЕНО: Навигация Jetpack заменена на КМР Voyager. Сбрасываем стек до главного экрана
+            navigator.replaceAll(MeterListScreen())
           }
         }
-      },
-      navigationType = navigationType,
-      code = secretCode,
-      onCodeChanged = { newValue ->
-        Log.d("YkisLog", "AddApartmentScreen: [INPUT] $newValue")
-        viewModel.onSecretCodeChange(newValue)
-      }
-    )
+      )
+    }
   }
 }
 
+/**
+ * [AddApartmentScreenStateless] — Чистая адаптивная верстка ввода кодов, изолированная от DI и навигации.
+ */
 @Composable
 fun AddApartmentScreenStateless(
   modifier: Modifier = Modifier,
   isButtonEnabled: Boolean,
   onDrawerClicked: () -> Unit,
   onAddClick: () -> Unit,
-  navigationType: NavigationType,
-  code: String,
+  secretCode: String,
   onCodeChanged: (String) -> Unit
 ) {
   Column(modifier = modifier.fillMaxSize()) {
+    // ИСПРАВЛЕНО: Вызовы ресурсов R.string полностью заменены строковыми литералами
     DefaultAppBar(
-      navigationType = navigationType,
       onDrawerClick = onDrawerClicked,
-      title = stringResource(id = R.string.add_appartment),
+      title = "Прив'язка особового рахунку",
       canNavigateBack = false
     )
+
     Column(
       modifier = Modifier
         .fillMaxWidth()
@@ -137,39 +120,50 @@ fun AddApartmentScreenStateless(
         .verticalScroll(rememberScrollState()),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
+      // Карточка ввода с ограничением максимальной ширины для Desktop-мониторов Mac/Планшетов
       Card(
         modifier = Modifier.widthIn(max = 500.dp),
         colors = CardDefaults.cardColors(
           containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
       ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(24.dp)) {
           Text(
-            text = stringResource(id = R.string.tooltip_code),
-            style = MaterialTheme.typography.bodyMedium
+            text = "Введіть інфо-код з квитанції ГІОЦ для прив'язки вашої квартири або секретне слово доступу адміністратора ОСББ.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer
           )
 
-          Spacer(modifier = Modifier.height(16.dp))
+          Spacer(modifier = Modifier.height(20.dp))
 
           Row(
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
           ) {
             OutlinedTextField(
-              value = code,
+              value = secretCode,
               onValueChange = onCodeChanged,
               modifier = Modifier.weight(1f),
-              label = { Text(stringResource(id = R.string.secret_сode)) },
+              label = { Text("Код або секретне слово") },
               keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-              singleLine = true
+              singleLine = true,
+              colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+              )
             )
 
             Button(
               onClick = onAddClick,
               enabled = isButtonEnabled,
-              shape = RoundedCornerShape(12.dp)
+              shape = RoundedCornerShape(12.dp),
+              modifier = Modifier.height(54.dp) // Выравниваем высоту кнопки по полю ввода
             ) {
-              Text(text = stringResource(id = R.string.add))
+              Text(
+                text = "Додати",
+                style = MaterialTheme.typography.labelLarge
+              )
             }
           }
         }
@@ -177,8 +171,6 @@ fun AddApartmentScreenStateless(
     }
   }
 }
-
-
 
 @Preview
 @Composable
@@ -191,8 +183,7 @@ private fun AddApartmentPreview() {
         isButtonEnabled = true,
         onDrawerClicked = {},
         onAddClick = {},
-        navigationType = NavigationType.BOTTOM_NAVIGATION,
-        code = "",
+        secretCode = "55555555",
         onCodeChanged = {}
       )
     }

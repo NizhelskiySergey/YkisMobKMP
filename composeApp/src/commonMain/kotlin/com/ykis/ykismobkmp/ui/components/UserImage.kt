@@ -1,35 +1,41 @@
-package com.ykis.mob.ui.components
+package com.ykis.ykismobkmp.ui.components
 
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import com.ykis.mob.R
 
+// КРОСС ПЛАТФОРМЕННЫЕ ИМПОРТЫ РЕСУРСОВ JETBRAINS И COIL 3 KMP:
+import coil3.compose.AsyncImage
+import org.jetbrains.compose.resources.painterResource
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.ic_account_circle
+
+private const val className = "UserImage"
+
+/**
+ * [UserImage] — Кроссплатформенный компонент отображения круглой аватарки абонента ЮКИС.
+ * Полностью очищен от Android Context, Coil 2 билдеров и готов к сборке на Mac Desktop (JVM) и iOS.
+ */
 @Composable
 fun UserImage(
-    modifier: Modifier = Modifier,
-    photoUrl: String
+  modifier: Modifier = Modifier,
+  photoUrl: String
 ) {
-    AsyncImage(
-        model = ImageRequest.Builder(LocalContext.current)
-            .data(photoUrl)
-            .build(),
-        contentDescription = null,
-        error = painterResource(id = R.drawable.ic_account_circle),
-        contentScale = ContentScale.Fit,
-        placeholder = painterResource(id = R.drawable.ic_account_circle) ,
-        modifier = modifier
-            .clip(CircleShape)
-            .width(48.dp)
-            .height(48.dp)
-    )
+  // ИСПРАВЛЕНО: Кроссплатформенный Coil 3 AsyncImage принимает строку URL напрямую в model без Context
+  AsyncImage(
+    model = photoUrl,
+    contentDescription = "Аватар користувача",
+    // ИСПРАВЛЕНО: Заменен Android R.drawable на КМР-ресурс генератора JetBrains Res
+    error = painterResource(Res.drawable.ic_account_circle),
+    placeholder = painterResource(Res.drawable.ic_account_circle),
+    contentScale = ContentScale.Crop, // Изменено на Crop для правильного заполнения круга без полей
+    modifier = modifier
+      .size(48.dp) // ИСПРАВЛЕНО: Раздельные width/height объединены в компактный size
+      .clip(CircleShape)
+  )
 }
+

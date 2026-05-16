@@ -87,6 +87,7 @@ kotlin {
       implementation(libs.sqldelight.coroutines)
       implementation(libs.sqldelight.primitive.adapters)
 
+
       // 7. FIREBASE KMP (GitLive) - Базовые модули
       implementation(libs.firebase.common)
       implementation(libs.firebase.auth)
@@ -97,10 +98,15 @@ kotlin {
       implementation(libs.firebase.database)
       implementation(libs.firebase.storage)
       implementation(libs.multiplatform.settings)
-
-
+      // 8. Coil
+      implementation(libs.coil.compose)
+      implementation(libs.coil.network.ktor)
       // Наш мультиплатформенный логгер
       implementation(libs.napier)
+        // Добавь эту строчку для запуска инвойсов Xpay на любой ОС:
+//        implementation(libs.compose.webview.multiplatform)
+//    ДОБАВЛЯЕМ КМР БИБЛИОТЕКУ ИИ ДЛЯ ПОДДЕРЖКИ РАБОТЫ GEMINI НА ЛЮБОЙ ОС:
+      implementation(libs.generativeai.google)
     }
 
     androidMain.dependencies {
@@ -122,7 +128,8 @@ kotlin {
       implementation(libs.googleid)
       implementation(libs.androidx.credentials)
       implementation(libs.androidx.credentials.play.services.auth)
-
+      implementation(libs.androidx.datastore.preferences.core)
+      implementation(libs.androidx.datastore.core)
     }
 
     // Исправлено: iosMain должен быть внутри sourceSets
@@ -131,6 +138,8 @@ kotlin {
       dependencies {
         implementation(libs.firebase.crashlytics)
         implementation(libs.native.driver)
+        implementation(libs.androidx.datastore.preferences.core)
+        implementation(libs.androidx.datastore.core)
       }
     }
 
@@ -148,6 +157,8 @@ kotlin {
       implementation(libs.ktor.client.okhttp)
       implementation(libs.ktor.client.cio)
       implementation(libs.webcam.capture)
+      implementation(libs.androidx.datastore.preferences.core)
+      implementation(libs.androidx.datastore.core)
 
 
     }

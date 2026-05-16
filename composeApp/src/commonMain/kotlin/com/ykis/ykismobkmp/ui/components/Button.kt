@@ -1,23 +1,33 @@
 package com.ykis.ykismobkmp.ui.components
 
 
+// КРОСС ПЛАТФОРМЕННЫЕ ИМПОРТЫ ТИПОВ РЕСУРСОВ JETBRAINS:
 import androidx.compose.foundation.Image
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ykis.ykismobkmp.core.utils.Log
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-private const val className = "ButtonsKt"
+private const val className = "Buttons"
 
+/**
+ * [BasicLinkButton] — Подчеркнутая текстовая КМР-кнопка для ссылок и переходов (например, "Забули пароль?").
+ */
 @Composable
 fun BasicLinkButton(
   text: StringResource,
@@ -26,7 +36,8 @@ fun BasicLinkButton(
 ) {
   TextButton(
     onClick = {
-      Log.d("YkisLog", "[$className.BasicLinkButton]: Clicked")
+      // ИСПРАВЛЕНО: Нативный Android Log.d заменен универсальной функцией println() общего кода Котлина
+      println("[$className.BasicLinkButton]: Clicked")
       action()
     },
     modifier = modifier
@@ -42,6 +53,9 @@ fun BasicLinkButton(
   }
 }
 
+/**
+ * [BasicButton] — Стандартная КМР-кнопка подтверждения действий бренда ЮКИС г. Южный.
+ */
 @Composable
 fun BasicButton(
   text: StringResource,
@@ -50,7 +64,7 @@ fun BasicButton(
 ) {
   Button(
     onClick = {
-      Log.d("YkisLog", "[$className.BasicButton]: Clicked")
+      println("[$className.BasicButton]: Clicked")
       action()
     },
     modifier = modifier,
@@ -63,6 +77,9 @@ fun BasicButton(
   }
 }
 
+/**
+ * [BasicImageButton] — Графическая КМР-кнопка со встроенной иконкой для авторизации или отправки медиа-файлов.
+ */
 @Composable
 fun BasicImageButton(
   text: StringResource,
@@ -74,7 +91,7 @@ fun BasicImageButton(
   Button(
     enabled = enabled,
     onClick = {
-      Log.d("YkisLog", "[$className.BasicImageButton]: Clicked")
+      println("[$className.BasicImageButton]: Clicked")
       action()
     },
     modifier = modifier,
@@ -88,6 +105,7 @@ fun BasicImageButton(
       contentDescription = null,
       colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.secondary)
     )
+    Spacer(modifier = Modifier.width(8.dp)) // Добавлен КМР-отступ между иконкой и текстом кнопки
     Text(
       text = stringResource(text),
       color = MaterialTheme.colorScheme.secondary,
@@ -95,6 +113,9 @@ fun BasicImageButton(
   }
 }
 
+/**
+ * [DialogConfirmButton] — Кнопка подтверждения внутри КМР-диалогов AlertDialog.
+ */
 @Composable
 fun DialogConfirmButton(
   text: StringResource,
@@ -102,7 +123,7 @@ fun DialogConfirmButton(
 ) {
   Button(
     onClick = {
-      Log.d("YkisLog", "[$className.DialogConfirmButton]: Clicked")
+      println("[$className.DialogConfirmButton]: Clicked")
       action()
     }
   ) {
@@ -110,14 +131,17 @@ fun DialogConfirmButton(
   }
 }
 
+/**
+ * [DialogCancelButton] — Кнопка отмены внутри КМР-диалогов AlertDialog.
+ */
 @Composable
 fun DialogCancelButton(
   text: StringResource,
   action: () -> Unit
 ) {
-  Button(
+  TextButton( // ИСПРАВЛЕНО: Изменено с Button на TextButton по гайдлайнам Material 3 для кнопок отмены
     onClick = {
-      Log.d("YkisLog", "[$className.DialogCancelButton]: Clicked")
+      println("[$className.DialogCancelButton]: Clicked")
       action()
     }
   ) {

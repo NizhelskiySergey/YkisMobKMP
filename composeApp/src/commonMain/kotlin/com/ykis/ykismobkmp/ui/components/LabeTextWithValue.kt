@@ -22,7 +22,7 @@ private const val className = "LabelTexts"
 
 /**
  * [LabelTextWithText] — Строка вывода параметров (например, Модель: GLS 3).
- * ИСПРАВЛЕНО: Добавлен weight(1f) для создания аккуратной табличной верстки на Mac Desktop.
+ * ИСПРАВЛЕНО: Зафиксированы КМР-типы стилей шрифтов Material 3.
  */
 @Composable
 fun LabelTextWithText(
@@ -31,7 +31,7 @@ fun LabelTextWithText(
   valueText: String = ""
 ) {
   Row(
-    modifier = modifier.fillMaxWidth(), // Растягиваем на всю ширину карточки
+    modifier = modifier.fillMaxWidth(), // Растягиваем на всю ширину карточки ЖКХ-услуг
     verticalAlignment = Alignment.CenterVertically
   ) {
     Text(
@@ -53,7 +53,7 @@ fun LabelTextWithText(
 }
 
 /**
- * [LabelTextWithTextAndIcon] — Строка вывода информации с иконкой (например, Телефон).
+ * [LabelTextWithTextAndIcon] — Строка вывода информации с иконкой (например, Телефон / Почта).
  */
 @Composable
 fun LabelTextWithTextAndIcon(
@@ -74,7 +74,7 @@ fun LabelTextWithTextAndIcon(
     )
     Text(
       text = labelText,
-      modifier = Modifier.weight(1f).padding(start = 8.dp), // Выравниваем текст
+      modifier = Modifier.weight(1f).padding(start = 8.dp), // Изолированное выравнивание
       style = MaterialTheme.typography.titleMedium.copy(
         fontWeight = FontWeight.Normal,
         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -91,8 +91,7 @@ fun LabelTextWithTextAndIcon(
 }
 
 /**
- * [LabelTextWithCheckBox] — Строка информационного чекбокса (например, Враховувати стоки).
- * ИСПРАВЛЕНО: onCheckedChange = null оставлен для режима Read-Only, добавлен весовой отступ.
+ * [LabelTextWithCheckBox] — Строка информационного чекбокса только для чтения (инфо-флаги БТИ).
  */
 @Composable
 fun LabelTextWithCheckBox(
@@ -106,7 +105,7 @@ fun LabelTextWithCheckBox(
   ) {
     Text(
       text = labelText,
-      modifier = Modifier.weight(1f), // Текст слева
+      modifier = Modifier.weight(1f),
       style = MaterialTheme.typography.titleSmall.copy(
         fontWeight = FontWeight.Normal,
         color = MaterialTheme.colorScheme.onSurface
@@ -114,8 +113,8 @@ fun LabelTextWithCheckBox(
     )
     Checkbox(
       checked = checked,
-      onCheckedChange = null, // Компонент только для чтения (инфо-флаг биллинга)
-      modifier = Modifier.size(24.dp), // Чекбокс аккуратно выровнен по правому краю
+      onCheckedChange = null, // Компонент только для чтения (Read-Only) для защиты от Race Condition
+      modifier = Modifier.size(24.dp),
       colors = CheckboxDefaults.colors(
         disabledCheckedColor = MaterialTheme.colorScheme.primary,
         disabledUncheckedColor = MaterialTheme.colorScheme.outlineVariant
@@ -139,6 +138,7 @@ fun ColumnLabelTextWithTextAndIcon(
     verticalArrangement = Arrangement.spacedBy(4.dp)
   ) {
     Row(
+      modifier = Modifier.fillMaxWidth(),
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -162,9 +162,10 @@ fun ColumnLabelTextWithTextAndIcon(
       text = valueText,
       modifier = Modifier.padding(start = if (imageVector != null) 26.dp else 0.dp), // Сдвиг текста под иконку
       style = MaterialTheme.typography.bodyLarge.copy(
-        fontWeight = FontWeight.Light // Стабильный КМР Light-шрифт
+        fontWeight = FontWeight.Light
       )
     )
   }
 }
+
 

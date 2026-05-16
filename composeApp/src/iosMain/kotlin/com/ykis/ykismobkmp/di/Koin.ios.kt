@@ -2,6 +2,8 @@ package com.ykis.ykismobkmp.di
 
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.NSUserDefaultsSettings
+import com.ykis.ykismobkmp.data.preferences.AppSettingsRepository
+import com.ykis.ykismobkmp.data.preferences.AppSettingsRepositoryImpl
 import com.ykis.ykismobkmp.db.DatabaseDriverFactory
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -15,7 +17,9 @@ val iosPlatformModule: Module = module {
   single<Settings> {
     NSUserDefaultsSettings(NSUserDefaults.standardUserDefaults)
   }
-
+  single<AppSettingsRepository> {
+    AppSettingsRepositoryImpl(dataStore = get())
+  }
   // 2. Драйвер SQLite баз данных под iOS
   single { DatabaseDriverFactory() }
 }

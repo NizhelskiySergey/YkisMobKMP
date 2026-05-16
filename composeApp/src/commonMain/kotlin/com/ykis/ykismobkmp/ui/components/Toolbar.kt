@@ -1,44 +1,65 @@
 package com.ykis.ykismobkmp.ui.components
 
-import androidx.compose.foundation.layout.*
-
-import androidx.compose.material3.*
+// КРОСС ПЛАТФОРМЕННЫЕ ИМПОРТЫ ТИПОВ РЕСУРСОВ JETBRAINS:
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.ykis.ykismobkmp.core.utils.Log
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.*
 import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.back_button
+import ykismobkmp.composeapp.generated.resources.driver_menu
 
-private const val className = "ToolbarsKt"
+private const val className = "Toolbars"
 
+/**
+ * [BackIcon] — Кроссплатформенная кнопка возврата на предыдущий экран Voyager.
+ */
 @Composable
 fun BackIcon(
   navigateBack: () -> Unit
 ) {
   IconButton(
     onClick = {
-      Log.d("YkisLog", "[$className.BackIcon]: Navigate back clicked")
+      // ИСПРАВЛЕНО: Нативный Android Log.d заменен универсальной функцией println() общего кода Котлина
+      println("[$className.BackIcon]: Navigate back clicked")
       navigateBack()
     }
   ) {
     Icon(
       imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-      contentDescription = stringResource(Res.string.back_button),
+      contentDescription = stringResource(Res.string.back_button)
     )
   }
 }
 
+/**
+ * [BasicToolbar] — Минималистичная КМР-панель навигации по центру для служебных окон ЮКИС.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BasicToolbar(
   title: StringResource
 ) {
-  Log.d("YkisLog", "[$className.BasicToolbar]: Rendering toolbar")
+  println("[$className.BasicToolbar]: Rendering toolbar")
   TopAppBar(
     colors = TopAppBarDefaults.topAppBarColors(
       containerColor = MaterialTheme.colorScheme.inverseOnSurface
@@ -50,13 +71,17 @@ fun BasicToolbar(
       ) {
         Text(
           text = stringResource(title),
-          style = MaterialTheme.typography.titleLarge,
+          style = MaterialTheme.typography.titleLarge
         )
       }
     }
   )
 }
 
+/**
+ * [ActionToolbar] — Адаптивная КМР-панель чатов и диспетчеризации ОСМД г. Южное.
+ * Автоматически меняет выравнивание текста и шапку в зависимости от форм-фактора (isFullScreen).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActionToolbar(
@@ -66,9 +91,10 @@ fun ActionToolbar(
   isFullScreen: Boolean,
   endAction: () -> Unit
 ) {
-  Log.d("YkisLog", "[$className.ActionToolbar]: Rendering with isFullScreen=$isFullScreen")
+  println("[$className.ActionToolbar]: Rendering with isFullScreen=$isFullScreen")
   TopAppBar(
-    modifier = modifier,
+    // ИСПРАВЛЕНО: Базовый модификатор гарантирует растягивание шапки на всю ширину Mac-окна
+    modifier = modifier.fillMaxWidth(),
     colors = TopAppBarDefaults.topAppBarColors(
       containerColor = MaterialTheme.colorScheme.inverseOnSurface
     ),
@@ -88,15 +114,15 @@ fun ActionToolbar(
       if (isFullScreen) {
         IconButton(
           onClick = {
-            Log.d("YkisLog", "[$className.ActionToolbar]: End action (back) clicked")
+            println("[$className.ActionToolbar]: End action (back) clicked")
             endAction()
           },
-          modifier = Modifier.padding(8.dp),
+          modifier = Modifier.padding(8.dp)
         ) {
           Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
             contentDescription = stringResource(Res.string.back_button),
-            modifier = Modifier.size(24.dp) // Увеличил с 14dp до стандартных 24dp для кликабельности
+            modifier = Modifier.size(24.dp) // Сохранена увеличенная кликабельная зона Material 3
           )
         }
       }
@@ -104,9 +130,9 @@ fun ActionToolbar(
     actions = {
       IconButton(
         onClick = {
-          Log.d("YkisLog", "[$className.ActionToolbar]: Menu clicked")
-          /*TODO*/
-        },
+          println("[$className.ActionToolbar]: Menu clicked")
+          /*TODO: Внедрение выпадающего КМР DropdownMenu действий */
+        }
       ) {
         Icon(
           imageVector = Icons.Default.MoreVert,

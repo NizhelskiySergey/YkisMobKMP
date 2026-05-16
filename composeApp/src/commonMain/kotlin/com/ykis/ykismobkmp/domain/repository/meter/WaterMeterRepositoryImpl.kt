@@ -5,10 +5,6 @@ import com.ykis.ykismobkmp.data.responses.*
 
 private const val className = "WaterMeterRepositoryImpl"
 
-/**
- * [WaterMeterRepositoryImpl] — Очищенная КМР-реализация репозитория счетчиков воды.
- * Общается напрямую со строго типизированным KtorApiServiceImpl.
- */
 class WaterMeterRepositoryImpl(
   private val apiService: KtorApiService
 ) : WaterMeterRepository {
@@ -16,7 +12,11 @@ class WaterMeterRepositoryImpl(
   override suspend fun getWaterMeterList(uid: String, addressId: Long): GetWaterMeterResponse {
     println("[$className.getWaterMeterList]: uid=${uid.takeLast(5)}, addressId=$addressId")
     return try {
-      apiService.getWaterMeterList(addressId, uid)
+      val params = mapOf(
+        "uid" to uid,
+        "addressId" to addressId.toString()
+      )
+      apiService.getWaterMeterList(params )
     } catch (ex: Exception) {
       println("[$className.getWaterMeterList] Error: ${ex.message}")
       GetWaterMeterResponse(success = 0, message = ex.message ?: "Невідома помилка мережі")
@@ -26,7 +26,11 @@ class WaterMeterRepositoryImpl(
   override suspend fun getWaterReadings(uid: String, vodomerId: Long): GetWaterReadingsResponse {
     println("[$className.getWaterReadings]: uid=${uid.takeLast(5)}, vodomerId=$vodomerId")
     return try {
-      apiService.getWaterReadings(vodomerId, uid)
+      val params = mapOf(
+        "uid" to uid,
+        "vodomerId" to vodomerId.toString()
+      )
+      apiService.getWaterReadings(params )
     } catch (ex: Exception) {
       println("[$className.getWaterReadings] Error: ${ex.message}")
       GetWaterReadingsResponse(success = 0, message = ex.message ?: "Невідома помилка мережі")
@@ -36,32 +40,42 @@ class WaterMeterRepositoryImpl(
   override suspend fun getLastWaterReading(uid: String, vodomerId: Long): GetLastWaterReadingResponse {
     println("[$className.getLastWaterReading]: uid=${uid.takeLast(5)}, vodomerId=$vodomerId")
     return try {
-      apiService.getLastWaterReading(vodomerId, uid)
+      val params = mapOf(
+        "uid" to uid,
+        "vodomerId" to vodomerId.toString()
+      )
+      apiService.getLastWaterReading(params )
     } catch (ex: Exception) {
       println("[$className.getLastWaterReading] Error: ${ex.message}")
       GetLastWaterReadingResponse(success = 0, message = ex.message ?: "Невідома помилка мережі")
     }
   }
 
-  override suspend fun addWaterReading(params: AddWaterReadingParams): GetSimpleResponse {
+  override suspend fun addWaterReading(params: MeterReadingsParams): GetSimpleResponse {
     println("[$className.addWaterReading]: uid=${params.uid.takeLast(5)}, meterId=${params.meterId}")
     return try {
-      apiService.addWaterReading(
-        vodomerId = params.meterId,
-        currentValue = params.currentValue,
-        newValue = params.newValue,
-        uid = params.uid
+      val params = mapOf(
+        "uid" to params.uid,
+        "vodomerId" to params.meterId.toString(),
+        "currentValue" to params.currentValue.toString(),
+        "newValue" to params.newValue.toString()
       )
+      apiService.addWaterReading(params)
     } catch (ex: Exception) {
       println("[$className.addWaterReading] Error: ${ex.message}")
       GetSimpleResponse(success = 0, message = ex.message ?: "Невідома помилка мережі")
     }
   }
 
-  override suspend fun deleteLastWaterReading(uid: String, readingId: Long): GetSimpleResponse {
-    println("[$className.deleteLastWaterReading]: uid=${uid.takeLast(5)}, readingId=$readingId")
+
+  override suspend fun deleteLastWaterReading(uid: String, pokId: Long): GetSimpleResponse {
+    println("[$className.deleteLastWaterReading]: uid=${uid.takeLast(5)}, readingId=$pokId")
     return try {
-      apiService.deleteLastWaterReading(readingId, uid)
+      val params = mapOf(
+        "uid" to uid,
+        "pokId" to pokId.toString()
+      )
+      apiService.deleteLastWaterReading(params, )
     } catch (ex: Exception) {
       println("[$className.deleteLastWaterReading] Error: ${ex.message}")
       GetSimpleResponse(success = 0, message = ex.message ?: "Невідома помилка мережі")

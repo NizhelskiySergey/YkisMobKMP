@@ -19,7 +19,7 @@ class GetApartment(
     private val getLocal: suspend (Long) -> ApartmentEntity? = { null },
     private val saveLocal: suspend (ApartmentEntity) -> Unit = {}
 ) {
-  operator fun invoke(addressId: Long, uid: String): Flow<Resource<ApartmentEntity>> = flow {
+  operator fun invoke( uid: String,addressId: Long): Flow<Resource<ApartmentEntity>> = flow {
       val methodName = "UseCase.GetApartment"
 
       try {
@@ -36,7 +36,7 @@ class GetApartment(
           println("[$methodName]: [NETWORK_START] Запрос ID: $addressId, UID: ${uid.takeLast(5)}")
 
           // В репозитории метод getApartment тоже должен принимать Long для консистентности
-          val response = repository.getApartment(addressId, uid)
+          val response = repository.getApartment(uid,addressId )
 
           if (response.success == 1 && response.apartment != null) {
               // Прошиваем актуальный UID пользователя для связки данных

@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.ykis.mob.ui.components.appbars.AddAppBar
+import com.ykis.ykismobkmp.ui.components.AddAppBar
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentViewModel
 import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme

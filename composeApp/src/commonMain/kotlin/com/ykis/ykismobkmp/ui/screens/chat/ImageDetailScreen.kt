@@ -23,7 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import com.ykis.mob.ui.components.ZoomableImage
+import com.ykis.ykismobkmp.ui.components.ZoomableImage
 
 @Composable
 fun ImageDetailScreen(

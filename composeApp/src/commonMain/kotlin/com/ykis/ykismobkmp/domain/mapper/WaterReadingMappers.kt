@@ -1,13 +1,7 @@
 package com.ykis.ykismobkmp.domain.mapper
 
-
-
-// 1. Импортируем сгенерированный SQLDelight-класс строго по имени твоей таблицы CamelCase
 import com.ykis.ykismobkmp.db.WaterReadingEntity as DbWaterReading
-
-// 2. Импортируем нашу чистую доменную КМР-модель для UI слоя
 import com.ykis.ykismobkmp.domain.entity.WaterReadingEntity as DomainWaterReading
-
 /**
  * [DomainWaterReading.toDbWaterReading] — Конвертация доменной UI-модели в SQLDelight сущность для записи в БД.
  */

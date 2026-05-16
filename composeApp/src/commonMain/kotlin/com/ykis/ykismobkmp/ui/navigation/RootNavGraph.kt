@@ -15,7 +15,6 @@ import org.koin.compose.koinInject
 // Импорты экранов приложения (каждый реализует интерфейс Screen)
 import com.ykis.ykismobkmp.ui.screens.auth.TermsScreen
 import com.ykis.ykismobkmp.ui.screens.auth.SignUpScreen
-import com.ykis.ykismobkmp.ui.screens.apartment.MainApartmentScreen
 
 // Импорты конфигураций и сервисов
 import com.ykis.ykismobkmp.ui.NavigationType

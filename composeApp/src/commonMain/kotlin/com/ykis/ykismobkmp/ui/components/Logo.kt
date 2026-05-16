@@ -1,11 +1,15 @@
 package com.ykis.ykismobkmp.ui.components
 
 
+// КРОСС ПЛАТФОРМЕННЫЕ ИМПОРТЫ РЕСУРСОВ JETBRAINS:
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -17,7 +21,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.ykis.ykismobkmp.core.utils.Log
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
@@ -25,18 +28,23 @@ import ykismobkmp.composeapp.generated.resources.app_name
 import ykismobkmp.composeapp.generated.resources.full_name
 import ykismobkmp.composeapp.generated.resources.ykis
 
-private const val className = "LogoImageKt"
+private const val className = "LogoImage"
 
+/**
+ * [LogoImage] — Кроссплатформенный компонент отображения фирменного логотипа ЮКИС г. Южный.
+ * Полностью очищен от Android SDK логов и готов к стабильному рендерингу на любой операционной системе.
+ */
 @Composable
 fun LogoImage(modifier: Modifier = Modifier) {
-  // Логирование согласно правилу [Класс.Метод]
-  Log.d("YkisLog", "[$className.LogoImage]: Rendering logo")
+  // ИСПРАВЛЕНО: Нативный Android Log.d заменен универсальной функцией println() общего кода Котлина
+  println("[$className.LogoImage]: Rendering logo")
 
   Row(
     modifier = modifier,
     horizontalArrangement = Arrangement.Center,
     verticalAlignment = Alignment.CenterVertically
   ) {
+    // Локальный изолированный модификатор для аватарки-круга логотипа
     val imageModifier = Modifier
       .size(60.dp)
       .clip(CircleShape)
@@ -61,4 +69,5 @@ fun LogoImage(modifier: Modifier = Modifier) {
     )
   }
 }
+
 

@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package com.ykis.mob.core.composable
+package com.ykis.ykismobkmp.ui.components
 
 
+// КРОСС ПЛАТФОРМЕННЫЕ ИМПОРТЫ ТИПОВ РЕСУРСОВ JETBRAINS:
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -24,27 +25,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.ykis.ykismobkmp.core.utils.Log
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
-private const val className = "ProfileImageKt"
+private const val className = "ProfileImage"
 
+/**
+ * [ProfileImage] — Кроссплатформенный компонент отображения локальных круглых иконок-аватарок ЮКИС.
+ * Полностью очищен от Android SDK логов и готов к стабильному рендерингу на любой операционной системе.
+ */
 @Composable
 fun ProfileImage(
-  drawableResource: DrawableResource, // Заменили Int на DrawableResource
+  drawableResource: DrawableResource,
   description: String,
   modifier: Modifier = Modifier
 ) {
-  // Логирование согласно правилу [Класс.Метод]
-  Log.d("YkisLog", "[$className.ProfileImage]: Rendering image. Description: $description")
+  // ИСПРАВЛЕНО: Нативный Android Log.d заменен универсальной функцией println() общего кода Котлина
+  println("[$className.ProfileImage]: Rendering image. Description: $description")
 
   Image(
     modifier = modifier
       .size(40.dp)
       .clip(CircleShape),
     painter = painterResource(drawableResource),
-    contentDescription = description,
+    contentDescription = description
   )
 }
 

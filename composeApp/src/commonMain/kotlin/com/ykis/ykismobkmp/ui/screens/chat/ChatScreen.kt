@@ -35,7 +35,7 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.NavigationType
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.core.utils.formatDateFull
-import com.ykis.ykismobkmp.ui.UserRole
+import com.ykis.ykismobkmp.domain.services.UserRole
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.apply_suggestion
@@ -276,7 +276,7 @@ fun ChatScreenContent(
                   senderDisplayedName = baseUIState.displayName ?: "Користувач",
                   senderLogoUrl = baseUIState.photoUrl,
                   senderAddress = curAddr,
-                  addressId = curAddrId ?: 0,
+                  addressId = curAddrId,
                   imageUrl = null,
                   fileUrl = null,
                   fileName = null,

@@ -1,4 +1,4 @@
-package com.ykis.mob.ui.components
+package com.ykis.ykismobkmp.ui.components
 
 import androidx.compose.runtime.Composable
 

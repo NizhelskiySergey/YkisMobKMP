@@ -1,150 +1,173 @@
 package com.ykis.ykismobkmp.ui.screens.settings
 
 
-import androidx.annotation.DrawableRes
-import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import com.ykis.mob.R
+
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+
+// Подключаем сгенерированный КМР-пакет строк для поиска Res.string.next
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.next
+
+private const val className = "SettingsNumber"
+
+/**
+ * [SettingsNumber] — Кроссплатформенный элемент изменения числовых параметров профиля ЮКИС.
+ * Полностью очищен от Android SDK и готов к нативной компиляции под Mac Desktop и iOS.
+ */
 @Composable
 fun SettingsNumber(
-    @DrawableRes icon: Int,
-    @StringRes iconDesc: Int,
-    @StringRes name: Int,
-    state: State<String>,
-    onSave: (String) -> Unit,
-    inputFilter: (String) -> String, // input filter for the preference
-    onCheck: (String) -> Boolean
+  modifier: Modifier = Modifier,
+  // ИСПРАВЛЕНО: Платформенные аннотации удалены, типы переведены на KMP ресурсы JetBrains
+  icon: DrawableResource,
+  iconDesc: StringResource,
+  name: StringResource,
+  state: State<String>,
+  onSave: (String) -> Unit,
+  inputFilter: (String) -> String,
+  onCheck: (String) -> Boolean
 ) {
+  var isDialogShown by remember { mutableStateOf(false) }
 
-    var isDialogShown by remember {
-        mutableStateOf(false)
-    }
+  if (isDialogShown) {
+    TextEditNumberDialog(
+      name = name,
+      storedValue = state,
+      inputFilter = inputFilter,
+      onSave = onSave,
+      onCheck = onCheck,
+      // ИСПРАВЛЕНО: Вызов утилиты .not() заменен лаконичным Котлин-оператором логического отрицания
+      onDismiss = { isDialogShown = false }
+    )
+  }
 
-    if (isDialogShown) {
-        Dialog(onDismissRequest = { isDialogShown = isDialogShown.not() }) {
-            TextEditNumberDialog(name, state, inputFilter, onSave, onCheck) {
-                isDialogShown = isDialogShown.not()
-            }
-        }
-    }
+  Surface(
+    modifier = modifier.fillMaxWidth(),
+    onClick = { isDialogShown = true },
+    color = MaterialTheme.colorScheme.surface
+  ) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Start,
+        modifier = Modifier.fillMaxWidth()
+      ) {
+        Icon(
+          painter = painterResource(icon),
+          contentDescription = stringResource(iconDesc),
+          modifier = Modifier.size(24.dp),
+          tint = MaterialTheme.colorScheme.primary
+        )
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        onClick = {
-            isDialogShown = isDialogShown.not()
-        },
-    ) {
-        Column {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Start
-            ) {
-                Icon(
-                    painterResource(id = icon),
-                    contentDescription = stringResource(id = iconDesc),
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.padding(8.dp)) {
-                    Text(
-                        text = stringResource(id = name),
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Start,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = state.value,
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = TextAlign.Start,
-                    )
-                }
-            }
-            HorizontalDivider()
-        }
-    }
-}
-
-@Composable
-private fun TextEditNumberDialog(
-    @StringRes name: Int,
-    storedValue: State<String>,
-    inputFilter: (String) -> String, // filters out not needed letters
-    onSave: (String) -> Unit,
-    onCheck: (String) -> Boolean,
-    onDismiss: () -> Unit
-) {
-
-    var currentInput by remember {
-        mutableStateOf(TextFieldValue(storedValue.value))
-    }
-
-    var isValid by remember {
-        mutableStateOf(onCheck(storedValue.value))
-    }
-
-    Surface(
-        color = MaterialTheme.colorScheme.surface
-    ) {
+        Spacer(modifier = Modifier.width(16.dp))
 
         Column(
-            modifier = Modifier
-                .wrapContentHeight()
-                .fillMaxWidth()
-                .padding(16.dp)
+          modifier = Modifier.weight(1f).padding(vertical = 4.dp),
+          verticalArrangement = Arrangement.Center
         ) {
-            Text(stringResource(id = name))
-            Spacer(modifier = Modifier.height(8.dp))
-            TextField(currentInput,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                onValueChange = {
-                    // filters the input and removes redundant numbers
-                    val filteredText = inputFilter(it.text)
-                    isValid = onCheck(filteredText)
-                    currentInput = TextFieldValue(filteredText)
-                })
-            Row {
-                Spacer(modifier = Modifier.weight(1f))
-                Button(onClick = {
-                    onSave(currentInput.text)
-                    onDismiss()
-                }, enabled = isValid) {
-                    Text(stringResource(id = R.string.next))
-                }
-            }
+          Text(
+            text = stringResource(name),
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Start,
+            color = MaterialTheme.colorScheme.onSurface
+          )
+          Spacer(modifier = Modifier.height(2.dp))
+          Text(
+            text = state.value,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Start,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
         }
+      }
+      Spacer(modifier = Modifier.height(8.dp))
+      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
     }
+  }
+}
+
+/**
+ * [TextEditNumberDialog] — Кроссплатформенное модальное числовое окно с принудительной фильтрацией ввода (ввод телефона/счета).
+ * ИСПРАВЛЕНО: Низкоуровневый Dialog заменен на официальный AlertDialog Material 3 Compose Multiplatform.
+ */
+@Composable
+private fun TextEditNumberDialog(
+  name: StringResource,
+  storedValue: State<String>,
+  inputFilter: (String) -> String,
+  onSave: (String) -> Unit,
+  onCheck: (String) -> Boolean,
+  onDismiss: () -> Unit
+) {
+  var currentInput by remember { mutableStateOf(TextFieldValue(storedValue.value)) }
+  var isValid by remember { mutableStateOf(onCheck(storedValue.value)) }
+
+  // ИСПРАВЛЕНО: Ручная верстка Dialog { Surface { Column } } переведена на системный AlertDialog
+  AlertDialog(
+    modifier = Modifier.widthIn(max = 400.dp),
+    onDismissRequest = onDismiss,
+    title = {
+      Text(
+        text = stringResource(name),
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.onSurface
+      )
+    },
+    text = {
+      Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        OutlinedTextField(
+          modifier = Modifier.fillMaxWidth(),
+          value = currentInput,
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+          onValueChange = { newValue ->
+            // Применяем КМР функциональный фильтр ввода и удаляем лишние буквенные символы
+            val filteredText = inputFilter(newValue.text)
+            isValid = onCheck(filteredText)
+            currentInput = TextFieldValue(filteredText)
+          },
+          singleLine = true,
+          textStyle = MaterialTheme.typography.bodyLarge,
+          colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+          )
+        )
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text(
+          text = "Скасувати",
+          style = MaterialTheme.typography.labelLarge
+        )
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          onSave(currentInput.text)
+          onDismiss()
+        },
+        enabled = isValid,
+        shape = MaterialTheme.shapes.small
+      ) {
+        Text(
+          text = stringResource(Res.string.next), // ИСПРАВЛЕНО: КМР-ссылка на общую строку "Далі" через Res
+          style = MaterialTheme.typography.labelLarge
+        )
+      }
+    }
+  )
 }

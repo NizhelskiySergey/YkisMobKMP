@@ -10,7 +10,7 @@ import com.ykis.ykismobkmp.domain.entity.RaionEntity as DomainRaion
  */
 fun DbRaion.toDomainRaion(): DomainRaion {
   return DomainRaion(
-    raionId = this.raionId.toInt(), // Безопасное приведение Long -> Int
+    raionId = this.raionId, // Безопасное приведение Long -> Int
     raion = this.raion
   )
 }
@@ -21,7 +21,7 @@ fun DbRaion.toDomainRaion(): DomainRaion {
  */
 fun DomainRaion.toDbRaion(): DbRaion {
   return DbRaion(
-    raionId = this.raionId.toLong(), // Безопасное приведение Int -> Long для PRIMARY KEY
+    raionId = this.raionId, // Безопасное приведение Int -> Long для PRIMARY KEY
     raion = this.raion
   )
 }

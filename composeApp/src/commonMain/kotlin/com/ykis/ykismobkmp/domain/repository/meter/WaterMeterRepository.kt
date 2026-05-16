@@ -9,12 +9,7 @@ import com.ykis.ykismobkmp.data.responses.GetWaterReadingsResponse
  * [com.ykis.ykismobkmp.data.water.WaterMeterRemoteRepository] — Контракт сетевого слоя (Ktor DataSource) для счетчиков воды.
  * Все числовые параметры переведены на тип Long под стандарты SQLDelight.
  */
-data class AddWaterReadingParams(
-  val uid : String,
-  val meterId: Int,
-  val newValue: Int,
-  val currentValue: Int
-)
+
 interface WaterMeterRepository { // Или interface WaterMeterRemoteRepository, проверь точное имя
 
   // ИСПРАВЛЕНО: Типы Int заменены на Long во всех сигнатурах удаленных запросов
@@ -25,7 +20,6 @@ interface WaterMeterRepository { // Или interface WaterMeterRemoteRepository,
   suspend fun getLastWaterReading(uid: String, vodomerId: Long): GetLastWaterReadingResponse
 
   // ИСПРАВЛЕНО: Принимает сквозную доменную структуру параметров
-  suspend fun addWaterReading(params: AddWaterReadingParams): GetSimpleResponse
-
-  suspend fun deleteLastReading(uid: String, readingId: Long): GetSimpleResponse
+  suspend fun addWaterReading(params: MeterReadingsParams): GetSimpleResponse
+  suspend fun deleteLastWaterReading(uid: String, pokId: Long): GetSimpleResponse
 }
