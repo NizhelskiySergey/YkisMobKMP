@@ -1,6 +1,7 @@
 package com.ykis.ykismobkmp.ui.screens.auth
 
 
+// Импорты инфраструктуры, сервисов и навигационного реестра ЮКИС
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,47 +30,50 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.domain.services.FirebaseService
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import com.ykis.ykismobkmp.ui.navigation.SignInScreen as NavSignInScreen
 
 private const val tag = "TermsAndConditionScreen"
 
 /**
  * [TermsAndConditionScreen] — Стартовый экран лицензионного соглашения ЮКИС.
- * Общий интерфейс для жителей города Южный и администраторов ЖКХ на Mac/Android.
+ * ИСПРАВЛЕНО: Убран вызов конструктора у синглтона SignInScreen, увязан с глобальным навигатором.
  */
-class TermsAndConditionScreen : Screen {
-
+object TermsAndConditionScreen : Screen {
   @Composable
   override fun Content() {
     val navigator = LocalNavigator.currentOrThrow
     val firebaseService = koinInject<FirebaseService>()
 
-    // РЕШЕНИЕ: Создаем scope корутин для обработки асинхронного клика
+    // Сфера корутин для обработки асинхронного клика по кнопке фиксации оферты
     val coroutineScope = rememberCoroutineScope()
 
     // Получаем текст соглашения из кроссплатформенного Remote Config GitLive SDK
-    val termsText = firebaseService.agreementText
+    val termsText = remember { firebaseService.agreementText }
+
+    // Логирование согласно правилу [Класс.Метод]
+    LaunchedEffect(Unit) {
+      println("[$tag.Content]: Отримання та відображення тексту угоди з Remote Config")
+    }
 
     TermsAndConditionContent(
       termsText = termsText,
       onAccept = {
-        // Запускаем корутину при клике по кнопке
         coroutineScope.launch {
-          println("[$tag.onAccept]: Співпраця та згода підтверджені користувачем")
+          println("[$tag.Content.onAccept]: Співпраця та згода підтверджені користувачем")
 
-          // Теперь suspend функция вызывается безопасно внутри корутины
+          // Suspend-метод записи флага согласия GDPR в кэш
           firebaseService.setUserAgreed(true)
 
-          // После успешной записи переходим на экран входа
-          navigator.replaceAll(SignInScreen())
+          // ИСПРАВЛЕНО: Нативно подменяем корень на синглтон NavSignInScreen БЕЗ круглых скобок ()
+          navigator.replaceAll(NavSignInScreen)
         }
       }
     )
   }
-
 }
 
 /**
- * [TermsAndConditionContent] — Чистая верстка экрана, изолированная от навигации, доступная для Preview.
+ * [TermsAndConditionContent] — Декларативная верстка экрана лицензии Material 3.
  */
 @Composable
 fun TermsAndConditionContent(
@@ -86,10 +92,11 @@ fun TermsAndConditionContent(
     Text(
       text = "Умови користування ІС \"ЮКІС\"",
       style = MaterialTheme.typography.headlineMedium,
-      color = MaterialTheme.colorScheme.primary
+      color = MaterialTheme.colorScheme.primary,
+      fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
     )
 
-    Spacer(Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(16.dp))
 
     // Текст лицензии с плавной прокруткой для тачпадов Mac и сенсорных экранов Android
     Box(modifier = Modifier.weight(1f)) {
@@ -101,7 +108,7 @@ fun TermsAndConditionContent(
       )
     }
 
-    Spacer(Modifier.height(24.dp))
+    Spacer(modifier = Modifier.height(24.dp))
 
     // Кнопка подтверждения и фиксации согласия GDPR
     Button(
@@ -109,7 +116,7 @@ fun TermsAndConditionContent(
         .fillMaxWidth()
         .height(50.dp),
       onClick = {
-        println("[$tag.Button]: Клік ПРИЙНЯТИ")
+        println("[$tag.TermsAndConditionContent]: Клік ПРИЙНЯТИ")
         onAccept()
       },
       shape = RoundedCornerShape(12.dp)

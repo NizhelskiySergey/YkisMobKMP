@@ -11,10 +11,10 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import org.koin.compose.koinInject
-
-// Импорты твоих оригинальных UI-скриптов верстки экранов и ScreenModel
+import com.ykis.ykismobkmp.ui.screens.auth.SignInScreen
+import com.ykis.ykismobkmp.ui.screens.auth.SignUpScreen
 import com.ykis.ykismobkmp.ui.screens.auth.SignUpScreenModel
-
+import com.ykis.ykismobkmp.ui.screens.auth.VerifyEmailScreen
 
 private const val className = "ScreensRegistry"
 
@@ -23,89 +23,42 @@ private const val className = "ScreensRegistry"
 // ====================================================================
 
 /**
- * [SignInScreen] — Экран авторизации абонента ЮКИС.
- * ИСПРАВЛЕНО: Интегрирован нативный КМР-метод навигации Voyager.
- */
-/**
- * [SignInScreen] — Экран авторизации абонента ЮКИС.
- * ИСПРАВЛЕНО: Сигнатура аргументов приведена в точечное соответствие с твоим openScreen.
- */
-object SignInScreen : Screen {
-  @Composable
-  override fun Content() {
-    val navigator = LocalNavigator.currentOrThrow
-    println("[$className.SignInScreen]: Отрисовка окна входа")
-
-    com.ykis.ykismobkmp.ui.screens.auth.SignInScreen(
-      // ИСПРАВЛЕНО: Вызываем твой родной параметр openScreen.
-      // Вместо старого navController мы перенаправляем строковый маршрут на нативные push/replaceAll Voyager!
-      openScreen = { targetRoute ->
-        println("[$className.SignInScreen]: Сработал триггер openScreen -> $targetRoute")
-
-        when (targetRoute) {
-          "SignUpScreen", "signUp" -> navigator.push(SignUpScreen)
-          "VerifyEmailScreen" -> navigator.push(VerifyEmailScreen)
-          else -> {
-            // По умолчанию успешный вход переводит на главный адаптивный хаб биллинга
-            navigator.replaceAll(MainApartmentScreen(ContentType.METER, NavigationType.BOTTOM_NAVIGATION))
-          }
-        }
-      }
-    )
-  }
-}
-
-
-/**
  * [SignUpScreen] — Экран регистрации нового жильца г. Южный.
+ */
+// ВНУТРИ ФАЙЛА ScreensRegistry.kt:
+
+/**
+ * [SignUpScreen] — Маршрутизатор экрана регистрации нового жильца г. Южный.
+ * ИСПРАВЛЕНО: Ложный вызов функции с параметрами удален. Нативно перенаправляет отрисовку на оригинальный КМР-класс.
  */
 object SignUpScreen : Screen {
   @Composable
   override fun Content() {
-    val navigator = LocalNavigator.currentOrThrow
-    val screenModel = koinInject<SignUpScreenModel>() // Безопасный КМР-инжект Koin
-    println("[$className.SignUpScreen]: Отрисовка окна регистрации")
+    println("[$className.SignUpScreen]: Маршрутизатор передає управління холсту реєстрації")
 
-    com.ykis.ykismobkmp.ui.screens.auth.SignUpScreen(
-      viewModel = screenModel,
-      onNavigateBack = {
-        println("[$className.SignUpScreen]: Возврат на вход")
-        navigator.pop()
-      },
-      onRegistrationSuccess = {
-        println("[$className.SignUpScreen]: Регистрация успешна, переход на верификацию Email")
-        navigator.push(VerifyEmailScreen)
-      }
-    )
+    // РЕШЕНИЕ: Напрямую вызываем метод Content() твоего реального графического класса SignUpScreen!
+    SignUpScreen().Content()
   }
 }
 
 /**
- * [VerifyEmailScreen] — Экран подтверждения учетной записи через Email.
+ * [VerifyEmailScreen] — Маршрутизатор экрана подтверждения учетной записи через Email.
+ * ИСПРАВЛЕНО: Ложный вызов удален, вызов родительского синглтона приведен к виду SignInScreen без скобок ().
  */
 object VerifyEmailScreen : Screen {
   @Composable
   override fun Content() {
-    val navigator = LocalNavigator.currentOrThrow
-    val screenModel = koinInject<SignUpScreenModel>()
-    println("[$className.VerifyEmailScreen]: Отрисовка окна подтверждения почты")
+    println("[$className.VerifyEmailScreen]: Маршрутизатор передає управління холсту верифікації пошти")
 
-    com.ykis.ykismobkmp.ui.screens.auth.VerifyEmailScreen(
-      viewModel = screenModel,
-      onRestartApp = {
-        println("[$className.VerifyEmailScreen]: Сброс стека и перезапуск на вход")
-        navigator.replaceAll(SignInScreen) // Аналог popUpTo(0) { inclusive = true }
-      },
-      onBackClick = {
-        navigator.pop()
-      }
-    )
+    // РЕШЕНИЕ: Напрямую вызываем метод Content() твоего реального графического класса VerifyEmailScreen!
+    VerifyEmailScreen().Content()
   }
 }
 
+
 /** [AddApartmentScreen] — Окно привязки квартиры БТИ по секретному коду. */
 object AddApartmentScreen : Screen {
-  @Composable override fun Content() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Экран добавления квартиры") } }
+  @Composable override fun Content() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Экран добавления квартиры БТИ") } }
 }
 
 /** [SendImageScreenDest] — Экран предосмотра и отправки фото счетчика в Gemini AI. */
@@ -116,11 +69,6 @@ object SendImageScreenDest : Screen {
 /** [CameraScreenDest] — Кроссплатформенный видоискатель камеры. */
 object CameraScreenDest : Screen {
   @Composable override fun Content() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Экран камеры") } }
-}
-
-/** [ChatScreenDest] — Главный чат обсуждений и заявок ЖЭК / ОСМД г. Южный. */
-object ChatScreenDest : Screen {
-  @Composable override fun Content() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Лента обсуждений ОСМД") } }
 }
 
 /** [ProfileScreenDest] — Окно персональных данных профиля. */
@@ -141,6 +89,22 @@ object FamilyScreenDest : Screen {
 // ====================================================================
 // --- ДИНАМИЧЕСКИЕ КЛАССЫ ЭКРАНОВ VOYAGER (ПЕРЕДАЧА АРГУМЕНТОВ) ---
 // ====================================================================
+
+/**
+ * [ChatScreenDest] — Универсальный кроссплатформенный экран чат-комнаты ЮКИС.
+ * ИСПРАВЛЕНО: Изменен с object на data class. Теперь он нативно принимает и обрабатывает токен пуша chatId!
+ */
+data class ChatScreenDest(
+  val chatId: String? = null
+) : Screen {
+  @Composable
+  override fun Content() {
+    println("[$className.ChatScreenDest]: Отрисовка чата для токена: $chatId")
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+      Text("Лента обговорень чату для ID: $chatId")
+    }
+  }
+}
 
 data class InfoApartmentScreenDest(
   val addressId: Long = 0L

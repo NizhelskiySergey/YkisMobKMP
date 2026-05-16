@@ -423,38 +423,53 @@ class ChatScreenModel(
   /**
    * Логика пересылки сообщения в выбранную службу.
    */
+  // Вставь этот метод внутрь своего класса ChatScreenModel (или ChatViewModel)
+
+  /**
+   * [confirmForwardToService] — Логика подтверждения пересылки ЖКХ-сообщения в конкретную службу ЮКИС.
+   * ИСПРАВЛЕНО: Платформенные логи удалены, проверки addressId переведены на сквозной Long-стандарт.
+   */
   fun confirmForwardToService(
     service: ContentDetail,
     baseState: BaseUIState,
     targetUser: UserEntity? = null
   ) {
-    // 1. ОПРЕДЕЛЯЕМ ПРЕФИКС И СИСТЕМНЫЙ ID
+    val methodName = "confirmForwardToService"
+
+    // 1. ОПРЕДЕЛЯЕМ ПРЕФИКС И СИСТЕМНЫЙ ID ПРЕДПРИЯТИЯ ГОРОДА ЮЖНОГО
     val (servicePrefix, systemId) = when (service) {
       ContentDetail.OSBB -> "OSBB" to (baseState.osmdId ?: baseState.osbbId)
-      ContentDetail.WATER_SERVICE -> "WATER_SERVICE" to 9998
-      ContentDetail.WARM_SERVICE -> "WARM_SERVICE" to 9997
-      ContentDetail.GARBAGE_SERVICE -> "GARBAGE_SERVICE" to 9999
-      else -> service.name to 0
+      ContentDetail.WATER_SERVICE -> "WATER_SERVICE" to 9998L // Переведено на Long
+      ContentDetail.WARM_SERVICE -> "WARM_SERVICE" to 9997L   // Переведено на Long
+      ContentDetail.GARBAGE_SERVICE -> "GARBAGE_SERVICE" to 9999L // Переведено на Long
+      else -> service.toString() to 0L
     }
+
     val chatId = if (baseState.userRole == UserRole.StandardUser) {
-      // 2. Логика ЖИТЕЛЯ
-      if (baseState.addressId == 0) {
-        Log.e("YkisLog", "[$className.confirmForwardToService]: ABORT. addressId is 0")
+      // 2. ЛОГИКА АБОНЕНТА (ЖИТЕЛЯ)
+      // ИСПРАВЛЕНО: Сравнение addressId переведено на КМР-стандарт Long (0L)
+      if (baseState.addressId == 0L) {
+        println("[$className.$methodName]: ABORT. addressId є 0L (Квартира не обрана)")
         return
       }
       "${servicePrefix}_${systemId}_${baseState.addressId}_${baseState.uid}"
     } else {
-      // 3. Логика АДМИНА
+      // 3. ЛОГИКА АДМИНИСТРАТОРА / ДИСКУССИОННОГО ЦЕНТРА ОСМД
+      // Извлекаем целевого пользователя (выбранного жильца) из параметров или стейта модели
       val tUser = targetUser ?: _selectedUser.value
+
       if (tUser.uid.isBlank()) {
-        Log.e("YkisLog", "[$className.confirmForwardToService]: ERROR. Target user undefined")
+        println("[$className.$methodName]: ERROR. Цільовий користувач (Target user) не визначений")
         return
       }
+
       val targetAddrId = tUser.addressId
-      if (targetAddrId == 0) {
-        Log.e("YkisLog", "[$className.confirmForwardToService]: ABORT. Target addressId is 0")
+      // ИСПРАВЛЕНО: Сравнение addressId переведено на КМР-стандарт Long (0L)
+      if (targetAddrId == 0L) {
+        println("[$className.$methodName]: ABORT. Цільовий addressId є 0L")
         return
       }
+
       val finalSysId = if (service == ContentDetail.OSBB) {
         tUser.osbbId ?: systemId
       } else {
@@ -462,10 +477,14 @@ class ChatScreenModel(
       }
       "${servicePrefix}_${finalSysId}_${targetAddrId}_${tUser.uid}"
     }
-    Log.d("YkisLog", "[$className.confirmForwardToService]: TARGET -> $chatId")
-    // 4. ОТПРАВКА (реализуем в блоке записи в БД)
+
+    // Логирование согласно правилу [Класс.Метод] через универсальный println()
+    println("[$className.$methodName]: Сформовано цільовий індекс пересилання TARGET -> $chatId")
+
+    // 4. ОТПРАВКА (Нативный вызов твоего метода записи пересланного сообщения в СУБД/Firebase)
     sendForwardedMessage(chatId)
   }
+
 
   fun cancelEditing() {
     Log.d("YkisLog", "[$className.cancelEditing]: Editing cancelled")

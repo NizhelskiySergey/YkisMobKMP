@@ -1,51 +1,89 @@
 package com.ykis.ykismobkmp.ui.screens.auth
 
-import android.util.Log
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
-import com.ykis.mob.R
-import com.ykis.mob.core.Resource
+import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
+import com.ykis.ykismobkmp.core.utils.Resource
+import org.koin.compose.koinInject
+import com.ykis.ykismobkmp.ui.navigation.MainApartmentScreen
+import com.ykis.ykismobkmp.ui.navigation.LocalContentType
+import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.mob.ui.navigation.Graph
-import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 
+// ИМПОРТЫ КРОСС ПЛАТФОРМЕННЫХ РЕСУРСОВ СТРОК JETBRAINS
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.*
+
+private const val tag = "VerifyEmailScreen"
+
+/**
+ * [VerifyEmailScreen] — Кроссплатформенный экран подтверждения учетной записи через Email.
+ * ИСПРАВЛЕНО: Полностью удален хардкод геометрии при редиректе, типы вычитываются динамически из контекста.
+ */
+class VerifyEmailScreen : Screen {
+
+  @Composable
+  override fun Content() {
+    val navigator = LocalNavigator.currentOrThrow
+
+    // Реактивно считываем глобально вычисленные на старте параметры адаптивного окна
+    val adaptiveContentType = LocalContentType.current
+    val adaptiveNavigationType = LocalNavigationType.current
+
+    // Внедряем нашу кроссплатформенную ScreenModel YkisMobKMP
+    val viewModel = koinInject<SignUpScreenModel>()
+    val reloadUserResponse by viewModel.reloadUserResponse.collectAsState()
+
+    // Логирование согласно правилу [Класс.Метод]
+    LaunchedEffect(Unit) {
+      println("[$tag.Content]: [ENTER_SCREEN] Очікування підтвердження пошти для ${viewModel.email}")
+    }
+
+    VerifyEmailScreenStateless(
+      modifier = Modifier,
+      onRepeatEmailClick = { viewModel.repeatEmailVerified() },
+      onReloadClick = {
+        viewModel.reloadUser {
+          println("[$tag.Content]: [SUCCESS] Пошта підтверджена. Запуск головного хабу.")
+
+          // ИСПРАВЛЕНО: Никакого хардкода! Передаем динамические параметры окна для бесшовного старта Mac/Android
+          navigator.replaceAll(
+            MainApartmentScreen(
+              contentType = adaptiveContentType,
+              navigationType = adaptiveNavigationType
+            )
+          )
+        }
+      },
+      email = viewModel.displayEmail,
+      navigateBack = {
+        navigator.pop() // Нативный КМР возврат назад во вход
+      },
+      isLoading = reloadUserResponse is Resource.Loading
+    )
+  }
+}
+
+/**
+ * [VerifyEmailScreenStateless] — Декларативная верстка разметки полей верификации Material 3.
+ */
 @Composable
 fun VerifyEmailScreenStateless(
   modifier: Modifier = Modifier,
@@ -58,10 +96,10 @@ fun VerifyEmailScreenStateless(
   Scaffold(
     topBar = {
       DefaultAppBar(
-        title = stringResource(R.string.verify_email_title),
+        title = stringResource(Res.string.verify_email_title),
         canNavigateBack = true,
         onBackClick = {
-          Log.d("YkisLog", "VerifyEmailUI: [BACK_CLICK] Возврат на регистрацию")
+          println("[$tag.VerifyEmailScreenStateless]: [BACK_CLICK] Поверенння на реєстрацію")
           navigateBack()
         }
       )
@@ -73,7 +111,7 @@ fun VerifyEmailScreenStateless(
           .navigationBarsPadding()
           .padding(16.dp),
         onClick = {
-          Log.d("YkisLog", "VerifyEmailUI: [CHECK_CLICK] Проверка статуса для $email")
+          println("[$tag.VerifyEmailScreenStateless]: [CHECK_CLICK] Перевірка статусу для $email")
           onReloadClick()
         },
         enabled = !isLoading,
@@ -127,7 +165,7 @@ fun VerifyEmailScreenStateless(
       Spacer(modifier = Modifier.height(16.dp))
 
       Text(
-        text = stringResource(id = R.string.verify_email),
+        text = stringResource(Res.string.verify_email),
         textAlign = TextAlign.Center,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -138,12 +176,12 @@ fun VerifyEmailScreenStateless(
       Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.clickable(enabled = !isLoading) {
-          Log.d("YkisLog", "VerifyEmailUI: [RESEND_CLICK]")
+          println("[$tag.VerifyEmailScreenStateless]: [RESEND_CLICK] Повторне надсилання листа")
           onRepeatEmailClick()
         }
       ) {
         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
           text = "Надіслати лист ще раз",
           style = MaterialTheme.typography.labelLarge,
@@ -153,54 +191,4 @@ fun VerifyEmailScreenStateless(
       }
     }
   }
-}
-
-@Composable
-fun VerifyEmailScreen(
-  viewModel: SignUpScreenModel,
-  restartApp: (String) -> Unit,
-  navController: NavController
-) {
-  val reloadUserResponse by viewModel.reloadUserResponse.collectAsStateWithLifecycle()
-
-  LaunchedEffect(Unit) {
-    Log.d("YkisLog", "VerifyEmailUI: [ENTER_SCREEN] Ожидание подтверждения для ${viewModel.email}")
-  }
-
-  VerifyEmailScreenStateless(
-    modifier = Modifier,
-    onRepeatEmailClick = { viewModel.repeatEmailVerified() },
-    onReloadClick = {
-      viewModel.reloadUser {
-        // Вход в onSuccess вызывается ТОЛЬКО если почта реально подтверждена
-        Log.d("YkisLog", "VerifyEmailUI: [SUCCESS] Почта подтверждена. Перезапуск...")
-        restartApp(Graph.APARTMENT)
-      }
-    },
-    email = viewModel.displayEmail,
-    navigateBack = {
-      navController.popBackStack()
-    },
-    isLoading = reloadUserResponse is Resource.Loading
-  )
-}
-
-@Preview
-@Composable
-private fun VerifyEmailScreenPreview() {
-    YkisPAMTheme {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            VerifyEmailScreenStateless(
-               onReloadClick = {},
-                onRepeatEmailClick = {},
-                email = "rshulik74@gmail.com",
-                navigateBack = {},
-                isLoading = false
-            )
-        }
-    }
 }

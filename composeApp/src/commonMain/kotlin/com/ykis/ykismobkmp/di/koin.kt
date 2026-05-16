@@ -57,6 +57,7 @@ import com.ykis.ykismobkmp.domain.repository.meter.WaterMeterRepositoryImpl
 import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.domain.services.FirebaseServiceImpl
 import com.ykis.ykismobkmp.domain.services.LogService
+import com.ykis.ykismobkmp.ui.navigation.AppScreenModel
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.auth.SignInScreenModel
 import com.ykis.ykismobkmp.ui.screens.auth.SignUpScreenModel
@@ -106,7 +107,7 @@ val commonModule = module {
   single<WaterMeterRepository> { WaterMeterRepositoryImpl(apiService = get()) }
   single<HeatMeterRepository> { HeatMeterRepositoryImpl(apiService = get()) }
   single {ChatRepository(firestore = get(),realtime = get(),storage = get(),functions = get(),aiManager = get())  }
-  val commonModule = module {
+  factory { AppScreenModel(get(), get(), get()) }
     // 1. Регистрируем саму облачную GenerativeModel (из KMP-библиотеки Shreyas Patil)
     single {
       dev.shreyaspatil.ai.client.generativeai.GenerativeModel(
@@ -117,7 +118,7 @@ val commonModule = module {
     single<GeminiAiManager> {
       GeminiCloudProvider(model = get(), localEngine = get())
     }
-  }
+
 
 
 }

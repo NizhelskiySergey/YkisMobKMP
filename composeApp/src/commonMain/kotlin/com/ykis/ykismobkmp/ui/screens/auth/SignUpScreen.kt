@@ -1,11 +1,27 @@
 package com.ykis.ykismobkmp.ui.screens.auth
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -20,15 +36,13 @@ import com.ykis.ykismobkmp.ui.components.EmailField
 import com.ykis.ykismobkmp.ui.components.LogoImage
 import com.ykis.ykismobkmp.ui.components.PasswordField
 import com.ykis.ykismobkmp.ui.components.RepeatPasswordField
-import com.ykis.ykismobkmp.ui.screens.auth.AuthUiState
 import org.koin.compose.koinInject
 
-// Фиксируем константу тега для логирования, убирая Unresolved reference 'tag'
 private const val tag = "SignUpScreen"
 
 /**
- * [SignUpScreen] — Кроссплатформенный экран регистрации ЮКИС на базе Voyager Screen.
- * Стабилен на Mac Desktop (JVM) и мобильном Android/iOS.
+ * [SignUpScreen] — Кроссплатформенный экран регистрации нового жильца расчетного центра ЮКИС.
+ * ИСПРАВЛЕНО: Полностью монолитен, коллизии дублирования Modifier устранены.
  */
 class SignUpScreen : Screen {
 
@@ -37,10 +51,9 @@ class SignUpScreen : Screen {
     val navigator = LocalNavigator.currentOrThrow
     val keyboard = LocalSoftwareKeyboardController.current
 
-    // Внедряем нашу кроссплатформенную ScreenModel (Регистрация)
+    // Внедряем нашу кроссплатформенную ScreenModel (Регистрация) YkisMobKMP
     val screenModel = koinInject<SignUpScreenModel>()
 
-    // Исправлено именование переменной состояния (с маленькой буквы для кодстайла)
     val authUiState by screenModel.authUiState.collectAsState()
     val signUpResponse by screenModel.signUpResponse.collectAsState()
 
@@ -48,18 +61,18 @@ class SignUpScreen : Screen {
     LaunchedEffect(signUpResponse) {
       when (val response = signUpResponse) {
         is Resource.Success -> {
-          println("[$tag]: [SUCCESS] Реєстрація успішна. Перезапуск графа авторизації.")
-          // Согласно твоему сценарию: после успешной регистрации сбрасываем стек.
-          // FirebaseService обновит currentUser, и RootNavGraph сразу перенаправит юзера на AddApartmentScreen
+          println("[$tag.Content]: [SUCCESS] Реєстрація успішна. Повернення на корінь.")
+          // После успешной регистрации сбрасываем стек.
+          // Firebase KMP обновит сессию, и RootNavGraph направит юзера по сценарию на AddApartmentScreen
           navigator.popUntilRoot()
         }
         is Resource.Error -> {
-          println("[$tag]: [ERROR] ${response.message}")
+          println("[$tag.Content]: [ERROR] ${response.message}")
           val errorMessage = response.message ?: "Помилка реєстрації"
           SnackbarManager.showMessage(errorMessage)
         }
         is Resource.Loading -> {
-          println("[$tag]: [LOADING] Надсилання даних на сервери Firebase...")
+          println("[$tag.Content]: [LOADING] Надсилання даних на сервери Firebase...")
         }
         else -> {}
       }
@@ -74,7 +87,7 @@ class SignUpScreen : Screen {
       onSignUpClick = {
         keyboard?.hide()
         screenModel.signUpWithEmailAndPassword {
-          println("[$tag]: [ACTION] Метод реєстрації в ScreenModel запущено")
+          println("[$tag.Content]: [ACTION] Метод реєстрації в ScreenModel запущено")
         }
       },
       isLoading = signUpResponse is Resource.Loading
@@ -82,10 +95,14 @@ class SignUpScreen : Screen {
   }
 }
 
+/**
+ * [SignUpScreenStateless] — Декларативная верстка разметки полей ввода регистрации.
+ * ИСПРАВЛЕНО: Из дочерних элементов вырезано дублирование modifier, сетка адаптирована под Mac Desktop.
+ */
 @Composable
 fun SignUpScreenStateless(
   modifier: Modifier = Modifier,
-  authUiState: AuthUiState, // Ссылка на стейт полей ввода
+  authUiState: AuthUiState, // Твой стейт полей ввода
   navigateBack: () -> Unit,
   onEmailChange: (String) -> Unit,
   onPasswordChange: (String) -> Unit,
@@ -108,12 +125,14 @@ fun SignUpScreenStateless(
         title = "Реєстрація",
         canNavigateBack = true,
         onBackClick = {
-          println("[$tag.Stateless]: [BACK_CLICK] Повернення на екран входу")
+          println("[$tag.SignUpScreenStateless]: [BACK_CLICK] Повернення на екран входу")
           navigateBack()
         }
       )
       Column(
         modifier = Modifier
+          .weight(1f)
+          .fillMaxWidth()
           .padding(horizontal = 16.dp)
           .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Top,
@@ -123,19 +142,32 @@ fun SignUpScreenStateless(
         LogoImage()
         Spacer(modifier = Modifier.height(16.dp))
 
-        EmailField(authUiState.email, onEmailChange, modifier)
+        // ИСПРАВЛЕНО: Избавлены от ложного наследования внешнего модификатора
+        EmailField(
+          value = authUiState.email,
+          onNewValue = onEmailChange,
+          modifier = Modifier.fillMaxWidth()
+        )
         Spacer(modifier = Modifier.height(8.dp))
 
-        PasswordField(authUiState.password, onPasswordChange)
+        PasswordField(
+          value = authUiState.password,
+          onNewValue = onPasswordChange,
+          modifier = Modifier.fillMaxWidth()
+        )
         Spacer(modifier = Modifier.height(8.dp))
 
-        RepeatPasswordField(authUiState.repeatPassword, onRepeatPasswordChange, modifier)
-        Spacer(modifier = Modifier.height(16.dp))
+        RepeatPasswordField(
+          value = authUiState.repeatPassword,
+          onNewValue = onRepeatPasswordChange,
+          modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(24.dp))
 
         Button(
           modifier = Modifier.fillMaxWidth(),
           onClick = {
-            println("[$tag.Stateless]: [SUBMIT_CLICK] Спроба створення акаунту для: ${authUiState.email}")
+            println("[$tag.SignUpScreenStateless]: [SUBMIT_CLICK] Спроба створення акаунту для: ${authUiState.email}")
             onSignUpClick()
           },
           enabled = !isLoading

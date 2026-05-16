@@ -1,7 +1,5 @@
 package com.ykis.ykismobkmp.ui.navigation
 
-package com.ykis.ykismobkmp.ui.navigation
-
 import kotlinx.serialization.Serializable
 
 /**

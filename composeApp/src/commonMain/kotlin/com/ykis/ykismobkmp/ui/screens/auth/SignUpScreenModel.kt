@@ -38,7 +38,7 @@ class SignUpScreenModel(
   private val _authUiState = MutableStateFlow(AuthUiState())
   val authUiState: StateFlow<AuthUiState> = _authUiState.asStateFlow()
 
-  private val email: String get() = _authUiState.value.email
+  val email: String get() = _authUiState.value.email
   private val password: String get() = _authUiState.value.password
   private val repeatPassword: String get() = _authUiState.value.repeatPassword
 

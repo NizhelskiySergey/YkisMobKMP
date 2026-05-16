@@ -125,6 +125,8 @@ kotlin {
       implementation(libs.androidx.camera.camera2)
       implementation(libs.androidx.camera.lifecycle)
       implementation(libs.androidx.camera.view)
+      implementation(libs.androidx.window) // Предоставляет FoldingFeature и DisplayFeature
+
       implementation(libs.googleid)
       implementation(libs.androidx.credentials)
       implementation(libs.androidx.credentials.play.services.auth)

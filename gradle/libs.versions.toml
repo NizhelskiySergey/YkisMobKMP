@@ -43,6 +43,7 @@ credentials = "1.6.0"
 playServicesMeasurementApi = "23.2.0"
 webcamCapture = "0.3.12"
 datastorePreferencesCore = "1.2.1"
+window = "1.5.1"
 
 [libraries]
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCore" }
@@ -52,6 +53,7 @@ androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "
 androidx-datastore-core = { module = "androidx.datastore:datastore-core", version.ref = "datastorePreferencesCoreVersion" }
 androidx-datastore-preference-core = { module = "androidx.datastore:datastore-preference-core", version.ref = "datastorePreferencesCoreVersion" }
 androidx-preference-ktx = { module = "androidx.preference:preference-ktx", version.ref = "preferenceKtx" }
+androidx-window = { module = "androidx.window:window", version.ref = "window" }
 compose-webview-multiplatform = { module = "io.github.kevinnzou:compose-webview-multiplatform", version.ref = "composeWebviewMultiplatform" }
 generativeai-google = { module = "dev.shreyaspatil.generativeai:generativeai-google", version.ref = "generativeaiGoogle" }
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatformSettings" }
