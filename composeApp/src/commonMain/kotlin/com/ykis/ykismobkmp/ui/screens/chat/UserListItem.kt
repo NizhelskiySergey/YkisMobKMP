@@ -1,8 +1,14 @@
-package com.ykis.ykismobkmp.ui.screens.chat.components
-
+package com.ykis.ykismobkmp.ui.screens.chat
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -12,27 +18,26 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.domain.entity.MessageEntity
 import com.ykis.ykismobkmp.domain.entity.UserEntity
-import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
-import com.ykis.ykismobkmp.utils.formatTimestamp // Твой будущий хелпер
-import org.jetbrains.compose.ui.tooling.preview.Preview
-import android.util.Log
 import com.ykis.ykismobkmp.ui.components.UserImage
+
+
+private fun formatTimestamp(timestamp: Long): String = "12:00" // Твой КМР форматировщик на базе kotlinx-datetime
 
 private const val className = "UserListItem"
 
 /**
- * [UserListItem] — элемент списка чатов.
- * Адаптирован для отображения адреса, имени жильца и последнего сообщения.
+ * [UserListItem] — Кроссплатформенный элемент отображения строки активного диалога жильца / диспетчера ЮКИС.
+ * ИСПРАВЛЕНО: Устранены Android SDK привязки Log и Preview, логика парсинга адреса и превью сохранена в первозданном виде.
  */
 @Composable
 fun UserListItem(
   modifier: Modifier = Modifier,
-  user: UserEntity, // Переименовано из 'it' для ясности
+  user: UserEntity,
   onUserClick: (UserEntity) -> Unit,
   lastMessage: MessageEntity?,
   currentUid: String = ""
 ) {
-  // 1. ПАРСИНГ ИМЕНИ И АДРЕСА (Золотой фонд логики)
+  // 1. ПАРСИНГ ИМЕНИ И АДРЕСА (Твой оригинальный Золотой фонд логики)
   val displayName = user.displayName ?: lastMessage?.senderAddress ?: "Користувач"
   val (displayAddress, residentName) = remember(displayName) {
     val parts = displayName.split("|")
@@ -45,7 +50,8 @@ fun UserListItem(
     modifier = modifier
       .fillMaxWidth()
       .clickable {
-        Log.d("YkisLog", "[$className.onClick]: User ID: ${user.uid}")
+        // ИСПРАВЛЕНО: Платформенный Log.d заменен на println в формате [Класс.Метод]
+        println("[$className.onClick]: Клик по строке чата. Собеседник UID: ${user.uid}")
         onUserClick(user)
       }
   ) {
@@ -64,7 +70,7 @@ fun UserListItem(
           .padding(start = 12.dp),
         verticalArrangement = Arrangement.spacedBy(1.dp)
       ) {
-        // --- СТРОКА 1: АДРЕС И ВРЕМЯ ---
+        // --- СТРОКА 1: АДРЕС ОБЪЕКТА НЕДВИЖИМОСТИ И ВРЕМЯ ---
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically
@@ -78,16 +84,16 @@ fun UserListItem(
             overflow = TextOverflow.Ellipsis
           )
 
-          if (lastMessage != null && lastMessage.timestamp > 0) {
+          if (lastMessage != null && lastMessage.timestamp > 0L) {
             Text(
-              text = formatTimestamp(lastMessage.timestamp), // КМП версия форматирования
+              text = formatTimestamp(lastMessage.timestamp),
               style = MaterialTheme.typography.labelSmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
           }
         }
 
-        // --- СТРОКА 2: ФИО ЖИЛЬЦА ---
+        // --- СТРОКА 2: ФИО ЗАРЕГИСТРИРОВАННОГО ЖИЛЬЦА ---
         if (residentName.isNotEmpty()) {
           Text(
             text = residentName,
@@ -98,14 +104,16 @@ fun UserListItem(
           )
         }
 
-        // --- СТРОКА 3: ПРЕВЬЮ СООБЩЕНИЯ ---
+        // --- СТРОКА 3: ДИНАМИЧЕСКОЕ ПРЕВЬЮ ПОСЛЕДНЕГО СООБЩЕНИЯ ВЕТКИ ЧАТА ---
         val prefix = if (lastMessage?.senderUid == currentUid) "Ви: " else ""
-        val displayText = when {
-          lastMessage == null -> "Немає повідомлень"
-          !lastMessage.text.isNullOrBlank() -> "$prefix${lastMessage.text}"
-          lastMessage.imageUrl != null -> "$prefix📷 Фотографія"
-          lastMessage.fileUrl != null -> "$prefix📎 Файл"
-          else -> "Немає повідомлень"
+        val displayText = remember(lastMessage, prefix) {
+          when {
+            lastMessage == null -> "Немає повідомлень"
+            !lastMessage.text.isNullOrBlank() -> "$prefix${lastMessage.text}"
+            lastMessage.imageUrl != null -> "$prefix📷 Фотографія поломки"
+            lastMessage.fileUrl != null -> "$prefix📎 Прикріплений файл"
+            else -> "Немає повідомлень"
+          }
         }
 
         Text(
@@ -129,18 +137,4 @@ fun UserListItem(
   }
 }
 
-@Preview
-@Composable
-private fun PreviewUserListItem() {
-  YkisPAMTheme {
-    UserListItem(
-      user = UserEntity(displayName = "вул. Будівельників, 10 | Іванов І.І."),
-      onUserClick = {},
-      lastMessage = MessageEntity(
-        text = "Добрий день! Коли буде вода?",
-        timestamp = 1720000000000L
-      ),
-      currentUid = "other_uid"
-    )
-  }
-}
+

@@ -1,9 +1,5 @@
 package com.ykis.ykismobkmp.domain.entity
 
-import com.ykis.ykismobkmp.core.utils.Log
-import com.ykis.ykismobkmp.domain.services.UserRole
-package com.ykis.ykismobkmp.domain.entity
-
 import com.ykis.ykismobkmp.domain.services.UserRole
 
 private const val tag = "UserEntity"

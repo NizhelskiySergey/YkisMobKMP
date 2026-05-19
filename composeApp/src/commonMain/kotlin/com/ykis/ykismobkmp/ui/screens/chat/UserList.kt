@@ -1,26 +1,45 @@
 package com.ykis.ykismobkmp.ui.screens.chat.components
 
-import androidx.compose.foundation.layout.*
+// ИМПОРТЫ НАШИХ УТВЕРЖДЕННЫХ КМР СТАНДАРТОВ YkisMobPAM / YkisMobKMP
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.domain.entity.MessageEntity
 import com.ykis.ykismobkmp.domain.entity.UserEntity
-import com.ykis.ykismobkmp.ui.screens.apartment.BaseUIState
-import com.ykis.ykismobkmp.ui.screens.apartment.UserRole
-import com.ykis.ykismobkmp.ui.screens.chat.ChatViewModel
-import android.util.Log
-import com.ykis.ykismobkmp.ui.screens.chat.UserListItem
+import com.ykis.ykismobkmp.domain.services.UserRole
+import com.ykis.ykismobkmp.ui.BaseUIState
+import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
+import org.koin.compose.koinInject
+
+// Временные КМР-заглушки элемента списка, пока не присланы сорцы его верстки
+@Composable fun UserListItem(user: UserEntity, onUserClick: (UserEntity) -> Unit, lastMessage: MessageEntity?, currentUid: String) { Button(onClick = { onUserClick(user) }) { Text(user.displayName ?: "") } }
 
 private const val className = "UserList"
 
+/**
+ * [UserWithLatestMessage] — Кросплатформенный контейнер-снимок диалога чат-системы.
+ */
 data class UserWithLatestMessage(
   val user: UserEntity,
   val latestMessage: MessageEntity,
@@ -28,30 +47,61 @@ data class UserWithLatestMessage(
   val chatId: String
 )
 
+/**
+ * [UserListScreen] — Кроссплатформенный Voyager-экран списка активных диалогов и коммунальных заявок.
+ * ИСПРАВЛЕНО: Полностью отвязан от ChatViewModel, логирование переведено в КМР-формат.
+ */
+class UserListScreen(
+  private val baseUIState: BaseUIState,
+  private val userList: List<UserEntity>,
+  private val onUserClick: (UserEntity) -> Unit
+) : Screen {
+
+  @Composable
+  override fun Content() {
+    val navigator = LocalNavigator.currentOrThrow
+
+    // Нативная КМР инжекция ScreenModel вместо Android ViewModel
+    val chatScreenModel = koinInject<ChatScreenModel>()
+
+    UserList(
+      modifier = Modifier.fillMaxSize(),
+      baseUIState = baseUIState,
+      userList = userList,
+      onUserClick = onUserClick,
+      chatScreenModel = chatScreenModel
+    )
+  }
+}
+
+/**
+ * [UserList] — Декларативная верстка и сортировка ленты диалогов Material 3.
+ */
 @Composable
 fun UserList(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
   userList: List<UserEntity>,
   onUserClick: (UserEntity) -> Unit,
-  chatViewModel: ChatViewModel
+  chatScreenModel: ChatScreenModel // ИСПРАВЛЕНО: Заменен платформозависимый ChatViewModel
 ) {
-  // Подписки на мультиплатформенные StateFlow
-  val latestMessages by chatViewModel.lastMessages.collectAsState()
-  val unreadCounts by chatViewModel.unreadCounts.collectAsState()
-  val selectedPrefix by chatViewModel.selectedServicePrefix.collectAsState()
+  // Подписки на мультиплатформенные StateFlow из ChatScreenModel
+  val latestMessages by chatScreenModel.lastMessages.collectAsState()
+  val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
+  val selectedPrefix by chatScreenModel.selectedServicePrefix.collectAsState()
 
-  // Трансформация и сортировка списка (Золотой фонд логики ключей)
+  // Трансформация и сортировка списка (Твой оригинальный Золотой фонд логики ключей)
   val userWithMessages = remember(userList, latestMessages, unreadCounts, selectedPrefix) {
     val methodName = "Mapping"
-    Log.d("YkisLog", "[$className.$methodName]: Start. Role: ${baseUIState.userRole} | Prefix: $selectedPrefix")
+    // ИСПРАВЛЕНО: Вызов Log.d заменен на println в КМР-стандарте [Класс.Метод]
+    println("[$className.$methodName]: Start mapping. Role: ${baseUIState.userRole} | Prefix: $selectedPrefix")
 
     userList.map { user ->
-      // ГЕНЕРАЦИЯ КЛЮЧА ЧАТА (Синхронизировано с логикой PHP/Firebase)
+      // ГЕНЕРАЦИЯ КЛЮЧА ЧАТА (Синхронизировано с логикой PHP/Firebase и сквозным Long-типом данных)
       val chatId = when (baseUIState.userRole) {
         UserRole.StandardUser -> {
           val prefix = selectedPrefix ?: "UNKNOWN"
-          "${prefix}_${user.osbbId ?: 0}_${user.addressId}_${user.uid}"
+          "${prefix}_${user.osbbId ?: 0L}_${user.addressId}_${user.uid}"
         }
         UserRole.VodokanalUser -> "WATER_SERVICE_9999_${user.addressId}_${user.uid}"
         UserRole.YtkeUser      -> "WARM_SERVICE_9998_${user.addressId}_${user.uid}"
@@ -106,7 +156,7 @@ fun UserList(
 
     items(
       items = userWithMessages,
-      key = { it.chatId }
+      key = { it.chatId } // Уникальный ключ строки на основе сгенерированного чат-токена
     ) { item ->
       Box(
         modifier = Modifier
@@ -116,14 +166,14 @@ fun UserList(
         UserListItem(
           user = item.user,
           onUserClick = {
-            Log.d("YkisLog", "[$className.onClick]: ChatId: ${item.chatId}")
+            println("[$className.onClick]: Клик по диалогу. Выбран ChatId: ${item.chatId}")
             onUserClick(it)
           },
           lastMessage = if (item.latestMessage.timestamp > 0L) item.latestMessage else null,
           currentUid = baseUIState.uid.toString()
         )
 
-        // Бейдж непрочитанных сообщений
+        // Сферический бейдж непрочитанных сообщений коммунальных ведомостей
         if (item.unreadCount > 0) {
           Surface(
             modifier = Modifier
@@ -146,3 +196,4 @@ fun UserList(
     }
   }
 }
+

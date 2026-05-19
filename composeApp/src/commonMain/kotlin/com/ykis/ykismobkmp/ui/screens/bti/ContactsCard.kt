@@ -52,13 +52,13 @@ fun ContactsCard(
     LabelTextWithTextAndIcon(
       modifier = Modifier.padding(vertical = 2.dp),
       imageVector = Icons.Default.Phone,
-      label = stringResource(Res.string.phone_colon),
+      labelText = stringResource(Res.string.phone_colon),
       valueText = phone
     )
     LabelTextWithTextAndIcon(
       modifier = Modifier.padding(vertical = 2.dp),
       imageVector = Icons.Default.AlternateEmail,
-      label = stringResource(Res.string.email_colon),
+      labelText = stringResource(Res.string.email_colon),
       valueText = email
     )
   }

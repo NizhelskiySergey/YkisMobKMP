@@ -4,7 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items // КРИТИЧЕСКИЙ КМР-ИМПОРТ: Разрешает List<T> вместо Int в items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,19 +22,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
-
-// Импорты инфраструктуры, навигации, стейтов и моделей ЮКИС г. Южный
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
-import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
-
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 
-// ИМПОРТЫ КРОСС ПЛАТФОРМЕННЫХ РЕСУРСОВ JETBRAINS:
-import org.jetbrains.compose.resources.stringResource
+import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
 
-private const val tag = "ApartmentNavigationRail"
+private const val className = "ApartmentNavigationRail"
 
 @Composable
 fun CustomNavigationRail(
@@ -68,8 +63,7 @@ fun CustomNavigationRail(
 }
 
 /**
- * [ApartmentNavigationRail] — Адаптивное боковое меню управления жилым фондом ОСМД г. Южное.
- * ИСПРАВЛЕНО: Полная монолитная сборка, типы ID приведены к Long, убраны коллизии перегрузки null.
+ * [ApartmentNavigationRail] — Нативное боковое КМР-меню для админов на Mac Desktop и планшетах.
  */
 @Composable
 fun ApartmentNavigationRail(
@@ -79,30 +73,33 @@ fun ApartmentNavigationRail(
   navigateToDestination: (String) -> Unit = {},
   isRailExpanded: Boolean,
   onMenuClick: () -> Unit,
-  navigateToApartment: (Long) -> Unit = {}, // ИСПРАВЛЕНО: Сквозной Long стандарт
+  navigateToApartment: (Long) -> Unit = {}, // Сквозной Long стандарт из BaseUIState под каноны SQLDelight
   railWidth: Dp,
   isApartmentsEmpty: Boolean
 ) {
   val keyboardController = LocalSoftwareKeyboardController.current
 
-  val apartmentScreenModel = koinInject<ApartmentScreenModel>()
-  val chatScreenModel = koinInject<ChatScreenModel>()
+  // Нативная КМР инжекция ScreenModels вместо Android ViewModel
+  val chatViewModel = koinInject<ChatScreenModel>()
+  val apartmentViewModel = koinInject<ApartmentScreenModel>()
 
-  val searchQuery by apartmentScreenModel.searchQuery.collectAsState()
-  val apartments by apartmentScreenModel.filteredApartments.collectAsState()
-  val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
-
-  val houses by apartmentScreenModel.drawerHouses.collectAsState()
-  val drawerApartments by apartmentScreenModel.drawerApartments.collectAsState()
-
+  val searchQuery by apartmentViewModel.searchQuery.collectAsState()
+  val apartments by apartmentViewModel.filteredApartments.collectAsState()
   val isUserAdmin = baseUIState.userRole != UserRole.StandardUser
+  val unreadCounts by chatViewModel.unreadCounts.collectAsState()
   val listMode = baseUIState.listMode
   val isOrgAdmin = baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
   val raions = baseUIState.raions
 
+  // Считываем реактивные списки домов и квартир БТИ расчетного центра
+  val houses by apartmentViewModel.drawerHouses.collectAsState()
+  val drawerApartments by apartmentViewModel.drawerApartments.collectAsState()
+
+  // Реактивный пересчет: Суммарный счетчик непрочитанных сообщений ГИОЦ г. Южного
   val totalUnread = remember(unreadCounts) { unreadCounts.values.sum() }
+
   LaunchedEffect(totalUnread) {
-    println("[$tag]: RailMenu: Total sum calculated: $totalUnread")
+    println("[$className.ApartmentNavigationRail]: Суммарный счетчик непрочитанных обновлен в фоне: $totalUnread")
   }
 
   val apartmentBadges = remember(unreadCounts) {
@@ -132,15 +129,15 @@ fun ApartmentNavigationRail(
               OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { query ->
-                  println("[$tag]: Rail: [SEARCH_INPUT] Query: $query")
-                  apartmentScreenModel.onSearchQueryChanged(query)
+                  println("[$className.ApartmentNavigationRail]: [SEARCH_INPUT] Ввод поискового запроса: $query")
+                  apartmentViewModel.onSearchQueryChanged(query)
                 },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 placeholder = { Text("Пошук...", fontSize = 11.sp) },
                 leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(16.dp)) },
                 trailingIcon = {
                   if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { apartmentScreenModel.onSearchQueryChanged("") }) {
+                    IconButton(onClick = { apartmentViewModel.onSearchQueryChanged("") }) {
                       Icon(Icons.Default.Close, null, Modifier.size(14.dp))
                     }
                   }
@@ -158,7 +155,7 @@ fun ApartmentNavigationRail(
               elevation = FloatingActionButtonDefaults.elevation(0.dp)
             ) {
               Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.AddHome, null, Modifier.size(18.dp))
+                Icon(Icons.Default.Home, null, Modifier.size(18.dp))
                 if (railWidth > 150.dp) {
                   Text(" Додати", style = MaterialTheme.typography.labelSmall)
                 }
@@ -179,7 +176,10 @@ fun ApartmentNavigationRail(
         if (isRailExpanded) {
           if (listMode != ListMode.RAIONS && isOrgAdmin && searchQuery.isEmpty()) {
             TextButton(
-              onClick = { apartmentScreenModel.goBackLevel() },
+              onClick = {
+                println("[$className.ApartmentNavigationRail]: Клик назад на предыдущий уровень БТИ")
+                apartmentViewModel.goBackLevel()
+              },
               modifier = Modifier.padding(start = 8.dp, top = 8.dp)
             ) {
               Icon(Icons.Default.ArrowBackIosNew, null, modifier = Modifier.size(16.dp))
@@ -202,7 +202,7 @@ fun ApartmentNavigationRail(
                   onClick = {
                     keyboardController?.hide()
                     if (listMode == ListMode.HOUSES) {
-                      apartmentScreenModel.onHouseSelected(item.addressId)
+                      apartmentViewModel.onHouseSelected(item.addressId)
                     } else {
                       navigateToApartment(item.addressId)
                     }
@@ -210,37 +210,52 @@ fun ApartmentNavigationRail(
                 )
               }
             } else {
+              // Использование оригинального enum ListMode без конфликтов компиляции
               when (listMode) {
                 ListMode.RAIONS -> {
                   items(raions, key = { "r_${it.raionId}" }) { raion ->
                     RailItemContent(
-                      title = raion.raion,
+                      title = raion.raion ?: "",
                       icon = Icons.Default.Map,
                       isSelected = baseUIState.selectedRaionId == raion.raionId,
-                      onClick = { apartmentScreenModel.onRaionSelected(raion) }
+                      onClick = {
+                        println("[$className.ApartmentNavigationRail]: Выбран район ID: ${raion.raionId}")
+                        apartmentViewModel.onRaionSelected(raion)
+                      }
                     )
                   }
                 }
                 ListMode.HOUSES -> {
                   items(houses, key = { "h_${it.houseId}" }) { house ->
                     RailItemContent(
-                      title = house.house,
+                      title = house.house ?: "",
                       icon = Icons.Default.Domain,
                       isSelected = baseUIState.selectedHouseId == house.houseId,
-                      onClick = { apartmentScreenModel.onHouseSelected(house.houseId) }
+                      onClick = {
+                        println("[$className.ApartmentNavigationRail]: Выбран дом ID: ${house.houseId}")
+                        apartmentViewModel.onHouseSelected(house.houseId)
+                      }
                     )
                   }
                 }
                 ListMode.APARTMENTS -> {
-                  items(drawerApartments, key = { "f_${it.addressId}" }) { flat ->
-                    val badgeCount = apartmentBadges[flat.addressId.toString()] ?: 0
+                  val aptList = if (isOrgAdmin) drawerApartments else baseUIState.apartments
+                  items(aptList, key = { "a_${it.addressId}" }) { apartment ->
+                    val isSelected = baseUIState.addressId == apartment.addressId
+                    val badgeCount = apartmentBadges[apartment.addressId.toString()] ?: 0
+
                     RailItemContent(
-                      title = "кв. ${flat.address}",
-                      subtitle = flat.nanim,
+                      title = "кв. ${apartment.address}",
+                      subtitle = apartment.nanim,
+                      extraInfo = "о/р ${apartment.addressId}",
                       icon = Icons.Default.Home,
-                      isSelected = baseUIState.addressId == flat.addressId,
+                      isSelected = isSelected,
                       badgeCount = badgeCount,
-                      onClick = { navigateToApartment(flat.addressId) }
+                      onClick = {
+                        keyboardController?.hide()
+                        println("[$className.ApartmentNavigationRail]: Выбрана квартира о/р Long: ${apartment.addressId}")
+                        navigateToApartment(apartment.addressId)
+                      }
                     )
                   }
                 }
@@ -250,7 +265,7 @@ fun ApartmentNavigationRail(
         }
       }
 
-      // --- 2. НИЖНЯЯ ЧАСТЬ (МЕНЮ ДЕСТИНАЦИЙ) ---
+      // --- 2. НИЖНЯЯ СИСТЕМНАЯ ЧАСТЬ (МЕНЮ) ---
       Column(
         modifier = Modifier
           .fillMaxWidth()
@@ -261,7 +276,7 @@ fun ApartmentNavigationRail(
 
         val navDestinations = getNavDestinations(role = baseUIState.userRole)
 
-        navDestinations.forEach { destination: TopLevelDestination ->
+        navDestinations.forEach { destination ->
           val shouldShow = destination.alwaysVisible || !isApartmentsEmpty
 
           if (shouldShow) {
@@ -270,11 +285,10 @@ fun ApartmentNavigationRail(
             NavigationRailItem(
               selected = isSelected,
               onClick = {
-                println("[$tag]: Rail: [CLICK] Target: ${destination.route} | Role: ${baseUIState.userRole}")
+                println("[$className.ApartmentNavigationRail]: [CLICK] Переход в раздел: ${destination.route} | Роль: ${baseUIState.userRole}")
 
                 if (destination.route == "service_selector") {
-                  // ИСПРАВЛЕНО: Добавлен каст во избежание неоднозначности вызова перегрузок (Overload ambiguity)
-                  chatScreenModel.setSelectedService(null as String?)
+                  chatViewModel.setSelectedService(null as String?)
                 }
 
                 navigateToDestination(destination.route)
@@ -282,9 +296,7 @@ fun ApartmentNavigationRail(
               icon = {
                 BadgedBox(
                   badge = {
-                    val isChatRoute = destination.route == "service_selector" ||
-                      destination.route == "UserListScreen"
-
+                    val isChatRoute = destination.route == "service_selector" || destination.route == "UserListScreen"
                     if (isChatRoute && totalUnread > 0) {
                       Badge(
                         containerColor = MaterialTheme.colorScheme.error,
@@ -297,12 +309,12 @@ fun ApartmentNavigationRail(
                 ) {
                   Icon(
                     imageVector = if (isSelected) destination.selectedIcon else destination.unselectedIcon,
-                    contentDescription = stringResource(destination.labelId)
+                    contentDescription = null
                   )
                 }
               },
               label = if (isRailExpanded) {
-                { Text(stringResource(destination.labelId), fontSize = 11.sp) }
+                { Text(destination.route, fontSize = 11.sp) }
               } else null,
               alwaysShowLabel = false
             )

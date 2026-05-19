@@ -109,12 +109,12 @@ class ChatScreenModel(
         else -> "Користувач (о/р $addrIdFromKey)"
       }
       profile?.copy(
-        addressId = addrIdFromKey,
+        addressId = addrIdFromKey.toLong(),
         address = preview,
         displayName = finalDisplayName
       ) ?: UserEntity(
         uid = uidFromKey,
-        addressId = addrIdFromKey,
+        addressId = addrIdFromKey.toLong(),
         displayName = finalDisplayName,
         address = preview
       )
@@ -171,31 +171,37 @@ class ChatScreenModel(
    * [ChatScreenModel.uploadFileAndSendMessage] — Универсальная загрузка медиа (Mac/Android).
    * Больше не требует Context или Uri.
    */
+  // Внутри класса ChatScreenModel (Твоя КМР ScreenModel управления чат-системой ГИОЦ)
+
+  /**
+   * [uploadFileAndSendMessage] — Атомарная загрузка файлов/фотографий поломок в Firebase Storage KMP и отправка сообщений.
+   * ИСПРАВЛЕНО: Все числовые идентификаторы (addressId, osbbId) переведены с Int на сквозной КМР Long-стандарт.
+   */
   fun uploadFileAndSendMessage(
     chatUid: String,
     senderUid: String,
     senderDisplayedName: String,
     senderLogoUrl: String?,
     senderAddress: String,
-    addressId: Int,
-    osbbId: Int,
+    addressId: Long, // ИСПРАВЛЕНО: Жесткий КМР Long-стандарт под каноны SQLDelight
+    osbbId: Long,    // ИСПРАВЛЕНО: Жесткий КМР Long-стандарт под каноны SQLDelight
     role: UserRole,
     recipientTokens: List<String>,
     onComplete: () -> Unit
   ) {
-    val methodName = "uploadFile"
-    // Берем путь к файлу из нашего KMP стейта
+    val methodName = "uploadFileAndSendMessage"
+    // Берем путь к файлу из нашего зафиксированного КМР-стейта
     val filePath = _selectedImagePath.value
 
     if (filePath.isNullOrBlank()) {
-      Log.e("YkisLog", "[$className.$methodName]: [ABORT] Путь к файлу пуст")
+      println("[$className.$methodName]: [ABORT] Шлях до медіа-файлу порожній")
       return
     }
 
-    // Наш базовый лоадер и обработчик ошибок
+    // Наш базовый лоадер и обработчик ошибок launchCatching из BaseScreenModel
     launchCatching(showLoader = true) {
       try {
-        Log.d("YkisLog", "[$className.$methodName]: [START] Target Tokens: ${recipientTokens.size}")
+        println("[$className.$methodName]: [START] Target Tokens для PUSH-сигналів: ${recipientTokens.size}")
 
         // 1. ОПРЕДЕЛЯЕМ ТИП ФАЙЛА ПО РАСШИРЕНИЮ (Кроссплатформенно)
         val isImage = filePath.lowercase().let {
@@ -204,52 +210,54 @@ class ChatScreenModel(
         val extension = if (isImage) "jpg" else filePath.substringAfterLast(".", "file")
         val originalFileName = filePath.substringAfterLast("/")
 
-        // 2. ПОДГОТОВКА ДАННЫХ (Вызов платформенного кода через репозиторий)
+        // 2. ПОДГОТОВКА БАЙТОВ (Вызов платформенного кода compress/read через KMP ChatRepository)
         val fileData: ByteArray = if (isImage) {
-          // На Android сработает Bitmap.recycle(), на Mac — ImageIO
+          // На Android сработает Bitmap.recycle(), на Mac Desktop — ImageIO бинарный маршалинг
           chatRepo.compressImage(filePath)
         } else {
           chatRepo.readFileAsBytes(filePath)
         }
 
         if (fileData.isEmpty()) {
-          throw Exception("Файл порожній або недоступний для читання")
+          throw Exception("Файл порожній або недоступний для читання на рівні ОС")
         }
 
-        // 3. ФОРМИРОВАНИЕ СИСТЕМНОГО ПУТИ (9999/9998/9997 для служб)
+        // 3. ФОРМИРОВАНИЕ СИСТЕМНОГО ПУТИ (9999L/9998L/9997L для коммунальных служб Южного)
+        // ИСПРАВЛЕНО: Литералы переведены в тип Long (добавлен суффикс L) во избежание Type mismatch коллизий
         val effectiveOsbbId = when (role) {
-          UserRole.VodokanalUser -> 9999
-          UserRole.YtkeUser -> 9998
-          UserRole.TboUser -> 9997
+          UserRole.VodokanalUser -> 9999L
+          UserRole.YtkeUser -> 9998L
+          UserRole.TboUser -> 9997L
           else -> osbbId
         }
 
         val folder = if (isImage) "chat_images" else "chat_docs"
-        // Используем наш кроссплатформенный TimeUtils
+        // Используем наш сквозной КМР-форматтер времени из пакета core.utils
         val timestamp = com.ykis.ykismobkmp.core.utils.currentTimeMillis()
         val storagePath = "$folder/$effectiveOsbbId/$addressId/$timestamp.$extension"
 
-        // 4. ЗАГРУЗКА В FIREBASE STORAGE (GitLive)
+        // 4. ЗАГРУЗКА В FIREBASE STORAGE (Через кроссплатформенный GitLive SDK)
         val downloadUrl = chatRepo.uploadFile(fileData, storagePath)
-        Log.d("YkisLog", "[$className.$methodName]: [URL_READY] $downloadUrl")
+        println("[$className.$methodName]: [URL_READY] Медіа успішно завантажено в хмару. Ссылка: $downloadUrl")
 
-        // 5. ЗАПИСЬ В DATABASE И ОТПРАВКА PUSH
+        // 5. ЗАПИСЬ В ОБЛАЧНУЮ СУБД И ОТПРАВКА НА СЕРВЕР ПУШЕЙ
+        // ИСПРАВЛЕНО: Идентификаторы addressId и osbbId передаются как чистые Long
         writeToDatabase(
           chatUid = chatUid,
           senderUid = senderUid,
           senderDisplayedName = senderDisplayedName,
           senderLogoUrl = senderLogoUrl,
           senderAddress = senderAddress,
-          addressId = addressId,
+          addressId = addressId.toInt(),
           imageUrl = if (isImage) downloadUrl else null,
           fileUrl = if (!isImage) downloadUrl else null,
           fileName = if (!isImage) originalFileName else null,
-          osbbId = effectiveOsbbId,
+          osbbId = effectiveOsbbId.toInt(),
           role = role,
           recipientTokens = recipientTokens,
           onComplete = {
-            Log.d("YkisLog", "[$className.$methodName]: [FINISH] Успішно відправлено")
-            // Очищаем стейт после успеха
+            println("[$className.$methodName]: [FINISH] Повідомлення з файлом успішно зафіксовано в базі")
+            // Атомарно очищаем стейты ввода и подсказок Gemini AI после успешной транзакции
             _selectedImagePath.value = null
             _messageText.value = ""
             clearAiSuggestion()
@@ -258,12 +266,13 @@ class ChatScreenModel(
         )
 
       } catch (e: Exception) {
-        Log.e("YkisLog", "[$className.$methodName]: [CRITICAL_ERROR] ${e.message}")
-        SnackbarManager.showMessage("Помилка завантаження: перевірте з'єднання")
-        logService.logNonFatalCrash(e)
+        println("[$className.$methodName]: [CRITICAL_ERROR] Перехоплено збій корутини: ${e.message}")
+        SnackbarManager.showMessage("Помилка завантаження: перевірте з'єднання з мережею")
+        logService.logNonFatalCrash(e) // Автоматический КМР лог в Crashlytics
       }
     }
   }
+
 
   /**
    * [ChatScreenModel.cancelForwarding] — Отмена режима пересылки сообщения.
@@ -1680,7 +1689,7 @@ class ChatScreenModel(
     val chatId = getChatPath(
       role = currentRole,
       osbbId = effectiveOsbbId,
-      addressId = realAddressId,
+      addressId = realAddressId.toInt(),
       targetUserUid = user.uid
     )
 
@@ -1694,7 +1703,7 @@ class ChatScreenModel(
       role = currentRole,
       senderUid = user.uid,
       osbbId = effectiveOsbbId,
-      addressId = realAddressId
+      addressId = realAddressId.toInt()
     )
   }
 }

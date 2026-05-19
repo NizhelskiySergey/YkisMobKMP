@@ -32,10 +32,10 @@ import com.ykis.ykismobkmp.core.utils.Log
 import com.ykis.ykismobkmp.domain.entity.MessageEntity
 import com.ykis.ykismobkmp.domain.entity.UserEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
-import com.ykis.ykismobkmp.ui.NavigationType
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.core.utils.formatDateFull
 import com.ykis.ykismobkmp.domain.services.UserRole
+import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.apply_suggestion
@@ -133,7 +133,7 @@ fun ChatScreenContent(
   }
 
   // Группировка сообщений по датам
-  // Указываем тип List<ChatItem>, чтобы Compose точно знал, что лежит в списке
+  // указываем тип List<ChatItem>, чтобы Compose точно знал, что лежит в списке
   val chatItems = remember<List<ChatItem>>(messageList, myUid) {
     Log.d("YkisLog", "[$className.Filter]: Processing ${messageList.size} messages")
 
@@ -161,8 +161,8 @@ fun ChatScreenContent(
       screenModel.readFromDatabase(
         role = role,
         senderUid = targetUid,
-        osbbId = currentChatOsbbId,
-        addressId = addrId
+        osbbId = currentChatOsbbId.toInt(),
+        addressId = addrId.toInt()
       )
     }
   }
@@ -207,7 +207,7 @@ fun ChatScreenContent(
       baseUIState.userRole == UserRole.StandardUser -> baseUIState.address ?: ""
       else -> {
         // АДМИН: Подзаголовок — это ЛИЦЕВОЙ СЧЕТ (о/р)
-        val accountNum = userEntity.addressId
+        val accountNum = userEntity.addressId.toInt()
         if (accountNum != 0) {
           "о/р: $accountNum"
         } else {
@@ -276,11 +276,11 @@ fun ChatScreenContent(
                   senderDisplayedName = baseUIState.displayName ?: "Користувач",
                   senderLogoUrl = baseUIState.photoUrl,
                   senderAddress = curAddr,
-                  addressId = curAddrId,
+                  addressId = curAddrId.toInt(),
                   imageUrl = null,
                   fileUrl = null,
                   fileName = null,
-                  osbbId = currentChatOsbbId,
+                  osbbId = currentChatOsbbId.toInt(),
                   role = baseUIState.userRole,
                   recipientTokens = userEntity.tokens ?: emptyList(),
                   onComplete = {

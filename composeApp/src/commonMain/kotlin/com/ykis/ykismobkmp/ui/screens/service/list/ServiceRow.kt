@@ -1,12 +1,22 @@
 package com.ykis.ykismobkmp.ui.screens.service.list
-
-// ИМПОРТЫ КРОСС ПЛАТФОРМЕННЫХ РЕСУРСОВ JETBRAINS:
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.*
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
@@ -25,7 +36,6 @@ private const val className = "ServiceRow"
 
 /**
  * [ServiceRow] — Кроссплатформенный элемент строки отображения баланса и долга по конкретной ЖКХ-службе г. Южный.
- * Полностью стабилен на Mac Desktop (JVM), Android и iOS без побочных эффектов дублирования модификаторов.
  */
 @Composable
 fun ServiceRow(
@@ -36,10 +46,13 @@ fun ServiceRow(
   icon: ImageVector,
   onClick: () -> Unit
 ) {
-  // Используем наш кроссплатформенный хелпер форматирования копеек биллинга
-  val formattedDebt = formatDebtKmp(debt)
+  // Вызов утилиты перевода копеек, запечатанной в истории проекта
+  val rounded = (debt * 100.0).toLong()
+  val mainPart = rounded / 100
+  val kopecks = rounded % 100
+  val kopecksStr = if (kopecks < 10) "0$kopecks" else "$kopecks"
+  val formattedDebt = "$mainPart.$kopecksStr"
 
-  // ИСПРАВЛЕНО: Кликабельность перенесена на корневой Box, semantics очищена от платформозависимых вызовов
   Box(
     modifier = modifier
       .fillMaxWidth()
@@ -57,13 +70,12 @@ fun ServiceRow(
     ) {
       val typography = MaterialTheme.typography
 
-      // Цветовой индикатор состояния задолженности
+      // Цветовой индикатор состояния задолженности ЖКХ расчетного центра
       ServiceIndicator(
         color = color,
         modifier = Modifier
       )
 
-      // ИСПРАВЛЕНО: Внутренние отступы иконки изолированы от входящего modifier
       Icon(
         imageVector = icon,
         contentDescription = null,
@@ -93,19 +105,19 @@ fun ServiceRow(
         Text(
           text = formattedDebt,
           style = typography.bodyLarge,
-          fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+          fontWeight = FontWeight.Bold,
           color = if (debt > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
         )
         Text(
-          // ИСПРАВЛЕНО: Заменен Android R.string.uah на КМР Res.string.uah
-          text = stringResource(Res.string.uah),
+          text = stringResource(Res.string.uah), // КМР-ресурс валюты гривны JetBrains Res
           style = typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       }
 
+      // ИСПРАВЛЕНО: Заменена отсутствующая ChevronRight на легитимную КМР AutoMirrored KeyboardArrowRight
       Icon(
-        imageVector = Icons.Filled.ChevronRight,
+        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
         contentDescription = null,
         modifier = Modifier.padding(start = 8.dp, end = 4.dp).size(20.dp),
         tint = MaterialTheme.colorScheme.outline
@@ -117,19 +129,7 @@ fun ServiceRow(
 }
 
 /**
- * [formatDebtKmp] — Кроссплатформенное форматирование вывода копеек долга/переплаты.
- */
-private fun formatDebtKmp(debt: Double): String {
-  val rounded = (debt * 100.0).toLong()
-  val mainPart = rounded / 100
-  val kopecks = rounded % 100
-  val kopecksStr = if (kopecks < 10) "0$kopecks" else "$kopecks"
-  return "$mainPart.$kopecksStr"
-}
-
-/**
  * [ServiceIndicator] — Кроссплатформенный цветовой маркер состояния задолженности ЖКХ-службы.
- * Полностью автономен, изолирован по модификаторам и готов к сборке на Mac Desktop.
  */
 @Composable
 fun ServiceIndicator(
@@ -137,7 +137,6 @@ fun ServiceIndicator(
   modifier: Modifier = Modifier
 ) {
   Box(
-    // ИСПРАВЛЕНО: Цепочка расширений начинается с входящего modifier, но внутренние свойства изолированы
     modifier = modifier
       .size(width = 6.dp, height = 36.dp)
       .clip(MaterialTheme.shapes.small)

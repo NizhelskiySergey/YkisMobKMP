@@ -1,11 +1,19 @@
 package com.ykis.ykismobkmp.domain.services // Укажи свой актуальный пакет сущностей
 
-import com.ykis.ykismobkmp.domain.entity.UserEntity
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerialName
 /**
  * [UserFirebase] — Кроссплатформенная модель профиля пользователя в Firestore.
  * Очищена от платформенных привязок и синхронизирована с типами Long для баз данных.
+ */
+
+import com.ykis.ykismobkmp.domain.entity.UserEntity
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+private const val className = "UserFirebase"
+
+/**
+ * [UserFirebase] — Кроссплатформенная сериализуемая модель пользователя для работы с Firestore KMP.
+ * ЗАФИКСИРОВАНО: Идентификаторы osbbId и addressId имеют жесткий сквозной тип Long под каноны SQLDelight.
  */
 @Serializable
 data class UserFirebase(
@@ -21,7 +29,7 @@ data class UserFirebase(
   @SerialName("provider")
   val provider: String? = null,
 
-  @SerialName("displayName") // Имя поля в Firestore
+  @SerialName("displayName") // Имя поля в облачной БД Firestore
   val name: String? = null,
 
   @SerialName("phone")
@@ -33,11 +41,9 @@ data class UserFirebase(
   @SerialName("userRole")
   val userRole: String = "StandardUser",
 
-  // ИСПРАВЛЕНО: ID организации (ОСББ) переведен на Long под типы SQLDelight
   @SerialName("osbbId")
   val osbbId: Long = 0L,
 
-  // ИСПРАВЛЕНО: ID конкретной квартиры переведен на Long под типы SQLDelight
   @SerialName("addressId")
   val addressId: Long = 0L,
 
@@ -47,9 +53,11 @@ data class UserFirebase(
 
 /**
  * [UserFirebase.toEntity] — Кроссплатформенный маппер из модели Firebase в Entity-модель для UI слоя.
- * Убирает необходимость ручного кастинга числовых идентификаторов в ScreenModels.
+ * ИСПРАВЛЕНО: Убран ложный кастинг .toInt(). Идентификаторы пробрасываются как чистые Long.
  */
 fun UserFirebase.toEntity(): UserEntity {
+  println("[$className.toEntity]: Выполняется КМР-маппинг профиля Firestore для UID: $uid")
+
   return UserEntity(
     uid = this.uid,
     // Используем name ("Адрес | Фамилия"), а если он null — email
@@ -59,9 +67,10 @@ fun UserFirebase.toEntity(): UserEntity {
     userRole = UserRole.entries.find { it.name == this.userRole } ?: UserRole.StandardUser,
     email = this.email,
     address = this.name ?: "",
-    // Пробрасываем чистые Long идентификаторы напрямую в UI Entity структуру
-    osbbId = this.osbbId.toInt(),
-    addressId = this.addressId.toInt(),
+    // ИСПРАВЛЕНО: Никаких .toInt(). Пробрасываем чистые Long идентификаторы напрямую в UI Entity структуру
+    osbbId = this.osbbId,
+    addressId = this.addressId,
     tokens = this.fcmTokens ?: emptyList()
   )
 }
+

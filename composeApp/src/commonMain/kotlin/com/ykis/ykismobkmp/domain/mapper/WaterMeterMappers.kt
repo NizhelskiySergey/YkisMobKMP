@@ -30,7 +30,7 @@ fun DomainWaterMeter.toDbWaterMeter(): DbWaterMeter {
     avg = this.avg.toLong(),
     spisan = this.spisan.toLong(),
     // ИСПРАВЛЕНО: Связываем поле out домена с экранированным полем isOut твоей SQL схемы
-    isOut = this.out.toLong(),
+    isOut = this.out_.toLong(),
     paused = this.paused.toLong(),
     dataSpis = this.dataSpis,
     work = this.work.toLong()
@@ -60,7 +60,7 @@ fun DbWaterMeter.toDomainWaterMeter(): DomainWaterMeter {
     avg = this.avg.toInt(),
     spisan = this.spisan.toInt(),
     // ИСПРАВЛЕНО: Считываем из isOut базы данных обратно в доменное КМР-свойство out
-    out = this.isOut.toInt(),
+    out_ = this.isOut.toInt(),
     paused = this.paused.toInt(),
     dataSpis = this.dataSpis,
     work = this.work.toInt()

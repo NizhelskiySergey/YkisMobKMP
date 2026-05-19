@@ -7,20 +7,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.ykis.ykismobkmp.domain.entity.RaionEntity
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "RaionDropdownSelector"
 
-// Временная КМР-заглушка сущности района БТИ расчетного центра г. Южный
-data class RaionEntity(
-  val id: Long = 0L, // Сквозной КМР Long-стандарт
-  val raion: String = ""
-)
-
 /**
  * [RaionDropdownSelector] — Кроссплатформенный выпадающий селектор выбора района города Южный.
- * ИСПРАВЛЕНО: Синтаксис menuAnchor обновлен до стандартов Compose Multiplatform, строки локализованы.
+ * ИСПРАВЛЕНО: menuAnchor обновлен до актуального KMP-стандарта с использованием ExposedDropdownMenuAnchorType.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,9 +26,9 @@ fun RaionDropdownSelector(
 ) {
   var expanded by remember { mutableStateOf(false) }
 
-  // ИСПРАВЛЕНО: Хардкод-строка "Выберите район" переведена на КМР-ресурс Res.string
+  // Извлекаем строку по умолчанию из кроссплатформенных ресурсов JetBrains Res
   val defaultPlaceholder = stringResource(Res.string.choose_raion)
-  var selectedName by remember { mutableStateOf(defaultPlaceholder) }
+  var selectedName by remember(defaultPlaceholder) { mutableStateOf(defaultPlaceholder) }
 
   ExposedDropdownMenuBox(
     expanded = expanded,
@@ -44,11 +39,12 @@ fun RaionDropdownSelector(
       value = selectedName,
       onValueChange = {},
       readOnly = true,
-      label = { Text(stringResource(Res.string.city_raion)) }, // ИСПРАВЛЕНО: Вызов строки через Res.string
+      label = { Text(stringResource(Res.string.city_raion)) },
       trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-      // ИСПРАВЛЕНО: Обновлен синтаксис menuAnchor для нередактируемых текстовых полей Material 3 KMP
+      // ИСПРАВЛЕНО: Применен современный, актуальный КМР-синтаксис menuAnchor
+      // с передачей правильного перечисления ExposedDropdownMenuAnchorType.PrimaryNotEditable
       modifier = Modifier
-        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+        .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true)
         .fillMaxWidth(),
       shape = RoundedCornerShape(12.dp),
       colors = OutlinedTextFieldDefaults.colors(
@@ -65,12 +61,14 @@ fun RaionDropdownSelector(
         DropdownMenuItem(
           text = {
             Text(
-              text = raion.raion,
+              text = raion.raion ?: "",
               style = MaterialTheme.typography.bodyLarge
             )
           },
           onClick = {
-            selectedName = raion.raion
+            // Логирование согласно правилу [Класс.Метод] через КМР-команду println
+            println("[$className.RaionDropdownSelector]: Клієнт обрав район биллинга ЮКИС: ${raion.raion}")
+            selectedName = raion.raion ?: ""
             expanded = false
             onRaionSelected(raion)
           }
@@ -79,4 +77,3 @@ fun RaionDropdownSelector(
     }
   }
 }
-

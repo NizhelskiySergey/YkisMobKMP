@@ -23,7 +23,7 @@ fun DomainHeatMeter.toDbHeatMeter(): DbHeatMeter {
     fpdate = this.fpdate,
     pdate = this.pdate,
     // ИСПРАВЛЕНО: Связываем доменное поле out с экранированным полем isOut твоей SQL схемы
-    isOut = this.out.toLong(),
+    isOut = this.out_.toLong(),
     spisan = this.spisan.toLong(),
     dataSpis = this.dataSpis,
     work = this.work.toLong()
@@ -47,7 +47,7 @@ fun DbHeatMeter.toDomainHeatMeter(): DomainHeatMeter {
     fpdate = this.fpdate,
     pdate = this.pdate,
     // ИСПРАВЛЕНО: Безопасное приведение Long из SQLite в Int для кроссплатформенной UI модели
-    out = this.isOut.toInt(),
+    out_ = this.isOut.toInt(),
     spisan = this.spisan.toInt(),
     dataSpis = this.dataSpis,
     work = this.work.toInt()

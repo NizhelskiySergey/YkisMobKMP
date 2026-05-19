@@ -1,14 +1,28 @@
 package com.ykis.ykismobkmp.ui.screens.chat
-
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -18,27 +32,21 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.domain.entity.UserEntity
 import com.ykis.ykismobkmp.domain.services.UserRole
-import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.components.UserList
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.*
-
-// Кроссплатформенные заглушки сущностей для успешной компиляции списков
-
-
-// ИМПОРТЫ КРОСС ПЛАТФОРМЕННЫХ РЕСУРСОВ СТРОК JETBRAINS
-import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.*
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.cancel
+import ykismobkmp.composeapp.generated.resources.select_recipient
 
 private const val className = "UserListScreen"
 
 /**
  * [UserListScreen] — Кроссплатформенный экран списка доступных чатов/квартир ЮКИС.
- * ИСПРАВЛЕНО: Расширяет Screen Voyager, типы ИД переведены на сквозной Long стандарт YkisMobKMP.
+ * ИСПРАВЛЕНО: Полностью состыкован по именам параметров с КМР-компонентом UserList.
  */
 class UserListScreen(
   private val userList: List<UserEntity> = emptyList(),
@@ -52,14 +60,14 @@ class UserListScreen(
     val navigator = LocalNavigator.currentOrThrow
 
     // Извлекаем ScreenModels через Koin мост YkisMobKMP
-    val chatViewModel = koinInject<ChatScreenModel>()
+    val chatScreenModel = koinInject<ChatScreenModel>()
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
 
     val baseUIState by apartmentScreenModel.uiState.collectAsState()
 
-    val isForwardingMode by chatViewModel.isForwardingMode.collectAsState()
-    val searchQuery by chatViewModel.searchQuery.collectAsState()
-    val selectedService by chatViewModel.selectedService.collectAsState()
+    val isForwardingMode by chatScreenModel.isForwardingMode.collectAsState()
+    val searchQuery by chatScreenModel.searchQuery.collectAsState()
+    val selectedService by chatScreenModel.selectedService.collectAsState()
 
     // Логирование рантайма согласно правилу [Класс.Метод]
     LaunchedEffect(baseUIState.userRole, baseUIState.addressId) {
@@ -67,7 +75,7 @@ class UserListScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-      // 1. ВЕРХНЯЯ ПАНЕЛЬ С АДАПТИВНЫМ ЗАГОЛОВКОМ
+      // 1. ВЕРХНЯЯ ПАНЕЛЬ С АДАПТИВНЫМ ЗАГОЛОВКОМ РАСЧЕТНОГО ЦЕНТРА ЮЖНОГО
       val appBarTitle = remember(baseUIState.userRole, selectedService) {
         val role = baseUIState.userRole
         val serviceName = selectedService?.name ?: ""
@@ -91,21 +99,21 @@ class UserListScreen(
         onDrawerClick = onDrawerClicked,
         canNavigateBack = true,
         onBackClick = {
-          println("[$className.Content.onBackClick]: Reset service and exit")
-          // ИСПРАВЛЕНО: Приведение к String? для исключения Overload Resolution Ambiguity
-          chatViewModel.setSelectedService(null as String?)
+          println("[$className.Content.onBackClick]: Reset service and exit to drawer")
+          // ИСПРАВЛЕНО: Строгое приведение к типу String? для ликвидации ошибок Overload в Ktor/Koin
+          chatScreenModel.setSelectedService(null as String?)
           onDrawerClicked()
         },
         navigationType = navigationType
       )
 
-      // 2. УНИВЕРСАЛЬНЫЙ СТРОКОВЫЙ ПОИСК
+      // 2. УНИВЕРСАЛЬНЫЙ ТЕКСТОВЫЙ ПОИСК АБОНЕНТОВ БТИ БИЛЛИНГА
       if (baseUIState.userRole != UserRole.StandardUser && !isForwardingMode) {
         OutlinedTextField(
           value = searchQuery,
           onValueChange = { query ->
             println("[$className.Content.Search]: Query -> $query")
-            chatViewModel.onSearchQueryChanged(query)
+            chatScreenModel.onSearchQueryChanged(query)
           },
           modifier = Modifier
             .fillMaxWidth()
@@ -114,7 +122,7 @@ class UserListScreen(
           leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
           trailingIcon = {
             if (searchQuery.isNotEmpty()) {
-              IconButton(onClick = { chatViewModel.onSearchQueryChanged("") }) {
+              IconButton(onClick = { chatScreenModel.onSearchQueryChanged("") }) {
                 Icon(Icons.Default.Close, contentDescription = null)
               }
             }
@@ -124,7 +132,7 @@ class UserListScreen(
         )
       }
 
-      // 3. АНИМИРОВАННЫЙ ИНДИКАТОР ПЕРЕСЫЛКИ СООБЩЕНИЙ ЖЭК / ОСМД
+      // 3. АНИМИРОВАННЫЙ ИНДИКАТОР ПЕРЕСЫЛКИ СООБЩЕНИЙ ЖЭК / ОСМД ГОРОДА ЮЖНЫЙ
       AnimatedVisibility(visible = isForwardingMode) {
         Surface(
           color = MaterialTheme.colorScheme.secondaryContainer,
@@ -142,8 +150,8 @@ class UserListScreen(
               style = MaterialTheme.typography.labelLarge
             )
             TextButton(onClick = {
-              println("[$className.Content.Forwarding]: Cancelled")
-              chatViewModel.cancelForwarding()
+              println("[$className.Content.Forwarding]: Forwarding operation cancelled by user")
+              chatScreenModel.cancelForwarding()
             }) {
               Text(stringResource(Res.string.cancel))
             }
@@ -151,7 +159,7 @@ class UserListScreen(
         }
       }
 
-      // 4. КОНТЕНТ: КРОСС ПЛАТФОРМЕННЫЙ МАППИНГ КВАРТИР В ЧАТ-СУЩНОСТИ
+      // 4. КОНТЕНТ: КРОСС ПЛАТФОРМЕННЫЙ МАППИНГ КВАРТИР В ДОМЕННЫЕ ЧАТ-СУЩНОСТИ
       val finalUserList = remember(
         baseUIState.apartments,
         baseUIState.uid,
@@ -160,14 +168,14 @@ class UserListScreen(
         userList
       ) {
         if (baseUIState.userRole == UserRole.StandardUser) {
-          println("[$className.Content.Mapping]: Transforming ${baseUIState.apartments.size} apts to chats")
+          println("[$className.Content.Mapping]: Transforming ${baseUIState.apartments.size} apts to domain chat items")
 
           baseUIState.apartments.map { apt ->
             UserEntity(
               uid = baseUIState.uid ?: "",
               address = apt.address,
-              addressId = apt.addressId, // Сквозной Long стандарт из BaseUIState
-              osbbId = apt.osmdId ?: 0L,  // ИСПРАВЛЕНО: Хардкод '0' заменен на КМР-валидный '0L'
+              addressId = apt.addressId, // Жесткий КМР Long-стандарт из BaseUIState
+              osbbId = apt.osmdId ?: 0L,  // Сквозной Long-литерал
               displayName = apt.address,
               userRole = UserRole.StandardUser,
               nanim = apt.nanim ?: ""
@@ -180,31 +188,33 @@ class UserListScreen(
         }
       }
 
-      // Внутри UserListScreen.kt в самом низу функции Content()
+      // 5. РЕНДЕРИНГ СПИСОЧНОЙ ЛЕНТЫ АКТИВНЫХ ДИАЛОГОВ
+      // ИСПРАВЛЕНО: Аргумент chatScreenModel передан в строго соответствии с КМР-сигнатурой компонента UserList!
       UserList(
+        modifier = Modifier.weight(1f),
         userList = finalUserList,
         baseUIState = baseUIState,
         onUserClick = { user ->
           if (isForwardingMode) {
-            println("[$className.Content.onUserClick]: Пересилання повідомлення до служби...")
+            println("[$className.Content.onUserClick]: Пересилання повідомлення до комунальної служби...")
 
             selectedService?.contentDetail?.let { currentService ->
-              // Нативно вызываем добавленный в модель метод, передавая все 3 ожидаемых аргумента!
-              chatViewModel.confirmForwardToService(
+              // Нативно вызываем добавленный в модель метод, передавая все 3 ожидаемых аргумента
+              chatScreenModel.confirmForwardToService(
                 service = currentService,
                 baseState = baseUIState,
                 targetUser = user
               )
             }
           } else {
-            println("[$className.Content.onUserClick]: Opening chat -> ${user.address}")
+            println("[$className.Content.onUserClick]: Opening chat room -> ${user.address}")
             onUserClicked(user)
           }
         },
-        chatViewModel = chatViewModel
+        chatScreenModel = chatScreenModel // Стыковка вкладок и графа зафиксирована
       )
-
     }
   }
 }
+
 

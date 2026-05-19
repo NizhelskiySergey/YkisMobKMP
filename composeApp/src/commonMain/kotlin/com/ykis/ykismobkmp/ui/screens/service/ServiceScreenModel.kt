@@ -1,14 +1,13 @@
 package com.ykis.ykismobkmp.ui.screens.service
 
 import cafe.adriel.voyager.core.model.screenModelScope
-import com.ykis.ykismobkmp.data.service.ServiceParams
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.domain.entity.ServiceEntity
 import com.ykis.ykismobkmp.domain.entity.PaymentEntity
+import com.ykis.ykismobkmp.domain.repository.services.ServiceParams
 import com.ykis.ykismobkmp.domain.services.LogService
 import com.ykis.ykismobkmp.ui.BaseScreenModel
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
-import com.ykis.ykismobkmp.ui.screens.service.list.TotalDebtState
 import com.ykis.ykismobkmp.ui.screens.service.payment.list.PaymentState
 import kotlinx.coroutines.flow.*
 
@@ -34,14 +33,11 @@ data class PaymentState(
   val isLoading: Boolean = false
 )
 
-// ИСПРАВЛЕНО: Все жилищно-коммунальные ID внутри параметров переведены на сквозной Long под SQLDelight
-data class InsertPaymentParams(val uid: String, val addressId: Long, val amount: Double)
 
 // Определение функциональных типов КМР Use Cases финансового блока
 typealias GetFlatServices = (ServiceParams) -> Flow<Resource<List<ServiceEntity>>>
 typealias GetTotalDebtServices = (ServiceParams) -> Flow<Resource<ServiceEntity>>
 typealias GetPaymentList = (Long, String, String) -> Flow<Resource<List<PaymentEntity>>>
-typealias InsertPayment = (InsertPaymentParams) -> Flow<Resource<String>>
 
 /**
  * [ServiceScreenModel] — Кроссплатформенная модель управления долгами, начислениями БТИ и платежами Xpay ЮКИС.
@@ -51,7 +47,6 @@ class ServiceScreenModel(
   private val getFlatService: GetFlatServices,
   private val getTotalDebtServices: GetTotalDebtServices,
   private val getPaymentListRepo: GetPaymentList,
-  private val insertPaymentRepo: InsertPayment,
   logService: LogService
 ) : BaseScreenModel(logService) {
 
@@ -175,47 +170,10 @@ class ServiceScreenModel(
       }
     }.launchIn(screenModelScope)
   }
+}
 
   /**
    * [insertPayment] — Генерация защищенной ссылки на инвойс Xpay для оплаты в браузере или WebView.
    */
-  fun insertPayment(
-    params: InsertPaymentParams,
-    onSuccess: (String) -> Unit
-  ) {
-    val methodName = "insertPayment"
 
-    insertPaymentRepo(params).onEach { result ->
-      when (result) {
-        is Resource.Success -> {
-          _insertPaymentLoading.value = false
-          val securedUrl = result.data.toString().replace("/", "*")
-          println("[$tag.$methodName]: [SUCCESS] Ссылка сгенерирована: $securedUrl")
-          onSuccess(securedUrl)
-        }
-
-        is Resource.Error -> {
-          _insertPaymentLoading.value = false
-          println("[$tag.$methodName]: [ERROR] Ошибка шлюза Xpay")
-        }
-
-        is Resource.Loading -> {
-          _insertPaymentLoading.value = true
-        }
-      }
-    }.launchIn(screenModelScope)
-  }
-
-  fun resetState() {
-    println("[$tag]: [RESET] Очистка финансовых метрик для переключения квартиры")
-    _totalDebtState.update {
-      it.copy(
-        totalDebt = ServiceEntity(),
-        isLoading = true,
-        showDetail = false,
-        error = ""
-      )
-    }
-  }
-}
 

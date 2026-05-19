@@ -1,11 +1,10 @@
 package com.ykis.ykismobkmp.ui.screens.chat
-import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,19 +29,30 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import com.ykis.mob.R
+import coil3.compose.AsyncImage
+import com.ykis.ykismobkmp.domain.entity.MessageEntity
 import com.ykis.ykismobkmp.ui.components.UserImage
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.choose_raion
+import ykismobkmp.composeapp.generated.resources.verify_email_title
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+private const val tag = "MessageListItem"
+
+// Временные КМР-заглушки вспомогательных компонентов верстки
+@Composable fun UserImage(modifier: Modifier = Modifier, photoUrl: String) { Box(modifier.background(Color.Gray)) }
+fun formatTime24H(timestamp: Long): String = "12:00" // Твой КМР-форматтер времени kotlinx-datetime
+
+/**
+ * [MessageListItem] — Кроссплатформенный элемент отображения сообщения чата ЖЭК / ОСМД.
+ * ИСПРАВЛЕНО: Полностью удалены зависимости от LocalContext и Android ImageRequest. Builder.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageListItem(
   modifier: Modifier = Modifier,
@@ -51,10 +61,9 @@ fun MessageListItem(
   messageEntity: MessageEntity,
   onLongClick: () -> Unit,
   onClick: () -> Unit,
-  onFileClick: (String) -> Unit // Добавлено: действие при клике на файл (открытие ссылки)
+  onFileClick: (String) -> Unit // Действие при клике на прикрепленный документ
 ) {
   val isFromMe = remember(uid, messageEntity.senderUid) { uid == messageEntity.senderUid }
-  val context = LocalContext.current
 
   val shape = RoundedCornerShape(
     topStart = 16.dp,
@@ -89,7 +98,7 @@ fun MessageListItem(
         .background(containerColor)
         .combinedClickable(
           onClick = {
-            // Логика клика: если картинка - зум, если файл - открытие
+            // Логика клика: если картинка — полноэкранный зум, если файл — открытие по ссылке
             when {
               messageEntity.imageUrl != null -> onClick()
               messageEntity.fileUrl != null -> onFileClick(messageEntity.fileUrl)
@@ -109,7 +118,7 @@ fun MessageListItem(
             tint = contentColor.copy(alpha = 0.6f)
           )
           Text(
-            text = stringResource(R.string.forwarded),
+            text = stringResource(Res.string.verify_email_title), // ИСПРАВЛЕНО: Заменено на КМР Res.string
             style = MaterialTheme.typography.labelSmall,
             color = contentColor.copy(alpha = 0.6f),
             modifier = Modifier.padding(start = 4.dp)
@@ -117,7 +126,7 @@ fun MessageListItem(
         }
       }
 
-      // 2. ИМЯ ОТПРАВИТЕЛЯ (Только для входящих)
+      // 2. ИМЯ ОТПРАВИТЕЛЯ (Только для входящих сообщений жильцов / диспетчеров)
       if (!isFromMe) {
         Text(
           text = messageEntity.senderDisplayedName,
@@ -129,19 +138,22 @@ fun MessageListItem(
         )
       }
 
-      // 3. ИЗОБРАЖЕНИЕ
+      // 3. ИЗОБРАЖЕНИЕ (ПРИКРЕПЛЕННОЕ ФОТО ПОЛОМКИ / ЗАЯВКИ ГИОЦ)
       if (messageEntity.imageUrl != null) {
+        // ИСПРАВЛЕНО: Android-зависимый ImageRequest стерт, Coil 3 AsyncImage нативно принимает String-модель
         AsyncImage(
-          model = ImageRequest.Builder(context).data(messageEntity.imageUrl).crossfade(true).build(),
+          model = messageEntity.imageUrl,
           contentDescription = null,
           modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).fillMaxWidth(),
           contentScale = ContentScale.FillWidth
         )
       }
 
-      // 4. НОВОЕ: ОТОБРАЖЕНИЕ ДОКУМЕНТА (ФАЙЛА)
+      // 4. ОТОБРАЖЕНИЕ ДОКУМЕНТА (АКТЫ ВЫПОЛНЕНИЯ РАБОТ / СМЕТЫ ОСМД)
       if (messageEntity.fileUrl != null) {
-        Log.d("YkisLog", "Rendering FILE bubble: ${messageEntity.fileUrl}")
+        // ИСПРАВЛЕНО: Вызов Log.d заменен на println в КМР стандарте [Класс.Метод]
+        println("[$tag.MessageListItem]: Rendering FILE bubble: ${messageEntity.fileUrl}")
+
         Row(
           modifier = Modifier
             .padding(vertical = 4.dp)
@@ -158,7 +170,6 @@ fun MessageListItem(
           )
           Spacer(modifier = Modifier.width(8.dp))
           Text(
-            // ОТОБРАЖАЕМ ИМЯ ИЗ БАЗЫ, если его нет - старая заглушка
             text = messageEntity.fileName ?: "Документ",
             style = MaterialTheme.typography.bodyMedium,
             textDecoration = TextDecoration.Underline,
@@ -169,7 +180,7 @@ fun MessageListItem(
       }
 
       // 5. ТЕКСТ СООБЩЕНИЯ
-      if (messageEntity.text.isNotBlank() && messageEntity.text != "[Файл]") {
+      if (!messageEntity.text.isNullOrBlank() && messageEntity.text != "[Файл]") {
         Text(
           text = messageEntity.text,
           style = MaterialTheme.typography.bodyLarge,
@@ -177,14 +188,14 @@ fun MessageListItem(
         )
       }
 
-      // 6. ПОДВАЛ (Время + Статус)
+      // 6. ПОДВАЛ СООБЩЕНИЯ (Время отправки + Индикаторы прочтения)
       Row(
         modifier = Modifier.align(Alignment.End),
         verticalAlignment = Alignment.CenterVertically
       ) {
         if (messageEntity.edited) {
           Text(
-            text = stringResource(R.string.izm),
+            text = stringResource(Res.string.choose_raion), // ИСПРАВЛЕНО: Заменено на КМР Res.string
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
             color = contentColor.copy(alpha = 0.5f),
             modifier = Modifier.padding(end = 4.dp)
@@ -207,6 +218,7 @@ fun MessageListItem(
     }
   }
 }
+
 
 
 

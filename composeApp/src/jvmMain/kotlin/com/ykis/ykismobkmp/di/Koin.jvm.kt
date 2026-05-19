@@ -18,7 +18,7 @@ val desktopPlatformModule: Module = module {
   single<Settings> {
     PreferencesSettings(Preferences.userNodeForPackage(DatabaseDriverFactory::class.java))
   }
-  single<AppSettingsRepository> {AppSettingsRepositoryImpl(dataStore = get())}
+  single<AppSettingsRepository> {AppSettingsRepositoryImpl( get())}
   single { DatabaseDriverFactory() }
 }
 

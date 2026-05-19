@@ -1,35 +1,21 @@
 package com.ykis.ykismobkmp.ui.screens.meter.water
 
-// Импортируем наши Long и Double типизированные КМР-модели
-
-// Импорты обновленных КМР-компонентов верстки
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CardDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
+import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
 import com.ykis.ykismobkmp.domain.entity.WaterReadingEntity
-import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.components.LabelTextWithCheckBox
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
@@ -42,14 +28,14 @@ private const val tag = "WaterMeterDetail"
 
 /**
  * [WaterMeterDetail] — Кроссплатформенный Stateless-экран детальной информации и ввода кубометров воды.
- * Полностью автономен, синхронизирован с сигнатурой BaseCard и готов к компиляции под Mac Desktop и iOS.
+ * для стопроцентной ликвидации конфликтов Type mismatch со стейтом WaterMeterState.
  */
 @Composable
 fun WaterMeterDetail(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
   waterMeterEntity: WaterMeterEntity,
-  lastReading: WaterReadingEntity,
+  lastReading: WaterReadingEntity?, // ИСПРАВЛЕНО: Изменено на Nullable под стандарты КМР-стейтов
   getLastReading: () -> Unit,
   onNewReadingChange: (String) -> Unit,
   newWaterReading: String,
@@ -62,23 +48,28 @@ fun WaterMeterDetail(
   var showAddReadingDialog by rememberSaveable { mutableStateOf(false) }
   var showDeleteReadingDialog by rememberSaveable { mutableStateOf(false) }
 
+  // Безопасно распаковываем зануляемую доменную сущность показаний во избежание NullPointerException
+  val safeLastReading = remember(lastReading) {
+    lastReading ?: WaterReadingEntity(current = 0.0)
+  }
+
   // --- ЛОГИКА ЯКОРЯ ВАЛИДАЦИИ (Переведена на Double для дробных кубометров) ---
-  val enabledButton by remember(newWaterReading, lastReading.current) {
+  val enabledButton by remember(newWaterReading, safeLastReading.current) {
     derivedStateOf {
       val newValue = newWaterReading.toDoubleOrNull() ?: -1.0
-      val isValid = newValue > lastReading.current
+      val isValid = newValue > safeLastReading.current
 
       if (newWaterReading.isNotEmpty() && !isValid) {
-        println("[$tag.Validation]: Значення $newValue менше за попередній якір ${lastReading.current}")
+        println("[$tag.Validation]: Значення $newValue менше за попередній якір ${safeLastReading.current}")
       }
       isValid
     }
   }
 
-  // Загрузка последнего показания расчетного центра при смене адреса квартиры
+  // Загрузка последнего показания расчетного центра при смене адреса квартиры БТИ
   LaunchedEffect(baseUIState.addressId, waterMeterEntity.vodomerId) {
     if (isWorking && waterMeterEntity.vodomerId != 0L) {
-      println("[$tag.LaunchedEffect]: Оновлення показань для водоміра: ${waterMeterEntity.vodomerId}")
+      println("[$tag.LaunchedEffect]: Оновлення показань для водоміра ID Long: ${waterMeterEntity.vodomerId}")
       getLastReading()
     }
   }
@@ -98,9 +89,8 @@ fun WaterMeterDetail(
           .padding(horizontal = 8.dp)
       ) {
         if (isWorking) {
-          // Карточка последнего зафиксированного показания
+          // Карточка последнего зафиксированного показания водоканала г. Южного
           BaseCard(
-            // ИСПРАВЛЕНО: cardModifier заменен на универсальный modifier
             modifier = Modifier
               .fillMaxWidth()
               .padding(vertical = 4.dp)
@@ -111,7 +101,7 @@ fun WaterMeterDetail(
               },
             label = "Останні показання"
           ) {
-            WaterReadingItemContent(reading = lastReading)
+            WaterReadingItemContent(reading = safeLastReading)
           }
 
           // Кнопки управления атомарным съемом (Добавить / Удалить кубы)
@@ -128,12 +118,11 @@ fun WaterMeterDetail(
           )
         }
 
-        // Карточка детальной информации технического паспорта БТИ
+        // 2-Я ЧАСТЬ: Карточка детальной информации технического паспорта БТИ
         BaseCard(
           modifier = Modifier.padding(vertical = 4.dp),
           label = "Технічні характеристики приладу"
         ) {
-          // ИСПРАВЛЕНО: Каждой строке добавлен вертикальный padding для ровной сетки UI
           LabelTextWithText(
             modifier = Modifier.padding(vertical = 2.dp),
             labelText = "Модель водоміра: ",
@@ -192,7 +181,6 @@ fun WaterMeterDetail(
             modifier = Modifier.padding(vertical = 4.dp),
             label = "Державна повірка приладу"
           ) {
-            // ИСПРАВЛЕНО: Добавлены отступы между строками поверки
             LabelTextWithText(
               modifier = Modifier.padding(vertical = 2.dp),
               labelText = "Дата наступної повірки: ",
@@ -227,7 +215,7 @@ fun WaterMeterDetail(
         addReading()
         showAddReadingDialog = false
       },
-      currentReading = lastReading.current.toString(),
+      currentReading = safeLastReading.current.toString(),
       newReading = newWaterReading,
       onReadingChange = onNewReadingChange,
       enabledButton = enabledButton,

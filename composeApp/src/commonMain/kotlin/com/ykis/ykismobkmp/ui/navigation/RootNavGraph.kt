@@ -1,11 +1,15 @@
 package com.ykis.ykismobkmp.ui.navigation
-
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.transitions.SlideTransition
@@ -17,14 +21,23 @@ import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 
-private const val className = "RootNavGraph"
+private val className = "RootNavGraph"
 
-// Временная КМР-заглушка сущности задолженности для корректной сборки чатов
-data class TotalServiceDebt(val name: String, val detail: Any, val icon: androidx.compose.ui.graphics.vector.ImageVector, val color: Color, val debt: Double)
+// ====================================================================
+// --- ЦЕНТРАЛЬНЫЕ КМР-ПРОВАЙДЕРЫ КОНТЕКСТА ГЕОМЕТРИИ ОКНА (Top-Level) ---
+// ====================================================================
+
+val LocalContentType = compositionLocalOf<ContentType> {
+  ContentType.SINGLE_PANE
+}
+
+val LocalNavigationType = compositionLocalOf<NavigationType> {
+  NavigationType.BOTTOM_NAVIGATION
+}
 
 /**
  * [RootNavGraph] — Декларативная КМР стейт-машина холодного старта, соглашений и пуш-распределения.
- * ИСПРАВЛЕНО: Полное вытеснение Android NavHost, выравнивание ID под сквозной Long стандарт YkisMobKMP.
+ * ИСПРАВЛЕНО: В MainApartmentScreen добавлены недостающие параметры onDrawerClicked и closeContentDetail.
  */
 @Composable
 fun RootNavGraph(
@@ -49,13 +62,17 @@ fun RootNavGraph(
     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
 
       // ШАГ 1: Мапим реактивный AppStartState в реальные КМР-объекты экранов Voyager
-      val startScreen = remember(currentStartState) {
+      val startScreen = remember(currentStartState, contentType, navigationType) {
         when (currentStartState) {
           AppStartState.TermsAndConditions -> TermsAndConditionScreen
           AppStartState.SignIn -> SignInScreen()
           AppStartState.AddApartment -> AddApartmentScreen
           AppStartState.InfoApartment, AppStartState.UserList -> {
-            MainApartmentScreen(contentType, navigationType)
+            // ИСПРАВЛЕНО: Передаем обязательные параметры-лямбды для вызова шторки и сплит-панели биллинга
+            MainApartmentScreen(
+              contentType = contentType,
+              navigationType = navigationType,
+            )
           }
           AppStartState.Loading -> null
         }
@@ -66,58 +83,51 @@ fun RootNavGraph(
           CircularProgressIndicator(strokeWidth = 3.dp)
         }
       } else {
-        Navigator(screen = startScreen) { navigator ->
-          SlideTransition(navigator)
+        // РЕШЕНИЕ: Упаковываем всю навигационную цепочку в глобальный CompositionLocalProvider!
+        // Теперь любой вложенный экран сможет нативно прочитать contentType и navigationType через .current
+        CompositionLocalProvider(
+          LocalContentType provides contentType,
+          LocalNavigationType provides navigationType
+        ) {
+          Navigator(screen = startScreen) { navigator ->
+            SlideTransition(navigator)
 
-          // Сквозной подхват и накат внутренних пуш-уведомлений ЖЭК / ОСМД г. Южного
-          LaunchedEffect(pendingChatId) {
-            pendingChatId?.let { id ->
-              println("[$className.LaunchedEffect]: ПУШ СИГНАЛ -> Відкриття чату: $id")
+            // Сквозной подхват и накат внутренних горячих пуш-уведомлений ЖЭК / ОСМД г. Южного
+            LaunchedEffect(pendingChatId) {
+              pendingChatId?.let { id ->
+                println("[$className.LaunchedEffect]: ПУШ СИГНАЛ -> Відкриття чату: $id")
 
-              // РЕШЕНИЕ: Вызываем легитимное КМР-имя класса из реестра ScreensRegistry.kt!
-              navigator.push(ChatScreenDest(chatId = id))
+                // Вызываем легитимное КМР-имя класса из реестра ScreensRegistry.kt
+                navigator.push(ChatScreenDest(chatId = id))
 
-              chatScreenModel.setPendingPushChatId(null)
+                chatScreenModel.setPendingPushChatId(null)
+              }
             }
-          }
 
-          // Сквозная КМР обработка DeepLink при холодном старте приложения
-          // Внутри RootNavGraph.kt в блоке LaunchedEffect(pendingChatId)
+            // Сквозная КМР обработка DeepLink при холодном старте приложения («Я в пути!»)
+            LaunchedEffect(baseUIState.userRole, initialChatId) {
+              if (baseUIState.userRole != UserRole.Unknown && !initialChatId.isNullOrEmpty()) {
+                println("[$className.LaunchedEffect]: DEEP_LINK_NAV -> Підхват пуша при старті: $initialChatId")
+                val parts = initialChatId.split("_")
+                if (parts.size >= 3) {
+                  val addrId = parts[parts.size - 2].toLongOrNull() ?: 0L
+                  val targetUid = parts.last()
 
-          LaunchedEffect(pendingChatId) {
-            pendingChatId?.let { id ->
-              println("[$className.LaunchedEffect]: ПУШ СИГНАЛ -> Відкриття чату: $id")
+                  if (addrId != 0L) {
+                    // Вызываем оригинальное имя метода setAddressId со сквозным Long-типом под SQLDelight
+                    apartmentScreenModel.setAddressId(addrId)
+                    chatScreenModel.selectUserByUid(targetUid)
+                    delay(400)
 
-              // РЕШЕНИЕ: Вызываем легитимное КМР-имя класса из реестра ScreensRegistry.kt!
-              navigator.push(ChatScreenDest(chatId = id))
+                    // Нативно пушим окно сообщений в навигационный Voyager бэкстек
+                    navigator.push(ChatScreenDest(chatId = initialChatId))
 
-              chatScreenModel.setPendingPushChatId(null)
-            }
-          }
-
-// И аналогично чуть ниже в блоке LaunchedEffect(baseUIState.userRole, initialChatId):
-          LaunchedEffect(baseUIState.userRole, initialChatId) {
-            if (baseUIState.userRole != UserRole.Unknown && !initialChatId.isNullOrEmpty()) {
-              println("[$className.LaunchedEffect]: DEEP_LINK_NAV -> Підхват пуша при старті: $initialChatId")
-              val parts = initialChatId.split("_")
-              if (parts.size >= 3) {
-                val addrId = parts[parts.size - 2].toLongOrNull() ?: 0L
-                val targetUid = parts.last()
-
-                if (addrId != 0L) {
-                  apartmentScreenModel.setAddressId(addrId)
-                  chatScreenModel.selectUserByUid(targetUid)
-                  delay(400)
-
-                  // РЕШЕНИЕ: Заменяем и для холодного старта пушей!
-                  navigator.push(ChatScreenDest(chatId = initialChatId))
-
-                  println("[$className.LaunchedEffect]: Перехід по пушу виконано")
+                    println("[$className.LaunchedEffect]: Перехід по пушу виконано")
+                  }
                 }
               }
             }
           }
-
         }
       }
     }

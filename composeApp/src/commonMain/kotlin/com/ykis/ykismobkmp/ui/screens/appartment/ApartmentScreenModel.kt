@@ -7,7 +7,9 @@ import com.ykis.ykismobkmp.data.responses.GetSimpleResponse
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.entity.HouseEntity
 import com.ykis.ykismobkmp.domain.entity.RaionEntity
-import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentRepository
+import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentService
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.DeleteApartment
+import com.ykis.ykismobkmp.domain.repository.apartment.useCase.GetApartmentList
 import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.domain.services.LogService
 import com.ykis.ykismobkmp.domain.services.UserRole
@@ -30,6 +32,8 @@ enum class ListMode { RAIONS, HOUSES, APARTMENTS }
 class ApartmentScreenModel(
   private val firebaseService: FirebaseService,
   private val apartmentService: ApartmentService, // Твой КМР доменный сервис квартир
+  private val deleteApartmentUseCase: DeleteApartment,
+  private val getApartmentListUseCase: GetApartmentList,
   logService: LogService
 ) : BaseScreenModel(logService) {
 
@@ -40,7 +44,6 @@ class ApartmentScreenModel(
   val email get() = firebaseService.email
 
   // ИСПРАВЛЕНО: Все жилищно-коммунальные ID переведены на сквозной КМР-тип Long под SQLDelight 2.x
-  var lastLoadedAddressId: Long = -1L
   private var observeJob: Job? = null
   private var isHandlingResult = false
 
@@ -50,6 +53,8 @@ class ApartmentScreenModel(
   private var isObservingStarted = false
   private val _secretCode = MutableStateFlow("")
   val secretCode: StateFlow<String> = _secretCode.asStateFlow()
+  var lastLoadedAddressId: Long = 0L
+    private set
 
   private var lastHandledResultId: Long? = null // Храним ID последней обработанной операции (Long)
 
@@ -780,9 +785,8 @@ private var lastProcessingAddressId: Long = -1L
 
 /**
  * [getApartment] — Загрузка детальной информации по конкретной квартире.
- * ИСПРАВЛЕНО: addressId переведен на Long, атомарные логи переписаны на KMP println()
  */
-fun getApartment(addressId: Long = uiState.value.addressId) {
+fun getApartment(addressId: Long = _apartmentUiState.value.addressId) {
   val methodName = "getApartment"
   if (addressId <= 0L) return
 
@@ -791,15 +795,22 @@ fun getApartment(addressId: Long = uiState.value.addressId) {
   // УМНЫЙ ЗАМОК: Предотвращаем Race Condition и дублирование параллельных Ktor-сессий
   if (state.addressId == addressId && state.apartmentLoading) return
   if (state.addressId == addressId && state.apartment.addressId != 0L) {
-    println("[$tag.$methodName($addressId)]: -> ATOMIC SKIP (Данные уже актуальны)")
+    println("[$tag.$methodName($addressId)]: -> ATOMIC SKIP (Дані вже актуальні в ОЗУ)")
     return
   }
 
-  println("[$tag.$methodName]: [FORCE_FETCH] Загрузка о/р $addressId из биллинга города Южный")
-  lastProcessingAddressId = addressId
-  val currentUid = uid ?: ""
+  println("[$tag.$methodName]: [FORCE_FETCH] Завантаження о/р $addressId з білінгу міста Южне")
 
-  apartmentService.getApartment(addressId = addressId, uid = currentUid).onEach { result ->
+  // ТВОЙ ОРИГИНАЛЬНЫЙ СБРОС: Перед новым сетевым запросом принудительно гасим старый поток и обнуляем замок!
+  observeJob?.cancel()
+  lastLoadedAddressId = -1L
+
+  val currentUid = firebaseService.uid
+  // Фиксируем текущий ИД для прохождения проверки в LaunchedEffect
+  lastLoadedAddressId = addressId
+
+  // Присваиваем транзакцию Ktor-потока нашей управляемой переменной observeJob
+  observeJob = apartmentService.getApartment(addressId = addressId, uid = currentUid).onEach { result ->
     when (result) {
       is Resource.Success -> {
         val data = result.data ?: ApartmentEntity()
@@ -811,7 +822,6 @@ fun getApartment(addressId: Long = uiState.value.addressId) {
             apartment = data,
             addressId = data.addressId,
             address = data.address,
-            // Фиксируем и защищаем системные ID служб организации (Vodokanal 9999L, Ytke 9998L)
             osbbId = if (currentState.osbbId > 9000L) currentState.osbbId else data.osmdId,
             osmdId = if (currentState.osmdId > 9000L) currentState.osmdId else data.osmdId,
             apartmentLoading = false
@@ -819,11 +829,8 @@ fun getApartment(addressId: Long = uiState.value.addressId) {
         }
 
         if (isStandardUser) {
-          // ЛОГИКА ЖИЛЬЦА: привязка чат-веток к лицевому счету и Firestore-профилю
           val combinedName = "${data.address} | ${data.nanim ?: ""}"
-          println("[$tag.$methodName]: [RESIDENT_SYNC] Профиль и токен чатов жильца синхронизированы")
-
-          // chatScreenModel.subscribeToAllMyApartments(currentUid, data.osmdId, listOf(data.addressId))
+          println("[$tag.$methodName]: [RESIDENT_SYNC] Профіль та токен чатів мешканця успішно синхронізовано")
 
           firebaseService.updateUserRoleAndPermissions(
             uid = currentUid,
@@ -833,22 +840,23 @@ fun getApartment(addressId: Long = uiState.value.addressId) {
             displayName = combinedName
           )
         } else {
-          // ЛОГИКА АДМИНИСТРАТОРА: Только просмотр. Никаких перезаписей Firestore профиля!
-          // Это гарантирует, что имя админа не затрется фиктивным ФИО жильца квартиры.
-          println("[$tag.$methodName]: [ADMIN_VIEW] Просмотр о/р ${data.addressId} завершен. Личный профиль защищен.")
+          println("[$tag.$methodName]: [ADMIN_VIEW] Перегляд о/р ${data.addressId} завершено. Особистий профіль голови ОСББ захищено.")
         }
       }
 
       is Resource.Error -> {
-        println("[$tag.$methodName]: -> ERROR: ${result.message}")
-        _apartmentUiState.update{ it.copy(apartmentLoading = false) }
+        println("[$tag.$methodName]: -> КРИТИЧНА ПОМИЛКА БІЛІНГУ КТOR: ${result.message}")
+        _apartmentUiState.update { it.copy(apartmentLoading = false) }
+
+        // Аварийный сброс замка при ошибке сети, чтобы дать жильцу шанс нажать кнопку "Обновить"
+        lastLoadedAddressId = -1L
       }
 
       is Resource.Loading -> {
-        _apartmentUiState.update{ it.copy(apartmentLoading = true) }
+        _apartmentUiState.update { it.copy(apartmentLoading = true) }
       }
     }
-  }.launchIn(screenModelScope)
+  }.launchIn(screenModelScope) // Поток атомарно живет внутри Voyager screenModelScope
 }
 
 /**
@@ -893,87 +901,54 @@ fun getApartmentList(onSuccess: () -> Unit = {}) {
   }.launchIn(screenModelScope)
 }
 
-/**
- * [deleteApartment] — Удаление привязки лицевого счета жильца из системы ЮКИС.
- * ИСПРАВЛЕНО: Все ID переведены на Long, вызовы Room удалены, корутины переведены на screenModelScope.
- */
-fun deleteApartment(onNavigate: (String) -> Unit) {
-  val methodName = "deleteApartment"
 
-  // 1. СИСТЕМНЫЙ ЗАХВАТ: Фиксируем текущие ID до асинхронного старта корутины
-  val captureAddressId = _apartmentUiState.value.addressId
-  val captureUid = firebaseService.uid ?: ""
-  val captureOsbbId = _apartmentUiState.value.osbbId
+  /**
+   * [deleteApartmentFromProfile] — Безпечне видалення особового рахунку БТІ з профілю абонента ЮКИС.
+   * ИСПРАВЛЕНО: Лямбда getApartmentList полностью удалена из вызова. Вся логика проверки оставшихся
+   * квартир и навигация инкапсулированы внутрь корутины launchCatching.
+   */
 
-  println("[$tag.$methodName]: [START] Запуск удаления. ID=$captureAddressId, UID=$captureUid, OSBB=$captureOsbbId")
+  fun deleteApartmentFromProfile(addressId: Long, onNavigateToAddScreen: () -> Unit) {
+    val methodName = "deleteApartmentFromProfile"
+    val uid = firebaseService.uid
+    if (addressId <= 0L) return
+    launchCatching(showLoader = true) {
+      // ТЕПЕРЬ ВЫЗОВ В ОДНУ СТРОЧКУ! Никаких get<>() и лишних импортов:
+      deleteApartmentUseCase(addressId,uid)
 
-  if (captureAddressId == 0L) {
-    println("[$tag.$methodName]: [ABORT] captureAddressId равен 0")
-    return
+      getApartmentListUseCase(uid )
+
+      // Считываем обновленный список квартир из стейта нашей ScreenModel
+      val updatedList = _apartmentUiState.value.apartments
+      println("[$tag.$methodName]: [UPDATE] Залишилося квартир в базі даних ГІОЦ: ${updatedList.size}")
+
+      // 3. АВТОМАТИЧЕСКОЕ РАЗВЕТВЛЕНИЕ ПОСЛЕ УДАЛЕНИЯ
+      if (updatedList.isEmpty()) {
+        println("[$tag.$methodName]: [NAVIGATE] Квартир більше немає, маршрутизація на екран прив'язки БТІ")
+
+        _apartmentUiState.update { currentState ->
+          currentState.copy(
+            address = "",
+            apartment = ApartmentEntity(),
+            apartmentLoading = false
+          )
+        }
+        // Нативно вызываем Voyager-коллбэк перехода на AddApartmentScreen
+        onNavigateToAddScreen()
+      } else {
+        // Если у жильца г. Южного есть другие квартиры, автоматически переключаем фокус на первую из списка
+        val nextApartment = updatedList.first()
+        println("[$tag.$methodName]: [SWITCH] Автоматичний перехід на наступний рахунок ID: ${nextApartment.addressId}")
+
+        // Вызываем твой оригинальный метод переключения ИД лицевого счета
+        setAddressId(nextApartment.addressId)
+
+        _apartmentUiState.update { it.copy(apartmentLoading = false) }
+      }
+    }
   }
 
-  apartmentService.deleteApartment(addressId = captureAddressId, uid = captureUid)
-    .onEach { result ->
-      when (result) {
-        is Resource.Loading -> {
-          println("[$tag.$methodName]: [LOADING]")
-          _apartmentUiState.update { it.copy(mainLoading = true) }
-        }
 
-        is Resource.Success -> {
-          println("[$tag.$methodName]: [SUCCESS] MySQL биллинг г. Южный очищен. Переходим к Firebase.")
-
-          // 2. ОЧИСТКА ЧАТ-ПОТОКОВ (Передаем предварительно захваченные Long-значения)
-          println("[$tag.$methodName]: [CHAT_CLEAN] Очистка веток обсуждений для счета $captureAddressId")
-          // chatScreenModel.deleteChatThreads(uid = captureUid, osbbId = captureOsbbId, addressId = captureAddressId)
-
-          // 3. СБРОС ПРАВ В FIRESTORE (Отвязываем пользователя от коммунального дома)
-          println("[$tag.$methodName]: [FIRESTORE_CLEAN] Сброс роли и osbbId в Firestore")
-          firebaseService.updateUserRoleAndPermissions(
-            uid = captureUid,
-            addressId = 0L,
-            userRole = UserRole.StandardUser,
-            osbbId = 0L,
-            displayName = firebaseService.currentUser?.displayName ?: "Користувач"
-          )
-
-          SnackbarManager.showMessage("Особовий рахунок успішно видалено")
-
-          // Обнуляем текущий ID в стейте перед каскадным обновлением списка
-          _apartmentUiState.update { it.copy(addressId = 0L) }
-
-          // Обновляем список оставшихся лицевых счетов
-          getApartmentList {
-            val updatedList = _apartmentUiState.value.apartments
-            println("[$tag.$methodName]: [UPDATE] Осталось квартир в базе данных: ${updatedList.size}")
-
-            if (updatedList.isEmpty()) {
-              println("[$tag.$methodName]: [NAVIGATE] Квартир больше нет, маршрутизация на экран привязки")
-              _apartmentUiState.update {
-                it.copy(
-                  address = "",
-                  apartment = ApartmentEntity(),
-                  mainLoading = false
-                )
-              }
-              onNavigate("ADD_APARTMENT_ROUTE") // Маршрут экрана Voyager AddApartmentScreen
-            } else {
-              val nextApartment = updatedList.first()
-              println("[$tag.$methodName]: [SWITCH] Автоматический переход на следующий счет ID: ${nextApartment.addressId}")
-              setAddressId(nextApartment.addressId)
-              _apartmentUiState.update { it.copy(mainLoading = false) }
-            }
-          }
-        }
-
-        is Resource.Error -> {
-          println("[$tag.$methodName]: [ERROR] ${result.message}")
-          _apartmentUiState.update{ it.copy(mainLoading = false) }
-          SnackbarManager.showMessage(result.message ?: "Помилка видалення особового рахунку")
-        }
-      }
-    }.launchIn(screenModelScope) // ИСПРАВЛЕНО: launchIn переведен на screenModelScope Voyager
-}
 
 /**
  * [setAddressId] — Атомарное переключение активного лицевого счета БТИ в UI-стейтах.

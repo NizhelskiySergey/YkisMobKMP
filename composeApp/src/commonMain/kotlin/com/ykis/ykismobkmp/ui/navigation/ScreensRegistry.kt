@@ -131,18 +131,4 @@ data class WebViewScreenDest(
   }
 }
 
-object YkisNavConstants {
-  const val APARTMENT_SCREEN = "ApartmentScreen"
-  const val WATER_SCREEN = "WaterScreen"
-  const val SERVICE_DETAIL_SCREEN = "ServiceDetailScreen"
-  const val ADDRESS_ID = "addressId"
-  const val ADDRESS_DEFAULT_ID = "0"
-  const val HOUSE_ID = "houseId"
-  const val HOUSE_DEFAULT_ID = "0"
-  const val SERVICE = "service"
-  const val SERVICE_DEFAULT = "1"
-  const val SERVICE_NAME = "serviceName"
-  const val SERVICE_DEFAULT_NAME = "ОСББ"
-  const val ADDRESS = "address"
-  const val ADDRESS_DEFAULT = "адреса"
-}
+

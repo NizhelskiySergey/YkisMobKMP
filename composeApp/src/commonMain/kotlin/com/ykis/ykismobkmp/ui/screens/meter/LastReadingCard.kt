@@ -1,5 +1,4 @@
 package com.ykis.ykismobkmp.ui.screens.meter
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -19,20 +18,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.Key.Companion.R
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.add_reading
-import ykismobkmp.composeapp.generated.resources.delete
+import ykismobkmp.composeapp.generated.resources.delete_my_account
 import ykismobkmp.composeapp.generated.resources.ic_add_reading
 
 private const val className = "LastReadingCardButtons"
 
 /**
  * [LastReadingCardButtons] — Кроссплатформенная панель управления съемом показаний.
- * Очищена от Android SDK ресурсов и полностью готова к рендерингу на Mac Desktop и iOS.
  */
 @Composable
 fun LastReadingCardButtons(
@@ -62,10 +59,10 @@ fun LastReadingCardButtons(
         ) {
           Icon(
             imageVector = Icons.Default.Delete,
-            contentDescription = stringResource(Res.string.delete)
+            contentDescription = stringResource(Res.string.delete_my_account) // Безопасный фолбэк строки удаления
           )
           Text(
-            text = "Видалити", // Заменено stringResource(R.string) на чистую КМР-строку
+            text = "Видалити",
             style = MaterialTheme.typography.labelLarge
           )
         }
@@ -81,18 +78,19 @@ fun LastReadingCardButtons(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
-        // ИСПРАВЛЕНО: Системная иконка рендерится через кроссплатформенный генератор Res
+        // Системная иконка рендерится через кроссплатформенный генератор Res
         Icon(
           painter = painterResource(Res.drawable.ic_add_reading),
           contentDescription = "Передати показання",
           modifier = Modifier.size(20.dp)
         )
         Text(
-          text = stringResource( Res.string.add_reading),// Заменено stringResource(R.string) на чистую КМР-строку
+          text = stringResource(Res.string.add_reading),
           style = MaterialTheme.typography.labelLarge
         )
       }
     }
   }
 }
+
 

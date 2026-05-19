@@ -8,25 +8,65 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ykis.ykismobkmp.domain.services.UserRole
-import com.ykis.ykismobkmp.ui.BaseUIState
-import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
-import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
-import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import com.ykis.ykismobkmp.ui.BaseUIState
+import com.ykis.ykismobkmp.domain.services.UserRole
+import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
+import com.ykis.ykismobkmp.domain.entity.ApartmentEntity // Твой оригинальный класс жилого фонда
+import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
+import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import ykismobkmp.composeapp.generated.resources.*
 
-private const val tag = "ModalNavigationDrawerContent"
+private const val className = "ModalNavigationDrawerContent"
 
 /**
- * [ModalNavigationDrawerContent] — Кроссплатформенный боковой слайдер управления лицевыми счетами.
- * ИСПРАВЛЕНО: Убран вызов .route, импортирован DrawerItemContent, зафиксирована Lazy-команда items.
+ * [DrawerItemContent] — Элемент верстки лицевого счета БТИ внутри скользящего меню смартфона.
+ */
+@Composable
+fun DrawerItemContent(
+  apartment: ApartmentEntity,
+  isSelected: Boolean,
+  listMode: ListMode,
+  badgeCount: Int,
+  onClick: () -> Unit
+) {
+  NavigationDrawerItem(
+    label = {
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+          ) {
+            Text(apartment.address, fontWeight = FontWeight.Bold)
+            Text("| о/р ${apartment.addressId}", style = MaterialTheme.typography.labelSmall)
+          }
+
+          if (listMode == ListMode.APARTMENTS) {
+            apartment.nanim?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
+          }
+        }
+        if (badgeCount > 0) {
+          Badge(containerColor = MaterialTheme.colorScheme.error) { Text(badgeCount.toString()) }
+        }
+      }
+    },
+    selected = isSelected,
+    onClick = onClick,
+    icon = { Icon(if (listMode == ListMode.HOUSES) Icons.Default.Domain else Icons.Default.Home, null) },
+    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+  )
+}
+
+/**
+ * [ModalNavigationDrawerContent] — Кроссплатформенная панель слайдера (Drawer) для смартфонов ЮКИС.
  */
 @Composable
 fun ModalNavigationDrawerContent(
@@ -35,12 +75,13 @@ fun ModalNavigationDrawerContent(
   selectedDestination: String,
   navigateToDestination: (String) -> Unit,
   onMenuClick: () -> Unit = {},
-  navigateToApartment: (Long) -> Unit,
+  navigateToApartment: (Long) -> Unit, // Сквозной Long стандарт из BaseUIState под каноны SQLDelight
   isApartmentsEmpty: Boolean
 ) {
   val methodName = "DrawerContent"
   val keyboardController = LocalSoftwareKeyboardController.current
 
+  // Нативная КМР инжекция ScreenModels вместо Android ViewModel YkisMobKMP
   val apartmentScreenModel = koinInject<ApartmentScreenModel>()
   val chatScreenModel = koinInject<ChatScreenModel>()
 
@@ -48,12 +89,13 @@ fun ModalNavigationDrawerContent(
   val houses by apartmentScreenModel.drawerHouses.collectAsState()
   val drawerApartments by apartmentScreenModel.drawerApartments.collectAsState()
   val filteredResults by apartmentScreenModel.filteredApartments.collectAsState()
-  val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
 
   val isUserAdmin = baseUIState.userRole != UserRole.StandardUser
   val isOrgAdmin = baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
+  val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
   val listMode = baseUIState.listMode
 
+  // Реактивный парсинг и суммирование бейджей ГИОЦ по лицевым счетам
   val apartmentBadges = remember(unreadCounts) {
     unreadCounts.map { (fullKey, count) ->
       val parts = fullKey.split("_")
@@ -69,13 +111,13 @@ fun ModalNavigationDrawerContent(
     drawerContainerColor = MaterialTheme.colorScheme.surface
   ) {
     Column(modifier = Modifier.fillMaxSize()) {
-      // 1. ШАПКА: ПОИСК ИЛИ КНОПКА ДОБАВЛЕНИЯ КВАРТИРЫ
+      // --- 1. ШАПКА: ПОИСК СЛУЖБ ИЛИ ДОБАВЛЕНИЕ Л/С ---
       Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
         if (isUserAdmin) {
           OutlinedTextField(
             value = searchQuery,
             onValueChange = { query ->
-              println("[$tag.$methodName]: [SEARCH_INPUT] $query")
+              println("[$className.$methodName]: [SEARCH_INPUT] Поисковый ввод админа: $query")
               apartmentScreenModel.onSearchQueryChanged(query)
             },
             modifier = Modifier.fillMaxWidth(),
@@ -93,16 +135,15 @@ fun ModalNavigationDrawerContent(
           )
         } else {
           Text(
-            text = stringResource(Res.string.list_apartment),
+            text = stringResource(Res.string.list_apartment), // Перевод на JetBrains Res
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold
           )
           Spacer(modifier = Modifier.height(12.dp))
           Button(
-            // ИСПРАВЛЕНО: .route удален, передаем имя дестинации строковым КМР-литералом
             onClick = {
-              println("[$tag.$methodName]: [ADD_CLICK]")
+              println("[$className.$methodName]: [ADD_CLICK] Переход на привязку БТИ квартиры")
               onMenuClick()
               navigateToDestination("AddApartmentScreen")
             },
@@ -110,23 +151,25 @@ fun ModalNavigationDrawerContent(
             shape = RoundedCornerShape(12.dp)
           ) {
             Icon(Icons.Default.AddHome, null)
-            Spacer(Modifier.width(8.dp))
-            Text(text = stringResource(Res.string.add_appartment))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = stringResource(Res.string.add_appartment)) // Перевод на JetBrains Res
           }
         }
       }
 
       HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-      // 2. СРЕДНЯЯ ЧАСТЬ: СПИСКИ БТИ С ДИНАМИЧЕСКИМИ БЕЙДЖАМИ ЧАТОВ ОСМД
+      // --- 2. ДИНАМИЧЕСКИЙ LazyColumn СПИСОК (Иерархия ГИОЦ) ---
       Column(modifier = Modifier.weight(1f)) {
+
+        // Кнопка НАЗАД (Только для многоуровневых служб водоканала/теплосети)
         if (listMode != ListMode.RAIONS && isOrgAdmin && searchQuery.isEmpty()) {
           NavigationDrawerItem(
             label = { Text("Назад", fontWeight = FontWeight.Bold) },
             selected = false,
             icon = { Icon(Icons.Default.ArrowBackIosNew, null, Modifier.size(18.dp)) },
             onClick = {
-              println("[$tag.$methodName]: [BACK_LEVEL] Поточний: $listMode")
+              println("[$className.$methodName]: [BACK_LEVEL] Запрос возврата. Текущий слой: $listMode")
               apartmentScreenModel.goBackLevel()
             },
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -134,11 +177,10 @@ fun ModalNavigationDrawerContent(
           HorizontalDivider()
         }
 
-        LazyColumn(
-          modifier = Modifier.fillMaxSize(),
-          contentPadding = PaddingValues(vertical = 8.dp)
-        ) {
+        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+
           if (searchQuery.isNotEmpty()) {
+            // --- РЕЖИМ АКТИВНОГО ФИЛЬТРА / ПОИСКА ---
             items(filteredResults, key = { "search_${it.addressId}" }) { item ->
               DrawerItemContent(
                 apartment = item,
@@ -148,10 +190,10 @@ fun ModalNavigationDrawerContent(
                 onClick = {
                   keyboardController?.hide()
                   if (listMode == ListMode.HOUSES) {
-                    println("[$tag.$methodName]: [SEARCH_SELECT_HOUSE] ID: ${item.addressId}")
+                    println("[$className.$methodName]: [SEARCH_SELECT_HOUSE] Выбран дом ID: ${item.addressId}")
                     apartmentScreenModel.onHouseSelected(item.addressId)
                   } else {
-                    println("[$tag.$methodName]: [SEARCH_SELECT_APT] ID: ${item.addressId}")
+                    println("[$className.$methodName]: [SEARCH_SELECT_APT] Фиксация о/р квартиры ID: ${item.addressId}")
                     navigateToApartment(item.addressId)
                     onMenuClick()
                   }
@@ -159,15 +201,16 @@ fun ModalNavigationDrawerContent(
               )
             }
           } else {
+            // --- ОБЫЧНЫЙ СТАТИЧЕСКИЙ РЕЖИМ ЖКХ-ФИЛЬТРАЦИИ ---
             when (listMode) {
               ListMode.RAIONS -> {
                 items(baseUIState.raions, key = { "r_${it.raionId}" }) { raion ->
                   NavigationDrawerItem(
-                    label = { Text(raion.raion) },
+                    label = { Text(raion.raion ?: "") },
                     selected = baseUIState.selectedRaionId == raion.raionId,
                     icon = { Icon(Icons.Default.Map, null) },
                     onClick = {
-                      println("[$tag.$methodName]: [SELECT_RAION] ${raion.raion}")
+                      println("[$className.$methodName]: [SELECT_RAION] Клик по району: ${raion.raion}")
                       apartmentScreenModel.onRaionSelected(raion)
                     },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
@@ -177,11 +220,11 @@ fun ModalNavigationDrawerContent(
               ListMode.HOUSES -> {
                 items(houses, key = { "h_${it.houseId}" }) { house ->
                   NavigationDrawerItem(
-                    label = { Text(house.address) },
+                    label = { Text(house.house ?: "") },
                     selected = baseUIState.selectedHouseId == house.houseId,
                     icon = { Icon(Icons.Default.Domain, null) },
                     onClick = {
-                      println("[$tag.$methodName]: [SELECT_HOUSE] ${house.address}")
+                      println("[$className.$methodName]: [SELECT_HOUSE] Клик по дому ID: ${house.houseId}")
                       apartmentScreenModel.onHouseSelected(house.houseId)
                     },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
@@ -197,7 +240,7 @@ fun ModalNavigationDrawerContent(
                     listMode = ListMode.APARTMENTS,
                     badgeCount = apartmentBadges[apt.addressId.toString()] ?: 0,
                     onClick = {
-                      println("[$tag.$methodName]: [SELECT_APT] Final Choice: ${apt.addressId}")
+                      println("[$className.$methodName]: [SELECT_APT] Клик по квартире о/р Long: ${apt.addressId}")
                       keyboardController?.hide()
                       navigateToApartment(apt.addressId)
                       onMenuClick()
@@ -212,10 +255,3 @@ fun ModalNavigationDrawerContent(
     }
   }
 }
-
-
-
-
-
-
-

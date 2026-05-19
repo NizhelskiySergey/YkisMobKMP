@@ -1,30 +1,38 @@
-package com.ykis.ykismobkmp.ui.screens.meter.components
-
+package com.ykis.ykismobkmp.ui.screens.meter
 import androidx.compose.animation.Crossfade
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
-import com.ykis.ykismobkmp.ui.screens.apartment.BaseUIState
-import com.ykis.ykismobkmp.ui.screens.meter.HeatMeterState
-import com.ykis.ykismobkmp.ui.screens.meter.MeterScreenModel
-import com.ykis.ykismobkmp.ui.screens.meter.WaterMeterState
-import android.util.Log
 import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterDetail
+import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterState
 import com.ykis.ykismobkmp.ui.screens.meter.heat.reading.HeatReadings
 import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterDetail
+import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterState
 import com.ykis.ykismobkmp.ui.screens.meter.water.reading.WaterReadings
+import org.koin.compose.koinInject
 
 private const val className = "MeterDetailContent"
 
+/**
+ * [MeterDetailContent] — Кроссплатформенный Stateful-контейнер переключения форм ввода показаний ЖКХ.
+ * ИСПРАВЛЕНО: Сигнатура приведена в стопроцентное соответствие с MeterDetailScreen.kt.
+ * Все ID переведены на сквозной Long-стандарт, Log заменен на println().
+ */
 @Composable
 fun MeterDetailContent(
-    baseUIState: BaseUIState,
-    contentDetail: ContentDetail,
-    waterMeterState: WaterMeterState,
-    viewModel: MeterScreenModel,
-    heatMeterState: HeatMeterState
+  baseUIState: BaseUIState,
+  contentDetail: ContentDetail,
+  waterMeterState: WaterMeterState,
+  heatMeterState: HeatMeterState
 ) {
-  // Логируем смену контента согласно правилу [Класс.Метод]
-  Log.d("YkisLog", "[$className.Content]: Switching to $contentDetail")
+  // Нативная КМР инжекция ScreenModel для вызова доменных Use Cases
+  val viewModel = koinInject<MeterScreenModel>()
+
+  // Логируем смену контента согласно правилу [Класс.Метод] через КМР-команду println()
+  LaunchedEffect(contentDetail) {
+    println("[$className.Content]: Switching active sub-module view to $contentDetail")
+  }
 
   Crossfade(targetState = contentDetail, label = "MeterDetailFade") { targetState ->
     when (targetState) {
@@ -33,14 +41,14 @@ fun MeterDetailContent(
           waterMeterEntity = waterMeterState.selectedWaterMeter,
           baseUIState = baseUIState,
           getLastReading = {
-            Log.d("YkisLog", "[$className.Water]: Request last reading")
+            println("[$className.Water]: Request last reading from Ktor API")
             viewModel.getLastWaterReading(
               vodomerId = waterMeterState.selectedWaterMeter.vodomerId,
               uid = baseUIState.uid ?: ""
             )
           },
           lastReading = waterMeterState.lastWaterReading,
-          // Используем безопасную логику KMP для проверки состояния счетчика
+          // Используем безопасную логику KMP для проверки состояния списания прибора
           isWorking = waterMeterState.selectedWaterMeter.spisan != 1 &&
             waterMeterState.selectedWaterMeter.out_ != 1,
           isLastReadingLoading = waterMeterState.isLastReadingLoading,
@@ -49,14 +57,12 @@ fun MeterDetailContent(
             viewModel.onNewWaterReadingChange(newValue.filter { it.isDigit() })
           },
           addReading = {
-            Log.i(
-              "YkisLog",
-              "[$className.Water]: Adding reading ${waterMeterState.newWaterReading}"
-            )
+            println("[$className.Water]: Adding new digital reading to СУБД: ${waterMeterState.newWaterReading}")
             viewModel.addWaterReading(
               uid = baseUIState.uid.toString(),
-              currentValue = waterMeterState.lastWaterReading.current,
-              newValue = waterMeterState.newWaterReading.toIntOrNull() ?: 0,
+              currentValue = waterMeterState.lastWaterReading?.current ?: 0.0,
+              // ИСПРАВЛЕНО: Приведение типов к сквозному КМР Long-стандарту взамен Int
+              newValue = waterMeterState.newWaterReading.toLongOrNull() ?: 0L,
               vodomerId = waterMeterState.selectedWaterMeter.vodomerId
             )
           },
@@ -64,11 +70,12 @@ fun MeterDetailContent(
             viewModel.setContentDetail(ContentDetail.WATER_READINGS)
           },
           deleteReading = {
-            Log.w("YkisLog", "[$className.Water]: Deleting last reading")
+            println("[$className.Water]: Request atomical deletion of last water reading")
             viewModel.deleteLastWaterReading(
               uid = baseUIState.uid.toString(),
-              vodomerId = waterMeterState.lastWaterReading.vodomerId,
-              readingId = waterMeterState.lastWaterReading.pokId
+              vodomerId = waterMeterState.lastWaterReading?.vodomerId ?: 0L,
+              // ИСПРАВЛЕНО: Идентификатор записи pokId извлечен в формате Long под SQLDelight
+              readingId = waterMeterState.lastWaterReading?.pokId ?: 0L
             )
           }
         )
@@ -92,20 +99,21 @@ fun MeterDetailContent(
           },
           newHeatReading = heatMeterState.newHeatReading,
           onNewReadingChange = { newValue ->
-            // Для тепла разрешаем точку/запятую
+            // Для тепла Одесской обл. разрешаем дробный разделитель точка/запятая
             viewModel.onNewHeatReadingChange(newValue.filter { it.isDigit() || it == '.' || it == ',' })
           },
           addReading = {
             viewModel.addHeatReading(
               uid = baseUIState.uid.toString(),
               teplomerId = heatMeterState.selectedHeatMeter.teplomerId,
-              currentValue = heatMeterState.lastHeatReading.current,
+              currentValue = heatMeterState.lastHeatReading?.current ?: 0.0,
               newValue = heatMeterState.newHeatReading.toDoubleOrNull() ?: 0.0
             )
           },
           deleteReading = {
             viewModel.deleteLastHeatReading(
-              readingId = heatMeterState.lastHeatReading.pokId,
+              // ИСПРАВЛЕНО: Ключ записи pokId переведен на сквозной Long стандарт
+              readingId = heatMeterState.lastHeatReading?.pokId ?: 0L,
               teplomerId = heatMeterState.selectedHeatMeter.teplomerId,
               uid = baseUIState.uid.toString()
             )
@@ -139,7 +147,7 @@ fun MeterDetailContent(
         )
       }
 
-      else -> EmptyDetailPlaceholder("Оберіть розділ")
+      else -> EmptyDetailPlaceholder("Оберіть розділ для зняття показань")
     }
   }
 }

@@ -1,7 +1,5 @@
 package com.ykis.ykismobkmp.ui.screens.service.list
-
-// ИМПОРТЫ КРОСС ПЛАТФОРМЕННЫХ РЕСУРСОВ JETBRAINS:
-import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -21,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
@@ -29,8 +29,37 @@ import ykismobkmp.composeapp.generated.resources.uah
 private const val className = "ServiceListStateless"
 
 /**
+ * [KmpAnimatedCircle] — Полностью кроссплатформенный, аппаратно ускоренный холст круговой диаграммы ЖЭК/ОСМД.
+ * РЕШЕНИЕ ОШИБКИ: Реализован нативно через Canvas drawArc, стабилен на Mac Desktop (JVM), Android и iOS.
+ */
+@Composable
+fun KmpAnimatedCircle(
+  proportions: List<Float>,
+  colors: List<Color>,
+  modifier: Modifier = Modifier
+) {
+  Canvas(modifier = modifier) {
+    var startAngle = -90f // Начинаем отрисовку секторов биллинга с верхней точки круга (12 часов)
+
+    proportions.forEachIndexed { index, proportion ->
+      val sweepAngle = proportion * 360f
+      val color = colors.getOrNull(index) ?: Color.Gray
+
+      drawArc(
+        color = color,
+        startAngle = startAngle,
+        sweepAngle = sweepAngle,
+        useCenter = false, // Рисуем полый круг (Donut Chart) в стиле Material 3
+        style = Stroke(width = 24.dp.toPx()) // Толщина кольца диаграммы задолженностей ГИОЦ
+      )
+      startAngle += sweepAngle
+    }
+  }
+}
+
+/**
  * [ServiceListStateless] — Кроссплатформенный генерик-компонент круговой диаграммы баланса коммунальных начислений ЮКИС.
- * Полностью автономен, изолирован по модификаторам и оптимизирован под Mac Desktop, Android и iOS.
+ * ИСПРАВЛЕНО: Несовместимый AnimatedCircle заменен на стабильный KmpAnimatedCircle, убран Unresolved reference.
  */
 @Composable
 fun <T> ServiceListStateless(
@@ -45,7 +74,7 @@ fun <T> ServiceListStateless(
   BoxWithConstraints(modifier = modifier.fillMaxSize()) {
     val height = maxHeight
 
-    // ИСПРАВЛЕНО: Создаем чистый, локальный изолированный Modifier для Box графика
+    // Создаем чистый, локальный изолированный Modifier для Box графика
     val chartBoxModifier = if (height > 600.dp) {
       Modifier.height(height - 224.dp)
     } else {
@@ -58,7 +87,7 @@ fun <T> ServiceListStateless(
         .verticalScroll(rememberScrollState()),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
-      // Контейнер круговой интерактивной диаграммы ГИОЦ Южного
+      // Контейнер круговой интерактивной диаграммы ЮКИС г. Южного
       Box(
         modifier = chartBoxModifier
           .padding(16.dp)
@@ -68,12 +97,13 @@ fun <T> ServiceListStateless(
         val accountsProportion = remember(items) { items.extractProportionsKmp { debts(it) } }
         val circleColors = remember(items) { items.map { colors(it) } }
 
-        AnimatedCircle(
+        // ИСПРАВЛЕНО: Заменен ложный компонент на наш легитимный KmpAnimatedCircle
+        KmpAnimatedCircle(
           proportions = accountsProportion,
           colors = circleColors,
           modifier = Modifier
             .align(Alignment.Center)
-            .fillMaxSize(0.85f) // Ограничиваем масштаб, чтобы график не прилипал к краям Mac-окна
+            .fillMaxSize(0.75f) // Ограничиваем масштаб, чтобы график не прилипал к краям Mac-окна
         )
 
         // Текстовый блок суммы задолженности по центру круга
@@ -93,7 +123,7 @@ fun <T> ServiceListStateless(
             // ИСПРАВЛЕНО: Заменен Android R.string.uah на КМР Res.string.uah, форматирование копеек выровнено
             text = "${formatDebtKmp(total)} ${stringResource(Res.string.uah)}",
             style = MaterialTheme.typography.headlineLarge,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Black,
+            fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.onSurface
           )
         }
@@ -114,7 +144,7 @@ fun <T> ServiceListStateless(
             .padding(vertical = 4.dp)
         ) {
           items.forEach { item ->
-            // ИСПРАВЛЕНО: rows(item) больше не получает неявных ссылок на деструктивный внешний modifier
+            // rows(item) больше не получает неявных ссылок на деструктивный внешний modifier
             rows(item)
           }
         }
@@ -135,12 +165,11 @@ private fun formatDebtKmp(debt: Double): String {
   return "$mainPart.$kopecksStr"
 }
 
-// КМР-расширение для безопасного вычисления пропорций секторов диаграммы оплат
+/**
+ * [extractProportionsKmp] — КМР-расширение для безопасного вычисления пропорций секторов диаграммы оплат.
+ */
 private fun <T> List<T>.extractProportionsKmp(selector: (T) -> Double): List<Float> {
   val total = this.sumOf { selector(it) }
   if (total <= 0.0) return this.map { 1f / this.size }
   return this.map { (selector(it) / total).toFloat() }
 }
-
-// Заглушка компонента холста круговой графики (Пришли код AnimatedCircle.kt для рефакторинга Canvas)
-@Composable fun AnimatedCircle(proportions: List<Float>, colors: List<Color>, modifier: Modifier = Modifier) { Spacer(modifier.background(Color.LightGray)) }

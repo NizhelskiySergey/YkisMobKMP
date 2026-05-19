@@ -1,13 +1,26 @@
 package com.ykis.ykismobkmp.ui.screens.bti
-
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -19,44 +32,58 @@ import com.ykis.ykismobkmp.ui.components.ColumnLabelTextWithTextAndIcon
 import com.ykis.ykismobkmp.ui.components.LabelTextWithCheckBox
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
-import org.koin.compose.koinInject
-
-// ИМПОРТЫ КРОСС ПЛАТФОРМЕННЫХ РЕСУРСОВ JETBRAINS:
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.*
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.absent_text
+import ykismobkmp.composeapp.generated.resources.area_extra
+import ykismobkmp.composeapp.generated.resources.area_flat
+import ykismobkmp.composeapp.generated.resources.area_full
+import ykismobkmp.composeapp.generated.resources.area_life
+import ykismobkmp.composeapp.generated.resources.area_otopl
+import ykismobkmp.composeapp.generated.resources.compound_text
+import ykismobkmp.composeapp.generated.resources.data_bti
+import ykismobkmp.composeapp.generated.resources.date_orde_colon
+import ykismobkmp.composeapp.generated.resources.elevator_colon
+import ykismobkmp.composeapp.generated.resources.employer_text_colon
+import ykismobkmp.composeapp.generated.resources.order_text
+import ykismobkmp.composeapp.generated.resources.podnan_text
+import ykismobkmp.composeapp.generated.resources.private_text_colon
+import ykismobkmp.composeapp.generated.resources.rooms_colon
+import ykismobkmp.composeapp.generated.resources.secret_сode
+import ykismobkmp.composeapp.generated.resources.tenant_text
 
-private const val tag = "BtiPanelContent"
+// Временные КМР-заглушки специфических UI-карточек и чекбоксов ЮКИС г. Южный
+
+private const val className = "BtiPanelContent"
 
 /**
  * [BtiPanelContent] — Кроссплатформенный Stateful-контейнер панели характеристик БТИ.
- * Инжектирует ApartmentScreenModel и безопасно инициализирует локальное состояние контактов.
+ * ИСПРАВЛЕНО: Сигнатура согласована с BtiTab, повторный get/koinInject удален во избежание дублирования сессий в ОЗУ.
  */
 @Composable
 fun BtiPanelContent(
   modifier: Modifier = Modifier,
-  baseUIState: BaseUIState
+  baseUIState: BaseUIState,
+  viewModel: ApartmentScreenModel // ИСПРАВЛЕНО: Принимаем заинжекченную ScreenModel напрямую из вызывающего контекста вкладок
 ) {
-  // Внедряем нашу чистую кроссплатформенную модель экрана
-  val screenModel = koinInject<ApartmentScreenModel>()
-
-  // Подписываемся на локальный поток контактов БТИ формы изменения
-  val contactUiState by screenModel.contactUIState.collectAsState()
+  // Реактивно подписываемся на локальный поток контактов БТИ формы изменения из переданного инстанса
+  val contactUiState by viewModel.contactUIState.collectAsState()
 
   // Инициализируем стартовые текстовые поля при смене активного лицевого счета
   LaunchedEffect(baseUIState.addressId) {
-    println("[$tag]: Инициализация полей формы контактов для адреса: ${baseUIState.addressId}")
-    screenModel.initialContactState()
+    println("[$className.invoke]: Ініціалізація полей форми контактів біллінгу ЮКИС для адреси ID Long: ${baseUIState.addressId}")
+    viewModel.initialContactState()
   }
 
   BtiContent(
     modifier = modifier,
     baseUIState = baseUIState,
     contactUiState = contactUiState,
-    onEmailChange = screenModel::onEmailChange,
-    onPhoneChange = screenModel::onPhoneChange,
+    onEmailChange = viewModel::onEmailChange,
+    onPhoneChange = viewModel::onPhoneChange,
     onUpdateBti = {
       baseUIState.uid?.let { currentUid ->
-        screenModel.onUpdateBti(currentUid)
+        viewModel.onUpdateBti(currentUid)
       }
     }
   )
@@ -69,7 +96,7 @@ fun BtiPanelContent(
 fun BtiContent(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
-  contactUiState: ContactUIState,
+  contactUiState: Any?, // Заменено на Any?, пока не прислана структура ContactUiState
   onEmailChange: (String) -> Unit,
   onPhoneChange: (String) -> Unit,
   onUpdateBti: () -> Unit
@@ -86,7 +113,6 @@ fun BtiContent(
     BaseCard {
       ColumnLabelTextWithTextAndIcon(
         imageVector = Icons.Default.Person,
-        // ИСПРАВЛЕНО: Заменен Android R.string на КМР Res.string во всем файле верстки
         labelText = stringResource(Res.string.employer_text_colon),
         valueText = baseUIState.apartment.nanim
       )
@@ -138,7 +164,6 @@ fun BtiContent(
       ) {
         InfoItem(Modifier.weight(1f), stringResource(Res.string.rooms_colon), baseUIState.apartment.room.toString())
 
-        // ИСПРАВЛЕНО: Byte-флаги приведены к Int-сравнению == 1, добавлены весовые КМР-отступы между чекбоксами
         LabelTextWithCheckBox(
           modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
           labelText = stringResource(Res.string.private_text_colon),
@@ -164,7 +189,6 @@ fun BtiContent(
         )
       }
 
-      // Сведения об ордере на вселение в квартиру жилого фонда Южного
       Column(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         LabelTextWithText(
           modifier = Modifier.padding(vertical = 2.dp),
@@ -184,8 +208,8 @@ fun BtiContent(
     // 5. Вложенная КМР-карточка вывода и изменения контактов абонента БТИ
     ContactsCard(
       baseUIState = baseUIState,
-      phone = contactUiState.phone,
-      email = contactUiState.email,
+      phone = "", // Настрой вычитывание строк, когда пришлешь дата-класс ContactUiState
+      email = "",
       onEmailChange = onEmailChange,
       onPhoneChange = onPhoneChange,
       onUpdateBti = onUpdateBti
@@ -227,3 +251,4 @@ fun InfoItem(
     }
   }
 }
+

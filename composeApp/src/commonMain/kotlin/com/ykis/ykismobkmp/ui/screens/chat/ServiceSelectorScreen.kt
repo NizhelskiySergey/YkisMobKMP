@@ -1,6 +1,4 @@
 package com.ykis.ykismobkmp.ui.screens.chat
-
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,40 +19,87 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.ykis.ykismobkmp.ui.BaseUIState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ykis.mob.R
+import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
+import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
-import com.ykis.ykismobkmp.ui.screens.service.list.TotalDebtState
+import com.ykis.ykismobkmp.ui.screens.service.TotalDebtState
 import com.ykis.ykismobkmp.ui.screens.service.list.TotalServiceDebt
 import com.ykis.ykismobkmp.ui.screens.service.list.assembleServiceList
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.services
 
+// Временные КМР-заглушки вспомогательных ЖКХ-классов, пока не присланы сорцы моделей служб
+
+// ИМПОРТЫ КРОСС ПЛАТФОРМЕННЫХ РЕСУРСОВ СТРОК JETBRAINS
+import ykismobkmp.composeapp.generated.resources.*
+
+private const val tag = "ServiceSelectorScreen"
+
+/**
+ * [ServiceSelectorScreen] — Кроссплатформенный экран выбора коммунальных служб и ОСМД г. Южного.
+ * ИСПРАВЛЕНО: Объявлен как класс Screen Voyager, ChatViewModel заменен на ChatScreenModel.
+ */
+class ServiceSelectorScreen(
+  private val baseUIState: BaseUIState,
+  private val onServiceClick: (TotalServiceDebt) -> Unit,
+  private val onDrawerClicked: () -> Unit
+) : Screen {
+
+  @Composable
+  override fun Content() {
+    val navigator = LocalNavigator.currentOrThrow
+    val adaptiveNavigationType = LocalNavigationType.current
+
+    // Кроссплатформенная инжекция Koin ScreenModel вместо Android ViewModel
+    val chatScreenModel = koinInject<ChatScreenModel>()
+
+    ServiceSelectorContent(
+      baseUIState = baseUIState,
+      chatScreenModel = chatScreenModel,
+      onServiceClick = onServiceClick,
+      onDrawerClicked = onDrawerClicked,
+      navigationType = adaptiveNavigationType
+    )
+  }
+}
+
+/**
+ * [ServiceSelectorContent] — Декларативная Stateless-верстка выбора предприятий ГИОЦ г. Южного.
+ */
 @Composable
-fun ServiceSelectorScreen(
-    modifier: Modifier = Modifier,
-    baseUIState: BaseUIState,
-    chatViewModel: ChatViewModel,
-    onServiceClick: (TotalServiceDebt) -> Unit,
-    onDrawerClicked: () -> Unit,
-    navigationType: NavigationType
+fun ServiceSelectorContent(
+  modifier: Modifier = Modifier,
+  baseUIState: BaseUIState,
+  chatScreenModel: ChatScreenModel,
+  onServiceClick: (TotalServiceDebt) -> Unit,
+  onDrawerClicked: () -> Unit,
+  navigationType: NavigationType
 ) {
-  val methodName = "ServiceSelectorScreen"
-  val unreadCounts by chatViewModel.unreadCounts.collectAsStateWithLifecycle()
-  val isForwardingMode by chatViewModel.isForwardingMode.collectAsStateWithLifecycle()
-  val selectedService by chatViewModel.selectedService.collectAsStateWithLifecycle()
+  val methodName = "ServiceSelectorContent"
+
+  // ИСПРАВЛЕНО: Платформенные подписки Lifecycle заменены на нативные КМР .collectAsState()
+  val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
+  val isForwardingMode by chatScreenModel.isForwardingMode.collectAsState()
+  val selectedService by chatScreenModel.selectedService.collectAsState()
+
   Column(modifier = modifier.fillMaxSize()) {
     DefaultAppBar(
-      title = stringResource(id = R.string.services),
+      title = stringResource(Res.string.services), // ИСПРАВЛЕНО: Перевод на JetBrains Res строку
       subtitle = "Оберіть службу",
       onDrawerClick = onDrawerClicked,
       navigationType = navigationType
@@ -73,9 +118,10 @@ fun ServiceSelectorScreen(
         )
 
         residentServices.forEach { service ->
-          // СЧИТАЕМ СУММАРНЫЙ БЕЙДЖ (по всем квартирам жильца для этой службы)
+          // СЧИТАЕМ СУММАРНЫЙ БЕЙДЖ НЕПРОЧИТАННЫХ (По всем КМР Long квартирам жильца для этой службы)
           val totalCount = baseUIState.apartments.sumOf { apt ->
             val chatId = when (service.contentDetail) {
+              // ИСПРАВЛЕНО: Перевод ИД в интерполяцию строк без принудительных кастов к Int под SQLDelight
               ContentDetail.OSBB -> "OSBB_${apt.osmdId}_${apt.addressId}_${baseUIState.uid}"
               ContentDetail.WATER_SERVICE -> "WATER_SERVICE_9999_${apt.addressId}_${baseUIState.uid}"
               ContentDetail.WARM_SERVICE -> "WARM_SERVICE_9998_${apt.addressId}_${baseUIState.uid}"
@@ -92,11 +138,12 @@ fun ServiceSelectorScreen(
               contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
               onClick = {
                 if (isForwardingMode) {
-                  Log.d("YkisLog", "$methodName: [FORWARD_TO_SERVICE] ${service.contentDetail}")
-                  chatViewModel.confirmForwardToService(service.contentDetail, baseUIState)
+                  // ИСПРАВЛЕНО: Log.d заменен на println в формате [Класс.Метод]
+                  println("[$tag.$methodName]: [FORWARD_TO_SERVICE] Пересылка сообщения в службу: ${service.contentDetail}")
+                  chatScreenModel.confirmForwardToService(service.contentDetail, baseUIState)
                 } else {
-                  Log.d("YkisLog", "$methodName: [SELECT_SERVICE] ${service.name}")
-                  chatViewModel.setSelectedService(service)
+                  println("[$tag.$methodName]: [SELECT_SERVICE] Выбрана ветка чата: ${service.name}")
+                  chatScreenModel.setSelectedService(service)
                   onServiceClick(service)
                 }
               }
@@ -120,7 +167,7 @@ fun ServiceSelectorScreen(
               }
             }
 
-            // Отображение суммарного бейджа
+            // Отображение суммарного бейджа непрочитанных уведомлений
             if (totalCount > 0 && !isForwardingMode) {
               Surface(
                 modifier = Modifier

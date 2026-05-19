@@ -1,18 +1,3 @@
-/*
- * Copyright 2022 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 
 package com.ykis.ykismobkmp.ui.screens.service.detail
 
@@ -32,9 +17,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
-import com.ykis.ykismobkmp.data.service.ServiceParams
 
 import com.ykis.ykismobkmp.domain.entity.ServiceEntity
+import com.ykis.ykismobkmp.domain.repository.services.ServiceParams
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
@@ -76,9 +61,19 @@ fun ServiceDetailContent(
     if (baseUIState.addressId != 0L) {
       baseUIState.uid?.let { currentUid ->
         screenModel.getDetailService(
-          ServiceParams(
+          params = ServiceParams(
             uid = currentUid,
-            addressId = baseUIState.addressId
+            addressId = baseUIState.addressId,
+            houseId = baseUIState.apartment.houseId,
+            service = when (contentDetail) {
+              ContentDetail.OSBB -> 4.toByte()
+              ContentDetail.WATER_SERVICE -> 1.toByte()
+              ContentDetail.WARM_SERVICE -> 2.toByte()
+              ContentDetail.GARBAGE_SERVICE -> 3.toByte()
+              else -> 4.toByte()
+            },
+            year = selectedChip,
+            total = 0,
           )
         )
       }

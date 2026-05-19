@@ -1,6 +1,4 @@
 package com.ykis.ykismobkmp.ui.screens.meter.heat.reading
-
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,7 +16,7 @@ private const val tag = "HeatReadingItemContent"
 
 /**
  * [HeatReadingItemContent] — Кроссплатформенный Stateless-компонент отрисовки полей строки истории опалення.
- * Динамически переключает верстку на основе флага расчета по среднему нормативу или по прибору учета.
+ * ИСПРАВЛЕНО: Добавлен явный вызов .toString() для числовых параметров начисления по среднему нормативу.
  */
 @Composable
 fun HeatReadingItemContent(
@@ -27,7 +25,7 @@ fun HeatReadingItemContent(
   isAverage: Boolean
 ) {
   Column(modifier = modifier.fillMaxWidth()) {
-    // ИСПРАВЛЕНО: Заменена нативная функция stringResource(R.string.date_format) на чистую интерполяцию строк Котлина
+    // Нативная интерполяция строк Котлина взамен Android R.string
     LabelTextWithText(
       modifier = Modifier.padding(vertical = 2.dp),
       labelText = "Період нарахування: ",
@@ -39,17 +37,17 @@ fun HeatReadingItemContent(
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
         labelText = "Розрахункові дні (середнє): ",
-        valueText = reading.dayAvg
+        valueText = reading.dayAvg.toString() // ИСПРАВЛЕНО: Добавлено явное приведение типов .toString()
       )
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
         labelText = "Розрахунковий Гкал: ",
-        valueText = reading.gkalRasch
+        valueText = reading.gkalRasch.toString() // ИСПРАВЛЕНО: Добавлено явное приведение типов .toString()
       )
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
         labelText = "Споживання Гкал/день: ",
-        valueText = reading.gkalDay
+        valueText = reading.gkalDay.toString() // ИСПРАВЛЕНО: Добавлено явное приведение типов .toString()
       )
     } else {
       // Стандартное отображение физического съема показаний тепломера
@@ -65,7 +63,6 @@ fun HeatReadingItemContent(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
         LabelTextWithText(
-          // ИСПРАВЛЕНО: Заменен входящий modifier на изолированный Modifier.weight(0.5f) для защиты разметки
           modifier = Modifier.weight(0.5f),
           labelText = "Попередні: ",
           valueText = reading.last.toString()
@@ -97,3 +94,4 @@ fun HeatReadingItemContent(
     }
   }
 }
+

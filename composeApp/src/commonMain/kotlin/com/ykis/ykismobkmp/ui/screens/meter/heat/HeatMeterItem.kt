@@ -1,9 +1,18 @@
 package com.ykis.ykismobkmp.ui.screens.meter.heat
-
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.*
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,7 +28,7 @@ private const val className = "HeatMeterItem"
 
 /**
  * [HeatMeterItem] — Кроссплатформенная карточка счетчика тепла г. Южный.
- * Полностью стабильна на Mac Desktop (JVM) и мобильных платформах без привязок к Android SDK.
+ * ИСПРАВЛЕНО: Добавлен импорт draw.alpha, ложная иконка ChevronRight заменена на КМР-совместимую KeyboardArrowRight.
  */
 @Composable
 fun HeatMeterItem(
@@ -29,13 +38,13 @@ fun HeatMeterItem(
   val statusText: String
   val componentAlpha: Float
 
-  // ИСПРАВЛЕНО: Прямое КМР-сравнение Int-флагов биллинга расчетного центра Южного (1 - Да, 0 - Нет)
+  // Прямое КМР-сравнение Int-флагов биллинга расчетного центра Южного (1 - Да, 0 - Нет)
   when {
     heatMeter.spisan == 1 -> {
       statusText = "Списаний"
       componentAlpha = 0.5f
     }
-    heatMeter.out == 1 -> {
+    heatMeter.out_ == 1 -> {
       statusText = "На повірці"
       componentAlpha = 0.5f
     }
@@ -47,8 +56,7 @@ fun HeatMeterItem(
 
   // Применяем прозрачность альфа-канала ко всей карточке, если прибор учета списан или на поверке
   OutlinedCard(
-    modifier = modifier.alpha(componentAlpha),
-    // ИСПРАВЛЕНО: surfaceColorAtElevation заменен на стабильный контейнер Material 3 Compose Multiplatform
+    modifier = modifier.alpha(componentAlpha), // ИСПРАВЛЕНО: Теперь нативно распознается компилятором
     colors = CardDefaults.cardColors(
       containerColor = MaterialTheme.colorScheme.surfaceContainer
     )
@@ -90,19 +98,21 @@ fun HeatMeterItem(
         Text(
           text = statusText,
           style = MaterialTheme.typography.bodyMedium,
-          color = if (heatMeter.spisan == 1 || heatMeter.out == 1)
+          color = if (heatMeter.spisan == 1 || heatMeter.out_ == 1)
             MaterialTheme.colorScheme.error
           else
             MaterialTheme.colorScheme.primary
         )
       }
 
+      // ИСПРАВЛЕНО: Заменена отсутствующая ChevronRight на легитимную КМР AutoMirrored KeyboardArrowRight
       Icon(
         modifier = Modifier.padding(end = 12.dp),
-        imageVector = Icons.Default.ChevronRight,
+        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
         contentDescription = null,
         tint = MaterialTheme.colorScheme.onSurfaceVariant
       )
     }
   }
 }
+

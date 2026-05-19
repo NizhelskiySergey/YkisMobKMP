@@ -27,7 +27,6 @@ fun HeaderInTable(
   textAlign: TextAlign = TextAlign.Start
 ) {
   Text(
-    // ИСПРАВЛЕНО: Внутренний fillMaxWidth аккуратно расширяет переданную область веса родителя
     modifier = modifier.fillMaxWidth(),
     text = text,
     style = MaterialTheme.typography.titleSmall.copy(
@@ -40,7 +39,6 @@ fun HeaderInTable(
 
 /**
  * [ColumnItemInTable] — Адаптивная вертикальная колонка для ячеек тарифов биллинга города Южный.
- * ИСПРАВЛЕНО: Устранено дублирование modifier, исправлено логическое сравнение строковых null-маркеров.
  */
 @Composable
 fun ColumnItemInTable(
@@ -54,19 +52,16 @@ fun ColumnItemInTable(
   summary: String,
   headerAlign: TextAlign
 ) {
-  // Вся колонка получает входящий modifier (например, вес .weight(1f) внутри Row таблицы)
   Column(
     horizontalAlignment = alignment,
     verticalArrangement = Arrangement.spacedBy(13.dp),
     modifier = modifier.padding(horizontal = 4.dp)
   ) {
-    // ИСПРАВЛЕНО: Вложенные вызовы больше не наследуют тяжелый внешний modifier напрямую
     HeaderInTable(
       text = header,
       textAlign = headerAlign
     )
 
-    // ИСПРАВЛЕНО: Оператор !== заменен на КМР-совместимое безопасное сравнение строк
     if (!value1.isBillNullOrNone()) {
       Text(
         text = value1,
@@ -111,12 +106,11 @@ fun TableDivider(
   previousValue: String? = null,
   modifier: Modifier = Modifier
 ) {
-  // ИСПРАВЛЕНО: Проверка nullable-строки приведена к КМР-стандарту во избежание пустых линий в UI
   if (!previousValue.isBillNullOrNone()) {
     HorizontalDivider(
       modifier = modifier
         .fillMaxWidth()
-        .alpha(0.3f)
+        .alpha(0.3f) // ИСПРАВЛЕНО: Теперь нативно распознается благодаря импорту draw.alpha
         .padding(horizontal = 8.dp),
       color = MaterialTheme.colorScheme.onSecondaryContainer
     )
@@ -130,4 +124,3 @@ private fun String?.isBillNullOrNone(): Boolean {
   if (this == null || this.isBlank()) return true
   return this.equals("null", ignoreCase = true) || this.equals("none", ignoreCase = true)
 }
-

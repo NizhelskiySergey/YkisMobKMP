@@ -18,7 +18,7 @@ val iosPlatformModule: Module = module {
     NSUserDefaultsSettings(NSUserDefaults.standardUserDefaults)
   }
   single<AppSettingsRepository> {
-    AppSettingsRepositoryImpl(dataStore = get())
+    AppSettingsRepositoryImpl( get())
   }
   // 2. Драйвер SQLite баз данных под iOS
   single { DatabaseDriverFactory() }

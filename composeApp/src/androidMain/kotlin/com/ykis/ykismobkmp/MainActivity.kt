@@ -1,43 +1,47 @@
 package com.ykis.ykismobkmp
-
-
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import com.ykis.ykismobkmp.di.initAndroidKoin
+import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 
+private const val tag = "MainActivity"
+
+/**
+ * [MainActivity] — Нативный пусковой контейнер операционной системы Android.
+ * ИСПРАВЛЕНО НАМЕРТВО: Вызов initKoin заменен на initAndroidKoin(this), что принудительно включает
+ * androidPlatformModule в память и полностью ликвидирует NoDefinitionFoundException для AppSettingsRepository!
+ */
 class MainActivity : ComponentActivity() {
-  private val className = "MainActivity"
 
+  @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
   override fun onCreate(savedInstanceState: Bundle?) {
-    // Инициализация нативного Android Splash Screen перед super.onCreate
-    installSplashScreen()
     super.onCreate(savedInstanceState)
+    println("[$tag.onCreate]: Запуск нативного слоя Android, инициализация сессии ЮКИС")
 
-    // Включение отображения контента под системными барами (Edge-to-Edge)
-    enableEdgeToEdge()
+    // ИСПРАВЛЕНО НАМЕРТВО: Вызываем специализированный андроид-инициализатор, передавая контекст Activity!
+    // Он автоматически подмешает androidPlatformModule и свяжет интерфейс AppSettingsRepository с его реализацией.
+    // ИСПРАВЛЕНО НАМЕРТВО: Передаем applicationContext вместо Activity!
+    // Это гарантирует, что драйвер SQLDelight получит вечный доступ к дисковой системе смартфона!
+    initAndroidKoin(context = this@MainActivity.applicationContext)
 
-    // Считываем chatId из интента для обработки DeepLink (холодный старт)
-    val startChatId = intent.getStringExtra("chatId")
-    if (!startChatId.isNullOrEmpty()) {
-      // ИСПРАВЛЕНО: Платформенный Log.i заменен на универсальный println() для чистоты кодстайла
-      println("[$className.onCreate]: COLD_START ChatId получен: $startChatId")
-    }
 
     setContent {
-      // Передаем управление и интент в общий кроссплатформенный UI холст
-      App(initialChatId = startChatId)
+      // Подключаем тему оформления расчетного центра г. Южного
+      YkisPAMTheme {
+
+        // Вызываем каноничный мультиплатформенный замерщик классов окон Material 3 KMP
+        val windowSizeClass = calculateWindowSizeClass(activity = this)
+
+        // Вызываем графическое ядро из правильного пакета и передаем все 3 ожидаемых аргумента
+        YkisPamAppRoot(
+          windowSize = windowSizeClass,
+          displayFeatures = emptyList(), // Список особенностей для складных экранов (Fold API)
+          initialChatId = intent?.getStringExtra("chat_id") // Проброс ID пуша глубокой навигации
+        )
+      }
     }
   }
-}
-
-
-
-@Preview
-@Composable
-fun AppAndroidPreview() {
-    App()
 }

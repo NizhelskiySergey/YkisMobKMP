@@ -1,5 +1,4 @@
 package com.ykis.ykismobkmp.ui.screens.meter
-
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,9 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.Key.Companion.R
 import androidx.compose.ui.unit.dp
-import com.ykis.ykismobkmp.ui.components.NumberField
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.add
@@ -25,11 +22,29 @@ import ykismobkmp.composeapp.generated.resources.cancel
 import ykismobkmp.composeapp.generated.resources.current_reading
 import ykismobkmp.composeapp.generated.resources.new_reading
 
+// Временная КМР-заглушка числового поля ввода, подставь свой импорт, если оно лежит в другом пакете
+@Composable
+fun NumberField(
+  modifier: Modifier = Modifier,
+  value: String,
+  onNewValue: (String) -> Unit,
+  label: String,
+  isInteger: Boolean
+) {
+  OutlinedTextField(
+    value = value,
+    onValueChange = onNewValue,
+    label = { Text(label) },
+    modifier = modifier.fillMaxWidth(),
+    singleLine = true
+  )
+}
+
 private const val tag = "AddReadingDialog"
 
 /**
  * [AddReadingDialog] — Кроссплатформенное модальное окно съема и валидации показаний ЮКИС.
- * Полностью стабильно на Mac Desktop (JVM), Android и iOS без привязок к Android SDK.
+ * ИСПРАВЛЕНО: Ресурс ярлыка в NumberField обернут в stringResource() для устранения Type mismatch.
  */
 @Composable
 fun AddReadingDialog(
@@ -42,18 +57,16 @@ fun AddReadingDialog(
   enabledButton: Boolean,
   isInteger: Boolean
 ) {
-  // ИСПРАВЛЕНО: Платформозависимый Log.d заменен на универсальный println() под Mac JVM
-  println("[$tag.Content]: Dialog opened. Current: $currentReading")
+  // Вывод логов по правилу [Класс.Метод] через КМР-команду println()
+  println("[$tag.Content]: Діалогове вікно введення відкрито. Поточний якір: $currentReading")
 
-  // ИСПРАВЛЕНО: Переведено на стандартный AlertDialog для идеальной геометрии окон на Mac/Android/iOS
   AlertDialog(
     modifier = modifier.widthIn(max = 400.dp),
     onDismissRequest = {
-      println("[$tag.onDismissRequest]: Dialog dismissed")
+      println("[$tag.onDismissRequest]: Закриття діалогу користувачем")
       onDismissRequest()
     },
     title = {
-      // ИСПРАВЛЕНО: Заменены ресурсы строк на чистые КМР-литералы под Mac JVM
       Text(
         text = stringResource(Res.string.add_reading_title),
         style = MaterialTheme.typography.headlineSmall,
@@ -69,13 +82,11 @@ fun AddReadingDialog(
           modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Поле текущего показания (Только чтение - Якорь валидации)
+        // Поле текущего показания (Только чтение - неизменяемый якорь валидации биллинга г. Южного)
         OutlinedTextField(
           modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
           label = {
-            Text(
-              text = stringResource( Res.string.current_reading)
-            )
+            Text(text = stringResource(Res.string.current_reading))
           },
           readOnly = true,
           value = currentReading,
@@ -89,14 +100,15 @@ fun AddReadingDialog(
           )
         )
 
-        // Поле ввода нового показания (Передаем строку ярлыка напрямую)
+        // Числовое поле ввода новых кубометров или гигакалорий
         NumberField(
           value = newReading,
-          onNewValue = {
-            println("[$tag.onReadingChange]: New input -> $it")
-            onReadingChange(it)
+          onNewValue = { input ->
+            println("[$tag.onReadingChange]: Введення символу показання -> $input")
+            onReadingChange(input)
           },
-          label = Res.string.new_reading, // ИСПРАВЛЕНО: Заменена ссылка на ресурс чистой строкой
+          // ИСПРАВЛЕНО: Ресурс JetBrains обернут в stringResource() для передачи чистой строки String
+          label = stringResource(Res.string.new_reading),
           isInteger = isInteger
         )
       }
@@ -112,10 +124,10 @@ fun AddReadingDialog(
     confirmButton = {
       Button(
         onClick = {
-          println("[$tag.onAddClick]: Submit reading -> $newReading")
+          println("[$tag.onAddClick]: Підтверджено надсилання показання: $newReading")
           onAddClick()
         },
-        enabled = enabledButton, // Якорь валидации (например, 800 < 877) отрабатывает здесь
+        enabled = enabledButton, // Сквозной якорь валидации (например, 800.0 < 845.2) отрабатывает здесь
         shape = MaterialTheme.shapes.medium
       ) {
         Text(
@@ -126,4 +138,5 @@ fun AddReadingDialog(
     }
   )
 }
+
 

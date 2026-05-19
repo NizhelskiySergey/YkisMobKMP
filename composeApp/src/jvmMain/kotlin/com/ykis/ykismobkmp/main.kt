@@ -1,23 +1,41 @@
+@file:JvmName("MainJvmKt") // Уникальное имя байт-кода для Mac Desktop JVM рантайма
 package com.ykis.ykismobkmp
 
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass // КМР замерщик окон Material 3
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import com.ykis.ykismobkmp.db.DatabaseDriverFactory
+import androidx.compose.ui.window.rememberWindowState
 import com.ykis.ykismobkmp.di.initKoin
-import org.koin.dsl.module
 
+/**
+ * [main] — Главная пусковая точка входа Java-машины для десктопной платформы Mac Desktop (JVM) / Windows.
+ */
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 fun main() = application {
-  // 1. Создаем платформенный модуль для Mac Desktop
-  val desktopModule = module {
-    // На Mac фабрика драйверов создается без контекста
-    single { DatabaseDriverFactory() }
-  }
+  // 1. Аппаратно инициализируем Koin до создания нативного фрейма окна ОС
+  initKoin()
 
-  // 2. Запускаем кроссплатформенный Koin при старте программы на Mac
-  initKoin(platformModule = desktopModule)
+  val windowState = rememberWindowState(
+    size = DpSize(width = 1100.dp, height = 800.dp) // Комфортные стартовые габариты для Mac-админки ОСМД
+  )
 
-  // 3. Запуск Compose окна приложения
-  Window(onCloseRequest = ::exitApplication, title = "Ykis KMP Admin") {
-    App()
+  Window(
+    onCloseRequest = ::exitApplication,
+    state = windowState,
+    title = "ЮКІС Южне — Адміністрування та фінансовий хаб"
+  ) {
+    // ИСПРАВЛЕНО НАМЕРТВО: Функция calculateWindowSizeClass() на Десктопе вызывается БЕЗ АРГУМЕНТОВ!
+    // Она сама нативно определит размеры окна Java-машины, ликвидируя ошибку "Too many arguments"
+    val windowSizeClass = calculateWindowSizeClass()
+
+    // Вызываем наше зафиксированное корневое ядро интерфейса ЮКИС
+    YkisPamAppRoot(
+      windowSize = windowSizeClass,
+      displayFeatures = emptyList(),
+      initialChatId = null // На десктопе глубокая пуш-навигация отсутствует
+    )
   }
 }

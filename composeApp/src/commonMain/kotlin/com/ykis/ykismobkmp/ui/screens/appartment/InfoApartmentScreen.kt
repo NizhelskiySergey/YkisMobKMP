@@ -1,238 +1,265 @@
 package com.ykis.ykismobkmp.ui.screens.appartment
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.VerticalDivider
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import com.ykis.ykismobkmp.domain.services.UserRole
-import com.ykis.ykismobkmp.ui.BaseUIState
-import com.ykis.ykismobkmp.ui.ContentType
-import com.ykis.ykismobkmp.ui.components.DefaultAppBar
+import cafe.adriel.voyager.navigator.tab.CurrentTab
+import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
+import cafe.adriel.voyager.navigator.tab.Tab
+import cafe.adriel.voyager.navigator.tab.TabNavigator
+import cafe.adriel.voyager.navigator.tab.TabOptions
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+
+// ИМПОРТЫ НАШИХ УТВЕРЖДЕННЫХ КМР СТАНДАРТОВ YkisMobPAM / YkisMobKMP
+import com.ykis.ykismobkmp.ui.BaseUIState
+import com.ykis.ykismobkmp.domain.services.UserRole
+import com.ykis.ykismobkmp.ui.navigation.LocalContentType
+import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
+import com.ykis.ykismobkmp.ui.components.DefaultAppBar
+import com.ykis.ykismobkmp.ui.navigation.ContentType
+
+// ИМПОРТЫ ТВОИХ РЕАЛЬНЫХ ПАНЕЛЕЙ БТИ И СОСТАВА СЕМЬИ
+import com.ykis.ykismobkmp.ui.screens.bti.BtiPanelContent
+import com.ykis.ykismobkmp.ui.screens.family.FamilyContent
+
+// ИМПОРТЫ КРОСС ПЛАТФОРМЕННЫХ РЕСУРСОВ СТРОК JETBRAINS
+import ykismobkmp.composeapp.generated.resources.*
+import kotlin.collections.get
 
 private const val className = "InfoApartmentScreen"
 
-// КМР Перечисление адаптивной сетки (Планшет/Смартфон)
-enum class ContentType { SINGLE_PANE, DUAL_PANE }
+// ====================================================================
+// --- ИЗОЛИРОВАННЫЕ VOYAGER ВКЛАДКИ ДЛЯ КОНТЕНТА (YkisMobPAM) ---
+// ====================================================================
+
+object BtiTab : Tab {
+  override val options: TabOptions
+    @Composable
+    get() {
+      val title = stringResource(Res.string.info)
+      val icon = rememberVectorPainter(Icons.Default.Home)
+      return remember { TabOptions(index = 0u, title = title, icon = icon) }
+    }
+
+  @Composable
+  override fun Content() {
+    // ИСПРАВЛЕНО НАМЕРТВО: Переменная названа строго apartmentScreenModel
+    val apartmentScreenModel = koinInject<ApartmentScreenModel>()
+    val baseUIState by apartmentScreenModel.uiState.collectAsState()
+
+    BtiPanelContent(baseUIState = baseUIState, viewModel = apartmentScreenModel)
+  }
+}
+
+object FamilyTab : Tab {
+  override val options: TabOptions
+    @Composable
+    get() {
+      val title = "Склад сім'ї"
+      val icon = rememberVectorPainter(Icons.Default.People)
+      return remember { TabOptions(index = 1u, title = title, icon = icon) }
+    }
+
+  @Composable
+  override fun Content() {
+    // ИСПРАВЛЕНО: Никаких ViewModel. Строго КМР-наименование apartmentScreenModel
+    val apartmentScreenModel = koinInject<ApartmentScreenModel>()
+    val baseUIState by apartmentScreenModel.uiState.collectAsState()
+
+    FamilyContent(baseUIState = baseUIState, viewModel = apartmentScreenModel)
+  }
+}
 
 /**
- * [InfoApartmentScreen] — Кроссплатформенный экран отображения данных БТИ и состава семьи Voyager.
- * Одинаково плавно рендерится в окнах Mac Desktop (JVM), Android и iOS.
+ * [InfoApartmentScreen] — Кроссплатформенный экран характеристик жилья БТИ ЮКИС.
+ * ИСПРАВЛЕНО: Имя переменной тотально приведено к единственному стандарту apartmentScreenModel.
  */
 class InfoApartmentScreen(
-  private val contentType: ContentType,
-  private val onDrawerClicked: () -> Unit
+  private val onDrawerClicked: () -> Unit = {}
 ) : Screen {
 
+  @OptIn(ExperimentalMaterial3Api::class)
   @Composable
   override fun Content() {
     val navigator = LocalNavigator.currentOrThrow
 
-    // Внедряем единую очищенную модель экрана через Koin
-    val screenModel = koinInject<ApartmentScreenModel>()
-    val baseUIState by screenModel.baseUIState.collectAsState()
+    val adaptiveContentType = LocalContentType.current
+    val adaptiveNavigationType = LocalNavigationType.current
 
-    // ЗОЛОТОЙ ФОНД ЛОКАЛЬНОГО КЭШИРОВАНИЯ БТИ ДАННЫХ
-    // ИСПРАВЛЕНО: Проверки переведены на Long-константы (0L) под стандарты SQLDelight 2.x
-    LaunchedEffect(baseUIState.addressId, baseUIState.apartments.size, baseUIState.uid) {
-      val currentFirebaseUid = baseUIState.uid
+    // ИСПРАВЛЕНО: Инжектируем под правильным КМР именем apartmentScreenModel!
+    val apartmentScreenModel = koinInject<ApartmentScreenModel>()
+    val baseUIState by apartmentScreenModel.uiState.collectAsState()
 
-      if (currentFirebaseUid == null || baseUIState.apartments.isEmpty()) {
-        println("[$className.LaunchedEffect]: [WAIT] Данные биллинга Южного еще загружаются")
-        return@LaunchedEffect
-      }
+    var showWarningDialog by remember { mutableStateOf(false) }
 
-      val targetId: Long = if (baseUIState.addressId != 0L) {
-        baseUIState.addressId
-      } else {
-        baseUIState.apartments.firstOrNull()?.addressId ?: 0L
-      }
-
-      if (targetId != 0L && targetId != screenModel.lastLoadedAddressId) {
-        println("[$className.LaunchedEffect]: [LOAD] Запрос характеристик квартиры ID: $targetId")
-        screenModel.getApartment(targetId)
-      }
-    }
-
-    InfoApartmentScreenStateless(
-      contentType = contentType,
-      baseUIState = baseUIState,
-      onDrawerClicked = onDrawerClicked,
-      deleteApartment = {
-        screenModel.deleteApartment { route ->
-          println("[$className]: Квартира удалена, перенаправление на добавление")
-          // navigator.replaceAll(AddApartmentScreen())
-        }
-      }
-    )
-  }
-}
-
-/**
- * [InfoApartmentScreenStateless] — Адаптивная декларативная верстка экрана БТИ.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun InfoApartmentScreenStateless(
-  modifier: Modifier = Modifier,
-  contentType: ContentType,
-  baseUIState: BaseUIState,
-  onDrawerClicked: () -> Unit,
-  deleteApartment: () -> Unit
-) {
-  var selectedTab by rememberSaveable { mutableStateOf(0) }
-  var showWarningDialog by remember { mutableStateOf(false) }
-
-  // 1. Модальное КМР-окно подтверждения удаления привязки квартиры
-  if (showWarningDialog) {
-    AlertDialog(
-      onDismissRequest = { showWarningDialog = false },
-      icon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.createErrorColor()) },
-      title = { Text("Вилучити особовий рахунок?") },
-      text = { Text("Ви дійсно хочете видалити цю квартиру з памяти устройства? Дані нарахувань міста Южне не будуть порушені.") },
-      dismissButton = {
-        TextButton(onClick = { showWarningDialog = false }) { Text("Скасувати") }
-      },
-      confirmButton = {
-        Button(
-          onClick = {
-            println("[$className.delete]: Confirmation received")
-            deleteApartment()
-            showWarningDialog = false
-          },
-          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-        ) {
-          Text("Видалити")
-        }
-      }
-    )
-  }
-
-  Scaffold(
-    modifier = modifier.fillMaxSize(),
-    topBar = {
-      DefaultAppBar(
-        title = baseUIState.address.takeIf { it.isNotEmpty() } ?: "Прилади БТІ ЮКІС",
-        subtitle = " о/р ${baseUIState.addressId}",
-        canNavigateBack = false,
-        onDrawerClick = onDrawerClicked,
-        actionButton = {
-          // Кнопка удаления доступна только стандартному жильцу, админы служб защищены от случайной порчи кэша
-          if (baseUIState.userRole == UserRole.StandardUser) {
-            IconButton(onClick = { showWarningDialog = true }) {
-              Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Видалити",
-                tint = MaterialTheme.colorScheme.error
-              )
-            }
+    // 1. ДИАЛОГ ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ КВАРТИРЫ ИЗ ЛОКАЛЬНОГО ЖКХ УЧЕТА
+    if (showWarningDialog) {
+      AlertDialog(
+        onDismissRequest = { showWarningDialog = false },
+        icon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+        title = { Text(stringResource(Res.string.delete_account_title)) },
+        text = { Text("Ви дійсно хочете видалити цю квартиру з облікового запису? Дані неможливо буде відновити.") },
+        dismissButton = {
+          TextButton(onClick = { showWarningDialog = false }) {
+            Text(stringResource(Res.string.cancel))
           }
-        }
-      )
-    }
-  ) { innerPadding ->
-    Column(
-      modifier = Modifier
-        .padding(innerPadding)
-        .fillMaxSize()
-    ) {
-      if (contentType == ContentType.DUAL_PANE) {
-        // Широкоформатная верстка для Mac Desktop (Две панели рядом)
-        InfoScreenDualPanelContent(baseUIState = baseUIState)
-      } else {
-        // Мобильный режим / Узкое окно Mac (Переключение по табам)
-        PrimaryTabRow(
-          selectedTabIndex = selectedTab,
-          containerColor = MaterialTheme.colorScheme.surface,
-          divider = { HorizontalDivider(thickness = 0.5.dp) }
-        ) {
-          val tabTitles = listOf("Технічний паспорт", "Склад сім'ї")
-          tabTitles.forEachIndexed { index, title ->
-            Tab(
-              selected = selectedTab == index,
-              onClick = {
-                println("[$className.Tab]: Switch to $index")
-                selectedTab = index
-              },
-              text = {
-                Text(
-                  text = title,
-                  style = MaterialTheme.typography.titleSmall,
-                  fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium
-                )
-              },
-              icon = {
-                Icon(
-                  imageVector = if (index == 0) Icons.Default.Home else Icons.Default.People,
-                  contentDescription = null
+        },
+        // Внутри InfoApartmentScreen.kt в блоке AlertDialog -> confirmButton
+
+        // Внутри InfoApartmentScreen.kt в блоке AlertDialog -> confirmButton
+
+        confirmButton = {
+          TextButton(onClick = {
+            println("[$className.Content]: [ACTION] Підтверджено видалення особового рахунку для addressId: ${baseUIState.addressId}")
+
+            apartmentScreenModel.deleteApartmentFromProfile(
+              addressId = baseUIState.addressId,
+              onNavigateToAddScreen = {
+                println("[$className.Content]: Заміна кореня стеку Voyager на екран прив'язки квартири БТІ")
+
+                // РЕШЕНИЕ: Передаем пустые лямбды в конструктор экрана, полностью удовлетворяя компилятор!
+                navigator.replaceAll(
+                  AddApartmentScreen(
+                    onDrawerClicked = {},
+                    closeContentDetail = {}
+                  )
                 )
               }
+            )
+
+            showWarningDialog = false
+          }) {
+            Text(
+              text = stringResource(Res.string.delete_my_account),
+              color = MaterialTheme.colorScheme.error
             )
           }
         }
 
-        // Плавная КМР-анимация скольжения контента по табам
-        AnimatedContent(
-          targetState = selectedTab,
-          transitionSpec = {
-            if (targetState > initialState) {
-              (slideInHorizontally { it } + fadeIn()).togetherWith(slideOutHorizontally { -it } + fadeOut())
-            } else {
-              (slideInHorizontally { -it } + fadeIn()).togetherWith(slideOutHorizontally { it } + fadeOut())
-            }.using(SizeTransform(clip = false))
-          },
-          label = "TabContentAnimation"
-        ) { targetIndex ->
-          Box(modifier = Modifier.fillMaxSize()) {
-            when (targetIndex) {
-              0 -> BtiPanelContent(baseUIState = baseUIState) // ИСПРАВЛЕНО: viewModel удалена из параметров
-              else -> FamilyContent(baseUIState = baseUIState)
+
+      )
+    }
+
+    // 2. ПРЕДОХРАНИТЕЛЬ ОТ ЦИКЛИЧЕСКИХ ДУБЛИКАТОВ СЕТЕВЫХ ЗАГРУЗОК ГИОЦ
+    LaunchedEffect(baseUIState.addressId, baseUIState.apartments.size, baseUIState.uid) {
+      val methodName = "LaunchedEffect"
+      val currentFirebaseUid = baseUIState.uid
+
+      if (currentFirebaseUid.isNullOrBlank() || baseUIState.apartments.isEmpty()) {
+        println("[$className.$methodName]: [WAIT] Дані профілю або список квартир БТИ ще не готові")
+        return@LaunchedEffect
+      }
+
+      val targetId = if (baseUIState.addressId != 0L) baseUIState.addressId else baseUIState.apartments.firstOrNull()?.addressId ?: 0L
+
+      // ИСПРАВЛЕНО: Вызов метода getApartment() на правильном КМР-объекте apartmentScreenModel
+      if (targetId != 0L && targetId != apartmentScreenModel.lastLoadedAddressId) {
+        println("[$className.$methodName]: [LOAD] Запит ГІОЦ даних для ID: $targetId | UID: $currentFirebaseUid")
+        apartmentScreenModel.getApartment( addressId = targetId)
+      } else {
+        println("[$className.$methodName]: [SKIP] ID: $targetId вже є поточним. Циклічне завантаження запобіжено.")
+      }
+    }
+
+    // Инициализируем нативный TabNavigator от Voyager
+    TabNavigator(BtiTab) {
+      val tabNavigator = LocalTabNavigator.current
+
+      Scaffold(
+        topBar = {
+          DefaultAppBar(
+            title = baseUIState.address,
+            subtitle = " о/р ${baseUIState.addressId}",
+            canNavigateBack = false,
+            onDrawerClick = onDrawerClicked,
+            navigationType = adaptiveNavigationType,
+            actionButton = {
+              if (baseUIState.userRole == UserRole.StandardUser) {
+                IconButton(onClick = { showWarningDialog = true }) {
+                  Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                  )
+                }
+              }
+            }
+          )
+        }
+      ) { innerPadding ->
+        Column(
+          modifier = Modifier
+            .padding(innerPadding)
+            .fillMaxSize()
+        ) {
+          if (adaptiveContentType == ContentType.DUAL_PANE) {
+            // Широкоформатный режим (Mac Desktop / Планшеты) — выводим две панели параллельно
+            InfoScreenDualPanelContent(
+              baseUIState = baseUIState,
+              apartmentScreenModel = apartmentScreenModel // ИСПРАВЛЕНО: Передаем правильный объект
+            )
+          } else {
+            // Мобильный режим (Вкладки) со стабильными Skiko-индикаторами сдвига
+            val tabs = remember { listOf(BtiTab, FamilyTab) }
+
+            // Внутри InfoApartmentScreen.kt в мобильной ветке рендеринга PrimaryTabRow
+
+            val activeIndex = tabNavigator.current.options.index.toInt()
+
+            PrimaryTabRow(
+              selectedTabIndex = activeIndex,
+              containerColor = MaterialTheme.colorScheme.surface,
+              divider = { HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant) },
+              // ИСПРАВЛЕНО: Современная КМР-лямбда индикатора без параметров!
+              indicator = {
+                TabRowDefaults.PrimaryIndicator(
+                  // РЕШЕНИЕ: Нативно вызываем tabIndicatorOffset, передавая туда чистый Int-индекс activeIndex!
+                  modifier = Modifier.tabIndicatorOffset(activeIndex),
+                  width = 64.dp,
+                  shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
+                )
+              }
+            ) {
+              tabs.forEach { tab ->
+                LeadingIconTab(
+                  selected = tabNavigator.current == tab,
+                  onClick = { tabNavigator.current = tab },
+                  text = {
+                    Text(
+                      text = tab.options.title,
+                      style = MaterialTheme.typography.titleSmall,
+                      fontWeight = if (tabNavigator.current == tab) FontWeight.Bold else FontWeight.Medium
+                    )
+                  },
+                  icon = {
+                    Icon(
+                      painter = tab.options.icon ?: rememberVectorPainter(Icons.Default.Home),
+                      contentDescription = null
+                    )
+                  }
+                )
+              }
+            }
+
+
+            // Отрисовываем холст текущей выбранной Voyager-вкладки на месте вызова
+            Box(modifier = Modifier.fillMaxSize()) {
+              CurrentTab()
             }
           }
         }
@@ -242,31 +269,39 @@ fun InfoApartmentScreenStateless(
 }
 
 /**
- * [InfoScreenDualPanelContent] — Двухпанельная верстка БТИ под большие мониторы Mac.
+ * [InfoScreenDualPanelContent] — Верстка планшетного и десктопного двухпанельного режима ГИОЦ.
+ * ИСПРАВЛЕНО: Аргумент строго типизирован как ApartmentScreenModel.
  */
 @Composable
 fun InfoScreenDualPanelContent(
-  baseUIState: BaseUIState
+  baseUIState: BaseUIState,
+  apartmentScreenModel: ApartmentScreenModel // ИСПРАВЛЕНО НАМЕРТВО
 ) {
-  Row(modifier = Modifier.fillMaxSize()) {
-    // Левая панель: БТИ (45% ширины экрана)
+  Row(
+    modifier = Modifier.fillMaxSize(),
+    verticalAlignment = Alignment.Top
+  ) {
     Surface(
-      modifier = Modifier.weight(0.45f).fillMaxHeight(),
-      // ИСПРАВЛЕНО: surfaceColorAtElevation заменен официальным Material 3 контейнером
-      color = MaterialTheme.colorScheme.surfaceContainerLow
+      modifier = Modifier
+        .weight(0.45f)
+        .fillMaxHeight(),
+      color = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
     ) {
       Column {
-        DualPaneHeader(Icons.Default.Home, "Технічний паспорт БТІ")
-        BtiPanelContent(baseUIState = baseUIState)
+        DualPaneHeader(Icons.Default.Home, stringResource(Res.string.info))
+        BtiPanelContent(baseUIState = baseUIState, viewModel = apartmentScreenModel)
       }
     }
 
     VerticalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
 
-    // Правая панель: Состав семьи (55% ширины экрана)
-    Column(modifier = Modifier.weight(0.55f).fillMaxHeight()) {
+    Column(
+      modifier = Modifier
+        .weight(0.55f)
+        .fillMaxHeight()
+    ) {
       DualPaneHeader(Icons.Default.People, "Склад сім'ї")
-      FamilyContent(baseUIState = baseUIState)
+      FamilyContent(baseUIState = baseUIState, viewModel = apartmentScreenModel)
     }
   }
 }
@@ -274,11 +309,13 @@ fun InfoScreenDualPanelContent(
 @Composable
 private fun DualPaneHeader(icon: ImageVector, title: String) {
   Row(
-    modifier = Modifier.fillMaxWidth().padding(16.dp),
+    modifier = Modifier
+      .fillMaxWidth()
+      .padding(16.dp),
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(12.dp)
   ) {
-    Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
     Text(
       text = title,
       style = MaterialTheme.typography.titleMedium,
@@ -288,10 +325,3 @@ private fun DualPaneHeader(icon: ImageVector, title: String) {
   }
   HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 1.dp)
 }
-
-// Заглушка расширения цвета, гарантирующая стабильный КМР вывод цвета ошибок
-private fun MaterialTheme.createErrorColor() = androidx.compose.ui.graphics.Color(0xFFD32F2F)
-
-// Временные заглушки панелей (Пришли их оригинальные файлы следующим шагом, и мы причешем их под КМР)
-@Composable fun BtiPanelContent(baseUIState: BaseUIState) { Box(Modifier.fillMaxSize()) { Text("Характеристики БТІ") } }
-@Composable fun FamilyContent(baseUIState: BaseUIState) { Box(Modifier.fillMaxSize()) { Text("Список мешканців") } }

@@ -35,7 +35,6 @@ private const val className = "PaymentChoiceItem"
 
 /**
  * [PaymentChoiceItem] — Кроссплатформенный элемент выбора ЖКХ-службы и ручной корректировки суммы инвойса Xpay.
- * Полностью стабилен на Mac Desktop (JVM), Android и iOS без побочных эффектов дублирования модификаторов.
  */
 @Composable
 fun PaymentChoiceItem(

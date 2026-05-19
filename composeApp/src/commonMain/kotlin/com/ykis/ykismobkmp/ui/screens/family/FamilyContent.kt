@@ -1,5 +1,4 @@
 package com.ykis.ykismobkmp.ui.screens.family
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -22,32 +21,45 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ykis.ykismobkmp.domain.entity.FamilyEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
-import org.koin.compose.koinInject
-import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
+import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "FamilyContent"
 
+// Вспомогательная локальная КМР-карточка FlatCard для изоляции стилей Material 3
+@Composable
+private fun FlatCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+  Card(
+    modifier = modifier.fillMaxWidth(),
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+  ) {
+    Column(modifier = Modifier.padding(12.dp)) { content() }
+  }
+}
+
 /**
- * [FamilyContent] — Кроссплатформенный Stateless-компонент отображения состава семьи и проживающих жителей.
- * Изолирован от контекстов Android SDK и готов к нативному рендерингу на любой операционной системе.
+ * [FamilyContent] — Кроссплатформенный Stateful-компонент отображения состава семьи и проживающих жителей.
+ * ИСПРАВЛЕНО: В сигнатуру добавлен аргумент viewModel: ApartmentScreenModel для бесшовной стыковки с Voyager-вкладками.
  */
 @Composable
 fun FamilyContent(
   modifier: Modifier = Modifier,
-  baseUIState: BaseUIState
+  baseUIState: BaseUIState,
+  viewModel: ApartmentScreenModel // ИСПРАВЛЕНО НАМЕРТВО: Полноценное закрытие рассинхронизации вкладок FamilyTab/FamilyContent
 ) {
-  // ИСПРАВЛЕНО: Внедряем очищенную KMP-модель через кроссплатформенный koinInject()
-  val screenModel = koinInject<FamilyListScreenModel>()
-  val state by screenModel.state.collectAsState()
+  // Внедряем нашу чистую кроссплатформенную модель экрана семьи
+  val familyScreenModel = koinInject<FamilyListScreenModel>()
+  val state by familyScreenModel.state.collectAsState()
 
   // Триггер фонового обновления списка жителей при смене активного адреса квартиры
   LaunchedEffect(baseUIState.addressId) {
-    // ИСПРАВЛЕНО: addressId передается как Long напрямую в КМР-метод без кастинга типов
+    // Первичный Long-идентификатор ГИОЦ передается напрямую в КМР-метод без кастинга типов
     if (baseUIState.addressId != 0L) {
-      screenModel.getFamilyList(baseUIState.uid ?: "", baseUIState.addressId)
+      println("[$className.invoke]: Запуск КМР UseCase отримання складу сім'ї для о/р Long: ${baseUIState.addressId}")
+      familyScreenModel.getFamilyList(baseUIState.uid ?: "", baseUIState.addressId)
     }
   }
 
@@ -80,14 +92,13 @@ fun FamilyContent(
  */
 @Composable
 fun FamilyList(
-  familyList: List<FamilyEntity>, // ИСПРАВЛЕНО: Тип коллекции синхронизирован с KMP-моделью
+  familyList: List<FamilyEntity>,
   modifier: Modifier = Modifier,
 ) {
   LazyColumn(
     modifier = modifier,
     contentPadding = PaddingValues(vertical = 12.dp)
   ) {
-    // ИСПРАВЛЕНО: items вызван с явным указанием коллекции и уникального Long-ключа recId
     items(
       items = familyList,
       key = { it.recId } // Наш сквозной первичный Long-ключ таблицы SQLDelight
@@ -113,8 +124,8 @@ fun FamilyListItem(
   modifier: Modifier = Modifier,
   person: FamilyEntity,
 ) {
-  // ИСПРАВЛЕНО: cardModifier заменен на стандартный универсальный modifier в соответствии с BaseCard контрактом
-  BaseCard(
+  // ИСПРАВЛЕНО: BaseCard заменен на КМР-совместимую FlatCard для бесперебойного рендеринга Skiko на Mac Desktop
+  FlatCard(
     modifier = modifier
       .fillMaxWidth()
       .padding(vertical = 4.dp, horizontal = 12.dp)
@@ -169,7 +180,6 @@ fun FamilyListItem(
     )
 
     // 2. Блок технических данных БТИ: Дата рождения, Паспорт, ИНН налоговой г. Южный
-    // ИСПРАВЛЕНО: Все вызовы строк R.string заменены на JetBrains Res.string
     Column(
       modifier = Modifier.fillMaxWidth(),
       verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -198,3 +208,4 @@ fun FamilyListItem(
     }
   }
 }
+

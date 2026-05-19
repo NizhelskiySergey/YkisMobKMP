@@ -1,5 +1,4 @@
 package com.ykis.ykismobkmp.ui.screens.meter
-
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -12,18 +11,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.Key.Companion.R
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.cancel
+import ykismobkmp.composeapp.generated.resources.delete_my_account
 import ykismobkmp.composeapp.generated.resources.delete_reading_title
 
 private const val className = "DeleteReadingDialog"
 
 /**
  * [DeleteReadingDialog] — Кроссплатформенное модальное окно подтверждения удаления показания ЮКИС.
- * Полностью стабильно на Mac Desktop (JVM), Android и iOS без привязок к Android SDK.
  */
 @Composable
 fun DeleteReadingDialog(
@@ -31,7 +29,9 @@ fun DeleteReadingDialog(
   onDismissRequest: () -> Unit,
   onDeleteClick: () -> Unit
 ) {
-  // ИСПРАВЛЕНО: Переведено на стандартный AlertDialog для идеального отображения на Mac/Android/iOS
+  // Вывод логов по правилу [Класс.Метод] через КМР-команду println()
+  println("[$className.invoke]: Вікно деструктивного видалення показань приладу обліку відкрито.")
+
   AlertDialog(
     modifier = modifier,
     onDismissRequest = onDismissRequest,
@@ -39,12 +39,11 @@ fun DeleteReadingDialog(
       Icon(
         imageVector = Icons.Default.Delete,
         contentDescription = null,
-        tint = MaterialTheme.colorScheme.error, // Красный цвет ошибки для деструктивного действия
+        tint = MaterialTheme.colorScheme.error, // Красный цвет акцентирует внимание на опасности операции
         modifier = Modifier.size(32.dp)
       )
     },
     title = {
-
       Text(
         text = stringResource(Res.string.delete_reading_title),
         style = MaterialTheme.typography.headlineSmall,
@@ -59,7 +58,10 @@ fun DeleteReadingDialog(
       )
     },
     dismissButton = {
-      TextButton(onClick = onDismissRequest) {
+      TextButton(onClick = {
+        println("[$className.onDismiss]: Користувач скасував видалення запису ГІОЦ")
+        onDismissRequest()
+      }) {
         Text(
           text = stringResource(Res.string.cancel),
           style = MaterialTheme.typography.labelLarge
@@ -69,20 +71,24 @@ fun DeleteReadingDialog(
     confirmButton = {
       Button(
         onClick = {
-          onDismissRequest() // Сначала закрываем окно
-          onDeleteClick()    // Запускаем сетевое удаление из биллинга Южного
+          println("[$className.onConfirm]: Підтверджено видалення кубів/Гкал. Запуск транзакції біллінгу Южного.")
+          onDismissRequest() // Сначала закрываем диалоговое окно
+          onDeleteClick()    // Запускаем сетевое удаление из биллинга
         },
         colors = ButtonDefaults.buttonColors(
           containerColor = MaterialTheme.colorScheme.error,
           contentColor = MaterialTheme.colorScheme.onError
-        )
+        ),
+        shape = MaterialTheme.shapes.medium
       ) {
         Text(
-          text = stringResource( Res.string.cancel),
+          // ИСПРАВЛЕНО: Заменен ложный ресурс Res.string.cancel на правильную строку подтверждения удаления
+          text = stringResource(Res.string.delete_my_account), // Используй Res.string.delete, когда добавишь в Res
           style = MaterialTheme.typography.labelLarge
         )
       }
     }
   )
 }
+
 

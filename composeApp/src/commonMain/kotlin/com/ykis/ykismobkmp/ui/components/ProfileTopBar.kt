@@ -1,7 +1,4 @@
 package com.ykis.ykismobkmp.ui.components
-
-
-// КРОСС ПЛАТФОРМЕННЫЕ ИМПОРТЫ РЕСУРСОВ JETBRAINS:
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape

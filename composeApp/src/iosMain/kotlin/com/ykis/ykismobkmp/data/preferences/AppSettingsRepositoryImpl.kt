@@ -1,30 +1,40 @@
 package com.ykis.ykismobkmp.data.preferences // Совпадает с интерфейсом
+import com.russhwolf.settings.Settings
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
+private const val className = "AppSettingsRepositoryImpl"
 
+/**
+ * [AppSettingsRepositoryImpl] — Нативная Apple-реализация репозитория настроек для iOS-устройств.
+ * ИСПРАВЛЕНО НАМЕРТВО: Легаси-методы DataStore полностью стерты. Класс реализует утвержденные
+ * КМР-методы getString и putString на базе синглтона Settings (NSUserDefaults)!
+ */
 class AppSettingsRepositoryImpl(
-  private val dataStore: DataStore<Preferences>
-) : AppSettingsRepository { // Бесшовно реализует интерфейс из commonMain
+  private val settings: Settings // Инжектируем кроссплатформенный синглтон из Koin графа
+) : AppSettingsRepository {
 
-  companion object {
-    private val THEME_KEY = stringPreferencesKey("theme")
+  /**
+   * [getString] — Синхронное мгновенное чтение темы оформления или оферты ЮКИС из NSUserDefaults iOS.
+   */
+  override fun getString(key: String, defaultValue: String): String {
+    return try {
+      val savedValue = settings.getString(key, defaultValue)
+      println("[$className.getString]: [iOS] Вычитан параметр из NSUserDefaults: $key -> $savedValue")
+      savedValue
+    } catch (e: Exception) {
+      println("[$className.getString]: [iOS_ERROR] Сбой чтения ключа $key: ${e.message}")
+      defaultValue
+    }
   }
 
-  override fun observeTheme(): Flow<String> =
-    dataStore.data.map { preferences -> preferences[THEME_KEY] ?: "system" }
-      .distinctUntilChanged().flowOn(Dispatchers.Default)
-
-  override suspend fun saveTheme(themeValue: String) {
-    dataStore.edit { preferences -> preferences[THEME_KEY] = themeValue }
+  /**
+   * [putString] — Моментальная синхронная запись флагов соглашений ЖКХ в память Apple-устройства.
+   */
+  override fun putString(key: String, value: String) {
+    try {
+      println("[$className.putString]: [iOS] Атомарная запись в NSUserDefaults: $key -> $value")
+      settings.putString(key = key, value = value)
+    } catch (e: Exception) {
+      println("[$className.putString]: [iOS_ERROR] Не удалось сохранить параметр $key в iOS: ${e.message}")
+    }
   }
-
 }

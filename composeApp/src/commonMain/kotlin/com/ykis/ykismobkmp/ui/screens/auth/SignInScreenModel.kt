@@ -162,8 +162,8 @@ class SignInScreenModel(
 
       } catch (e: Exception) {
         println("[$tag.$methodName]: [CRITICAL] Ошибка рантайма: ${e.message}")
-        _signInWithGoogleResponse.value = Resource.Error(e.localizedMessage ?: "Невідома помилка")
-        SnackbarManager.showMessage("Помилка входу Google: ${e.localizedMessage}")
+        _signInWithGoogleResponse.value = Resource.Error(e.message ?: "Невідома помилка")
+        SnackbarManager.showMessage("Помилка входу Google: ${e.message}")
       }
     }
   }

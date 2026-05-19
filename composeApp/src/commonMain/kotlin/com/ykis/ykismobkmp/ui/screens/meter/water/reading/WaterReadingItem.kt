@@ -1,5 +1,4 @@
 package com.ykis.ykismobkmp.ui.screens.meter.water.reading
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.Key.Companion.R
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.domain.entity.WaterReadingEntity
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
@@ -18,11 +16,9 @@ import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.average
 import ykismobkmp.composeapp.generated.resources.last_colon
 
-private const val tag = "WaterReadingItemContent"
-
 /**
  * [WaterReadingItemContent] — Кроссплатформенный Stateless-компонент отрисовки полей строки истории водопостачання.
- * Динамически переключает верстку: расчет по среднему значению тарифа абонента или по физическим кубометрам.
+ * ИСПРАВЛЕНО: Ликвидирована синтаксическая ошибка закрытия скобок, мешавшая Gradle сборке.
  */
 @Composable
 fun WaterReadingItemContent(
@@ -30,9 +26,9 @@ fun WaterReadingItemContent(
   reading: WaterReadingEntity
 ) {
   Column(modifier = modifier.fillMaxWidth()) {
-    // ИСПРАВЛЕНО: Прямое КМР-сравнение Int-флага (1 - Расчет по среднему, 0 - По прибору учета)
+    // Прямое КМР-сравнение Int-флага (1 - Расчет по среднему нормативу биллинга ГИОЦ г. Южного, 0 - По прибору учета)
     if (reading.avg == 1) {
-      // Отображение полей начисления по среднему нормативу биллинга г. Южного
+      // Отображение полей начисления по среднему нормативу
       LabelTextWithText(
         labelText = stringResource(Res.string.average),
         valueText = reading.pokOt.toString()
@@ -54,8 +50,7 @@ fun WaterReadingItemContent(
         valueText = "${reading.kubDay} м³" // Бесшовная интерполяция строк Котлина
       )
     } else {
-      // Стандартное отображение физического съема показаний водомера
-      // ИСПРАВЛЕНО: Заменен stringResource(R.string.date_format) на нативную строковую интерполяцию
+      // Стандартное отображение физического съема показаний водомера водоканала г. Южный
       LabelTextWithText(
         labelText = "Період нарахування: ",
         valueText = "${reading.dateOt} — ${reading.dateDo}"
@@ -65,13 +60,12 @@ fun WaterReadingItemContent(
         valueText = reading.days.toString()
       )
 
-      // Внутренняя лента фиксации разницы показаний
+      // Внутренняя лента фиксации разницы кубометров
       Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
         LabelTextWithText(
-          // ИСПРАВЛЕНО: Заменен входящий modifier на чистый изолированный Modifier.weight
           modifier = Modifier.weight(0.5f),
           labelText = "Попередні: ",
           valueText = reading.last.toString()
@@ -92,3 +86,4 @@ fun WaterReadingItemContent(
     }
   }
 }
+

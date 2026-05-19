@@ -1,4 +1,4 @@
-package com.ykis.ykismobkmp.data.db.mapper
+package com.ykis.ykismobkmp.domain.mapper
 
 // Явно разделяем алиасы сгенерированной таблицы БД и нашей UI доменной сущности
 import com.ykis.ykismobkmp.db.ApartmentEntity as DbApartment

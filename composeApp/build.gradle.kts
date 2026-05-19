@@ -1,9 +1,4 @@
-import com.sun.tools.javac.resources.compiler
-import org.gradle.internal.impldep.org.jsoup.nodes.Entities
-import org.gradle.kotlin.dsl.implementation
-import org.jetbrains.compose.ComposePlugin.CommonComponentsDependencies.uiToolingPreview
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -39,10 +34,25 @@ kotlin {
 
   jvm()
 
-  js {
-    browser()
+  js(IR) {
+    outputModuleName.set("composeApp")
+
+    browser {
+      commonWebpackConfig {
+        outputFileName = "composeApp.js"
+
+        // ИСПРАВЛЕНО НАМЕРТВО: Убираем вызов project.projectDir, который ломал Configuration Cache!
+        // Webpack сам автоматически найдет папку ресурсов jsMain/resources по умолчанию!
+        devServer = (devServer ?: org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig.DevServer()).copy(
+          open = true,
+          port = 8081
+        )
+      }
+    }
     binaries.executable()
   }
+
+
 
   // Wasm временно отключен, как мы и договаривались, из-за Firebase
   // wasmJs { ... }
@@ -63,7 +73,6 @@ kotlin {
       // 2. ЖИЗНЕННЫЙ ЦИКЛ
       implementation(libs.androidx.lifecycle.viewmodelCompose)
       implementation(libs.androidx.lifecycle.runtimeCompose)
-
       // 3. KOIN
       implementation(libs.koin.core)
       implementation(libs.koin.compose)
@@ -71,6 +80,7 @@ kotlin {
 
       // 4. VOYAGER (Навигация)
       implementation(libs.voyager.navigator)
+      implementation(libs.voyager.tab.navigator)
       implementation(libs.voyager.screenmodel)
       implementation(libs.voyager.koin)
       implementation(libs.voyager.transitions)
@@ -98,14 +108,12 @@ kotlin {
       implementation(libs.firebase.database)
       implementation(libs.firebase.storage)
       implementation(libs.multiplatform.settings)
+      implementation(libs.multiplatform.settings.no.arg)
       // 8. Coil
       implementation(libs.coil.compose)
       implementation(libs.coil.network.ktor)
       // Наш мультиплатформенный логгер
       implementation(libs.napier)
-        // Добавь эту строчку для запуска инвойсов Xpay на любой ОС:
-//        implementation(libs.compose.webview.multiplatform)
-//    ДОБАВЛЯЕМ КМР БИБЛИОТЕКУ ИИ ДЛЯ ПОДДЕРЖКИ РАБОТЫ GEMINI НА ЛЮБОЙ ОС:
       implementation(libs.generativeai.google)
     }
 
@@ -168,7 +176,12 @@ kotlin {
     // Блок для обычного JS (раз Wasm отключен)
     val jsMain by getting {
       dependencies {
+        // Официальный JS-клиент Ktor для сетевых запросов ГИОЦ
         implementation(libs.ktor.client.js)
+
+        // Обязательные UI-компоненты Skiko для запуска Compose Multiplatform в браузере
+        implementation(compose.runtime)
+        implementation(compose.html.core)
       }
     }
   }

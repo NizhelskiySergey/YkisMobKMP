@@ -1,17 +1,21 @@
+@file:JvmName("DatabaseDriverAndroidKt")
+
 package com.ykis.ykismobkmp.db
 
 import android.content.Context
 import app.cash.sqldelight.db.SqlDriver
-import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import app.cash.sqldelight.driver.android.AndroidSqliteDriver // Нативный Android SQLite артефакт
 
-actual class DatabaseDriverFactory actual constructor(private val context: Any?) {
+/**
+ * [DatabaseDriverFactory] — Actual-реализация для операционной системы Android.
+ */
+actual class DatabaseDriverFactory(private val context: Context) {
   actual fun createDriver(): SqlDriver {
-    val androidContext = context as? Context ?: throw IllegalArgumentException("Android Context required")
+    // Нативно разворачиваем ykis.db на базе сгенерированной SQLDelight схемы таблиц!
     return AndroidSqliteDriver(
-      schema = YkisDatabases.Companion.Schema,
-      context = androidContext,
-      name = "ykis_db.db"
+      schema = YkisDatabases.Schema,
+      context = context,
+      name = "ykis.db"
     )
   }
 }
-

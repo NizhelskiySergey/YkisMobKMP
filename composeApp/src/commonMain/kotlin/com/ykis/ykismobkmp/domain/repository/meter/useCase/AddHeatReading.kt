@@ -47,7 +47,7 @@ class AddHeatReading(
         // Перехват сетевых ошибок Ktor (например, 403 или 500)
         println("[$tag.$methodName]: Сетевой сбой Ktor сервера тепла: ${e.response.status.value}")
         SnackbarManager.showMessage("Помилка сервера тепла: ${e.response.status.value}")
-        emit(Resource.Error<GetSimpleResponse?>(message = "Помилка сервера: ${e.response.status.value}"))
+        emit(Resource.Error<GetSimpleResponse?>(error( "Помилка сервера: ${e.response.status.value}")))
       } catch (ex: Exception) {
         println("[$tag.$methodName]: [FATAL_ERROR] Сбой Ktor при добавлении: ${ex.message}")
         SnackbarManager.showMessage("Помилка зв'язку з сервером опалення")

@@ -30,7 +30,6 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.domain.services.FirebaseService
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
-import com.ykis.ykismobkmp.ui.navigation.SignInScreen as NavSignInScreen
 
 private const val tag = "TermsAndConditionScreen"
 
@@ -65,7 +64,7 @@ object TermsAndConditionScreen : Screen {
           firebaseService.setUserAgreed(true)
 
           // ИСПРАВЛЕНО: Нативно подменяем корень на синглтон NavSignInScreen БЕЗ круглых скобок ()
-          navigator.replaceAll(NavSignInScreen)
+          navigator.replaceAll(SignInScreen())
         }
       }
     )

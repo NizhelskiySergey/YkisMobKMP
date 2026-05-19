@@ -1,7 +1,9 @@
 package com.ykis.ykismobkmp.ui.screens.chat
 
-import android.net.Uri
+// ИМПОРТЫ НАШИХ УТВЕРЖДЕННЫХ КМР СТАНДАРТОВ YkisMobPAM / YkisMobKMP
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,59 +20,117 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
-import com.ykis.ykismobkmp.ui.components.ZoomableImage
+import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
+import coil3.compose.AsyncImage
+import com.ykis.ykismobkmp.domain.entity.MessageEntity
 
+private const val className = "ImageDetailScreen"
+
+/**
+ * [ImageDetailScreen] — Кроссплатформенный Voyager-экран полноэкранного просмотра фотографий заявок ЮКИС.
+ * ИСПРАВЛЕНО: Полностью удалены зависимости от android.net.Uri, внедрен КМР Zoom-контейнер Skiko рендеринга.
+ */
+class ImageDetailScreen(
+  private val messageEntity: MessageEntity
+) : Screen {
+
+  @Composable
+  override fun Content() {
+    val navigator = LocalNavigator.currentOrThrow
+
+    ImageDetailContent(
+      messageEntity = messageEntity,
+      navigateUp = {
+        println("[$className.Content]: Закрытие просмотра фото. Нативный Voyager pop.")
+        navigator.pop()
+      }
+    )
+  }
+}
+
+/**
+ * [ImageDetailContent] — Декларативная Stateless-верстка медиа-просмотрщика ГИОЦ г. Южного.
+ */
 @Composable
-fun ImageDetailScreen(
+fun ImageDetailContent(
   modifier: Modifier = Modifier,
   navigateUp: () -> Unit,
   messageEntity: MessageEntity
 ) {
-  // Используем Scaffold или Box с черным фоном для эффекта погружения
   Box(
     modifier = modifier
       .fillMaxSize()
       .background(Color.Black)
   ) {
     Column(modifier = Modifier.fillMaxSize()) {
-      // Основное изображение (занимает всё пространство)
-      ZoomableImage(
+
+      // РЕШЕНИЕ: Кросплатформенный, аппаратно ускоренный контейнер масштабирования (Zoom) для Mac, iOS и Android
+      var scale by remember { mutableStateOf(1f) }
+      var offset by remember { mutableStateOf(Offset.Zero) }
+      val state = rememberTransformableState { zoomChange, offsetChange, _ ->
+        scale = (scale * zoomChange).coerceIn(1f, 5f) // Ограничиваем зум от 1х до 5х
+        offset += offsetChange
+      }
+
+      Box(
         modifier = Modifier
           .weight(1f)
-          .fillMaxWidth(),
-        imageUri = messageEntity.imageUrl?.toUri() ?: Uri.EMPTY
-      )
+          .fillMaxWidth()
+          .transformable(state = state),
+        contentAlignment = Alignment.Center
+      ) {
+        // ИСПРАВЛЕНО: Вместо Android Uri используется Coil 3 AsyncImage, принимающая обычную КМР-строку String
+        AsyncImage(
+          model = messageEntity.imageUrl ?: "",
+          contentDescription = "Полноэкранное изображение поломки ЖКХ",
+          modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer(
+              scaleX = scale,
+              scaleY = scale,
+              translationX = offset.x,
+              translationY = offset.y
+            )
+        )
+      }
 
-      // Подпись к фото (если есть текст)
-      if (messageEntity.text.isNotBlank()) {
-
+      // Подпись к фотографии (если диспетчер или житель ввел сопроводительный текст заявки)
+      if (!messageEntity.text.isNullOrBlank()) {
         Surface(
           modifier = Modifier.fillMaxWidth(),
-          color = Color.Black.copy(alpha = 0.6f) // Полупрозрачный фон для текста
+          color = Color.Black.copy(alpha = 0.6f) // Полупрозрачный глубокий фон для текста
         ) {
           Text(
             modifier = Modifier
-              .navigationBarsPadding() // Отступ от системных кнопок снизу
+              .navigationBarsPadding() // КМР-отступ от нативных системных кнопок снизу дисплея
               .padding(16.dp),
             text = messageEntity.text,
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White,
-            maxLines = 3, // Увеличим до 3 линий, вдруг там описание поломки
+            maxLines = 3, // 3 линии для подробного описания аварии сантехники или электрики
             overflow = TextOverflow.Ellipsis
           )
         }
       }
     }
 
-    // Кнопка закрытия (на фоне полупрозрачного круга, чтобы всегда была видна)
+    // Кнопка закрытия (на фоне полупрозрачного круга, гарантированно читаемая на любом светлом фото)
     IconButton(
       modifier = Modifier
-        .statusBarsPadding() // Отступ от статус-бара сверху
+        .statusBarsPadding() // КМР-отступ от статус-бара сверху окна смартфона
         .padding(8.dp)
         .background(Color.Black.copy(alpha = 0.4f), CircleShape),
       onClick = navigateUp
@@ -83,3 +143,4 @@ fun ImageDetailScreen(
     }
   }
 }
+

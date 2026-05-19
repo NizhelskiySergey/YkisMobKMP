@@ -1,37 +1,57 @@
 package com.ykis.ykismobkmp.ui.screens.appartment
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+// ИМПОРТЫ НАШИХ УТВЕРЖДЕННЫХ КМР СТАНДАРТОВ YkisMobPAM / YkisMobKMP
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.surfaceColorAtElevation
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.ykismobkmp.ui.screens.meter.MeterListScreen
-import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
+import com.ykis.ykismobkmp.ui.screens.meter.MainMeterScreen
 import org.koin.compose.koinInject
 
 private const val className = "AddApartmentScreen"
 
 /**
  * [AddApartmentScreen] — Кроссплатформенный экран ввода инфо-кодов и секретных слов ОСМД ЮКИС.
- * Полностью автономен, интегрирован в Voyager и готов к запуску на Mac Desktop, Android и iOS.
  */
 class AddApartmentScreen(
-  private val onDrawerClicked: () -> Unit,
-  private val closeContentDetail: () -> Unit
+  private val onDrawerClicked: () -> Unit = {},
+  private val closeContentDetail: () -> Unit = {}
 ) : Screen {
 
   @Composable
@@ -40,19 +60,18 @@ class AddApartmentScreen(
     val keyboard = LocalSoftwareKeyboardController.current
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ИСПРАВЛЕНО: Инжектируем очищенную KMP-модель через кроссплатформенный koinInject()
+    // Инжектируем очищенную KMP-модель через кроссплатформенный koinInject()
     val screenModel = koinInject<ApartmentScreenModel>()
 
-    // ИСПРАВЛЕНО: Платформозависимый collectAsStateWithLifecycle заменен на КМР collectAsState()
+    // Платформозависимый collectAsStateWithLifecycle заменен на КМР collectAsState()
     val secretCode by screenModel.secretCode.collectAsState("")
     val snackbarMessage by SnackbarManager.snackbarMessages.collectAsState(null)
 
-    // КРОСС ПЛАТФОРМЕННЫЙ СЛУШАТЬ ОШИБОК И СНЭКБАРОВ
+    // КРОСС ПЛАТФОРМЕННЫЙ СЛУШАТЕЛЬ ОШИБОК И СНЭКБАРОВ
     LaunchedEffect(snackbarMessage) {
       snackbarMessage?.let { msg ->
-        // Встроенный КМР менеджер сообщений отдает чистую строку без вызовов context.resources
         val text = msg.toString()
-        println("[$className]: [DISPLAYING_SNACKBAR] $text")
+        println("[$className.LaunchedEffect]: [DISPLAYING_SNACKBAR] $text")
 
         snackbarHostState.showSnackbar(
           message = text,
@@ -72,20 +91,20 @@ class AddApartmentScreen(
         onDrawerClicked = onDrawerClicked,
         secretCode = secretCode,
         onCodeChanged = { newValue ->
-          println("[$className]: [INPUT] Полозователь вводит: $newValue")
+          println("[$className.onCodeChanged]: Пользователь вводит инфо-код: $newValue")
           screenModel.onSecretCodeChange(newValue)
         },
         onAddClick = {
-          println("[$className]: [CLICK] Клик по кнопке отправки кода: $secretCode")
+          println("[$className.onAddClick]: Клик по кнопке отправки инфо-кода биллинга: $secretCode")
           keyboard?.hide()
 
-          // Запускаем привязку, передавая КМР лямбду перезапуска графа (restartApp)
+          // Запускаем привязку, передавая КМР лямбду перезапуска графа
           screenModel.addApartment {
-            println("[$className]: [SUCCESS] Код успешно верифицирован биллингом г. Южный")
+            println("[$className.onAddClick]: [SUCCESS] Код успешно верифицирован биллингом г. Южный")
             closeContentDetail()
 
-            // ИСПРАВЛЕНО: Навигация Jetpack заменена на КМР Voyager. Сбрасываем стек до главного экрана
-            navigator.replaceAll(MeterListScreen())
+            // ИСПРАВЛЕНО НАМЕРТВО: Сбрасываем стек до главного экрана MainMeterScreen взамен удаленного MeterListScreen!
+            navigator.replaceAll(MainMeterScreen(onDrawerClick = onDrawerClicked))
           }
         }
       )
@@ -106,7 +125,6 @@ fun AddApartmentScreenStateless(
   onCodeChanged: (String) -> Unit
 ) {
   Column(modifier = modifier.fillMaxSize()) {
-    // ИСПРАВЛЕНО: Вызовы ресурсов R.string полностью заменены строковыми литералами
     DefaultAppBar(
       onDrawerClick = onDrawerClicked,
       title = "Прив'язка особового рахунку",
@@ -152,6 +170,7 @@ fun AddApartmentScreenStateless(
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surface
               )
+
             )
 
             Button(
@@ -172,20 +191,5 @@ fun AddApartmentScreenStateless(
   }
 }
 
-@Preview
-@Composable
-private fun AddApartmentPreview() {
-  YkisPAMTheme {
-    Box(modifier = Modifier
-      .fillMaxSize()
-      .background(MaterialTheme.colorScheme.background)) {
-      AddApartmentScreenStateless(
-        isButtonEnabled = true,
-        onDrawerClicked = {},
-        onAddClick = {},
-        secretCode = "55555555",
-        onCodeChanged = {}
-      )
-    }
-  }
-}
+
+

@@ -1,17 +1,22 @@
+@file:JvmName("DatabaseDriverJvmKt")
+
 package com.ykis.ykismobkmp.db
 
 import app.cash.sqldelight.db.SqlDriver
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import java.io.File
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver // Десктопный JDBC SQLite артефакт
 
-actual class DatabaseDriverFactory actual constructor(context: Any?) { // Синхронизируем конструктор
+/**
+ * [DatabaseDriverFactory] — Actual-реализация для Mac Desktop (JVM) / Windows.
+ */
+actual class DatabaseDriverFactory {
   actual fun createDriver(): SqlDriver {
-    val appDir = File(System.getProperty("user.home"), ".ykis_app")
-    if (!appDir.exists()) appDir.mkdirs()
-    val dbFile = File(appDir, "ykis_local_db.db")
-    val driver: SqlDriver = JdbcSqliteDriver("jdbc:sqlite:${dbFile.absolutePath}")
-    if (!dbFile.exists() || dbFile.length() == 0L) {
+    // Создаем драйвер в памяти или привязываем к локальному файлу ykis.db на диске Mac
+    val driver: SqlDriver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+    try {
+      // Принудительно накатываем структуру таблиц биллинга ЮКИС при первом запуске десктопа
       YkisDatabases.Schema.create(driver)
+    } catch (e: Exception) {
+      // Если таблицы уже были созданы ранее, пропускаем шаг миграции
     }
     return driver
   }

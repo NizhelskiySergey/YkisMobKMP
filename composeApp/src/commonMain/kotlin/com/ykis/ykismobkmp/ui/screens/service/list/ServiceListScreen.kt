@@ -14,12 +14,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.ykis.ykismobkmp.data.service.ServiceParams
 import com.ykis.ykismobkmp.domain.entity.ServiceEntity
+import com.ykis.ykismobkmp.domain.repository.services.ServiceParams
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.screens.service.TotalDebtState
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -37,17 +38,6 @@ data class TotalServiceDebt(
   val icon: ImageVector,
   val contentDetail: ContentDetail
 )
-
-@Serializable
-data class TotalDebtState(
-  val showDetail: Boolean = false,
-  val serviceDetail: ContentDetail = ContentDetail.UNKNOWN,
-  val totalDebt: ServiceEntity = ServiceEntity(),
-  val isLoading: Boolean = true,
-
-  // ИСПРАВЛЕНО: Добавлена сквозная строка фиксации ошибок REST API Ktor
-  val error: String = ""
-)
 /**
  * [assembleServiceList] — Сборщик локализованного списка долгов ГИОЦ по предприятиям города Южный.
  * ИСПРАВЛЕНО: Платформенные цвета и строки переведены на КМР-стандарты JetBrains Res.
@@ -64,7 +54,6 @@ fun assembleServiceList(
       TotalServiceDebt(
         name = baseUIState.osbb.takeIf { it.isNotEmpty() } ?: stringResource(Res.string.my_osbb),
         color = MaterialTheme.colorScheme.primary,
-        // RECHЕNIE: Добавляем Элвис-оператор для защиты от null значений из PHP-скриптов
         debt = totalDebtState.totalDebt.dolg4 ?: 0.0,
         icon = Icons.Default.CorporateFare,
         contentDetail = ContentDetail.OSBB
@@ -131,7 +120,11 @@ fun ServiceListScreen(
       getTotalServiceDebt(
         ServiceParams(
           uid = uid,
-          addressId = addrId
+          addressId = addrId,
+          houseId = houseId,
+          service = 0,
+          total = 1,
+          year = "2026"
         )
       )
     }

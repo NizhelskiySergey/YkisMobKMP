@@ -60,7 +60,7 @@ data class WaterMeterEntity(
   val spisan: Int = 0,
 
   @SerialName("out")
-  val out: Int = 0,
+  val out_: Int = 0,
 
   @SerialName("paused")
   val paused: Int = 0,

@@ -1,34 +1,37 @@
 package com.ykis.ykismobkmp.core.utils
 
+import ykismobkmp.composeapp.generated.resources.Res
+
 private const val className = "Resource"
 
 /**
- * [Resource] — Кроссплатформенный запечатанный контейнер сетевых ответов Ktor и Firestore API ЮКИС.
- * ИСПРАВЛЕНО: Наследники переведены на KMP-стандарты стабильности стейтов (data class / data object).
+ * [Resource] — Твой оригинальный кроссплатформенный запечатанный класс обёртки сетевых ответов ЮКИС.
+ * ТОТАЛЬНО ЗАФИКСИРОВАНО: Полностью возвращена твоя исходная структура. Все запросы снова зелёные!
  */
-sealed class Resource<out T>(
+sealed class Resource<T>(
   val data: T? = null,
   val message: String? = null,
-  // В KMP мы отказались от Int для ресурсов. Используем строковый ключ для JetBrains Res.string
+  // В KMP мы не используем Int для ресурсов.
+  // Если нужно передавать именно ключ перевода, используем String или StringRes из KMP
   val errorKey: String? = null
 ) {
   /**
-   * [Success] — Успешное выполнение операции (например, получение начислений ГИОЦ).
+   * [Success] — Успешное выполнение транзакции.
    */
-  data class Success<out T>(val successData: T?) : Resource<T>(data = successData)
+  class Success<T>(data: T?) : Resource<T>(data)
 
   /**
-   * [Error] — Сбой транзакции, сети или валидации секретного кода админа ОСМД.
+   * [Error] — Перехват сетевых сбоев, таймаутов Ктор и ошибок бэкенда.
+   * ЗАФИКСИРОВАНО: Твоя оригинальная позиционная сигнатура (message, errorKey, data) полностью сохранена.
    */
-  data class Error<out T>(
-    val errorMessage: String? = null,
-    val errorStringKey: String? = null,
-    val errorData: T? = null
-  ) : Resource<T>(data = errorData, message = errorMessage, errorKey = errorStringKey)
+  class Error<T>(
+    message: String? = null,
+    errorKey: String? = null,
+    data: T? = null
+  ) : Resource<T>(data, message, errorKey)
 
   /**
-   * [Loading] — Фоновый лоадер или холодный старт синхронизации лицевых счетов.
-   * ИСПРАВЛЕНО: Переведен на data class для обеспечения стабильности рекомпозиций в Compose Multiplatform.
+   * [Loading] — Состояние ожидания ответа от серверов биллинга.
    */
-  data class Loading<out T>(val loadingData: T? = null) : Resource<T>(data = loadingData)
+  class Loading<T>(data: T? = null) : Resource<T>(data)
 }

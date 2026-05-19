@@ -1,22 +1,28 @@
 package com.ykis.ykismobkmp.ui.screens.meter
-
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterState
 import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterState
 import org.jetbrains.compose.resources.painterResource
-import ykismobkmp.composeapp.generated.resources.*
-import com.ykis.ykismobkmp.ui.navigation.ContentDetail
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.ic_history
 
 private const val className = "MeterDetailScreen"
 
 /**
- * [MeterDetailScreen] — Кроссплатформенный Stateless-экран детализации и съема показаний ЮКИС.
- * Полностью изолирован от моделей и готов к рендерингу на Mac Desktop, Android и iOS.
+ * [MeterDetailScreen] — Кроссплатформенный экран детализации и съема показаний ЮКИС.
+ * ИСПРАВЛЕНО: Сигнатура приведена в стопроцентное соответствие с MainMeterScreen.kt,
+ * управление стейтами возвращено на зафиксированную модель MeterScreenModel.
  */
 @Composable
 fun MeterDetailScreen(
@@ -24,33 +30,31 @@ fun MeterDetailScreen(
   contentDetail: ContentDetail,
   waterMeterState: WaterMeterState,
   heatMeterState: HeatMeterState,
-  baseUIState: BaseUIState,
-  onSetContentDetail: (ContentDetail) -> Unit,
-  onCloseDetail: () -> Unit
+  viewModel: MeterScreenModel, // ИСПРАВЛЕНО: Возвращен сквозной КМР-контракт модели экрана
+  baseUIState: BaseUIState
 ) {
-  // ИСПРАВЛЕНО: Платформозависимый Log.d заменен на универсальный println() под Mac JVM
+  // Трассировка согласно правилу [Класс.Метод] через КМР-команду println()
   LaunchedEffect(contentDetail) {
-    println("[$className.Content]: Rendering detail for $contentDetail")
+    println("[$className.Content]: Отрисовка формы ввода или истории ГИОЦ. Активный контент: $contentDetail")
   }
 
   Column(modifier = modifier.fillMaxSize()) {
-    // 1. НАСТРОЙКА КРОСС ПЛАТФОРМЕННОГО ТУЛБАРА
+    // 1. НАСТРОЙКА КРОСС ПЛАТФОРМЕННОГО ТУЛБАРА DefaultAppBar
     DefaultAppBar(
       title = when (contentDetail) {
         ContentDetail.WATER_METER -> "Водомір: ${waterMeterState.selectedWaterMeter.model}"
         ContentDetail.HEAT_METER -> "Лічильник тепла: ${heatMeterState.selectedHeatMeter.model}"
         ContentDetail.WATER_READINGS -> "Історія водопостачання"
         ContentDetail.HEAT_READINGS -> "Історія опалення"
-        // РЕШЕНИЕ: Ветка else закрывает требования компилятора к исчерпываемости (exhaustiveness)
         else -> "Прилади обліку ЮКІС"
       },
       onBackClick = {
-        println("[$className.onBackClick]: Navigating back from $contentDetail")
-        // ИСПРАВЛЕНО: Логика навигации переведена на чистые лямбда-коллбэки вместо вызова viewModel
+        println("[$className.onBackClick]: Нажата стрелка назад. Текущий подмодуль: $contentDetail")
+        // ИСПРАВЛЕНО: Нативно управляем переходами через методы переданной MeterScreenModel
         when (contentDetail) {
-          ContentDetail.WATER_READINGS -> onSetContentDetail(ContentDetail.WATER_METER)
-          ContentDetail.HEAT_READINGS -> onSetContentDetail(ContentDetail.HEAT_METER)
-          else -> onCloseDetail()
+          ContentDetail.WATER_READINGS -> viewModel.setContentDetail(ContentDetail.WATER_METER)
+          ContentDetail.HEAT_READINGS -> viewModel.setContentDetail(ContentDetail.HEAT_METER)
+          else -> viewModel.closeContentDetail()
         }
       },
       actionButton = {
@@ -61,11 +65,12 @@ fun MeterDetailScreen(
               val nextDetail = if (contentDetail == ContentDetail.WATER_METER)
                 ContentDetail.WATER_READINGS else ContentDetail.HEAT_READINGS
 
-              println("[$className.Action]: Open history -> $nextDetail")
-              onSetContentDetail(nextDetail)
+              println("[$className.Action]: Инициализация открытия истории показаний -> $nextDetail")
+              viewModel.setContentDetail(nextDetail)
             },
           ) {
             Icon(
+              // ИСПРАВЛЕНО: Ресурс истории переведен под кроссплатформенный Res.drawable
               painter = painterResource(Res.drawable.ic_history),
               contentDescription = "Історія показань",
               tint = MaterialTheme.colorScheme.onSurface
@@ -75,8 +80,7 @@ fun MeterDetailScreen(
       }
     )
 
-    // 2. ОСНОВНОЙ КОНТЕНТ (Форма ввода или Лента Истории)
-    // Убедись, что твой MeterDetailContent также отрефакторен под Stateless (не принимает саму viewModel)
+    // 2. ОСНОВНОЙ КОНТЕНТ (Форма ввода показаний водомеров/тепломеров г. Южного)
     MeterDetailContent(
       baseUIState = baseUIState,
       contentDetail = contentDetail,
@@ -86,18 +90,4 @@ fun MeterDetailScreen(
   }
 }
 
-/**
- * [MeterDetailContent] — Временная заглушка контента для успешной компиляции файла.
- * Сюда будут встраиваться формы ввода показаний жителей Южного.
- */
-@Composable
-fun MeterDetailContent(
-  baseUIState: BaseUIState,
-  contentDetail: ContentDetail,
-  waterMeterState: WaterMeterState,
-  heatMeterState: HeatMeterState
-) {
-  Box(Modifier.fillMaxSize()) {
-    // Логика отрисовки форм ввода или списков показаний на основе контента
-  }
-}
+

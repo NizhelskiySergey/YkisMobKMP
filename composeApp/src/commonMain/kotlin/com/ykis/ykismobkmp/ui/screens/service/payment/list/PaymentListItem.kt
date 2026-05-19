@@ -1,5 +1,4 @@
 package com.ykis.ykismobkmp.ui.screens.service.payment.list
-
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -19,11 +18,14 @@ import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.*
 
+@Composable fun ColumnLabelTextWithTextAndIcon(modifier: Modifier = Modifier, labelText: String, valueText: String, imageVector: androidx.compose.ui.graphics.vector.ImageVector) { Column(modifier) { Row { Icon(imageVector, null, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text(labelText) }; Text(valueText, fontWeight = FontWeight.Medium) } }
+@Composable fun LabelTextWithText(modifier: Modifier = Modifier, labelText: String, valueText: String) { Row(modifier) { Text(labelText); Text(valueText, fontWeight = FontWeight.Medium) } }
+
 private const val className = "PaymentListItem"
 
 /**
  * [PaymentListItem] — Кроссплатформенный элемент строки архива квитанций абонента ГИОЦ г. Южный.
- * Полностью очищен от Java SimpleDateFormat и готов к рендерингу на Mac Desktop, Android и iOS.
+ * ИСПРАВЛЕНО: Платформозависимые иконки заменены встроенными КМР-векторами, аннотация Preview переведена на Skiko-стандарт.
  */
 @Composable
 fun PaymentListItem(
@@ -31,25 +33,25 @@ fun PaymentListItem(
   item: PaymentEntity,
   osbb: String
 ) {
-  // ИСПРАВЛЕНО: Платформозависимый SimpleDateFormat заменен КМР-парсингом даты расчетного центра (формат ГГГГ-ММ-ДД или ДД.ММ.ГГГГ)
+  // Безопасный КМР-парсинг даты расчетного центра (формат ГГГГ-ММ-ДД или ДД.ММ.ГГГГ)
   val formattedDate = rememberFormattedDateKmp(item.data)
 
-  BaseCard(modifier = modifier) {
+  BaseCard(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp, horizontal = 12.dp)) {
     Row(
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
       horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
       ColumnLabelTextWithTextAndIcon(
-        // ИСПРАВЛЕНО: Внутренний вес изолирован от входящего modifier
         modifier = Modifier.weight(1f),
         labelText = stringResource(Res.string.date_colon),
         valueText = formattedDate,
         imageVector = Icons.Default.DateRange
       )
       ColumnLabelTextWithTextAndIcon(
+        modifier = Modifier.weight(1f),
         labelText = stringResource(Res.string.point_of_sale),
         valueText = item.kassa,
-        imageVector = Icons.Default.PointOfSale
+        imageVector = Icons.Default.ReceiptLong // ИСПРАВЛЕНО: Заменена отсутствующая PointOfSale
       )
     }
 
@@ -62,7 +64,7 @@ fun PaymentListItem(
         verticalAlignment = Alignment.CenterVertically
       ) {
         Icon(
-          imageVector = Icons.Default.CorporateFare,
+          imageVector = Icons.Default.HomeWork, // ИСПРАВЛЕНО: Заменена отсутствующая CorporateFare
           contentDescription = null,
           tint = MaterialTheme.colorScheme.primary,
           modifier = Modifier.size(20.dp)
@@ -88,14 +90,14 @@ fun PaymentListItem(
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
           if (item.kvartplata != 0.0) {
             LabelTextWithText(
-              modifier = Modifier.padding(start = 8.dp, vertical = 1.dp),
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 1.dp),
               labelText = stringResource(Res.string.kvartplata_colon),
               valueText = item.kvartplata.formatMoneyStringKmp()
             )
           }
           if (item.remont != 0.0) {
             LabelTextWithText(
-              modifier = Modifier.padding(start = 8.dp, vertical = 1.dp),
+              modifier = Modifier.padding( 8.dp, vertical = 1.dp),
               labelText = stringResource(Res.string.rfond_colon),
               valueText = item.remont.formatMoneyStringKmp()
             )
@@ -122,7 +124,7 @@ fun PaymentListItem(
         modifier = Modifier.padding(vertical = 2.dp),
         labelText = stringResource(Res.string.ytke_colon),
         valueText = item.otoplenie.formatMoneyStringKmp(),
-        imageVector = Icons.Default.HotTub
+        imageVector = Icons.Default.LocalFireDepartment // ИСПРАВЛЕНО: Заменена отсутствующая HotTub
       )
       HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
     }
@@ -133,14 +135,14 @@ fun PaymentListItem(
         modifier = Modifier.padding(vertical = 2.dp),
         labelText = stringResource(Res.string.yzhtrans_colon),
         valueText = item.tbo.formatMoneyStringKmp(),
-        imageVector = Icons.Default.Commute
+        imageVector = Icons.Default.LocalShipping // ИСПРАВЛЕНО: Заменена отсутствующая Commute
       )
       HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
     }
 
-    // Итоговая суммарная строка квитанции
+    // Итоговая суммарная строка квитанции расчетного центра
     Row(
-      modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+      modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
       horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.CenterVertically
     ) {
@@ -178,7 +180,6 @@ fun rememberFormattedDateKmp(rawDate: String): String {
   return remember(rawDate) {
     try {
       if (rawDate.contains("-")) {
-        // Если дата пришла в ISO формате YYYY-MM-DD
         val parts = rawDate.split("-")
         if (parts.size >= 3) "${parts[2]}.${parts[1]}.${parts[0]}" else rawDate
       } else {
@@ -190,21 +191,23 @@ fun rememberFormattedDateKmp(rawDate: String): String {
   }
 }
 
-
-
+/**
+ * ИСПРАВЛЕНО: Аннотация Preview переведена на кроссплатформенный КМР-стандарт JetBrains.
+ */
 @Preview
 @Composable
 private fun PreviewPaymentListItem() {
-    YkisPAMTheme {
-        PaymentListItem(
-            item = PaymentEntity(
-                voda = 146.35,
-                otoplenie = 124.88,
-                tbo = 64.00,
-                remont = 46.2,
-                kvartplata = 322.60
-            ),
-            osbb = "Кондомінімум 16"
-        )
-    }
+  YkisPAMTheme {
+    PaymentListItem(
+      item = PaymentEntity(
+        voda = 146.35,
+        otoplenie = 124.88,
+        tbo = 64.00,
+        remont = 46.2,
+        kvartplata = 322.60,
+        summa = 704.03
+      ),
+      osbb = "Кондомінімум 16"
+    )
+  }
 }

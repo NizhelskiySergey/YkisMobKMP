@@ -48,7 +48,7 @@ data class HeatMeterEntity(
 
   // ИСПРАВЛЕНО: Платформозависимый Byte изменен на универсальный Kotlin Int
   @SerialName("out")
-  val out: Int = 0,
+  val out_: Int = 0,
 
   @SerialName("spisan")
   val spisan: Int = 0,

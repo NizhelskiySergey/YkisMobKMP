@@ -1,7 +1,9 @@
 package com.ykis.ykismobkmp.ui.screens.meter.heat
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,7 +11,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -38,7 +42,8 @@ private const val tag = "HeatMeterDetail"
 
 /**
  * [HeatMeterDetail] — Кроссплатформенный Stateless-экран съема и детализации счетчиков тепла ЮКИС.
- * Полностью автономен, синхронизирован с сигнатурой BaseCard и готов к сборке на Mac Desktop.
+ * ИСПРАВЛЕНО: Типы lastHeatReading переведены в безопасный nullable формат HeatReadingEntity?
+ * для ликвидации Type mismatch конфликтов со стейтом HeatMeterState.
  */
 @Composable
 fun HeatMeterDetail(
@@ -46,7 +51,7 @@ fun HeatMeterDetail(
   heatMeterEntity: HeatMeterEntity,
   baseUIState: BaseUIState,
   getLastHeatReading: () -> Unit,
-  lastHeatReading: HeatReadingEntity,
+  lastHeatReading: HeatReadingEntity?, // ИСПРАВЛЕНО: Изменено на Nullable тип под стандарты KMP-стейтов
   onNewReadingChange: (String) -> Unit,
   newHeatReading: String,
   addReading: () -> Unit,
@@ -57,17 +62,20 @@ fun HeatMeterDetail(
   var showAddReadingDialog by rememberSaveable { mutableStateOf(false) }
   var showDeleteReadingDialog by rememberSaveable { mutableStateOf(false) }
 
-  // Валидация якоря показаний (Double)
-  val enabledButton by remember(newHeatReading, lastHeatReading.current) {
+  // Безопасно распаковываем зануляемую доменную сущность показаний во избежание NullPointerException
+  val safeLastReading = remember(lastHeatReading) { lastHeatReading ?: HeatReadingEntity(current = 0.0, avg = 0) }
+
+  // Валидация якоря показаний (Double) — новое показание должно быть строго больше предыдущего
+  val enabledButton by remember(newHeatReading, safeLastReading.current) {
     derivedStateOf {
-      (newHeatReading.takeIf { it.isNotEmpty() }?.toDoubleOrNull() ?: -1.0) > lastHeatReading.current
+      (newHeatReading.takeIf { it.isNotEmpty() }?.toDoubleOrNull() ?: -1.0) > safeLastReading.current
     }
   }
 
-  // Каскадный триггер обновления прибора учета
+  // Каскадный триггер обновления прибора учета при смене лицевого счета СУБД SQLDelight
   LaunchedEffect(baseUIState.addressId, heatMeterEntity.teplomerId) {
     if (isWorking && heatMeterEntity.teplomerId != 0L) {
-      println("[$tag.LaunchedEffect]: Оновлення показань тепла для лічильника: ${heatMeterEntity.teplomerId}")
+      println("[$tag.LaunchedEffect]: Оновлення показань тепла для лічильника ID Long: ${heatMeterEntity.teplomerId}")
       getLastHeatReading()
     }
   }
@@ -79,9 +87,8 @@ fun HeatMeterDetail(
       .padding(horizontal = 8.dp)
   ) {
     if (isWorking) {
-      // Карточка последних переданных гигакалорий
+      // Карточка последних переданных гигакалорий в теплосеть г. Южного
       BaseCard(
-        // ИСПРАВЛЕНО: Параметр cardModifier заменен на стандартный универсальный modifier
         modifier = Modifier
           .fillMaxWidth()
           .padding(vertical = 4.dp)
@@ -89,13 +96,14 @@ fun HeatMeterDetail(
           .clickable { navigateToReadings() },
         label = "Останні показання"
       ) {
+        // ИСПРАВЛЕНО: Передаем безопасный распакованный объект safeLastReading
         HeatReadingItemContent(
-          reading = lastHeatReading,
-          isAverage = lastHeatReading.avg == 1
+          reading = safeLastReading,
+          isAverage = safeLastReading.avg == 1
         )
       }
 
-      // Панель кнопок (Добавить/Удалить показание)
+      // Панель управляющих кнопок (Добавить/Удалить показание)
       LastReadingCardButtons(
         onAddButtonClick = { showAddReadingDialog = true },
         onDeleteButtonClick = { showDeleteReadingDialog = true },
@@ -104,12 +112,10 @@ fun HeatMeterDetail(
     }
 
     // Карточка технического паспорта БТИ счетчика тепла г. Южный
-    // Карточка технического паспорта БТИ счетчика тепла г. Южный
     BaseCard(
       modifier = Modifier.padding(vertical = 4.dp),
       label = "Технічні характеристики приладу"
     ) {
-      // ИСПРАВЛЕНО: Каждому компоненту добавлен модификатор вертикального отступа для идеальной сетки UI
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
         labelText = "Модель лічильника: ",
@@ -136,11 +142,10 @@ fun HeatMeterDetail(
         valueText = "${heatMeterEntity.area} м²"
       )
 
-      // ИСПРАВЛЕНО: Информационные чекбоксы Read-Only также разделены адаптивными отступами
       LabelTextWithCheckBox(
         modifier = Modifier.padding(vertical = 2.dp),
         labelText = "Прилад знаходиться на повірці: ",
-        checked = heatMeterEntity.out == 1
+        checked = heatMeterEntity.out_ == 1
       )
       LabelTextWithCheckBox(
         modifier = Modifier.padding(vertical = 2.dp),
@@ -149,14 +154,12 @@ fun HeatMeterDetail(
       )
     }
 
-
     if (isWorking) {
       // Картка державної повірки приладу обліку тепла м. Южне
       BaseCard(
         modifier = Modifier.padding(vertical = 4.dp),
         label = "Державна повірка приладу"
       ) {
-        // ИСПРАВЛЕНО: Каждой строке передан явный модификатор отступа для симметрии с БТИ блоком
         LabelTextWithText(
           modifier = Modifier.padding(vertical = 2.dp),
           labelText = "Дата наступної повірки: ",
@@ -178,7 +181,7 @@ fun HeatMeterDetail(
     Spacer(modifier = Modifier.height(24.dp))
   }
 
-  // --- КМР МОДАЛЬНЫЕ ОКНА УПРАВЛЕНИЯ ---
+  // --- КМР МОДАЛЬНЫЕ ОКНА ВВОДА ПОКАЗАНИЙ ---
   if (showAddReadingDialog) {
     AddReadingDialog(
       onDismissRequest = {
@@ -186,7 +189,7 @@ fun HeatMeterDetail(
         onNewReadingChange("")
       },
       onAddClick = addReading,
-      currentReading = lastHeatReading.current.toString(),
+      currentReading = safeLastReading.current.toString(),
       newReading = newHeatReading,
       onReadingChange = onNewReadingChange,
       enabledButton = enabledButton,
@@ -201,6 +204,7 @@ fun HeatMeterDetail(
     )
   }
 }
+
 
 
 
