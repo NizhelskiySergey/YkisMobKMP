@@ -1,4 +1,5 @@
 package com.ykis.ykismobkmp.ui.navigation
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -7,7 +8,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -21,7 +28,7 @@ import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 
-private val className = "RootNavGraph"
+private const val className = "RootNavGraph"
 
 // ====================================================================
 // --- ЦЕНТРАЛЬНЫЕ КМР-ПРОВАЙДЕРЫ КОНТЕКСТА ГЕОМЕТРИИ ОКНА (Top-Level) ---
@@ -37,7 +44,7 @@ val LocalNavigationType = compositionLocalOf<NavigationType> {
 
 /**
  * [RootNavGraph] — Декларативная КМР стейт-машина холодного старта, соглашений и пуш-распределения.
- * ИСПРАВЛЕНО: В MainApartmentScreen добавлены недостающие параметры onDrawerClicked и closeContentDetail.
+ * ИСПРАВЛЕНО: Логирование переведено на стандарт YkisLogKMP, добавлены недостающие КМР импорты.
  */
 @Composable
 fun RootNavGraph(
@@ -65,10 +72,9 @@ fun RootNavGraph(
       val startScreen = remember(currentStartState, contentType, navigationType) {
         when (currentStartState) {
           AppStartState.TermsAndConditions -> TermsAndConditionScreen
-          AppStartState.SignIn -> SignInScreen()
+          AppStartState.SignIn -> SignInScreen
           AppStartState.AddApartment -> AddApartmentScreen
           AppStartState.InfoApartment, AppStartState.UserList -> {
-            // ИСПРАВЛЕНО: Передаем обязательные параметры-лямбды для вызова шторки и сплит-панели биллинга
             MainApartmentScreen(
               contentType = contentType,
               navigationType = navigationType,
@@ -95,7 +101,7 @@ fun RootNavGraph(
             // Сквозной подхват и накат внутренних горячих пуш-уведомлений ЖЭК / ОСМД г. Южного
             LaunchedEffect(pendingChatId) {
               pendingChatId?.let { id ->
-                println("[$className.LaunchedEffect]: ПУШ СИГНАЛ -> Відкриття чату: $id")
+                println("[YkisLogKMP.$className.LaunchedEffect]: ПУШ СИГНАЛ -> Відкриття чату: $id")
 
                 // Вызываем легитимное КМР-имя класса из реестра ScreensRegistry.kt
                 navigator.push(ChatScreenDest(chatId = id))
@@ -107,7 +113,7 @@ fun RootNavGraph(
             // Сквозная КМР обработка DeepLink при холодном старте приложения («Я в пути!»)
             LaunchedEffect(baseUIState.userRole, initialChatId) {
               if (baseUIState.userRole != UserRole.Unknown && !initialChatId.isNullOrEmpty()) {
-                println("[$className.LaunchedEffect]: DEEP_LINK_NAV -> Підхват пуша при старті: $initialChatId")
+                println("[YkisLogKMP.$className.LaunchedEffect]: DEEP_LINK_NAV -> Підхват пуша при старті: $initialChatId")
                 val parts = initialChatId.split("_")
                 if (parts.size >= 3) {
                   val addrId = parts[parts.size - 2].toLongOrNull() ?: 0L
@@ -119,10 +125,10 @@ fun RootNavGraph(
                     chatScreenModel.selectUserByUid(targetUid)
                     delay(400)
 
-                    // Нативно пушим окно сообщений в навигационный Voyager бэкстек
+                    // Нативно пушаем окно сообщений в навигационный Voyager бэкстек
                     navigator.push(ChatScreenDest(chatId = initialChatId))
 
-                    println("[$className.LaunchedEffect]: Перехід по пушу виконано")
+                    println("[YkisLogKMP.$className.LaunchedEffect]: Перехід по пушу виконано")
                   }
                 }
               }
@@ -133,6 +139,7 @@ fun RootNavGraph(
     }
   }
 }
+
 
 
 

@@ -1,23 +1,40 @@
 package com.ykis.ykismobkmp.ui.components
-
-// КРОСС ПЛАТФОРМЕННЫЕ ИМПОРТЫ ТИПОВ РЕСУРСОВ JETBRAINS:
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.*
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.email
+import ykismobkmp.composeapp.generated.resources.email_placeholder
+import ykismobkmp.composeapp.generated.resources.empty_phone
+import ykismobkmp.composeapp.generated.resources.number_double_placeholder
+import ykismobkmp.composeapp.generated.resources.number_int_placeholder
+import ykismobkmp.composeapp.generated.resources.password
+import ykismobkmp.composeapp.generated.resources.phone
+import ykismobkmp.composeapp.generated.resources.repeat_password
 
 private const val className = "TextFields"
 
@@ -39,8 +56,8 @@ fun BasicField(
     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
     value = value,
     onValueChange = {
-      // ИСПРАВЛЕНО: Нативный Android Log.d заменен универсальной функцией println() общего кода Котлина
-      println("[$className.BasicField]: Value changed to $it")
+      // ИСПРАВЛЕНО: Сквозное логирование переведено на стандарт YkisLogKMP
+      println("[YkisLogKMP.$className.BasicField]: Value changed to $it")
       onNewValue(it)
     },
     placeholder = { Text(stringResource(placeholder)) }
@@ -99,10 +116,8 @@ fun PhoneField(
   )
 }
 
-/**
- * [PasswordField] — Поле ввода пароля авторизации.
- * ИСПРАВЛЕНО: Добавлен пропущенный модификатор во внутреннюю перегрузку функции.
- */
+
+
 @Composable
 fun PasswordField(
   value: String,
@@ -146,9 +161,8 @@ private fun PasswordField(
 ) {
   var isVisible by remember { mutableStateOf(false) }
 
-  val icon = if (isVisible) painterResource(Res.drawable.ic_visibility_on)
-  else painterResource(Res.drawable.ic_visibility_off)
-
+  // ИСПРАВЛЕНО: Извлекаем готовые векторные иконки из стандартной библиотеки Compose напрямую
+  val icon = if (isVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
   val visualTransformation = if (isVisible) VisualTransformation.None else PasswordVisualTransformation()
 
   OutlinedTextField(
@@ -160,10 +174,15 @@ private fun PasswordField(
     leadingIcon = { Icon(imageVector = Icons.Default.Lock, contentDescription = "Lock") },
     trailingIcon = {
       IconButton(onClick = {
-        println("[$className.PasswordField]: Visibility toggled")
+        // ИСПРАВЛЕНО: Сквозное логирование переведено на YkisLogKMP
+        println("[YkisLogKMP.$className.PasswordField]: Visibility toggled. Visible: $isVisible")
         isVisible = !isVisible
       }) {
-        Icon(painter = icon, contentDescription = "Visibility", modifier = Modifier.size(24.dp))
+        Icon(
+          imageVector = icon,
+          contentDescription = "Visibility",
+          modifier = Modifier.size(24.dp)
+        )
       }
     },
     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -189,7 +208,8 @@ fun NumberField(
     label = { Text(text = stringResource(label)) },
     value = value,
     onValueChange = {
-      println("[$className.NumberField]: Value changed to $it")
+      // ИСПРАВЛЕНО: Сквозное логирование переведено на стандарт YkisLogKMP
+      println("[YkisLogKMP.$className.NumberField]: Value changed to $it")
       onNewValue(it)
     },
     placeholder = {

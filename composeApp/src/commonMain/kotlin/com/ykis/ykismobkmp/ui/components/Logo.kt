@@ -1,7 +1,4 @@
 package com.ykis.ykismobkmp.ui.components
-
-
-// КРОСС ПЛАТФОРМЕННЫЕ ИМПОРТЫ РЕСУРСОВ JETBRAINS:
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -32,12 +29,10 @@ private const val className = "LogoImage"
 
 /**
  * [LogoImage] — Кроссплатформенный компонент отображения фирменного логотипа ЮКИС г. Южный.
- * Полностью очищен от Android SDK логов и готов к стабильному рендерингу на любой операционной системе.
  */
 @Composable
 fun LogoImage(modifier: Modifier = Modifier) {
-  // ИСПРАВЛЕНО: Нативный Android Log.d заменен универсальной функцией println() общего кода Котлина
-  println("[$className.LogoImage]: Rendering logo")
+  println("[YkisLogKMP.$className.LogoImage]: Rendering logo")
 
   Row(
     modifier = modifier,

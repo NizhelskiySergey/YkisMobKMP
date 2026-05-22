@@ -61,13 +61,14 @@ class KtorApiService(private val client: HttpClient) {
     return postForm("getFlatById.php", params)
   }
 
-  suspend fun addApartmentUser(params: Map<String, String>): GetSimpleResponse {
+  suspend fun addApartment(params: Map<String, String>): GetSimpleResponse {
     return postForm("addMyFlatByUser.php", params)
   }
 
   suspend fun deleteApartment(params: Map<String, String>): GetSimpleResponse {
     return postForm("deleteFlatByUser.php", params)
   }
+
 
   suspend fun getOsbbApartmentsList(params: Map<String, String>): GetApartmentsResponse {
     return postForm("getOsbbApartmentsList.php", params)
@@ -94,7 +95,7 @@ class KtorApiService(private val client: HttpClient) {
     return postForm("deleteUserAccount.php", params)
   }
 
-  suspend fun updateBti(params: Map<String, String>): GetSimpleResponse {
+  suspend fun updateBti(params: Map<String, String>): GetApartmentsResponse {
     return postForm("updateBti.php", params)
   }
 

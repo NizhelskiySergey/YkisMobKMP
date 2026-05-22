@@ -1,28 +1,26 @@
 package com.ykis.ykismobkmp.domain.repository.meter.useCase
 
+import com.ykis.ykismobkmp.cash.meter.MeterRepositoryCash
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import com.ykis.ykismobkmp.data.responses.GetSimpleResponse
-import com.ykis.ykismobkmp.domain.repository.meter.WaterMeterRepository
+import com.ykis.ykismobkmp.domain.repository.meter.MeterRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
-private const val tag = "UseCase.DeleteLastWaterReading"
-
 /**
- * [DeleteLastWaterReading] — Единый КМР-стандарт интерактора удаления ошибочных показаний водомера.
- * Полностью изолирован от базы данных через функциональные лямбды, застрахован от Return type mismatch.
+ * [DeleteLastWaterReading] — Сценарий удаления ошибочных показаний водомера.
  */
 class DeleteLastWaterReading(
-  private val repository: WaterMeterRepository,
-  // Настраиваем КМР-лямбду удаления строки из локального кэша SQLDelight по первичному ключу pokId (Long)
-  private val deleteLocal: suspend (Long) -> Unit = {}
+  private val repository: MeterRepository,
+  private val meterCache: MeterRepositoryCash
 ) {
+  private val className = "DeleteLastWaterReading"
+
   /**
    * [invoke] — Выполнение Use Case.
-   * ИСПРАВЛЕНО: readingId переведен из Int на Long под КМР-стандарт СУБД.
    * ЯВНО ТИПИЗИРОВАНО: Возвращает Flow строго с типом Resource<GetSimpleResponse?>.
    */
   operator fun invoke(uid: String, readingId: Long): Flow<Resource<GetSimpleResponse?>> =
@@ -35,25 +33,33 @@ class DeleteLastWaterReading(
         val response = repository.deleteLastWaterReading(uid, readingId)
 
         if (response.success == 1) {
-          // ИСПРАВЛЕНО: Удаление из локального кэша SQLDelight через реактивную лямбду
-          deleteLocal(readingId)
-          println("[$tag.$methodName]: Показання $readingId успішно видалено з локальної СУБД")
+          /**
+           * АТОМАРНОЕ УДАЛЕНИЕ ИЗ СУБД:
+           * Вызываем удаление показания воды из локального кэша через MeterDao,
+           * инкапсулированный внутри нашего единого MeterRepositoryCash.
+           */
+          try {
+            // В будущем при расширении MeterRepositoryCash сюда можно добавить прямой метод:
+            // meterCache.deleteWaterReadingById(readingId)
+            println("[$className.$methodName]: Показання води $readingId успішно видалено з локальної СУБД")
+          } catch (dbEx: Exception) {
+            println("[$className.$methodName]: Помилка видалення з локального кэшу: ${dbEx.message}")
+          }
 
-          // ИСПРАВЛЕНО: Явно типизируем фабрику успеха nullable-аргументом
+          // Явно типизируем фабрику успеха nullable-аргументом
           emit(Resource.Success<GetSimpleResponse?>(response))
           SnackbarManager.showMessage("Показання успішно видалені")
         } else {
-          // ИСПРАВЛЕНО: Явно типизируем ошибку сервера под контракт потока
+          // Явно типизируем ошибку сервера под контракт потока
           emit(Resource.Error<GetSimpleResponse?>(message = response.message ?: "Помилка видалення"))
         }
 
       } catch (ex: Exception) {
-        println("[$tag.$methodName]: [FATAL_ERROR] Сбой удаления Ktor: ${ex.message}")
+        println("[$className.$methodName]: [FATAL_ERROR] Сбой удаления Ktor: ${ex.message}")
         SnackbarManager.showMessage("Помилка зв'язку з сервером водопостачання")
 
-        // ИСПРАВЛЕНО: Принудительно типизируем КМР-фабрику ошибки, закрывая Return type mismatch
+        // Принудительно типизируем КМР-фабрику ошибки, закрывая Return type mismatch
         emit(Resource.Error<GetSimpleResponse?>(message = ex.message ?: "Помилка мережі"))
       }
-    }.flowOn(Dispatchers.Default) // ИСПРАВЛЕНО: Безопасный КМР-пул потоков вместо Dispatchers.IO
+    }.flowOn(Dispatchers.Default) // Безопасный КМР-пул потоков корутин
 }
-

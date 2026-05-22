@@ -1,4 +1,5 @@
 package com.ykis.ykismobkmp.ui.screens.meter
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -12,12 +13,11 @@ import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterState
 import com.ykis.ykismobkmp.ui.screens.meter.water.reading.WaterReadings
 import org.koin.compose.koinInject
 
-private const val className = "MeterDetailContent"
-
 /**
- * [MeterDetailContent] — Кроссплатформенный Stateful-контейнер переключения форм ввода показаний ЖКХ.
- * ИСПРАВЛЕНО: Сигнатура приведена в стопроцентное соответствие с MeterDetailScreen.kt.
- * Все ID переведены на сквозной Long-стандарт, Log заменен на println().
+ * [MeterDetailContent] — Графический контент-компонент переключения подмодулей счетчиков (Вода / Тепло).
+ * ИСПРАВЛЕНО: Аргументы currentValue для воды переведены на сквозной тип Long,
+ * а проверка флагов списания адаптирована под актуальные колонки схемы БД (isOut).
+ * Намертво зафиксирован для полной замены.
  */
 @Composable
 fun MeterDetailContent(
@@ -26,12 +26,14 @@ fun MeterDetailContent(
   waterMeterState: WaterMeterState,
   heatMeterState: HeatMeterState
 ) {
+  val currentClassName = "MeterDetailContent"
+
   // Нативная КМР инжекция ScreenModel для вызова доменных Use Cases
   val viewModel = koinInject<MeterScreenModel>()
 
   // Логируем смену контента согласно правилу [Класс.Метод] через КМР-команду println()
   LaunchedEffect(contentDetail) {
-    println("[$className.Content]: Switching active sub-module view to $contentDetail")
+    println("[$currentClassName.Content]: Switching active sub-module view to $contentDetail")
   }
 
   Crossfade(targetState = contentDetail, label = "MeterDetailFade") { targetState ->
@@ -41,27 +43,27 @@ fun MeterDetailContent(
           waterMeterEntity = waterMeterState.selectedWaterMeter,
           baseUIState = baseUIState,
           getLastReading = {
-            println("[$className.Water]: Request last reading from Ktor API")
+            println("[$currentClassName.Water]: Request last reading from Ktor API")
             viewModel.getLastWaterReading(
               vodomerId = waterMeterState.selectedWaterMeter.vodomerId,
               uid = baseUIState.uid ?: ""
             )
           },
           lastReading = waterMeterState.lastWaterReading,
-          // Используем безопасную логику KMP для проверки состояния списания прибора
-          isWorking = waterMeterState.selectedWaterMeter.spisan != 1 &&
-            waterMeterState.selectedWaterMeter.out_ != 1,
+          // ИСПРАВЛЕНО: Используем корректные имена колонок из новой .sq схемы базы данных (isOut)
+          isWorking = waterMeterState.selectedWaterMeter.spisan != 1L &&
+            waterMeterState.selectedWaterMeter.isOut != 1L,
           isLastReadingLoading = waterMeterState.isLastReadingLoading,
           newWaterReading = waterMeterState.newWaterReading,
           onNewReadingChange = { newValue ->
             viewModel.onNewWaterReadingChange(newValue.filter { it.isDigit() })
           },
           addReading = {
-            println("[$className.Water]: Adding new digital reading to СУБД: ${waterMeterState.newWaterReading}")
+            println("[$currentClassName.Water]: Adding new digital reading to СУБД: ${waterMeterState.newWaterReading}")
             viewModel.addWaterReading(
               uid = baseUIState.uid.toString(),
-              currentValue = waterMeterState.lastWaterReading?.current ?: 0.0,
-              // ИСПРАВЛЕНО: Приведение типов к сквозному КМР Long-стандарту взамен Int
+              // ИСПРАВЛЕНО: Значение currentValue приведено к сквозному Long-стандарту в точном соответствии с СУБД
+              currentValue = waterMeterState.lastWaterReading?.current ?: 0L,
               newValue = waterMeterState.newWaterReading.toLongOrNull() ?: 0L,
               vodomerId = waterMeterState.selectedWaterMeter.vodomerId
             )
@@ -70,11 +72,10 @@ fun MeterDetailContent(
             viewModel.setContentDetail(ContentDetail.WATER_READINGS)
           },
           deleteReading = {
-            println("[$className.Water]: Request atomical deletion of last water reading")
+            println("[$currentClassName.Water]: Request atomical deletion of last water reading")
             viewModel.deleteLastWaterReading(
               uid = baseUIState.uid.toString(),
               vodomerId = waterMeterState.lastWaterReading?.vodomerId ?: 0L,
-              // ИСПРАВЛЕНО: Идентификатор записи pokId извлечен в формате Long под SQLDelight
               readingId = waterMeterState.lastWaterReading?.pokId ?: 0L
             )
           }
@@ -92,8 +93,9 @@ fun MeterDetailContent(
             )
           },
           lastHeatReading = heatMeterState.lastHeatReading,
-          isWorking = heatMeterState.selectedHeatMeter.spisan != 1 &&
-            heatMeterState.selectedHeatMeter.out_ != 1,
+          // ИСПРАВЛЕНО: Используем корректные имена колонок из новой .sq схемы базы данных (isOut)
+          isWorking = heatMeterState.selectedHeatMeter.spisan != 1L &&
+            heatMeterState.selectedHeatMeter.isOut != 1L,
           navigateToReadings = {
             viewModel.setContentDetail(ContentDetail.HEAT_READINGS)
           },
@@ -112,7 +114,6 @@ fun MeterDetailContent(
           },
           deleteReading = {
             viewModel.deleteLastHeatReading(
-              // ИСПРАВЛЕНО: Ключ записи pokId переведен на сквозной Long стандарт
               readingId = heatMeterState.lastHeatReading?.pokId ?: 0L,
               teplomerId = heatMeterState.selectedHeatMeter.teplomerId,
               uid = baseUIState.uid.toString()
@@ -151,3 +152,4 @@ fun MeterDetailContent(
     }
   }
 }
+

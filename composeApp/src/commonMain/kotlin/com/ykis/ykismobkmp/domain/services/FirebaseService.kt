@@ -1,12 +1,10 @@
 package com.ykis.ykismobkmp.domain.services
 
-import dev.gitlive.firebase.auth.FirebaseUser // ИСПРАВЛЕНО: Кроссплатформенный тип GitLive вместо com.google...
+import dev.gitlive.firebase.auth.FirebaseUser
 import com.ykis.ykismobkmp.core.utils.Resource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-
-// Системные псевдонимы типов (Typealiases), очищенные от Android-зависимостей
 typealias SignInWithGoogleResponse = Resource<Boolean>
 typealias SignUpResponse = Resource<Boolean>
 typealias SendEmailVerificationResponse = Resource<Boolean>
@@ -18,7 +16,6 @@ typealias AuthStateResponse = StateFlow<Boolean>
 
 /**
  * [FirebaseService] — Кроссплатформенный контракт авторизации и профиля ЮКИС.
- * Полностью очищен от Android SDK (Context, CredentialManager) и готов к работе на Mac Desktop и Android.
  */
 interface FirebaseService {
   val isUserAuthenticatedInFirebase: Boolean
@@ -39,7 +36,7 @@ interface FirebaseService {
 
   // ИСПРАВЛЕНО: методы соглашения лицензии приведены к одному стандарту имени с Use Cases
   suspend fun isUserAgreed(): Boolean
-  suspend fun setUserAgreed(agreed: Boolean) // Переименовано с setAgreement для стыковки с UI
+  suspend fun setUserAgreed(agreed: Boolean)
 
   suspend fun authenticate(email: String, password: String)
   suspend fun sendRecoveryEmail(email: String)
@@ -48,11 +45,6 @@ interface FirebaseService {
   suspend fun logoutDirectly()
 
   fun signOut(): Flow<Resource<Boolean>>
-
-  // ИСПРАВЛЕНО: метод удален из commonMain интерфейса.
-  // Нативная авторизация Google (Credential Manager) теперь вызывается изолированно внутри Android-кнопки GoogleAuthButton,
-  // а в общий код передается только чистая строка токена idToken!
-  // suspend fun oneTapSignInWithGoogle(context: Context): OneTapSignInResponse
 
   // ИСПРАВЛЕНО: Теперь принимает чистую строковую переменную idToken, стабильную на Mac и Android
   suspend fun firebaseSignInWithGoogle(idToken: String): SignInWithGoogleResponse
@@ -84,7 +76,6 @@ interface FirebaseService {
   suspend fun getEmail(): String
   suspend fun getDisplayName(): String
 
-  // Добавляем метод привязки пушей, который мы искали в прошлый раз
   suspend fun addFcmToken()
 
   fun stopAllListeners()

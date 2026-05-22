@@ -17,23 +17,22 @@ fun DomainWaterMeter.toDbWaterMeter(): DbWaterMeter {
     addressId = this.addressId, // Сквозной Long ID адреса квартиры Южного
     nomer = this.nomer,
     model = this.model,
-    // SQLDelight сохраняет INTEGER как Long в SQLite, выполняем явный кастинг .toLong()
-    st = this.st.toLong(),
+    st = this.st,
     voda = this.voda,
     place = this.place,
     position = this.position,
     sdate = this.sdate,
     fpdate = this.fpdate,
     pdate = this.pdate,
-    pp = this.pp.toLong(),
+    pp = this.pp,
     zdate = this.zdate,
-    avg = this.avg.toLong(),
-    spisan = this.spisan.toLong(),
+    avg = this.avg,
+    spisan = this.spisan,
     // ИСПРАВЛЕНО: Связываем поле out домена с экранированным полем isOut твоей SQL схемы
-    isOut = this.out_.toLong(),
-    paused = this.paused.toLong(),
+    isOut = this.isOut,
+    paused = this.paused,
     dataSpis = this.dataSpis,
-    work = this.work.toLong()
+    work = this.work
   )
 }
 
@@ -48,21 +47,21 @@ fun DbWaterMeter.toDomainWaterMeter(): DomainWaterMeter {
     nomer = this.nomer,
     model = this.model,
     // ИСПРАВЛЕНО: Безопасное приведение Long из SQLite в Int для кроссплатформенной UI модели
-    st = this.st.toInt(),
+    st = this.st,
     voda = this.voda,
     place = this.place,
     position = this.position,
     sdate = this.sdate,
     fpdate = this.fpdate,
     pdate = this.pdate,
-    pp = this.pp.toInt(),
+    pp = this.pp,
     zdate = this.zdate,
-    avg = this.avg.toInt(),
-    spisan = this.spisan.toInt(),
+    avg = this.avg,
+    spisan = this.spisan,
     // ИСПРАВЛЕНО: Считываем из isOut базы данных обратно в доменное КМР-свойство out
-    out_ = this.isOut.toInt(),
-    paused = this.paused.toInt(),
+    isOut = this.isOut,
+    paused = this.paused,
     dataSpis = this.dataSpis,
-    work = this.work.toInt()
+    work = this.work
   )
 }

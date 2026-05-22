@@ -30,6 +30,7 @@ data class BaseUIState(
   @SerialName("uid") val uid: String? = null,
   @SerialName("displayName") val displayName: String? = null,
   @SerialName("email") val email: String? = null,
+  @SerialName("phone") val phone: String? = null,
   @SerialName("photoUrl") val photoUrl: String? = null,
   @SerialName("userRole") val userRole: UserRole = UserRole.StandardUser,
 

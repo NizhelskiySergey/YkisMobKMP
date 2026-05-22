@@ -1,14 +1,15 @@
--- Таблица для хранения квартир (MASTER)
 -- Таблица районов
 CREATE TABLE raionEntity (
-    raionId INTEGER  NOT NULL PRIMARY KEY, -- Room @PrimaryKey -> NOT NULL PRIMARY KEY
+    raionId INTEGER  NOT NULL PRIMARY KEY,
     raion TEXT NOT NULL DEFAULT ''
 );
+
 CREATE TABLE houseEntity (
     houseId INTEGER  NOT NULL PRIMARY KEY,
     raionId INTEGER  NOT NULL,
     house TEXT NOT NULL
 );
+
 CREATE TABLE apartmentEntity (
     addressId INTEGER NOT NULL PRIMARY KEY,
     uid TEXT DEFAULT NULL,
@@ -105,6 +106,41 @@ CREATE TABLE familyEntity (
     organ TEXT NOT NULL DEFAULT 'Unknown'
 );
 
+CREATE TABLE serviceEntity (
+    -- Мы добавляем внутренний ID для удобства работы БД
+    internalId INTEGER PRIMARY KEY AUTOINCREMENT,
+    addressId INTEGER  NOT NULL DEFAULT 0,
+    service TEXT NOT NULL DEFAULT 'Unknown',
+    service1 TEXT DEFAULT 'Unknown',
+    service2 TEXT DEFAULT 'Unknown',
+    service3 TEXT DEFAULT 'Unknown',
+    service4 TEXT DEFAULT 'Unknown',
+    data TEXT NOT NULL DEFAULT '2000-01-01',
+    -- Задолженность
+    zadol REAL DEFAULT 0.0,
+    zadol1 REAL DEFAULT 0.0,
+    zadol2 REAL DEFAULT 0.0,
+    zadol3 REAL DEFAULT 0.0,
+    zadol4 REAL DEFAULT 0.0,
+    -- Начислено
+    nachisleno REAL DEFAULT 0.0,
+    nachisleno1 REAL DEFAULT 0.0,
+    nachisleno2 REAL DEFAULT 0.0,
+    nachisleno3 REAL DEFAULT 0.0,
+    nachisleno4 REAL DEFAULT 0.0,
+    -- Оплачено
+    oplacheno REAL DEFAULT 0.0,
+    oplacheno1 REAL DEFAULT 0.0,
+    oplacheno2 REAL DEFAULT 0.0,
+    oplacheno3 REAL DEFAULT 0.0,
+    oplacheno4 REAL DEFAULT 0.0,
+    -- Долг
+    dolg REAL DEFAULT 0.0,
+    dolg1 REAL DEFAULT 0.0,
+    dolg2 REAL DEFAULT 0.0,
+    dolg3 REAL DEFAULT 0.0,
+    dolg4 REAL DEFAULT 0.0
+);
 CREATE TABLE paymentEntity (
     recId INTEGER  NOT NULL PRIMARY KEY,
     addressId INTEGER  NOT NULL,
@@ -120,6 +156,8 @@ CREATE TABLE paymentEntity (
     nomer TEXT NOT NULL DEFAULT 'Unknown',
     dataIn TEXT NOT NULL DEFAULT 'Unknown'
 );
+
+
 -- Таблица счетчиков тепла
 CREATE TABLE heatMeterEntity (
     teplomerId INTEGER  NOT NULL PRIMARY KEY, -- teplomer_id
@@ -212,63 +250,91 @@ CREATE TABLE waterReadingEntity (
     mday INTEGER  NOT NULL DEFAULT 0,
     dateIn TEXT NOT NULL DEFAULT 'Unknown'
 );
-CREATE TABLE serviceEntity (
-    -- Мы добавляем внутренний ID для удобства работы БД
-    internalId INTEGER PRIMARY KEY AUTOINCREMENT,
-    addressId INTEGER  NOT NULL DEFAULT 0,
-    service TEXT NOT NULL DEFAULT 'Unknown',
-    service1 TEXT DEFAULT 'Unknown',
-    service2 TEXT DEFAULT 'Unknown',
-    service3 TEXT DEFAULT 'Unknown',
-    service4 TEXT DEFAULT 'Unknown',
-    data TEXT NOT NULL DEFAULT '2000-01-01',
-    -- Задолженность
-    zadol REAL DEFAULT 0.0,
-    zadol1 REAL DEFAULT 0.0,
-    zadol2 REAL DEFAULT 0.0,
-    zadol3 REAL DEFAULT 0.0,
-    zadol4 REAL DEFAULT 0.0,
-    -- Начислено
-    nachisleno REAL DEFAULT 0.0,
-    nachisleno1 REAL DEFAULT 0.0,
-    nachisleno2 REAL DEFAULT 0.0,
-    nachisleno3 REAL DEFAULT 0.0,
-    nachisleno4 REAL DEFAULT 0.0,
-    -- Оплачено
-    oplacheno REAL DEFAULT 0.0,
-    oplacheno1 REAL DEFAULT 0.0,
-    oplacheno2 REAL DEFAULT 0.0,
-    oplacheno3 REAL DEFAULT 0.0,
-    oplacheno4 REAL DEFAULT 0.0,
-    -- Долг
-    dolg REAL DEFAULT 0.0,
-    dolg1 REAL DEFAULT 0.0,
-    dolg2 REAL DEFAULT 0.0,
-    dolg3 REAL DEFAULT 0.0,
-    dolg4 REAL DEFAULT 0.0
-);
--- ==========================================
--- 1. DAO RAION (Справочник Районов)
--- ==========================================
-insertRaion:
-INSERT OR REPLACE INTO raionEntity
-VALUES ?;
 
-getRaionById:
-SELECT * FROM raionEntity
-WHERE raionId = ?;
+-- ====================================================================
+-- --- 1. DAO RAION (Справочник Районов — Стратегия: Постоянный Кэш) ---
+-- ====================================================================
+
+insertRaion:
+INSERT OR REPLACE INTO raionEntity VALUES ?;
 
 getRaionList:
-SELECT * FROM raionEntity
-ORDER BY raion ASC;
+SELECT * FROM raionEntity ORDER BY raionId ASC;
 
 deleteAllRaions:
 DELETE FROM raionEntity;
 
 
--- ==========================================
--- 2. DAO SERVICE (Коммунальные Услуги)
--- ==========================================
+-- ====================================================================
+-- --- 2. DAO HOUSE (Справочник Домов — Стратегия: Постоянный Кэш) -----
+-- ====================================================================
+
+insertHouse:
+INSERT OR REPLACE INTO houseEntity VALUES ?;
+
+getHousesByRaion:
+SELECT * FROM houseEntity WHERE raionId = :raionId ORDER BY house ASC;
+
+getHouseList:
+SELECT * FROM houseEntity;
+
+deleteHousesByRaionId:
+DELETE FROM houseEntity WHERE raionId = :raionId;
+
+deleteAllHouses:
+DELETE FROM houseEntity;
+
+
+-- ====================================================================
+-- --- 3. DAO APARTMENT (Квартиры — Стратегия: Буфер одного Дома) ------
+-- ====================================================================
+
+insertApartment:
+INSERT OR REPLACE INTO apartmentEntity VALUES ?;
+
+getApartmentList:
+SELECT * FROM apartmentEntity;
+
+getApartmentsByUid:
+SELECT * FROM apartmentEntity WHERE uid = :uid;
+
+getFlatById:
+SELECT * FROM apartmentEntity WHERE addressId = :addressId;
+
+deleteFlat:
+DELETE FROM apartmentEntity WHERE addressId IN (:addressId);
+
+deleteApartmentsByUid:
+DELETE FROM apartmentEntity WHERE uid = :uid;
+
+deleteAllApartments:
+DELETE FROM apartmentEntity;
+
+
+-- ====================================================================
+-- --- 4. DAO FAMILY (Состав семьи — Стратегия: Чистая Сеть / Буфер) ---
+-- ====================================================================
+
+insertFamily:
+INSERT OR REPLACE INTO familyEntity VALUES ?;
+
+getFamilyByApartment:
+SELECT * FROM familyEntity WHERE addressId = :addressId;
+
+deleteFamilyByAddressId:
+DELETE FROM familyEntity WHERE addressId = :addressId;
+
+deleteFamilyByAddressIds:
+DELETE FROM familyEntity WHERE addressId IN (:addressIds);
+
+deleteAllFamily:
+DELETE FROM familyEntity;
+
+
+-- ====================================================================
+-- --- 5. DAO SERVICE (Начисления — Стратегия: Чистая Сеть / Буфер) ----
+-- ====================================================================
+
 insertService:
 INSERT OR REPLACE INTO serviceEntity (
     addressId, service, service1, service2, service3, service4,
@@ -279,178 +345,114 @@ INSERT OR REPLACE INTO serviceEntity (
 ) VALUES ?;
 
 getServiceDetail:
-SELECT * FROM serviceEntity WHERE addressId = :addressId AND service = :service AND strftime('%Y', data) = :year
+SELECT * FROM serviceEntity
+WHERE addressId = :addressId
+  AND service = :service
+  AND strftime('%Y', data) = :year
 ORDER BY data DESC;
 
 getTotalDebt:
 SELECT * FROM serviceEntity WHERE addressId = :addressId AND service = 'total' LIMIT 1;
 
+deleteServiceByAddressIds:
+DELETE FROM serviceEntity WHERE addressId IN (:addressIds);
+
 deleteAllService:
 DELETE FROM serviceEntity;
 
--- Передача списка IDs требует обязательных круглых скобок (?)
-deleteServiceByApartment:
-DELETE FROM serviceEntity WHERE addressId = :addressId;
 
+-- ====================================================================
+-- --- 6. DAO PAYMENT (Платежи — Стратегия: Чистая Сеть / Буфер) ------
+-- ====================================================================
 
--- ==========================================
--- 3. DAO APARTMENT (Лицевые счета / Квартиры)
--- ==========================================
-insertApartment:
-INSERT OR REPLACE INTO apartmentEntity VALUES ?;
-
-deleteAllApartments:
-DELETE FROM apartmentEntity;
-
-deleteFlat:
-DELETE FROM apartmentEntity WHERE addressId NOT IN ?;
-
-getFlatById:
-SELECT * FROM apartmentEntity WHERE addressId = :addressId;
-
-getApartmentListByUid:
-SELECT * FROM apartmentEntity WHERE uid = :uid;
-
-getApartmentList:
-SELECT * FROM apartmentEntity;
-
-
--- ==========================================
--- 4. DAO FAMILY (Члены семьи / Жильцы)
--- ==========================================
-insertFamily:
-INSERT OR REPLACE INTO familyEntity VALUES ?;
-
-getFamilyByApartment:
-SELECT * FROM familyEntity WHERE addressId = ?;
-
-deleteAllFamily:
-DELETE FROM familyEntity ;
-
-deleteFamilyByAddressId:
-DELETE FROM familyEntity WHERE addressId = :addressId;
-
-
--- ==========================================
--- 5. DAO HOUSE (Дома)
--- ==========================================
-
-insertHouse:
-INSERT OR REPLACE INTO houseEntity VALUES ?;
-getHousesByRaion:
-SELECT * FROM houseEntity WHERE raionId = :raionId ORDER BY house ASC;
-getHouseList:
-SELECT * FROM houseEntity;
-deleteAllHouses:
-DELETE FROM houseEntity;
-deleteHousesByRaionId:
-DELETE FROM houseEntity WHERE raionId  = :raionId;
-
--- ==========================================
--- 6. DAO PAYMENT (Платежи)
--- ==========================================
 insertPayment:
 INSERT OR REPLACE INTO paymentEntity VALUES ?;
 
-getPaymentsByApartment:
-SELECT * FROM paymentEntity WHERE addressId = :addressId
-ORDER BY data DESC;
+getPaymentFromFlat:
+SELECT * FROM paymentEntity WHERE addressId = :addressId ORDER BY data DESC;
 
-deleteAllPayments:
+deletePaymentByAddressIds:
+DELETE FROM paymentEntity WHERE addressId IN (:addressIds);
+
+deleteAllPayment:
 DELETE FROM paymentEntity;
 
-deletePaymentsByApartment:
-DELETE FROM paymentEntity WHERE addressId =:addressId;
 
+-- ====================================================================
+-- --- 7. DAO METER (Счетчики — Стратегия: Чистая Сеть) ----------------
+-- ====================================================================
 
--- ==========================================
--- 7. DAO HEAT METER (Тепловые счетчики)
--- ==========================================
 insertHeatMeter:
 INSERT OR REPLACE INTO heatMeterEntity VALUES ?;
 
-getHeatMeterByApartment:
-SELECT * FROM heatMeterEntity WHERE addressId = :addressId ORDER BY work;
-
-deleteAllHeatMeters:
-DELETE FROM heatMeterEntity;
-
-deleteHeatMetersByApartment:
-DELETE FROM heatMeterEntity WHERE addressId = :addressId;
-
-
--- ==========================================
--- 8. DAO HEAT READING (Показания тепла)
--- ==========================================
-insertHeatReading:
-INSERT OR REPLACE INTO heatReadingEntity VALUES ?;
-
-getHeatReadingByMeter:
-SELECT * FROM heatReadingEntity
-WHERE teplomerId = ?
-ORDER BY dateReading DESC;
-
-deleteAllHeatReadings:
-DELETE FROM heatReadingEntity;
-
-deleteHeatReadingsMeter:
-DELETE FROM heatReadingEntity WHERE teplomerId =:teplomerId ;
-
-deleteHeatReadingByPokId:
-DELETE FROM heatReadingEntity WHERE pokId =:pokId;
-
-
-getLastHeatReadingByMeter:
-SELECT * FROM heatReadingEntity
-WHERE teplomerId = :teplomerId
-ORDER BY dateReading DESC LIMIT 1;
-
--- ==========================================
--- 9. DAO WATER METER (Водомеры)
--- ==========================================
 insertWaterMeter:
 INSERT OR REPLACE INTO waterMeterEntity VALUES ?;
 
 getWaterMetersByApartment:
-SELECT * FROM waterMeterEntity
-WHERE addressId = ?
-ORDER BY work;
+SELECT * FROM waterMeterEntity WHERE addressId = :addressId ORDER BY work;
+
+getHeatMetersByApartment:
+SELECT * FROM heatMeterEntity WHERE addressId = :addressId ORDER BY work;
+
+deleteWaterMetersByApartment:
+DELETE FROM waterMeterEntity WHERE addressId = :addressId;
+
+deleteHeatMetersByApartment:
+DELETE FROM heatMeterEntity WHERE addressId = :addressId;
 
 deleteAllWaterMeters:
 DELETE FROM waterMeterEntity;
 
-deleteWaterMetersApartment:
-DELETE FROM waterMeterEntity WHERE addressId =:addressId;
+deleteAllHeatMeters:
+DELETE FROM heatMeterEntity;
 
-deleteFdeleteWaterMetersNotInIds:
-DELETE FROM waterMeterEntity WHERE addressId NOT IN ?;
 
--- ==========================================
--- 10. DAO WATER READING (Показания воды)
--- ==========================================
+-- ====================================================================
+-- --- 8. DAO READING (Показания — Стратегия: Чистая Сеть) -------------
+-- ====================================================================
+
+insertHeatReading:
+INSERT OR REPLACE INTO heatReadingEntity VALUES ?;
+
 insertWaterReading:
 INSERT OR REPLACE INTO waterReadingEntity VALUES ?;
 
 getWaterReadingsByMeter:
-SELECT * FROM waterReadingEntity
-WHERE vodomerId = ?
-ORDER BY dateReadings DESC;
+SELECT * FROM waterReadingEntity WHERE vodomerId = :vodomerId ORDER BY pokId DESC;
+
+getHeatReadingsByMeter:
+SELECT * FROM heatReadingEntity WHERE teplomerId = :teplomerId ORDER BY pokId DESC;
+
+getLastWaterReadingByMeter:
+SELECT * FROM waterReadingEntity WHERE pokId = :pokId;
+
+getLastHeatReadingByMeter:
+SELECT * FROM heatReadingEntity WHERE pokId = :pokId;
+
+deleteWaterReadingsByMeter:
+DELETE FROM waterReadingEntity WHERE vodomerId = :vodomerId;
+
+deleteHeatReadingsByMeter:
+DELETE FROM heatReadingEntity WHERE teplomerId = :teplomerId;
+
+deleteWaterReadingByPokId:
+DELETE FROM waterReadingEntity WHERE pokId = :pokId;
+
+deleteHeatReadingByPokId:
+DELETE FROM heatReadingEntity WHERE pokId = :pokId;
 
 deleteAllWaterReadings:
 DELETE FROM waterReadingEntity;
 
-deleteWaterReadingsMeter:
-DELETE FROM waterReadingEntity WHERE vodomerId = :vodomerId;
+deleteAllHeatReadings:
+DELETE FROM heatReadingEntity;
 
-deleteWaterReadingByPokId:
-DELETE FROM waterReadingEntity WHERE pokId =:pokId;
 
-getLastWaterReadingByMeter:
-SELECT * FROM waterReadingEntity
-WHERE vodomerId = :vodomerId
-ORDER BY dateReadings DESC LIMIT 1;
+-- ====================================================================
+-- --- 9. АТОМАРНЫЕ ТРАНЗАКЦИИ ПОЛНОЙ ЗАЧИСТКИ БАЗЫ ДАННЫХ ------------
+-- ====================================================================
 
-clearAllTables {
+clearAllTables:
     DELETE FROM apartmentEntity;
     DELETE FROM familyEntity;
     DELETE FROM raionEntity;
@@ -461,4 +463,3 @@ clearAllTables {
     DELETE FROM heatReadingEntity;
     DELETE FROM serviceEntity;
     DELETE FROM paymentEntity;
-    }

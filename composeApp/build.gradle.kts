@@ -1,6 +1,6 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
+import com.android.build.api.dsl.ApplicationExtension
 plugins {
   alias(libs.plugins.kotlinMultiplatform)
   alias(libs.plugins.androidApplication)
@@ -47,6 +47,7 @@ kotlin {
           open = true,
           port = 8081
         )
+
       }
     }
     binaries.executable()
@@ -68,6 +69,7 @@ kotlin {
       implementation(libs.compose.ui)
       implementation(libs.compose.ui.tooling.preview)
       implementation(libs.compose.components.resources)
+//      implementation(libs.kotlinx.datetime)
       // Примечание:
 
       // 2. ЖИЗНЕННЫЙ ЦИКЛ
@@ -189,7 +191,7 @@ kotlin {
 
 
 
-android {
+configure<ApplicationExtension> {
   namespace = "com.ykis.ykismobkmp"
   compileSdk = libs.versions.android.compileSdk.get().toInt()
 
@@ -200,16 +202,19 @@ android {
     versionCode = 1
     versionName = "1.0"
   }
+
   packaging {
     resources {
       excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
   }
+
   buildTypes {
     getByName("release") {
       isMinifyEnabled = false
     }
   }
+
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
@@ -233,9 +238,8 @@ compose.desktop {
 sqldelight {
   databases {
     create("YkisDatabases") {
-      // Пакет должен быть ТАКИМ ЖЕ, как путь к папкам
       packageName.set("com.ykis.ykismobkmp.db")
-      generateAsync.set(false)
+//      generateAsync.set(false)
     }
   }
 }

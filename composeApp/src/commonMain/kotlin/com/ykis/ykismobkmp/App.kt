@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.ykis.ykismobkmp.db.YkisDatabasesQueries
+import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.ui.navigation.YkisPamApp
 import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreenModel
 import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
@@ -23,13 +24,16 @@ import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import org.koin.mp.KoinPlatform
 
+/**
+ * [YkisPamAppRoot] — Корневой узел графического рантайма приложения ЮКИС.
+ */
 @Composable
 fun YkisPamAppRoot(
   windowSize: WindowSizeClass,
   displayFeatures: List<Any>,
   initialChatId: String?
 ) {
-  var isKoinReady  by remember {
+  var isKoinReady by remember {
     mutableStateOf(
       try {
         KoinPlatform.getKoin() != null
@@ -54,18 +58,21 @@ fun YkisPamAppRoot(
       CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
   } else {
-    // ИСПРАВЛЕНО НАМЕРТВО: Переносим инициализацию СУБД в блок готового Koin-графа!
-    // Используем remember { ... }, чтобы полностью исключить скрытый Deadlock резолвера Koin!
     val koin = KoinPlatform.getKoin()
     val dbQueries = remember { koin.get<YkisDatabasesQueries>() }
 
-    // Безопасно будим SQLite-драйвер Cash App
+    // Безопасно будим SQLite-драйвер Cash App и подтягиваем конфигурацию оферты из облака
     LaunchedEffect(Unit) {
       try {
+        // 1. Асинхронно скачиваем свежие параметры оферты из Firebase Remote Config
+        val firebaseService = koin.get<FirebaseService>()
+        firebaseService.fetchConfiguration()
+
+        // 2. Опрашиваем локальный кэш квартир
         val cachedFlatsCount = dbQueries.getApartmentList().executeAsList().size
-        println("[App.YkisPamAppRoot]: СУБД опрошена. Квартир в кэше: $cachedFlatsCount")
+        println("[YkisLogKMP.App.YkisPamAppRoot]: СУБД и Remote Config опрошены. Квартир в кэше: $cachedFlatsCount")
       } catch (e: Exception) {
-        println("[App.YkisPamAppRoot_CRITICAL_FAIL]: Сбой обращения к СУБД на старте: ${e.message}")
+        println("[YkisLogKMP.App.YkisPamAppRoot_CRITICAL_FAIL]: Сбой инициализации СУБД или Firebase на старте: ${e.message}")
         e.printStackTrace()
       }
     }
@@ -74,7 +81,7 @@ fun YkisPamAppRoot(
     val settingsScreenModel = koinInject<SettingsScreenModel>()
     val currentTheme by settingsScreenModel.theme.collectAsState()
 
-    println("[YkisPamAppRoot]: Граф DI верифіковано. Ініціалізація теми: ${currentTheme ?: "system"}")
+    println("[YkisLogKMP.App.YkisPamAppRoot]: Граф DI верифіковано. Ініціалізація теми: ${currentTheme ?: "system"}")
 
     YkisPAMTheme(appTheme = currentTheme ?: "system") {
       Surface(

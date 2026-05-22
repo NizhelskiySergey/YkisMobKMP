@@ -35,8 +35,8 @@ fun DomainFamily.toDbFamily(): DbFamily {
  */
 fun DbFamily.toDomainFamily(): DomainFamily {
   return DomainFamily(
-    recId = this.recId.toInt(),
-    addressId = this.addressId.toInt(),
+    recId = this.recId,
+    addressId = this.addressId,
     rodstvo = this.rodstvo,
     fistname = this.firstname, // Возвращаем в доменное поле fistname
     lastname = this.lastname,
@@ -44,8 +44,8 @@ fun DbFamily.toDomainFamily(): DomainFamily {
     born = this.born,
     sex = this.sex,
     phone = this.phone,
-    subsidia = this.subsidia.toInt(),
-    vkl = this.vkl.toInt(),
+    subsidia = this.subsidia,
+    vkl = this.vkl,
     inn = this.inn,
     document = this.document,
     seria = this.seria,

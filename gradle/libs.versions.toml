@@ -44,6 +44,7 @@ playServicesMeasurementApi = "23.2.0"
 webcamCapture = "0.3.12"
 datastorePreferencesCore = "1.2.1"
 window = "1.5.1"
+dateTimeVersion = "0.7.1"
 
 [libraries]
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCore" }
@@ -86,6 +87,7 @@ compose-components-resources = { module = "org.jetbrains.compose.components:comp
 compose-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
 kotlinx-coroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "dateTimeVersion" }
 # Основной движок навигации Voyadger
 
 

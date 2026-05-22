@@ -27,7 +27,7 @@ fun WaterReadingItemContent(
 ) {
   Column(modifier = modifier.fillMaxWidth()) {
     // Прямое КМР-сравнение Int-флага (1 - Расчет по среднему нормативу биллинга ГИОЦ г. Южного, 0 - По прибору учета)
-    if (reading.avg == 1) {
+    if (reading.avg == 1L) {
       // Отображение полей начисления по среднему нормативу
       LabelTextWithText(
         labelText = stringResource(Res.string.average),

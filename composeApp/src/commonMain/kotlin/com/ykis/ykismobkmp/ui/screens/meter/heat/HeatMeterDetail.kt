@@ -99,7 +99,7 @@ fun HeatMeterDetail(
         // ИСПРАВЛЕНО: Передаем безопасный распакованный объект safeLastReading
         HeatReadingItemContent(
           reading = safeLastReading,
-          isAverage = safeLastReading.avg == 1
+          isAverage = safeLastReading.avg == 1L
         )
       }
 
@@ -145,12 +145,12 @@ fun HeatMeterDetail(
       LabelTextWithCheckBox(
         modifier = Modifier.padding(vertical = 2.dp),
         labelText = "Прилад знаходиться на повірці: ",
-        checked = heatMeterEntity.out_ == 1
+        checked = heatMeterEntity.isOut == 1L
       )
       LabelTextWithCheckBox(
         modifier = Modifier.padding(vertical = 2.dp),
         labelText = "Прилад знято з обліку / списано: ",
-        checked = heatMeterEntity.spisan == 1
+        checked = heatMeterEntity.spisan == 1L
       )
     }
 
@@ -173,7 +173,7 @@ fun HeatMeterDetail(
         LabelTextWithCheckBox(
           modifier = Modifier.padding(vertical = 2.dp),
           labelText = "Комерційний облік призупинено: ",
-          checked = heatMeterEntity.spisan == 1
+          checked = heatMeterEntity.spisan == 1L
         )
       }
     }

@@ -2,34 +2,17 @@ package com.ykis.ykismobkmp.ui.screens.auth
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.key.Key.Companion.R
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,17 +20,21 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.core.utils.Resource
-import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.ykismobkmp.ui.components.EmailField
-import com.ykis.ykismobkmp.ui.components.LogoImage
-import com.ykis.ykismobkmp.ui.components.PasswordField
 import com.ykis.ykismobkmp.ui.navigation.ContentType
-import com.ykis.ykismobkmp.ui.navigation.MainApartmentScreen
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import org.koin.compose.koinInject
-import com.ykis.ykismobkmp.ui.navigation.SignUpScreen as NavSignUpScreen
 
-private const val tag = "SignInScreen"
+// Импорты твоих внутренних полей ввода и AppBar
+import com.ykis.ykismobkmp.ui.components.DefaultAppBar
+import com.ykis.ykismobkmp.ui.components.LogoImage
+import com.ykis.ykismobkmp.ui.components.EmailField
+import com.ykis.ykismobkmp.ui.components.PasswordField
+import com.ykis.ykismobkmp.ui.navigation.MainApartmentScreen
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.login_details
+
+private const val className = "SignInScreen"
 
 @Composable
 fun GoogleAuthButton(buttonTextRes: Int, isLoading: Boolean, onTokenReceived: (String) -> Unit) {
@@ -62,9 +49,8 @@ fun GoogleAuthButton(buttonTextRes: Int, isLoading: Boolean, onTokenReceived: (S
 
 /**
  * [SignInScreen] — Кроссплатформенный экран авторизации абонента расчетного центра ЮКИС.
- * ИСПРАВЛЕНО: Завершены оборванные строки адаптивности под четырехступенчатую сетку Material 3.
  */
-class SignInScreen : Screen {
+object SignInScreen : Screen {
 
   @Composable
   override fun Content() {
@@ -89,19 +75,18 @@ class SignInScreen : Screen {
 
       // Динамический пересчет брейкпоинтов Material 3
       LaunchedEffect(windowWidth) {
-        // ИСПРАВЛЕНО: Сорванные строки дописаны до конца в строгом соответствии с твоим enum-классом
         if (windowWidth >= 840.dp) {
           currentContentType = ContentType.DUAL_PANE
           currentNavigationType = NavigationType.PERMANENT_NAVIGATION_DRAWER
-          println("[$tag.Content]: Широкий екран Mac Desktop (PERMANENT_NAVIGATION_DRAWER)")
+          println("[YkisLogKMP.$className.Content]: Широкий екран Mac Desktop (PERMANENT_NAVIGATION_DRAWER)")
         } else if (windowWidth >= 600.dp) {
           currentContentType = ContentType.DUAL_PANE
           currentNavigationType = NavigationType.NAVIGATION_RAIL_EXPANDED
-          println("[$tag.Content]: Адаптивний режим: Mac Desktop / Планшет (DUAL_PANE)")
+          println("[YkisLogKMP.$className.Content]: Адаптивний режим: Mac Desktop / Планшет (DUAL_PANE)")
         } else {
           currentContentType = ContentType.SINGLE_PANE
           currentNavigationType = NavigationType.BOTTOM_NAVIGATION
-          println("[$tag.Content]: Адаптивний режим: Смартфон (SINGLE_PANE)")
+          println("[YkisLogKMP.$className.Content]: Адаптивний режим: Смартфон (SINGLE_PANE)")
         }
       }
 
@@ -114,7 +99,7 @@ class SignInScreen : Screen {
         onSignInClick = {
           keyboard?.hide()
           screenModel.onSignInClick {
-            println("[$tag.Content]: Успішний вхід по Email. Запуск адаптивного хабу.")
+            println("[YkisLogKMP.$className.Content]: Успішний вхід по Email. Запуск адаптивного хабу.")
 
             navigator.replaceAll(
               MainApartmentScreen(
@@ -126,13 +111,14 @@ class SignInScreen : Screen {
         },
         onForgotPasswordClick = { screenModel.onForgotPasswordClick() },
         onSignUpClick = {
-          println("[$tag.Content]: [NAVIGATION] Перехід на екран реєстрації SignUpScreen")
-          navigator.push(NavSignUpScreen)
+          println("[YkisLogKMP.$className.Content]: [NAVIGATION] Перехід на екран реєстрації SignUpScreen")
+          // ИСПРАВЛЕНО: Нативный вызов синглтона SignUpScreen без лишних круглых скобок
+          navigator.push(SignUpScreen())
         },
         onGoogleTokenReceived = { idToken ->
-          println("[$tag.Content]: [EVENT] Отримано Google ID Token. Запуск авторизації...")
+          println("[YkisLogKMP.$className.Content]: [EVENT] Отримано Google ID Token. Запуск авторизації...")
           screenModel.onSignUpWithGoogle(idToken) {
-            println("[$tag.Content]: [NAVIGATE] Успіх Google Auth. Запуск адаптивного хабу.")
+            println("[YkisLogKMP.$className.Content]: [NAVIGATE] Успіх Google Auth. Запуск адаптивного хабу.")
 
             navigator.replaceAll(
               MainApartmentScreen(
@@ -174,7 +160,7 @@ fun SignInScreenStateless(
       verticalArrangement = Arrangement.Top,
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
-      DefaultAppBar(title = "Вхід в систему", canNavigateBack = false)
+      DefaultAppBar(title = stringResource(Res.string.login_details), canNavigateBack = false)
 
       Column(
         modifier = Modifier
@@ -246,7 +232,7 @@ fun SignInScreenStateless(
         Spacer(modifier = Modifier.height(24.dp))
 
         Row(
-          modifier = Modifier.fillMaxWidth(),
+          modifier = Modifier.padding(bottom = 16.dp).fillMaxWidth(),
           horizontalArrangement = Arrangement.Center,
           verticalAlignment = Alignment.CenterVertically
         ) {
@@ -267,7 +253,3 @@ fun SignInScreenStateless(
     }
   }
 }
-
-
-
-

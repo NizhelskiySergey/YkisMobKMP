@@ -2,28 +2,28 @@ package com.ykis.ykismobkmp.domain.mapper
 
 import com.ykis.ykismobkmp.db.WaterReadingEntity as DbWaterReading
 import com.ykis.ykismobkmp.domain.entity.WaterReadingEntity as DomainWaterReading
+
 /**
  * [DomainWaterReading.toDbWaterReading] — Конвертация доменной UI-модели в SQLDelight сущность для записи в БД.
  */
 fun DomainWaterReading.toDbWaterReading(): DbWaterReading {
   return DbWaterReading(
-    addressId = this.addressId, // Сквозной Long ID
-    pokId = this.pokId, // Первичный ключ Long
-    vodomerId = this.vodomerId, // Long ID счетчика
+    addressId = this.addressId,
+    pokId = this.pokId,
+    vodomerId = this.vodomerId,
     dateOt = this.dateOt,
     dateDo = this.dateDo,
-    days = this.days.toLong(), // SQLDelight сохраняет INTEGER как Long в SQLite
-    // ИСПРАВЛЕНО: Связываем доменные поля кубометров с CamelCase колонками твоей SQL схемы
-    lastValue = this.last.toLong(),
-    currentValue = this.current.toLong(),
-    kub = this.kub.toLong(),
-    avg = this.avg.toLong(),
-    pokOt = this.pokOt.toLong(),
-    pokDo = this.pokDo.toLong(),
-    rday = this.rday.toLong(),
-    kubDay = this.kubDay, // REAL маппится в Double напрямую
-    qtyKub = this.qtyKub.toLong(),
-    operator_ = this.operator,
+    days = this.days,
+    lastValue = this.last,
+    currentValue = this.current,
+    kub = this.kub,
+    avg = this.avg,
+    pokOt = this.pokOt,
+    pokDo = this.pokDo,
+    rday = this.rday,
+    kubDay = this.kubDay,
+    qtyKub = this.qtyKub,
+    operator_ = this.operator, // Зарезервированное поле SQLDelight с нижним подчеркиванием
     dateReadings = this.dateReadings,
     tarifXv = this.tarifXv,
     xvoda = this.xvoda,
@@ -31,13 +31,14 @@ fun DomainWaterReading.toDbWaterReading(): DbWaterReading {
     stoki = this.stoki,
     dateSt = this.dateSt,
     dateFin = this.dateFin,
-    mday = this.mday.toLong(),
+    mday = this.mday,
     dateIn = this.dateIn
   )
 }
 
 /**
  * [DbWaterReading.toDomainWaterReading] — Преобразование сущности SQLDelight обратно в чистую доменную модель для UI.
+ * ИСПРАВЛЕНО НАМЕРТВО: Полная ликвидация .toInt() и .toDouble()! Все типы данных состыкованы один к одному на Long.
  */
 fun DbWaterReading.toDomainWaterReading(): DomainWaterReading {
   return DomainWaterReading(
@@ -46,18 +47,16 @@ fun DbWaterReading.toDomainWaterReading(): DomainWaterReading {
     vodomerId = this.vodomerId,
     dateOt = this.dateOt,
     dateDo = this.dateDo,
-    // ИСПРАВЛЕНО: Приведение Long из SQLite в Int для доменной модели
-    days = this.days.toInt(),
-    // ИСПРАВЛЕНО: Преобразуем сохраненные значения кубометров обратно в Double для UI-слоя
-    last = this.lastValue.toDouble(),
-    current = this.currentValue.toDouble(),
-    kub = this.kub.toDouble(),
-    avg = this.avg.toInt(),
-    pokOt = this.pokOt.toInt(),
-    pokDo = this.pokDo.toInt(),
-    rday = this.rday.toInt(),
+    days = this.days,
+    last = this.lastValue,
+    current = this.currentValue,
+    kub = this.kub,
+    avg = this.avg,
+    pokOt = this.pokOt,
+    pokDo = this.pokDo,
+    rday = this.rday,
     kubDay = this.kubDay,
-    qtyKub = this.qtyKub.toDouble(),
+    qtyKub = this.qtyKub,
     operator = this.operator_,
     dateReadings = this.dateReadings,
     tarifXv = this.tarifXv,
@@ -66,7 +65,7 @@ fun DbWaterReading.toDomainWaterReading(): DomainWaterReading {
     stoki = this.stoki,
     dateSt = this.dateSt,
     dateFin = this.dateFin,
-    mday = this.mday.toInt(),
+    mday = this.mday,
     dateIn = this.dateIn
   )
 }

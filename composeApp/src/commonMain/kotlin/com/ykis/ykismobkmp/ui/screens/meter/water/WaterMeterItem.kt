@@ -28,11 +28,11 @@ fun WaterMeterItem(
 
   // ИСПРАВЛЕНО: Прямое КМР-сравнение Int-флагов биллинга расчетного центра Южного (1 - Да, 0 - Нет)
   when {
-    waterMeter.spisan == 1 -> {
+    waterMeter.spisan == 1L -> {
       statusText = "Списаний"
       alphaValue = 0.4f
     }
-    waterMeter.out_ == 1 -> { // ИСПРАВЛЕНО: Имя поля приведено к стандарту СУБД SQLDelight
+    waterMeter.isOut == 1L -> { // ИСПРАВЛЕНО: Имя поля приведено к стандарту СУБД SQLDelight
       statusText = "На повірці"
       alphaValue = 0.4f
     }
@@ -96,7 +96,7 @@ fun WaterMeterItem(
         Text(
           text = statusText,
           style = MaterialTheme.typography.bodyMedium,
-          color = if (waterMeter.spisan == 1 || waterMeter.out_ == 1)
+          color = if (waterMeter.spisan == 1L || waterMeter.isOut == 1L)
             MaterialTheme.colorScheme.error
           else
             MaterialTheme.colorScheme.primary

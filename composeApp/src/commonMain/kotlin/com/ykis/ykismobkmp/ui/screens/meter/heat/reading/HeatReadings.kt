@@ -99,7 +99,7 @@ fun HeatReadingItem(
       // Внедряем твой кастомный КМР-компонент отрисовки полей строки истории тепла
       HeatReadingItemContent(
         reading = reading,
-        isAverage = reading.avg == 1 // Прямое КМР Int сравнение флага
+        isAverage = reading.avg == 1L // Прямое КМР Int сравнение флага
       )
     }
   }

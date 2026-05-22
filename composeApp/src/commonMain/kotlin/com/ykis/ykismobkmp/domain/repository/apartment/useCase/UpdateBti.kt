@@ -1,47 +1,77 @@
 package com.ykis.ykismobkmp.domain.repository.apartment.useCase
 
-import com.ykis.ykismobkmp.core.utils.Log
+import com.ykis.ykismobkmp.cash.apartment.ApartmentCache
 import com.ykis.ykismobkmp.core.utils.Resource
-import com.ykis.ykismobkmp.data.responses.BaseResponse
-import com.ykis.ykismobkmp.data.responses.GetSimpleResponse
-import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
+import com.ykis.ykismobkmp.data.responses.GetApartmentsResponse
 import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
+/**
+ * [UpdateBti] — Сценарий обновления анкетных данных БТИ для лицевого счета.
+ */
 class UpdateBti(
-    private val repository: ApartmentRepository,
+  private val repository: ApartmentRepository,
+  private val cache: ApartmentCache
 ) {
-  operator fun invoke(params: ApartmentEntity): Flow<Resource<GetSimpleResponse>> = flow {
-      val methodName = "UseCase.UpdateBti"
-      try {
-          Log.d("YkisLog", "[$methodName]: [START] ID: ${params.addressId}")
-          emit(Resource.Loading())
+  private val className = "UpdateBti"
 
-          // 1. Валидация ПЕРЕД запросом (Тот самый принцип "якоря")
-          if (params.address.isBlank()) {
-              emit(Resource.Error(message = "Адреса не может быть пустой"))
-              return@flow
-          }
+  operator fun invoke(addressId: Long,phone: String,email: String): Flow<Resource<GetApartmentsResponse>> = flow {
+    val methodName = "invoke"
+    try {
+      println("[$className.$methodName]: [START] ID лицевого счета: $addressId")
+      emit(Resource.Loading())
 
-          // 2. Сетевой запрос через мультиплатформенный репозиторий
-          val response = repository.updateBti(params)
-
-          if (response.success == 1) {
-              Log.i("YkisLog", "[$methodName]: [SUCCESS]")
-              emit(Resource.Success(response))
-          } else {
-              Log.e("YkisLog", "[$methodName]: [REJECT] ${response.message}")
-              // В KMP можно передавать либо текст, либо ключ ресурса (errorKey)
-              emit(Resource.Error(message = response.message))
-          }
-
-      } catch (ex: Exception) {
-          Log.e("YkisLog", "[$methodName]: [EXCEPTION] ${ex.message}")
-          // В Wasm/JS IOException нет, ловим общий Exception
-          emit(Resource.Error(message = "Помилка мережі або сервера"))
+      // 1. ВАЛИДАЦИЯ ПЕРЕД ЗАПРОСОМ (Принцип входного якоря)
+      if (phone.isBlank() || email.isBlank()) {
+        println("[$className.$methodName]: [ABORT] Попытка отправки пустых полей email/Контактов")
+        emit(Resource.Error(message = "email та номер телефону не можуть бути порожніми"))
+        return@flow
       }
-  }.flowOn(Dispatchers.Default) // В KMP Default работает везде, IO — не на всех таргетах
+
+      // 2. СЕТЕВОЙ ЗАПРОС ЧЕРЕЗ РЕПОЗИТОРИЙ НА СТРОГО ВЫРОВНЕННЫХ ПАРАМЕТРАХ СЕТИ
+      val response = repository.updateBti(
+        addressId = addressId,
+        phone = phone,
+        email = email
+      )
+
+      if (response.success == 1) {
+        println("[$className.$methodName]: [SUCCESS] Данные БТИ успешно обновлены на сервере")
+
+        /**
+         * АТОМАРНОЕ ОБНОВЛЕНИЕ СУБД:
+         * Вычитываем текущую квартиру из SQLDelight, обновляем локальные поля контактов
+         * и запечатываем обратно на диск для мгновенного обновления графического UI.
+         */
+        try {
+          val oldApartment = cache.getApartmentById(addressId)
+          if (oldApartment != null) {
+            val updatedApartment = oldApartment.copy(
+              addressId = addressId,
+              phone = phone,
+              email = email
+            )
+            cache.deleteFlat(addressId)
+            cache.insertApartmentList(listOf(updatedApartment))
+            println("[$className.$methodName]: Локальный дисковый кэш SQLDelight успешно синхронизирован")
+          }
+        } catch (dbEx: Exception) {
+          println("[$className.$methodName]: Ошибка записи в СУБД, но сервер данные принял: ${dbEx.message}")
+        }
+
+        emit(Resource.Success(response))
+      } else {
+        println("[$className.$methodName]: [REJECT] Сервер отклонил изменения: ${response.message}")
+        emit(Resource.Error(message = response.message ?: "Помилка оновлення даних БТІ"))
+      }
+
+    } catch (ex: Exception) {
+      println("[$className.$methodName]: [EXCEPTION] Критическая ошибка сети или парсера: ${ex.message}")
+      ex.printStackTrace()
+      emit(Resource.Error(message = "Помилка мережі або сервера. Спробуйте пізніше"))
+    }
+  }.flowOn(Dispatchers.Default) // Фоновые транзакции и маппинг выполняются в Default пуле корутин
 }

@@ -5,11 +5,12 @@ import kotlinx.serialization.Serializable
 
 /**
  * [WaterReadingEntity] — Кроссплатформенная доменная модель истории показаний водомера.
- * Полностью типизирована под сквозной КМР-стандарт Long-идентификаторов и Double-показаний.
+ * ИСПРАВЛЕНО НАМЕРТВО: Все показания, кубы и расчетные объемы (qty_kub) жестко приведены к типу Long
+ * в точном соответствии с твоей схемой СУБД SQLDelight, убирая любые риски Type Mismatch!
+ * Намертво зафиксирован для полной замены.
  */
 @Serializable
 data class WaterReadingEntity(
-  // ИСПРАВЛЕНО: Все ключевые ЖКХ-идентификаторы переведены на тип Long под СУБД SQLDelight
   @SerialName("address_id")
   val addressId: Long = 0L,
 
@@ -26,36 +27,34 @@ data class WaterReadingEntity(
   val dateDo: String = "2024-01-01",
 
   @SerialName("days")
-  val days: Int = 0,
+  val days: Long = 0L,
 
-  // ИСПРАВЛЕНО: Показания кубометров переведены на Double во избежание SerializationException
   @SerialName("last")
-  val last: Double = 0.0,
+  val last: Long = 0L,
 
   @SerialName("current")
-  val current: Double = 15.0,
+  val current: Long = 15L,
 
   @SerialName("kub")
-  val kub: Double = 0.0,
+  val kub: Long = 0L,
 
-  // ИСПРАВЛЕНО: Платформозависимый Byte изменен на универсальный Kotlin Int
   @SerialName("avg")
-  val avg: Int = 0,
+  val avg: Long = 0L,
 
   @SerialName("pok_ot")
-  val pokOt: Int = 0,
+  val pokOt: Long = 0L,
 
   @SerialName("pok_do")
-  val pokDo: Int = 0,
+  val pokDo: Long = 0L,
 
   @SerialName("rday")
-  val rday: Int = 0,
+  val rday: Long = 0L,
 
   @SerialName("kub_day")
   val kubDay: Double = 0.0,
 
   @SerialName("qty_kub")
-  val qtyKub: Double = 0.0,
+  val qtyKub: Long = 0L, // Переведено в Long строго по контракту СУБД
 
   @SerialName("data_in_op")
   val operator: String = "Unknown",
@@ -82,9 +81,9 @@ data class WaterReadingEntity(
   val dateFin: String = "Unknown",
 
   @SerialName("mday")
-  val mday: Int = 0,
+  val mday: Long = 0L,
 
   @SerialName("date_in")
-  val dateIn: String = "Unknown",
+  val dateIn: String = "Unknown"
 )
 

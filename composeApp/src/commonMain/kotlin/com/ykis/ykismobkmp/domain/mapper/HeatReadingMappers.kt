@@ -51,11 +51,11 @@ fun DbHeatReading.toDomainHeatReading(): DomainHeatReading {
     dateDo = this.dateDo,
     edizm = this.edizm,
     koef = this.koef,
-    days = this.days.toInt(), // Безопасное приведение Long из SQLite в Int для UI модели
+    days = this.days, // Безопасное приведение Long из SQLite в Int для UI модели
     last = this.last,
     current = this.current,
     gkal = this.gkal,
-    avg = this.avg.toInt(), // Безопасное приведение Long из SQLite в Int для UI модели
+    avg = this.avg, // Безопасное приведение Long из SQLite в Int для UI модели
     tarif = this.tarif,
     qty = this.qty,
     pokOt = this.pokOt,

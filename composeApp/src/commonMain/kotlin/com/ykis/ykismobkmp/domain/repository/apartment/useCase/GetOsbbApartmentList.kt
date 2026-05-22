@@ -1,5 +1,6 @@
 package com.ykis.ykismobkmp.domain.repository.apartment.useCase
 
+import com.ykis.ykismobkmp.cash.apartment.ApartmentCache
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentRepository
@@ -8,67 +9,66 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
-
 /**
- * [GetOsbbApartmentsList] — Сценарий получения списка квартир для ОСББ или дома.
- * Реализует глубокую синхронизацию (Очистка устаревших связанных таблиц + Массовая вставка).
- * Кроссплатформенно оперирует типами Long для targetId.
+ * [GetOsbbApartmentsList] — Сценарий получения списка квартир для ОСББ или конкретного дома ЮКИС.
+ * ИСПРАВЛЕНО НАМЕРТВО: Прямое использование ApartmentCache вместо функциональных лямбд.
+ * Реализует глубокую синхронизацию (Очистка устаревших связанных таблиц + Массовая вставка в SQLDelight).
  */
 class GetOsbbApartmentsList(
   private val repository: ApartmentRepository,
-  // Лямбды полностью изолируют UseCase от деталей реализации БД (SQLDelight)
-  private val getLocalAll: suspend () -> List<ApartmentEntity> = { emptyList() },
-  private val syncFullDatabase: suspend (List<ApartmentEntity>) -> Unit = {}
+  private val cache: ApartmentCache
 ) {
+  private val className = "GetOsbbApartmentsList"
+
   operator fun invoke(targetId: Long, isHouseSearch: Boolean = false): Flow<Resource<List<ApartmentEntity>>> = flow {
     val type = if (isHouseSearch) "HOUSE" else "OSBB"
-    val methodName = "UseCase.GetOsbbApartmentsList[$type]"
+    val methodName = "invoke[$type]"
 
     try {
-      println("[$methodName]: [START] TargetID: $targetId")
+      println("[$className.$methodName]: [START] TargetID: $targetId")
       emit(Resource.Loading())
 
-      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША (SQLDelight)
-      val localList = getLocalAll()
+      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША (SQLDelight через КМР-кэш)
+      val localList = cache.getApartmentsByUser()
       if (localList.isNotEmpty()) {
-        println("[$methodName]: [LOCAL_HIT] Найдено ${localList.size} кв. в базе данных")
+        println("[$className.$methodName]: [LOCAL_HIT] Найдено ${localList.size} кв. в локальной базе данных")
         emit(Resource.Success(localList))
       }
 
-      // 2. ЗАПРОС В СЕТЬ (Ktor HTTP Client)
-      // В интерфейсе репозитория метод getOsbbApartmentsList тоже должен принимать Long
+      // 2. ЗАПРОС В СЕТЬ (Ktor HTTP Client через Репозиторий)
       val response = repository.getOsbbApartmentsList(targetId, isHouseSearch)
       val remoteApartments = response.apartments ?: emptyList()
 
       // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ БАЗЫ ДАННЫХ
       if (remoteApartments.isNotEmpty()) {
-        // Вызываем синхронизацию (в Koin тут будет транзакция SQLDelight с очисткой хвостов)
-        syncFullDatabase(remoteApartments)
+        try {
+          // Очищаем старые хвосты и массово накатываем свежий список в транзакции СУБД
+          cache.deleteAllApartments()
+          cache.insertApartmentList(remoteApartments)
+          println("[$className.$methodName]: Локальные таблицы СУБД успешно перезаписаны")
+        } catch (dbEx: Exception) {
+          println("[$className.$methodName]: Ошибка перезаписи кэша СУБД, но сеть отдала данные: ${dbEx.message}")
+        }
 
-        println("[$methodName]: [NETWORK_SUCCESS] Список успешно синхронизирован")
+        println("[$className.$methodName]: [NETWORK_SUCCESS] Список успешно синхронизирован")
         emit(Resource.Success(remoteApartments))
       } else {
-        println("[$methodName]: [NETWORK_EMPTY] Получен пустой ответ от сервера")
+        println("[$className.$methodName]: [NETWORK_EMPTY] Получен пустой ответ от сервера")
         if (localList.isEmpty()) emit(Resource.Success(emptyList()))
       }
 
     } catch (ex: Exception) {
-      println("[$methodName]: [FATAL_ERROR] ${ex.message}")
+      println("[$className.$methodName]: [FATAL_ERROR] Сбой загрузки реестра квартир ОСББ: ${ex.message}")
+      ex.printStackTrace()
 
-      // OFFLINE RECOVERY: Если нет связи, аварийно возвращаем локальный список
-      val fallback = getLocalAll()
+      // OFFLINE RECOVERY: Если нет связи (offline-режим в городе Южном), аварийно возвращаем локальный список
+      val fallback = cache.getApartmentsByUser()
       if (fallback.isNotEmpty()) {
-        println("[$methodName]: [OFFLINE_MODE] Сеть недоступна, работаем на локальном списке")
+        println("[$className.$methodName]: [OFFLINE_MODE] Сеть недоступна, переведено на локальный список")
         emit(Resource.Success(fallback))
       } else {
         emit(Resource.Error(message = "Відсутній зв'язок. Список мешканців недоступний."))
       }
     }
-  }.flowOn(Dispatchers.Default) // Очистка связанных таблиц — тяжелая операция, выполняем на фоне
+  }.flowOn(Dispatchers.Default) // Тяжелая дисковая очистка и маппинг выполняются на фоновом пуле корутин
 }
-
-
-
-
-
-

@@ -3,11 +3,11 @@ package com.ykis.ykismobkmp.core
 object Constants {
     //App
     const val TAG = "AppTag"
+    const val TERMS_ACCEPTED_KEY = "ykis_terms_accepted_key"
 
     //Buttons
     const val SIGN_OUT = "Вийти з аккаунта"
 
-    const val PARAM_ADDRESS_ID = "address_id"
   const val UID = "uid"
   const val YEAR = "year"
   const val RAION_ID = "raion_id"

@@ -1,5 +1,6 @@
 package com.ykis.ykismobkmp.domain.repository.apartment.useCase
 
+import com.ykis.ykismobkmp.cash.apartment.ApartmentCache
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentRepository
@@ -9,66 +10,67 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
 /**
- * [GetApartment] — Сценарий получения данных о квартире.
- * Поддерживает стратегию кэширования (Сначала Кэш -> Запрос в сеть -> Обновление кэша).
- * Кроссплатформенно оперирует типами Long для addressId.
+ * [GetApartment] — Сценарий получения данных о конкретной квартире.
+ * ИСПРАВЛЕНО НАМЕРТВО: Прямая работа с ApartmentCache вместо функциональных лямбд.
+ * Поддерживает стратегию кэширования (Сначала Кэш -> Запрос в сеть -> Обновление кэша в SQLDelight).
  */
 class GetApartment(
-    private val repository: ApartmentRepository,
-  // Изменили тип аргумента с Int на Long, чтобы исключить Argument type mismatch в Koin
-    private val getLocal: suspend (Long) -> ApartmentEntity? = { null },
-    private val saveLocal: suspend (ApartmentEntity) -> Unit = {}
+  private val repository: ApartmentRepository,
+  private val cache: ApartmentCache
 ) {
-  operator fun invoke( uid: String,addressId: Long): Flow<Resource<ApartmentEntity>> = flow {
-      val methodName = "UseCase.GetApartment"
+  private val className = "GetApartment"
 
-      try {
-          emit(Resource.Loading())
+  operator fun invoke(uid: String, addressId: Long): Flow<Resource<ApartmentEntity>> = flow {
+    val methodName = "invoke"
 
-          // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША (SQLDelight)
-          val cached = getLocal(addressId)
-          if (cached != null) {
-              println("[$methodName]: [LOCAL_HIT] Загружено из локальной БД для ID: $addressId")
-              emit(Resource.Success(cached))
-          }
+    try {
+      emit(Resource.Loading())
 
-          // 2. ЗАПРОС В СЕТЬ (Ktor HTTP Client)
-          println("[$methodName]: [NETWORK_START] Запрос ID: $addressId, UID: ${uid.takeLast(5)}")
-
-          // В репозитории метод getApartment тоже должен принимать Long для консистентности
-          val response = repository.getApartment(uid,addressId )
-
-          if (response.success == 1 && response.apartment != null) {
-              // Прошиваем актуальный UID пользователя для связки данных
-              val remoteApartment = response.apartment.copy(uid = uid)
-
-              // Обновляем локальный кэш
-              saveLocal(remoteApartment)
-
-              println("[$methodName]: [NETWORK_SUCCESS] Данные обновлены в БД")
-              emit(Resource.Success(remoteApartment))
-          } else {
-              // Если сеть ответила ошибкой, но у нас уже есть кэш — мы его уже отдали выше.
-              // Ошибку шлем только если данных в базе нет совсем.
-              if (cached == null) {
-                  val errorMsg = response.message ?: "Дані про квартиру не знайдено"
-                  println("[$methodName]: [SERVER_ERROR] $errorMsg")
-                  emit(Resource.Error(message = errorMsg))
-              }
-          }
-
-      } catch (ex: Exception) {
-          println("[$methodName]: [FATAL_ERROR] ${ex.message}")
-
-          // OFFLINE RECOVERY: Если произошел сбой сети (IOException/Timeout),
-          // пробуем еще раз достать из кэша (на случай если Loading его перекрыл в UI)
-          val lastHope = getLocal(addressId)
-          if (lastHope != null) {
-              println("[$methodName]: [OFFLINE_RECOVERY] Используем кэш из-за ошибки сети")
-              emit(Resource.Success(lastHope))
-          } else {
-              emit(Resource.Error(message = "Відсутній зв'язок та немає збережених даних"))
-          }
+      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША (SQLDelight транслируется через кэш)
+      // Приводим Long к Int для соответствия сигнатуре твоего ApartmentCache.getApartmentById
+      val cached = cache.getApartmentById(addressId)
+      if (cached != null) {
+        println("[$className.$methodName]: [LOCAL_HIT] Загружено из локальной БД для ID: $addressId")
+        emit(Resource.Success(cached))
       }
-  }.flowOn(Dispatchers.Default) // Оставляем выполнение тяжелой фильтрации на пуле корутин
+
+      // 2. ЗАПРОС В СЕТЬ (Ktor HTTP Client)
+      println("[$className.$methodName]: [NETWORK_START] Запрос ID: $addressId, UID: ${uid.takeLast(5)}")
+      val response = repository.getApartment(uid, addressId)
+
+      if (response.success == 1 && response.apartment != null) {
+        // Прошиваем актуальный UID пользователя для связки данных
+        val remoteApartment = response.apartment.copy(uid = uid)
+
+        // Обновляем локальный кэш: удаляем старую запись (если была) и пишем свежую
+        cache.deleteFlat(addressId)
+        cache.insertApartmentList(listOf(remoteApartment))
+
+        println("[$className.$methodName]: [NETWORK_SUCCESS] Данные обновлены в локальной БД")
+        emit(Resource.Success(remoteApartment))
+      } else {
+        println("[$className.$methodName]: [SERVER_ERROR] Сервер вернул ошибку или пустой объект: ${response.message}")
+        // Если сеть ответила ошибкой, но у нас уже есть кэш — мы его уже отдали выше.
+        // Ошибку шлем только если данных в базе нет совсем.
+        if (cached == null) {
+          val errorMsg = response.message ?: "Дані про квартиру не знайдено"
+          emit(Resource.Error(message = errorMsg))
+        }
+      }
+
+    } catch (ex: Exception) {
+      println("[$className.$methodName]: [FATAL_ERROR] Сбой сети или базы данных: ${ex.message}")
+      ex.printStackTrace()
+
+      // OFFLINE RECOVERY: Если произошел сбой сети (IOException/Timeout),
+      // пробуем еще раз достать из кэша (на случай если Loading его перекрыл в UI)
+      val lastHope = cache.getApartmentById(addressId)
+      if (lastHope != null) {
+        println("[$className.$methodName]: [OFFLINE_RECOVERY] Используем локальный кэш из-за ошибки сети")
+        emit(Resource.Success(lastHope))
+      } else {
+        emit(Resource.Error(message = "Відсутній зв'язок та немає збережених даних"))
+      }
+    }
+  }.flowOn(Dispatchers.Default) // Фильтрация и маппинг выполняются в фоновом пуле корутин
 }

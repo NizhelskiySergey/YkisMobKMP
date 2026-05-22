@@ -1,10 +1,5 @@
 package com.ykis.ykismobkmp.domain.services // Укажи свой актуальный пакет сущностей
 
-/**
- * [UserFirebase] — Кроссплатформенная модель профиля пользователя в Firestore.
- * Очищена от платформенных привязок и синхронизирована с типами Long для баз данных.
- */
-
 import com.ykis.ykismobkmp.domain.entity.UserEntity
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -54,17 +49,18 @@ data class UserFirebase(
 /**
  * [UserFirebase.toEntity] — Кроссплатформенный маппер из модели Firebase в Entity-модель для UI слоя.
  * ИСПРАВЛЕНО: Убран ложный кастинг .toInt(). Идентификаторы пробрасываются как чистые Long.
+ * Префикс логирования переведен на стандарт YkisLogKMP.
  */
 fun UserFirebase.toEntity(): UserEntity {
-  println("[$className.toEntity]: Выполняется КМР-маппинг профиля Firestore для UID: $uid")
+  println("[YkisLogKMP.$className.toEntity]: Выполняется КМР-маппинг профиля Firestore для UID: $uid")
 
   return UserEntity(
     uid = this.uid,
     // Используем name ("Адрес | Фамилия"), а если он null — email
     displayName = this.name ?: this.email,
     photoUrl = this.photoUrl,
-    // Безопасно парсим строку роли в Enum класс
-    userRole = UserRole.entries.find { it.name == this.userRole } ?: UserRole.StandardUser,
+    // Безопасно парсим строку роли в Enum класс через нашу зафиксированную функцию fromString
+    userRole = UserRole.fromString(this.userRole),
     email = this.email,
     address = this.name ?: "",
     // ИСПРАВЛЕНО: Никаких .toInt(). Пробрасываем чистые Long идентификаторы напрямую в UI Entity структуру
@@ -73,4 +69,5 @@ fun UserFirebase.toEntity(): UserEntity {
     tokens = this.fcmTokens ?: emptyList()
   )
 }
+
 

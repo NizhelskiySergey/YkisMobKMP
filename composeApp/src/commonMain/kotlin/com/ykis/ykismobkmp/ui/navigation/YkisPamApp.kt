@@ -1,53 +1,64 @@
 package com.ykis.ykismobkmp.ui.navigation
-
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
+import cafe.adriel.voyager.core.annotation.InternalVoyagerApi
+import cafe.adriel.voyager.navigator.internal.BackHandler
 import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import com.ykis.ykismobkmp.core.utils.SnackbarMessage
+import com.ykis.ykismobkmp.core.utils.closeApplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
-
-// ИМПОРТЫ НАШИХ УТВЕРЖДЕННЫХ КМР СТАНДАРТОВ YkisMobKMP:
-import com.ykis.ykismobkmp.ui.navigation.NavigationType
-import com.ykis.ykismobkmp.ui.navigation.ContentType
-import com.ykis.ykismobkmp.ui.navigation.RootNavGraph
-import com.ykis.ykismobkmp.ui.navigation.rememberAdaptiveLayoutType
+import kotlin.time.Clock
 
 private const val className = "YkisPamApp"
 
 /**
  * [YkisPamApp] — Основной визуальный адаптивный каркас приложения ЮКИС г. Южный.
- * ИСПРАВЛЕНО: Интегрирован вызов expect-моста, удалены локальные заглушки менеджера снэкбаров YkisMobKMP.
  */
+@OptIn(InternalVoyagerApi::class)
 @Composable
 fun YkisPamApp(
-  windowSize: WindowSizeClass, // Принимаем системный WindowSizeClass для работы expect/actual мостов
-  displayFeatures: List<Any>,  // Особенности шлейфа экрана для Android-складных устройств
+  windowSize: WindowSizeClass,
+  displayFeatures: List<Any>,
   initialChatId: String? = null
 ) {
-  // ВНЕДРЕНИЕ НАШЕГО EXPECT-МОСТА: Вычисляем форм-фактор на основе системных замеров платформ
+  // Вычисляем форм-фактор на основе системных замеров платформ через expect-мост
   val (navigationType, contentType) = rememberAdaptiveLayoutType(
     windowSize = windowSize,
     displayFeatures = displayFeatures
   )
 
-  // Логирование рантайма согласно правилу [Класс.Метод]
-  LaunchedEffect(navigationType, contentType) {
-    println("[$className.YkisPamApp]: Конфігурація геометрії прийнята. Навігація=$navigationType, Контент=$contentType")
+  // Переменная для фиксации времени последнего нажатия кнопки Назад
+  var lastBackPressTime by remember { mutableStateOf(0L) }
+  val snackbarManager = koinInject<SnackbarManager>()
+
+  // Перехватываем системную кнопку "Назад" на стартовом уровне навигации
+  BackHandler(enabled = true) {
+    val currentTime = Clock.System.now().toEpochMilliseconds()
+    // Если разница между тапами меньше 2 секунд (2000 мс) — закрываем процесс
+    if (currentTime - lastBackPressTime < 2000) {
+      println("[YkisLogKMP.$className.BackHandler]: Повторне натискання зафіксовано. Вихід з системи.")
+      closeApplication()
+    } else {
+      lastBackPressTime = currentTime
+      println("[YkisLogKMP.$className.BackHandler]: Перше натискання кнопки Назад. Вивід сповіщення.")
+      snackbarManager.showMessage("Натисніть ще раз для виходу з програми")
+    }
   }
 
-  // Запускаем твой основной кроссплатформенный граф навигации Voyager
+  LaunchedEffect(navigationType, contentType) {
+    println("[YkisLogKMP.$className.YkisPamApp]: Конфігурація геометрії прийнята. Навігація=$navigationType, Контент=$contentType")
+  }
+
+  // Запускаем основной кроссплатформенный граф навигации Voyager
   RootNavGraph(
     appState = rememberAppState(),
     contentType = contentType,
     navigationType = navigationType,
-    initialChatId = initialChatId // Пробрасываем токен пуша дальше в стейт-машину графа
+    initialChatId = initialChatId
   )
 }
 
@@ -57,7 +68,7 @@ fun YkisPamApp(
 @Composable
 fun rememberAppState(
   snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-  snackbarManager: SnackbarManager = koinInject(), // Достаем сквозной КМР-менеджер из DI Koin YkisMobKMP
+  snackbarManager: SnackbarManager = koinInject(),
   coroutineScope: CoroutineScope = rememberCoroutineScope(),
 ) = remember(snackbarHostState, snackbarManager, coroutineScope) {
   YkisPamAppState(
@@ -80,16 +91,14 @@ class YkisPamAppState(
 
   init {
     coroutineScope.launch {
-      println("[$logTag.init]: Запуск кроссплатформенного слухача Snackbar повідомлень YkisMobKMP")
+      println("[YkisLogKMP.$logTag.init]: Запуск кроссплатформенного слухача Snackbar повідомлень YkisMobKMP")
 
       snackbarManager.snackbarMessages
         .filterNotNull()
         .collect { snackbarMessage ->
-          // 1. Формируем текст уведомления
           val text = try {
             when (snackbarMessage) {
               is SnackbarMessage.Resource -> {
-                // Вычитываем строку через асинхронный КМР-менеджер JetBrains Res
                 org.jetbrains.compose.resources.getString(snackbarMessage.resId)
               }
               is SnackbarMessage.Text -> {
@@ -97,32 +106,24 @@ class YkisPamAppState(
               }
             }
           } catch (e: Exception) {
-            println("[$logTag.init] Критическая ошибка извлечения строки Res: ${e.message}")
+            println("[YkisLogKMP.$logTag.init_WARN] Критическая ошибка извлечения строки Res: ${e.message}")
             "Помилка відображення сповіщення"
           }
 
-          // 2. Показываем плашку на холсте Material 3
           if (text.isNotBlank()) {
             snackbarHostState.showSnackbar(
               message = text,
               withDismissAction = true
             )
 
-            // 3. КРИТИЧЕСКИЙ ФИКС YkisMobKMP: Очищаем менеджер для защиты от холостых вылетов при рекомпозициях
             snackbarManager.clearMessage()
-            println("[$logTag.init]: Повідомлення Snackbar успішно оброблено та видалено з черги")
+            println("[YkisLogKMP.$logTag.init]: Повідомлення Snackbar успішно оброблено та видалено з черги")
           }
         }
     }
   }
 }
 
-/**
- * Типы навигации в зависимости от размера экрана:
- * - BOTTOM_NAVIGATION: для телефонов (снизу)
- * - NAVIGATION_RAIL: боковая узкая панель (для планшетов)
- * - PERMANENT_DRAWER: широкая панель (для десктопов/больших экранов)
- */
 enum class NavigationType {
   BOTTOM_NAVIGATION,
   NAVIGATION_RAIL_COMPACT,
@@ -130,33 +131,23 @@ enum class NavigationType {
   PERMANENT_NAVIGATION_DRAWER
 }
 
-/**
- * ContentType определяет, сколько колонок контента показывать:
- * - SINGLE_PANE: одна колонка (телефон)
- * - DUAL_PANE: две колонки (планшет/складной экран)
- */
 enum class ContentType {
   SINGLE_PANE, DUAL_PANE
 }
 
-/**
- * Перечисление разделов приложения для детального отображения контента.
- */
-
 enum class ContentDetail {
   STANDARD_USER,
-  BTI,            // БТИ
-  FAMILY,         // Состав семьи
-  UNKNOWN,           // ОСМД / ОСББ
-  OSBB,           // ОСМД / ОСББ
-  WATER_SERVICE,  // Водоканал
-  WARM_SERVICE,   // Теплосеть
-  GARBAGE_SERVICE,// Вывоз мусора
-  WATER_METER,    // Водомеры (инфо)
-  HEAT_METER,     // Теплосчетчики (инфо)
-  WATER_READINGS, // Показания воды
-  HEAT_READINGS,  // Показания тепла
-  PAYMENT_LIST,   // Список платежей
-  PAYMENT_CHOICE  // Выбор оплаты (исправил CHOICE вместо PAYMENT_CHOICE)
+  BTI,
+  FAMILY,
+  UNKNOWN,
+  OSBB,
+  WATER_SERVICE,
+  WARM_SERVICE,
+  GARBAGE_SERVICE,
+  WATER_METER,
+  HEAT_METER,
+  WATER_READINGS,
+  HEAT_READINGS,
+  PAYMENT_LIST,
+  PAYMENT_CHOICE
 }
-

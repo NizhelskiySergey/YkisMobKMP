@@ -3,34 +3,42 @@ package com.ykis.ykismobkmp.domain.repository.meter.useCase
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import com.ykis.ykismobkmp.data.responses.GetSimpleResponse
-import com.ykis.ykismobkmp.domain.repository.meter.MeterReadingsParams
-import com.ykis.ykismobkmp.domain.repository.meter.WaterMeterRepository
+import com.ykis.ykismobkmp.domain.repository.meter.MeterRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
-private const val tag = "UseCase.AddWaterReading"
-
 /**
- * [AddWaterReading] — Единый КМР-стандарт интерактора передачи новых показаний водомера в расчетный центр.
- * Полностью автономен, застрахован от Return type mismatch и готов к компиляции под Mac Desktop.
+ * [AddWaterReading] — Сценарий передачи новых показаний кубометров водомера в расчетный центр.
  */
 class AddWaterReading(
-  private val repository: WaterMeterRepository
+  private val repository: MeterRepository
 ) {
+  private val className = "AddWaterReading"
+
   /**
-   * [invoke] — Выполнение Use Case.
+   * [invoke] — Выполнение Use Case через передачу индивидуальных базовых параметров.
    * ЯВНО ТИПИЗИРОВАНО: Возвращает Flow строго с типом Resource<GetSimpleResponse?>.
    */
-  operator fun invoke(meterReadingsParams: MeterReadingsParams): Flow<Resource<GetSimpleResponse?>> =
+  operator fun invoke(
+    uid: String,
+    vodomerId: Long,
+    currentValue: Long,
+    newValue: Long
+  ): Flow<Resource<GetSimpleResponse?>> =
     flow<Resource<GetSimpleResponse?>> { // Принудительно задаем тип контекста всего потока
       val methodName = "invoke"
       try {
         emit(Resource.Loading())
 
-        // Отправка новых кубометров через Ktor репозиторий напрямую
-        val response = repository.addWaterReading(meterReadingsParams)
+        // ИСПРАВЛЕНО НАМЕРТВО: Прямой проброс базовых типов в обновленный репозиторий без упаковки в params!
+        val response = repository.addWaterReading(
+          uid = uid,
+          vodomerId = vodomerId,
+          currentValue = currentValue,
+          newValue = newValue
+        )
 
         if (response.success == 1) {
           // ЯВНО ТИПИЗИРУЕМ: Указываем генерик для Success, исключая mismatch типов
@@ -43,11 +51,11 @@ class AddWaterReading(
         }
 
       } catch (ex: Exception) {
-        println("[$tag.$methodName]: [FATAL_ERROR] Сбой Ktor при добавлении: ${ex.message}")
+        println("[$className.$methodName]: [FATAL_ERROR] Сбой Ktor при добавлении показаний воды: ${ex.message}")
         SnackbarManager.showMessage("Помилка зв'язку з сервером водопостачання")
 
         // Принудительно типизируем КМР-фабрику ошибки под контракт потока
         emit(Resource.Error<GetSimpleResponse?>(message = ex.message ?: "Помилка мережі"))
       }
-    }.flowOn(Dispatchers.Default) // ИСПРАВЛЕНО: Кроссплатформенный пул потоков вместо Dispatchers.IO
+    }.flowOn(Dispatchers.Default) // Кроссплатформенный пул потоков корутин
 }

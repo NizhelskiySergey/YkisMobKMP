@@ -40,11 +40,11 @@ fun HeatMeterItem(
 
   // Прямое КМР-сравнение Int-флагов биллинга расчетного центра Южного (1 - Да, 0 - Нет)
   when {
-    heatMeter.spisan == 1 -> {
+    heatMeter.spisan == 1L -> {
       statusText = "Списаний"
       componentAlpha = 0.5f
     }
-    heatMeter.out_ == 1 -> {
+    heatMeter.isOut == 1L -> {
       statusText = "На повірці"
       componentAlpha = 0.5f
     }
@@ -74,7 +74,7 @@ fun HeatMeterItem(
           .size(48.dp),
         painter = painterResource(Res.drawable.ic_heat_meter5_24px),
         contentDescription = null,
-        tint = if (heatMeter.work == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        tint = if (heatMeter.work == 1L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
       )
 
       Column(
@@ -98,7 +98,7 @@ fun HeatMeterItem(
         Text(
           text = statusText,
           style = MaterialTheme.typography.bodyMedium,
-          color = if (heatMeter.spisan == 1 || heatMeter.out_ == 1)
+          color = if (heatMeter.spisan == 1L || heatMeter.isOut == 1L)
             MaterialTheme.colorScheme.error
           else
             MaterialTheme.colorScheme.primary

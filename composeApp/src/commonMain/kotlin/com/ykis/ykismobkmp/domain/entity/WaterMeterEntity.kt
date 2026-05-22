@@ -27,7 +27,7 @@ data class WaterMeterEntity(
 
   // ИСПРАВЛЕНО: Платформозависимый Byte изменен на универсальный Int для стабильности на Mac/iOS
   @SerialName("st")
-  val st: Int = 1,
+  val st: Long = 1L,
 
   @SerialName("voda")
   val voda: String = "Unknown",
@@ -48,27 +48,27 @@ data class WaterMeterEntity(
   val pdate: String = "Unknown",
 
   @SerialName("pp")
-  val pp: Int = 0,
+  val pp: Long = 0L,
 
   @SerialName("zdate")
   val zdate: String = "Unknown",
 
   @SerialName("avg")
-  val avg: Int = 0,
+  val avg: Long = 0L,
 
   @SerialName("spisan")
-  val spisan: Int = 0,
+  val spisan: Long = 0L,
 
   @SerialName("out")
-  val out_: Int = 0,
+  val isOut: Long = 0L,
 
   @SerialName("paused")
-  val paused: Int = 0,
+  val paused: Long = 0L,
 
   @SerialName("data_spis")
   val dataSpis: String = "Unknown",
 
   @SerialName("work")
-  val work: Int = 0
+  val work: Long = 0L
 )
 

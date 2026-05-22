@@ -12,7 +12,7 @@ import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseScreenModel
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
-import com.ykis.ykismobkmp.ui.screens.service.list.TotalServiceDebt
+import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

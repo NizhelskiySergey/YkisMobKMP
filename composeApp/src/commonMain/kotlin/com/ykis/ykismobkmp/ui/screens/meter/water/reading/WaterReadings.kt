@@ -83,7 +83,7 @@ fun WaterReadingItem(
   reading: WaterReadingEntity
 ) {
   // Если флаг avg == 1, биллинг ЮКИС рассчитал месяц по среднему тарифу абонента Одесской обл.
-  val cardLabel = if (reading.avg == 1) "Розрахунок за середнім нормативом" else null
+  val cardLabel = if (reading.avg == 1L) "Розрахунок за середнім нормативом" else null
 
   BaseCard(
     modifier = modifier.padding(vertical = 4.dp, horizontal = 12.dp),

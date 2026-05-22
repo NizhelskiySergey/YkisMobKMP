@@ -31,12 +31,10 @@ enum class ListMode { RAIONS, HOUSES, APARTMENTS }
  */
 class ApartmentScreenModel(
   private val firebaseService: FirebaseService,
-  private val apartmentService: ApartmentService, // Твой КМР доменный сервис квартир
-  private val deleteApartmentUseCase: DeleteApartment,
-  private val getApartmentListUseCase: GetApartmentList,
+  private val apartmentService: ApartmentService,
   logService: LogService
 ) : BaseScreenModel(logService) {
-
+  private val className = "ApartmentScreenModel"
   private val isEmailVerified get() = firebaseService.currentUser?.isEmailVerified ?: false
   val uid get() = firebaseService.uid
 
@@ -74,8 +72,8 @@ class ApartmentScreenModel(
   private val _drawerLoading = MutableStateFlow(false)
   val drawerLoading = _drawerLoading.asStateFlow()
 
-  private val _contactUiState = MutableStateFlow(ContactUIState())
-  val contactUIState: StateFlow<ContactUIState> = _contactUiState.asStateFlow()
+  private val _contactUiState = MutableStateFlow(BaseUIState())
+  val contactUIState: StateFlow<BaseUIState> = _contactUiState.asStateFlow()
 
   private val _searchQuery = MutableStateFlow("")
   val searchQuery = _searchQuery.asStateFlow()
@@ -725,7 +723,7 @@ fun initialContactState() {
   val currentState = _apartmentUiState.value
 
   // 2. ИСПРАВЛЕНО: Безопасно инициализируем поля через currentState без синтаксических ошибок
-  _contactUiState.value = ContactUIState(
+  _contactUiState.value = BaseUIState(
     email = currentState.apartment.email ?: "",
     phone = currentState.apartment.phone ?: "",
     addressId = currentState.addressId, // Наш сквозной Long ID
@@ -747,39 +745,40 @@ fun onPhoneChange(newValue: String) {
  * ИСПРАВЛЕНО: R.string заменен строками, корутина переведена на screenModelScope.
  */
 fun onUpdateBti(uid: String) {
-  val currentEmail = _contactUiState.value.email
+  val methodName = "onUpdateBti"
+  val currentEmail = _contactUiState.value.email ?:""
 
-  // Кроссплатформенная валидация
+  // Кроссплатформенная валидация формата почты перед спамом сети Ktor
   if (!currentEmail.isValidEmailKmp() && currentEmail.isNotEmpty()) {
     SnackbarManager.showMessage("Некоректний формат Email адреси")
     return
   }
 
+  // ИСПРАВЛЕНО НАМЕРТВО: Прямой проброс базовых КМР-параметров стейта без обёртки в ApartmentEntity!
   apartmentService.updateBti(
-    ApartmentEntity(
-      addressId = _contactUiState.value.addressId,
-      address = _contactUiState.value.address,
-      phone = _contactUiState.value.phone,
-      email = _contactUiState.value.email,
-      uid = uid
-    )
+    addressId = _contactUiState.value.addressId,
+    phone = _contactUiState.value.phone.toString(),
+    email = _contactUiState.value.email.toString()
   ).onEach { result ->
     when (result) {
       is Resource.Success -> {
+        println("[$className.$methodName]: [SUCCESS] Данные БТИ успешно обновлены на сервере и в СУБД")
         SnackbarManager.showMessage("Дані БТІ успішно оновлено")
-        getApartment(_apartmentUiState.value.addressId) // Перезапуск каскадного сбора
+        getApartment(_contactUiState.value.addressId) // Перезапуск каскадного сбора на сквозном Long ID
       }
 
       is Resource.Error -> {
+        println("[$className.$methodName]: [ERROR] Сбой обновления БТИ: ${result.message}")
         SnackbarManager.showMessage(result.message ?: "Помилка оновлення даних")
       }
 
       is Resource.Loading -> {
-        // Опциональный лоадер изменения контактов
+        println("[$className.$methodName]: [LOADING] Синхронизация анкеты БТИ с сервером ЮКИС...")
       }
     }
-  }.launchIn(screenModelScope) // ИСПРАВЛЕНО: screenModelScope
+  }.launchIn(screenModelScope) // Подписка выполняется строго внутри Voyager screenModelScope
 }
+
 
 private var lastProcessingAddressId: Long = -1L
 
@@ -904,8 +903,6 @@ fun getApartmentList(onSuccess: () -> Unit = {}) {
 
   /**
    * [deleteApartmentFromProfile] — Безпечне видалення особового рахунку БТІ з профілю абонента ЮКИС.
-   * ИСПРАВЛЕНО: Лямбда getApartmentList полностью удалена из вызова. Вся логика проверки оставшихся
-   * квартир и навигация инкапсулированы внутрь корутины launchCatching.
    */
 
   fun deleteApartmentFromProfile(addressId: Long, onNavigateToAddScreen: () -> Unit) {
@@ -914,9 +911,9 @@ fun getApartmentList(onSuccess: () -> Unit = {}) {
     if (addressId <= 0L) return
     launchCatching(showLoader = true) {
       // ТЕПЕРЬ ВЫЗОВ В ОДНУ СТРОЧКУ! Никаких get<>() и лишних импортов:
-      deleteApartmentUseCase(addressId,uid)
+      apartmentService.deleteApartment(addressId,uid)
 
-      getApartmentListUseCase(uid )
+      apartmentService.getApartmentList(uid )
 
       // Считываем обновленный список квартир из стейта нашей ScreenModel
       val updatedList = _apartmentUiState.value.apartments

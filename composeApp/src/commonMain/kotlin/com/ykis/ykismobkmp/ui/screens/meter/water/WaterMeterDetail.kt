@@ -50,7 +50,7 @@ fun WaterMeterDetail(
 
   // Безопасно распаковываем зануляемую доменную сущность показаний во избежание NullPointerException
   val safeLastReading = remember(lastReading) {
-    lastReading ?: WaterReadingEntity(current = 0.0)
+    lastReading ?: WaterReadingEntity(current = 0L)
   }
 
   // --- ЛОГИКА ЯКОРЯ ВАЛИДАЦИИ (Переведена на Double для дробных кубометров) ---
@@ -147,12 +147,12 @@ fun WaterMeterDetail(
           LabelTextWithCheckBox(
             modifier = Modifier.padding(vertical = 2.dp),
             labelText = "Враховувати стоки (Водовідведення): ",
-            checked = waterMeterEntity.st == 1
+            checked = waterMeterEntity.st == 1L
           )
           LabelTextWithCheckBox(
             modifier = Modifier.padding(vertical = 2.dp),
             labelText = "Загальнобудинковий лічильник: ",
-            checked = waterMeterEntity.avg == 1
+            checked = waterMeterEntity.avg == 1L
           )
 
           LabelTextWithText(
@@ -166,7 +166,7 @@ fun WaterMeterDetail(
             valueText = waterMeterEntity.sdate
           )
 
-          if (waterMeterEntity.spisan == 1) {
+          if (waterMeterEntity.spisan == 1L) {
             LabelTextWithText(
               modifier = Modifier.padding(vertical = 2.dp),
               labelText = "Дата зняття з обліку / списання: ",
@@ -194,7 +194,7 @@ fun WaterMeterDetail(
             LabelTextWithCheckBox(
               modifier = Modifier.padding(vertical = 2.dp),
               labelText = "Прилад знято з комерційного обліку: ",
-              checked = waterMeterEntity.spisan == 1
+              checked = waterMeterEntity.spisan == 1L
             )
           }
         }

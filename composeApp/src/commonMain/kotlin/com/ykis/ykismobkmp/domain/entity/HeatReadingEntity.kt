@@ -36,7 +36,7 @@ data class HeatReadingEntity(
 
   // ИСПРАВЛЕНО: Платформозависимый Short изменен на универсальный Int
   @SerialName("days")
-  val days: Int = 0,
+  val days: Long = 0L,
 
   @SerialName("last")
   val last: Double = 0.0,
@@ -49,7 +49,7 @@ data class HeatReadingEntity(
 
   // ИСПРАВЛЕНО: Платформозависимый Byte изменен на универсальный Int
   @SerialName("avg")
-  val avg: Int = 0,
+  val avg: Long = 0L,
 
   @SerialName("tarif")
   val tarif: Double = 0.0,

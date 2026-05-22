@@ -1,12 +1,11 @@
 package com.ykis.ykismobkmp.ui.screens.meter
 
+import com.ykis.ykismobkmp.core.utils.Resource
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
 import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
-import com.ykis.ykismobkmp.domain.repository.meter.HeatMeterRepository
-import com.ykis.ykismobkmp.domain.repository.meter.MeterReadingsParams
-import com.ykis.ykismobkmp.domain.repository.meter.WaterMeterRepository
+import com.ykis.ykismobkmp.domain.repository.meter.MeterService
 import com.ykis.ykismobkmp.domain.services.LogService
 import com.ykis.ykismobkmp.ui.BaseScreenModel
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
@@ -26,12 +25,11 @@ private const val tag = "MeterScreenModel"
  * [MeterScreenModel] — Кроссплатформенная модель управления списками счетчиков тепла и воды ЮКИС.
  */
 class MeterScreenModel(
-  private val waterMeterRepository: WaterMeterRepository,
-  private val heatMeterRepository: HeatMeterRepository,
+  private val meterService: MeterService,
   logService: LogService
 ) : BaseScreenModel(logService)
 {
-
+  private val className = "YkisLog MeterScreenModel"
   private val _waterMeterState = MutableStateFlow(WaterMeterState())
   val waterMeterState: StateFlow<WaterMeterState> = _waterMeterState.asStateFlow()
 
@@ -54,49 +52,91 @@ class MeterScreenModel(
   /**
    * [getWaterMeterList] — Получение списка приборов учета холодного/горячего водоснабжения.
    */
+  /**
+   * [getWaterMeterList] — Запрос и реактивное обновление списка водомеров жильца с поддержкой КМР-кэширования.
+   */
   fun getWaterMeterList(uid: String, addressId: Long) {
     val methodName = "getWaterMeterList"
+
     screenModelScope.launch {
-      _waterMeterState.update {
-        it.copy(waterMeterList = emptyList(), isMetersLoading = true)
-      }
-      try {
-        val response = waterMeterRepository.getWaterMeterList(uid, addressId)
-        val metersList = response.waterMeters ?: emptyList()
-        _waterMeterState.update {
-          it.copy(waterMeterList = metersList, isMetersLoading = false)
-        }
-      } catch (e: Exception) {
-        println("[$tag.$methodName]: [CRITICAL_ERROR] ${e.message}")
-        _waterMeterState.update {
-          it.copy(error = e.message ?: "Помилка мережі", isMetersLoading = false)
+      // Запускаем сбор реактивного потока из нашего запечатанного MeterService
+      meterService.getWaterMeterList(uid, addressId).collect { result ->
+        _waterMeterState.update { currentState ->
+          when (result) {
+            is Resource.Success -> {
+              val metersList = result.data ?: emptyList()
+              println("[$className.$methodName]: [SUCCESS] Успешно выведено ${metersList.size} водомеров")
+              currentState.copy(
+                waterMeterList = metersList,
+                isMetersLoading = false
+              )
+            }
+
+            is Resource.Error -> {
+              println("[$className.$methodName]: [ERROR] Сбой загрузки водомеров: ${result.message}")
+              currentState.copy(
+                error = result.message ?: "Помилка завантаження",
+                isMetersLoading = false
+              )
+            }
+
+            is Resource.Loading -> {
+              println("[$className.$methodName]: [LOADING] Запит списку приладів обліку води ГІОЦ...")
+              currentState.copy(
+                isMetersLoading = true
+              )
+            }
+          }
         }
       }
     }
   }
 
+
   /**
    * [getHeatMeterList] — Получение списка теплосчетчиков биллинга г. Южного.
    */
+  /**
+   * [getHeatMeterList] — Запрос и реактивное обновление списка теплосчетчиков жильца с поддержкой КМР-кэширования.
+   * ИСПРАВЛЕНО НАМЕРТВО: Вызовы переведены на сбор реактивного Flow потока из MeterService, выровнены стейты Resource!
+   */
   fun getHeatMeterList(uid: String, addressId: Long) {
     val methodName = "getHeatMeterList"
+
     screenModelScope.launch {
-      _heatMeterState.update {
-        it.copy(heatMeterList = emptyList(), isMetersLoading = true)
-      }
-      try {
-        val response = heatMeterRepository.getHeatMeterList(uid, addressId)
-        _heatMeterState.update {
-          it.copy(heatMeterList = response.heatMeters ?: emptyList(), isMetersLoading = false)
-        }
-      } catch (e: Exception) {
-        println("[$tag.$methodName]: Error fetching heat meters: ${e.message}")
-        _heatMeterState.update {
-          it.copy(error = e.message ?: "Unexpected error!", isMetersLoading = false)
+      // Запускаем сбор реактивного потока из нашего запечатанного MeterService
+      meterService.getHeatMeterList(uid, addressId).collect { result ->
+        _heatMeterState.update { currentState ->
+          when (result) {
+            is Resource.Success -> {
+              val metersList = result.data ?: emptyList()
+              println("[$className.$methodName]: [SUCCESS] Успешно выведено ${metersList.size} теплосчетчиков")
+              currentState.copy(
+                heatMeterList = metersList,
+                isMetersLoading = false
+              )
+            }
+
+            is Resource.Error -> {
+              println("[$className.$methodName]: [ERROR] Сбой загрузки теплосчетчиков: ${result.message}")
+              currentState.copy(
+                error = result.message ?: "Помилка завантаження",
+                isMetersLoading = false
+              )
+            }
+
+            is Resource.Loading -> {
+              println("[$className.$methodName]: [LOADING] Запит списку приладів обліку тепла ГІОЦ...")
+              currentState.copy(
+                isMetersLoading = true
+              )
+            }
+          }
         }
       }
     }
   }
+
 
   fun setWaterMeterDetail(waterMeterEntity: WaterMeterEntity) {
     _waterMeterState.update { it.copy(selectedWaterMeter = waterMeterEntity) }
@@ -117,21 +157,35 @@ class MeterScreenModel(
   /**
    * [getWaterReadings] — Архив истории переданных кубометров.
    */
+  // ====================================================================
+  // --- ЛОГИКА ИСТОРИИ И ПОСЛЕДНИХ ПОКАЗАНИЙ ВОДЫ ----------------------
+  // ====================================================================
+
   fun getWaterReadings(uid: String, vodomerId: Long) {
     val methodName = "getWaterReadings"
     screenModelScope.launch {
-      _waterMeterState.update { it.copy(isReadingsLoading = true) }
-      try {
-        val response = withContext(Dispatchers.Default) {
-          waterMeterRepository.getWaterReadings(uid, vodomerId)
+      meterService.getWaterReadings(uid, vodomerId).collect { result ->
+        _waterMeterState.update { currentState ->
+          when (result) {
+            is Resource.Success -> {
+              val readingsList = result.data ?: emptyList()
+              println("[$className.$methodName]: [SUCCESS] Отримано ${readingsList.size} показань води")
+              currentState.copy(
+                waterReadings = readingsList,
+                isReadingsLoading = false
+              )
+            }
+            is Resource.Error -> {
+              println("[$className.$methodName]: [ERROR] Сбой загрузки истории воды: ${result.message}")
+              SnackbarManager.showMessage("Помилка завантаження показань")
+              currentState.copy(isReadingsLoading = false)
+            }
+            is Resource.Loading -> {
+              println("[$className.$methodName]: [LOADING] Запит історії показань водоміра...")
+              currentState.copy(isReadingsLoading = true)
+            }
+          }
         }
-        _waterMeterState.update { state ->
-          state.copy(waterReadings = response.waterReadings ?: emptyList(), isReadingsLoading = false)
-        }
-      } catch (e: Exception) {
-        println("[$tag.$methodName]: Error fetching readings: ${e.message}")
-        SnackbarManager.showMessage("Помилка завантаження показань")
-        _waterMeterState.update { it.copy(isReadingsLoading = false) }
       }
     }
   }
@@ -142,20 +196,34 @@ class MeterScreenModel(
   fun getLastWaterReading(uid: String, vodomerId: Long) {
     val methodName = "getLastWaterReading"
     screenModelScope.launch {
-      _waterMeterState.update { it.copy(isLastReadingLoading = true) }
-      try {
-        val response = waterMeterRepository.getLastWaterReading(uid, vodomerId)
-        _waterMeterState.update { state ->
-          // ИСПРАВЛЕНО: Прямое присвоение nullable результата без принудительной подстановки non-null заглушки
-          state.copy(lastWaterReading = response.waterReading, isLastReadingLoading = false)
+      meterService.getLastWaterReading(uid, vodomerId).collect { result ->
+        _waterMeterState.update { currentState ->
+          when (result) {
+            is Resource.Success -> {
+              println("[$className.$methodName]: [SUCCESS] Останнє показання води отримано")
+              currentState.copy(
+                lastWaterReading = result.data,
+                isLastReadingLoading = false
+              )
+            }
+            is Resource.Error -> {
+              println("[$className.$methodName]: [ERROR] Сбой получения последнего показания воды: ${result.message}")
+              SnackbarManager.showMessage("Помилка отримання останнього показання")
+              currentState.copy(isLastReadingLoading = false)
+            }
+            is Resource.Loading -> {
+              println("[$className.$methodName]: [LOADING] Запит останнього показання водоміра...")
+              currentState.copy(isLastReadingLoading = true)
+            }
+          }
         }
-      } catch (e: Exception) {
-        println("[$tag.$methodName]: Error fetching last reading: ${e.message}")
-        SnackbarManager.showMessage("Помилка отримання останнього показання")
-        _waterMeterState.update { it.copy(isLastReadingLoading = false) }
       }
     }
   }
+
+  // ====================================================================
+  // --- ЛОГИКА ИСТОРИИ И ПОСЛЕДНИХ ПОКАЗАНИЙ ТЕПЛА ---------------------
+  // ====================================================================
 
   /**
    * [getHeatReadings] — Архив истории гигакалорий теплосети г. Южного.
@@ -163,16 +231,28 @@ class MeterScreenModel(
   fun getHeatReadings(uid: String, teplomerId: Long) {
     val methodName = "getHeatReadings"
     screenModelScope.launch {
-      _heatMeterState.update { it.copy(isReadingsLoading = true) }
-      try {
-        val response = heatMeterRepository.getHeatReadings(uid, teplomerId)
-        _heatMeterState.update { state ->
-          state.copy(heatReadings = response.heatReadings ?: emptyList(), isReadingsLoading = false)
+      meterService.getHeatReadings(uid, teplomerId).collect { result ->
+        _heatMeterState.update { currentState ->
+          when (result) {
+            is Resource.Success -> {
+              val readingsList = result.data ?: emptyList()
+              println("[$className.$methodName]: [SUCCESS] Отримано ${readingsList.size} показань тепла")
+              currentState.copy(
+                heatReadings = readingsList,
+                isReadingsLoading = false
+              )
+            }
+            is Resource.Error -> {
+              println("[$className.$methodName]: [ERROR] Сбой загрузки истории тепла: ${result.message}")
+              SnackbarManager.showMessage("Помилка завантаження показань тепла")
+              currentState.copy(isReadingsLoading = false)
+            }
+            is Resource.Loading -> {
+              println("[$className.$methodName]: [LOADING] Запит історії показань тепломіра...")
+              currentState.copy(isReadingsLoading = true)
+            }
+          }
         }
-      } catch (e: Exception) {
-        println("[$tag.$methodName]: Error fetching heat readings: ${e.message}")
-        SnackbarManager.showMessage("Помилка завантаження показань тепла")
-        _heatMeterState.update { it.copy(isReadingsLoading = false) }
       }
     }
   }
@@ -183,49 +263,68 @@ class MeterScreenModel(
   fun getLastHeatReading(uid: String, teplomerId: Long) {
     val methodName = "getLastHeatReading"
     screenModelScope.launch {
-      _heatMeterState.update { it.copy(isReadingsLoading = true) }
-      try {
-        val response = heatMeterRepository.getLastHeatReading(uid, teplomerId)
-        _heatMeterState.update { state ->
-          // ИСПРАВЛЕНО: Прямое присвоение зануляемого результата для корректной работы safeLastReading в верстке
-          state.copy(lastHeatReading = response.heatReading, isReadingsLoading = false)
+      meterService.getLastHeatReading(uid, teplomerId).collect { result ->
+        _heatMeterState.update { currentState ->
+          when (result) {
+            is Resource.Success -> {
+              println("[$className.$methodName]: [SUCCESS] Останнє показання тепла отримано")
+              currentState.copy(
+                lastHeatReading = result.data,
+                isReadingsLoading = false
+              )
+            }
+            is Resource.Error -> {
+              println("[$className.$methodName]: [ERROR] Сбой получения последнего показания тепла: ${result.message}")
+              SnackbarManager.showMessage("Помилка отримання останнього показання тепла")
+              currentState.copy(isReadingsLoading = false)
+            }
+            is Resource.Loading -> {
+              println("[$className.$methodName]: [LOADING] Запит останнього показання тепломіра...")
+              currentState.copy(isReadingsLoading = true)
+            }
+          }
         }
-      } catch (e: Exception) {
-        println("[$tag.$methodName]: Error fetching last heat reading: ${e.message}")
-        SnackbarManager.showMessage("Помилка отримання останнього показання тепла")
-        _heatMeterState.update { it.copy(isReadingsLoading = false) }
       }
     }
   }
 
+
   /**
    * [addWaterReading] — Отправка новых кубометров воды.
    */
-  fun addWaterReading(uid: String, newValue: Long, currentValue: Double, vodomerId: Long) {
+  // ====================================================================
+  // --- ОПЕРАЦИИ ЗАПИСИ И УДАЛЕНИЯ ПОКАЗАНИЙ ВОДЫ ---------------------
+  // ====================================================================
+
+  fun addWaterReading(uid: String, newValue: Long, currentValue: Long, vodomerId: Long) {
     val methodName = "addWaterReading"
     screenModelScope.launch {
-      _waterMeterState.update { it.copy(isLastReadingLoading = true) }
-      try {
-        // Выполняем безопасный кастинг .toDouble() перед отправкой параметров в Ktor-клиент
-        val params = MeterReadingsParams(
-          uid = uid,
-          newValue = newValue.toDouble(),
-          currentValue = currentValue,
-          meterId = vodomerId
-        )
-        val response = waterMeterRepository.addWaterReading(params)
-
-        if (response.success == 1) {
-          SnackbarManager.showMessage("Показання додані")
-          getLastWaterReading(uid, vodomerId) // Каскадный автоматический перезапрос
-        } else {
-          SnackbarManager.showMessage(response.message ?: "Помилка додавання")
+      // ИСПРАВЛЕНО НАМЕРТВО: Прямой проброс базовых Long-параметров без упаковки в MeterReadingsParams!
+      meterService.addWaterReading(
+        uid = uid,
+        vodomerId = vodomerId,
+        currentValue = currentValue,
+        newValue = newValue
+      ).collect { result ->
+        _waterMeterState.update { currentState ->
+          when (result) {
+            is Resource.Success -> {
+              println("[$className.$methodName]: [SUCCESS] Показання води успішно додані")
+              SnackbarManager.showMessage("Показання успішно додані")
+              getLastWaterReading(uid, vodomerId) // Каскадный автоматический перезапрос
+              currentState.copy(isLastReadingLoading = false)
+            }
+            is Resource.Error -> {
+              println("[$className.$methodName]: [ERROR] Сбой добавления показаний воды: ${result.message}")
+              SnackbarManager.showMessage(result.message ?: "Помилка додавання")
+              currentState.copy(isLastReadingLoading = false)
+            }
+            is Resource.Loading -> {
+              println("[$className.$methodName]: [LOADING] Відправка нових кубометрів води в розрахунковий центр...")
+              currentState.copy(isLastReadingLoading = true)
+            }
+          }
         }
-        _waterMeterState.update { it.copy(isLastReadingLoading = false) }
-      } catch (e: Exception) {
-        println("[$tag.$methodName]: Add reading error: ${e.message}")
-        SnackbarManager.showMessage("Помилка зв'язку з сервером")
-        _waterMeterState.update { it.copy(isLastReadingLoading = false) }
       }
     }
   }
@@ -233,20 +332,63 @@ class MeterScreenModel(
   fun deleteLastWaterReading(uid: String, vodomerId: Long, readingId: Long) {
     val methodName = "deleteLastWaterReading"
     screenModelScope.launch {
-      _waterMeterState.update { it.copy(isLastReadingLoading = true) }
-      try {
-        val response = waterMeterRepository.deleteLastWaterReading(uid, readingId)
-        if (response.success == 1) {
-          SnackbarManager.showMessage("Показання видалені")
-          getLastWaterReading(uid, vodomerId)
-        } else {
-          SnackbarManager.showMessage(response.message ?: "Помилка видалення")
+      meterService.deleteLastWaterReading(uid, readingId).collect { result ->
+        _waterMeterState.update { currentState ->
+          when (result) {
+            is Resource.Success -> {
+              println("[$className.$methodName]: [SUCCESS] Показання води успішно видалені")
+              SnackbarManager.showMessage("Показання успішно видалені")
+              getLastWaterReading(uid, vodomerId)
+              currentState.copy(isLastReadingLoading = false)
+            }
+            is Resource.Error -> {
+              println("[$className.$methodName]: [ERROR] Сбой удаления показания воды: ${result.message}")
+              SnackbarManager.showMessage(result.message ?: "Помилка видалення")
+              currentState.copy(isLastReadingLoading = false)
+            }
+            is Resource.Loading -> {
+              println("[$className.$methodName]: [LOADING] Анулювання помилкового показання води в СУБД...")
+              currentState.copy(isLastReadingLoading = true)
+            }
+          }
         }
-        _waterMeterState.update { it.copy(isLastReadingLoading = false) }
-      } catch (e: Exception) {
-        println("[$tag.$methodName]: Delete error: ${e.message}")
-        SnackbarManager.showMessage("Помилка зв'язку з сервером")
-        _waterMeterState.update { it.copy(isLastReadingLoading = false) }
+      }
+    }
+  }
+
+  // ====================================================================
+  // --- ОПЕРАЦИИ ЗАПИСИ И УДАЛЕНИЯ ПОКАЗАНИЙ ТЕПЛА --------------------
+  // ====================================================================
+
+  fun addHeatReading(uid: String, teplomerId: Long, currentValue: Double, newValue: Double) {
+    val methodName = "addHeatReading"
+    screenModelScope.launch {
+      // ИСПРАВЛЕНО НАМЕРТВО: Прямой проброс базовых Double-параметров без упаковки в MeterReadingsParams!
+      meterService.addHeatReading(
+        uid = uid,
+        teplomerId = teplomerId,
+        currentValue = currentValue,
+        newValue = newValue
+      ).collect { result ->
+        _heatMeterState.update { currentState ->
+          when (result) {
+            is Resource.Success -> {
+              println("[$className.$methodName]: [SUCCESS] Показання тепла успішно додані")
+              SnackbarManager.showMessage("Показання успішно додані")
+              getLastHeatReading(uid, teplomerId)
+              currentState.copy(isLastReadingLoading = false)
+            }
+            is Resource.Error -> {
+              println("[$className.$methodName]: [ERROR] Сбой добавления показаний тепла: ${result.message}")
+              SnackbarManager.showMessage(result.message ?: "Помилка додавання")
+              currentState.copy(isLastReadingLoading = false)
+            }
+            is Resource.Loading -> {
+              println("[$className.$methodName]: [LOADING] Відправка нових гігакалорій тепла в розрахунковий центр...")
+              currentState.copy(isLastReadingLoading = true)
+            }
+          }
+        }
       }
     }
   }
@@ -254,50 +396,31 @@ class MeterScreenModel(
   fun deleteLastHeatReading(readingId: Long, teplomerId: Long, uid: String) {
     val methodName = "deleteLastHeatReading"
     screenModelScope.launch {
-      _heatMeterState.update { it.copy(isLastReadingLoading = true) }
-      try {
-        val response = heatMeterRepository.deleteLastHeatReading(uid, readingId)
-        if (response.success == 1) {
-          SnackbarManager.showMessage("Показання видалені")
-          getLastHeatReading(uid, teplomerId)
-        } else {
-          SnackbarManager.showMessage(response.message ?: "Помилка видалення")
+      // ИСПРАВЛЕНО НАМЕРТВО: Вызов перенаправлен на монолитный комбайн meterService!
+      meterService.deleteLastHeatReading(uid, readingId).collect { result ->
+        _heatMeterState.update { currentState ->
+          when (result) {
+            is Resource.Success -> {
+              println("[$className.$methodName]: [SUCCESS] Показання тепла успішно видалені")
+              SnackbarManager.showMessage("Показання успішно видалені")
+              getLastHeatReading(uid, teplomerId)
+              currentState.copy(isLastReadingLoading = false)
+            }
+            is Resource.Error -> {
+              println("[$className.$methodName]: [ERROR] Сбой удаления показания тепла: ${result.message}")
+              SnackbarManager.showMessage(result.message ?: "Помилка видалення")
+              currentState.copy(isLastReadingLoading = false)
+            }
+            is Resource.Loading -> {
+              println("[$className.$methodName]: [LOADING] Анулювання помилкового показання тепла в СУБД...")
+              currentState.copy(isLastReadingLoading = true)
+            }
+          }
         }
-        _heatMeterState.update { it.copy(isLastReadingLoading = false) }
-      } catch (e: Exception) {
-        println("[$tag.$methodName]: Delete heat error: ${e.message}")
-        SnackbarManager.showMessage("Помилка зв'язку з сервером")
-        _heatMeterState.update { it.copy(isLastReadingLoading = false) }
       }
     }
   }
 
-  fun addHeatReading(uid: String, teplomerId: Long, currentValue: Double, newValue: Double) {
-    val methodName = "addHeatReading"
-    screenModelScope.launch {
-      _heatMeterState.update { it.copy(isLastReadingLoading = true) }
-      try {
-        val params = MeterReadingsParams(
-          uid = uid,
-          newValue = newValue,
-          currentValue = currentValue,
-          meterId = teplomerId
-        )
-        val response = heatMeterRepository.addHeatReading(params)
-        if (response.success == 1) {
-          SnackbarManager.showMessage("Показання додані")
-          getLastHeatReading(uid, teplomerId)
-        } else {
-          SnackbarManager.showMessage(response.message ?: "Помилка додавання")
-        }
-        _heatMeterState.update { it.copy(isLastReadingLoading = false) }
-      } catch (e: Exception) {
-        println("[$tag.$methodName]: Add heat reading error: ${e.message}")
-        SnackbarManager.showMessage("Помилка зв'язку з сервером")
-        _heatMeterState.update { it.copy(isLastReadingLoading = false) }
-      }
-    }
-  }
 
   fun onNewWaterReadingChange(newValue: String) {
     _waterMeterState.update { it.copy(newWaterReading = newValue) }

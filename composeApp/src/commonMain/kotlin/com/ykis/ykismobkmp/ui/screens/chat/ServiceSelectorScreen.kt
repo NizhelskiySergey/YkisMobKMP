@@ -35,9 +35,9 @@ import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
-import com.ykis.ykismobkmp.ui.screens.service.TotalDebtState
-import com.ykis.ykismobkmp.ui.screens.service.list.TotalServiceDebt
-import com.ykis.ykismobkmp.ui.screens.service.list.assembleServiceList
+import com.ykis.ykismobkmp.ui.screens.ledger.TotalDebtState
+import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
+import com.ykis.ykismobkmp.ui.screens.ledger.list.assembleServiceList
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
@@ -46,7 +46,6 @@ import ykismobkmp.composeapp.generated.resources.services
 // Временные КМР-заглушки вспомогательных ЖКХ-классов, пока не присланы сорцы моделей служб
 
 // ИМПОРТЫ КРОСС ПЛАТФОРМЕННЫХ РЕСУРСОВ СТРОК JETBRAINS
-import ykismobkmp.composeapp.generated.resources.*
 
 private const val tag = "ServiceSelectorScreen"
 
