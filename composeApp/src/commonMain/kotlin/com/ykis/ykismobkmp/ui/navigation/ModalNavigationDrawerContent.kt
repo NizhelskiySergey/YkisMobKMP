@@ -60,7 +60,12 @@ fun DrawerItemContent(
     },
     selected = isSelected,
     onClick = onClick,
-    icon = { Icon(if (listMode == ListMode.HOUSES) Icons.Default.Domain else Icons.Default.Home, null) },
+    icon = {
+      Icon(
+        if (listMode == ListMode.HOUSES) Icons.Default.Domain else Icons.Default.Home,
+        null
+      )
+    },
     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
   )
 }
@@ -91,7 +96,8 @@ fun ModalNavigationDrawerContent(
   val filteredResults by apartmentScreenModel.filteredApartments.collectAsState()
 
   val isUserAdmin = baseUIState.userRole != UserRole.StandardUser
-  val isOrgAdmin = baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
+  val isOrgAdmin =
+    baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
   val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
   val listMode = baseUIState.listMode
 
@@ -110,7 +116,9 @@ fun ModalNavigationDrawerContent(
     modifier = modifier.width(320.dp),
     drawerContainerColor = MaterialTheme.colorScheme.surface
   ) {
+    // Главный монолитный контейнер шторки на всю высоту экрана смартфона
     Column(modifier = Modifier.fillMaxSize()) {
+
       // --- 1. ШАПКА: ПОИСК СЛУЖБ ИЛИ ДОБАВЛЕНИЕ Л/С ---
       Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
         if (isUserAdmin) {
@@ -135,7 +143,7 @@ fun ModalNavigationDrawerContent(
           )
         } else {
           Text(
-            text = stringResource(Res.string.list_apartment), // Перевод на JetBrains Res
+            text = stringResource(Res.string.list_apartment),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold
@@ -152,14 +160,15 @@ fun ModalNavigationDrawerContent(
           ) {
             Icon(Icons.Default.AddHome, null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(text = stringResource(Res.string.add_appartment)) // Перевод на JetBrains Res
+            Text(text = stringResource(Res.string.add_appartment))
           }
         }
       }
 
       HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-      // --- 2. ДИНАМИЧЕСКИЙ LazyColumn СПИСОК (Иерархия ГИОЦ) ---
+      // --- 2. ЦЕНТРАЛЬНАЯ ЧАСТЬ: СПИСОК КВАРТИР (Занимает ВСЁ доступное пространство) ---
+      // КРИТИЧЕСКИЙ ФИКС: Вес weight(1f) заставит этот блок растянуться, вытолкнув настройки вниз!
       Column(modifier = Modifier.weight(1f)) {
 
         // Кнопка НАЗАД (Только для многоуровневых служб водоканала/теплосети)
@@ -178,7 +187,6 @@ fun ModalNavigationDrawerContent(
         }
 
         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
-
           if (searchQuery.isNotEmpty()) {
             // --- РЕЖИМ АКТИВНОГО ФИЛЬТРА / ПОИСКА ---
             items(filteredResults, key = { "search_${it.addressId}" }) { item ->
@@ -251,7 +259,37 @@ fun ModalNavigationDrawerContent(
             }
           }
         }
+      } // Конец Column(modifier = Modifier.weight(1f))
+
+      // --- 3. НИЖНЯЯ СИСТЕМНАЯ ЧАСТЬ ШТОРКИ (НАСТРОЙКИ ЮКИС) ---
+      // Блок находится ВНЕ скролла и ВНЕ weight(1f), что гарантирует жесткий прижим к низу!
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .wrapContentHeight()
+          .padding(bottom = 16.dp)
+      ) {
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+
+        NavigationDrawerItem(
+          label = { Text("Налаштування", fontWeight = FontWeight.SemiBold) },
+          selected = selectedDestination == "SettingsScreenDest",
+          icon = { Icon(Icons.Default.Settings, contentDescription = "Настройки") },
+          onClick = {
+            println("[$className.$methodName]: [SETTINGS_CLICK] Клик по системным настройкам профиля.")
+            keyboardController?.hide()
+            onMenuClick()
+            navigateToDestination("SettingsScreenDest")
+          },
+          modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+          colors = NavigationDrawerItemDefaults.colors(
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedIconColor = MaterialTheme.colorScheme.primary,
+            selectedTextColor = MaterialTheme.colorScheme.primary
+          )
+        )
       }
     }
   }
+
 }

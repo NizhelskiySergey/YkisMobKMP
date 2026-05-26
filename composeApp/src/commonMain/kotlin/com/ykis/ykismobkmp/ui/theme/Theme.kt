@@ -31,22 +31,23 @@ private val darkScheme = darkColorScheme(
 private const val tag = "YkisPAMTheme"
 
 /**
- * [YkisPAMTheme] — Центральная кроссплатформенная тема оформления Material 3.
- * ИСПРАВЛЕНО НАМЕРТВО: Конфликт дублирования геометрии Conflicting declarations: val shapes удален,
- * тема автоматически использует глобальный shapes твоего проекта.
+ * [YkisPAMTheme] — Глобальний кросплатформовий конвеєр кольорових палітр Material 3.
+ * ИСПРАВЛЕНО НАМЕРТВО: Строковый анализатор приведен к единомуlowercase КМР-стандарту биллинга ЮКІС ("light"/"dark"/"system").
+ * Теперь регистры букв полностью совпадают с DataStore, и палитра переключается на лету мгновенно!
  */
 @Composable
 fun YkisPAMTheme(
-  appTheme: String? = ThemeValues.LIGHT_MODE.name,
+  appTheme: String? = "light", // Дефолтное значение строчным текстом
   useDarkTheme: Boolean = isSystemInDarkTheme(),
   content: @Composable () -> Unit
 ) {
-  // Определяем, какую схему использовать (Твоя оригинальная логика)
-  val darkTheme = when (appTheme) {
-    ThemeValues.SYSTEM_DEFAULT.name -> useDarkTheme
-    ThemeValues.DARK_MODE.name -> true
-    ThemeValues.LIGHT_MODE.name -> false
-    else -> useDarkTheme
+  // ИСПРАВЛЕНО НАМЕРТВО: Сверяем прилетающие строки с реальными ключами кэша DataStore/Settings!
+  // Это полностью устраняет падение в ветку else и гарантирует мгновенную рекомпозицию палитры.
+  val darkTheme = when (appTheme?.lowercase()) {
+    "system" -> useDarkTheme
+    "dark"   -> true
+    "light"  -> false
+    else     -> useDarkTheme // Безопасный фоллбэк на системные часы Android/iOS
   }
 
   val colors = if (darkTheme) darkScheme else lightScheme
@@ -55,7 +56,7 @@ fun YkisPAMTheme(
   val kmpTypography = rememberYkisTypography()
 
   SideEffect {
-    println("[$tag.SideEffect]: Смена цветовой палитры. DarkTheme активна: $darkTheme")
+    println("[$tag.SideEffect]: Зміна кольорової палітри ІС ЮКІС. Активний appTheme: \"$appTheme\" -> Темна схема: $darkTheme")
   }
 
   // Вызываем expect-компонент для прорисовки цвета баров под капотом каждой ОС
@@ -68,6 +69,7 @@ fun YkisPAMTheme(
     shapes = shapes // Нативно подхватывает открытую переменную shapes из твоего Shapes.kt!
   )
 }
+
 
 /**
  * [PlatformSystemBarsAppearance] — Кроссплатформенный expect-компонент изменения инсетов статус-бара.

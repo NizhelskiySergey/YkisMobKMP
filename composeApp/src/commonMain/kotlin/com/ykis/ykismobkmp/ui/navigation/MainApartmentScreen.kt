@@ -28,6 +28,8 @@ import com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.UserListScreen
+import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreen
+import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreenModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -64,7 +66,7 @@ class MainApartmentScreen(
     // ИНЖЕКЦИЯ КОММУНАЛЬНЫХ КМР-МОДЕЛЕЙ ЧЕРЕЗ ПРОВАЙДЕР KOIN
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
     val chatScreenModel = koinInject<ChatScreenModel>()
-
+    val settingsScreenModel = koinInject<SettingsScreenModel>()
     // РЕАКТИВНЫЙ СБОР ПОТОКОВ СОСТОЯНИЙ ИЗ ОПЕРАТИВНОЙ ПАМЯТИ СМАРТФОНА
     val baseUIState by apartmentScreenModel.baseUIState.collectAsState()
     val drawerApartments by apartmentScreenModel.drawerApartments.collectAsState()
@@ -223,6 +225,18 @@ class MainApartmentScreen(
             androidx.compose.material3.Text("Екран активної чат-кімнати обговорення")
           }
         }
+        "SettingsScreenDest" -> {
+          val settingsScreenInstance = remember {
+            SettingsScreen(
+              onDrawerClick = {
+                coroutineScope.launch { drawerState.open() }
+              }
+            )
+          }
+          println("[YkisLogKMP.$className.RenderActiveModule]: Запуск живого экрана настроек и логаута SettingsScreen")
+          settingsScreenInstance.Content()
+        }
+        // ====================================================================
 
         else -> {
           // Мягкий фоллбэк: если роут сбился, но у жителя нет квартир — выводим БТИ

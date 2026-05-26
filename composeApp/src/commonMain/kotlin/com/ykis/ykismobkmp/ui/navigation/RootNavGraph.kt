@@ -141,10 +141,8 @@ fun RootNavGraph(
                 // ИСПРАВЛЕНО: Проверяем тип класса через оператор 'is'
                 if (currentRoute !is TermsAndConditionScreen) {
                   println("[YkisLogKMP.$className.Dispatcher]: [NAV_ACTION] Оферта не прийнята. Прокидання готового тексту на TermsAndConditionScreen.")
-
                   // Извлекаем предварительно скачанный из Remote Config текст договора
                   val readyText = appStartModel.cachedTermsText
-
                   // Нативно замещаем корень стека экземпляром класса экрана оферты
                   navigator.replaceAll(TermsAndConditionScreen(readyText))
                 }
@@ -157,13 +155,10 @@ fun RootNavGraph(
                 }
               }
 
-              AppStartState.AddApartment -> {
-                println("[YkisLogKMP.$className.Dispatcher]: [EXECUTE] Переход на AddApartmentScreen (Ввод инфо-кода БТИ)")
-                navigator.replaceAll(AddApartmentScreen)
-              }
-
-              AppStartState.InfoApartment, AppStartState.UserList -> {
-                println("[YkisLogKMP.$className.Dispatcher]: [EXECUTE] Переход в адаптивный хаб MainApartmentScreen")
+              AppStartState.AddApartment,
+              AppStartState.InfoApartment,
+              AppStartState.UserList -> {
+                println("[YkisLogKMP.$className.Dispatcher]: [EXECUTE] Запуск монолитного хаба MainApartmentScreen")
                 navigator.replaceAll(
                   MainApartmentScreen(
                     contentType = contentType,

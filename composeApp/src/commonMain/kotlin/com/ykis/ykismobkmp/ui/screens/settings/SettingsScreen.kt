@@ -1,8 +1,18 @@
 package com.ykis.ykismobkmp.ui.screens.settings
 
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -11,34 +21,64 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.Key.Companion.R
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import coil3.compose.AsyncImage
-
-
+import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.ykismobkmp.ui.navigation.NavigationType
-import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
+import com.ykis.ykismobkmp.ui.components.SingleSelectDialog
+import com.ykis.ykismobkmp.ui.navigation.AppScreenModel
+import com.ykis.ykismobkmp.ui.screens.settings.ThemeValues.Companion.fromStorageKey
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.*
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.cancel
+import ykismobkmp.composeapp.generated.resources.choose_mode
+import ykismobkmp.composeapp.generated.resources.dark_mode
+import ykismobkmp.composeapp.generated.resources.delete_acc
+import ykismobkmp.composeapp.generated.resources.delete_account_description
+import ykismobkmp.composeapp.generated.resources.delete_account_title
+import ykismobkmp.composeapp.generated.resources.delete_my_account
+import ykismobkmp.composeapp.generated.resources.ic_account_circle
+import ykismobkmp.composeapp.generated.resources.lite_mode
+import ykismobkmp.composeapp.generated.resources.log_out
+import ykismobkmp.composeapp.generated.resources.save
+import ykismobkmp.composeapp.generated.resources.settings
+import ykismobkmp.composeapp.generated.resources.sign_out
+import ykismobkmp.composeapp.generated.resources.sign_out_description
+import ykismobkmp.composeapp.generated.resources.sign_out_title
+import ykismobkmp.composeapp.generated.resources.system_mode
+import ykismobkmp.composeapp.generated.resources.theme_mode
+import ykismobkmp.composeapp.generated.resources.version
 
 private const val className = "SettingsScreen"
 
@@ -51,45 +91,78 @@ class SettingsScreen(
   private val onDrawerClick: () -> Unit
 ) : Screen {
 
+  override val key: cafe.adriel.voyager.core.screen.ScreenKey = "SettingsScreen_KMP_Instance"
+
   @Composable
   override fun Content() {
     val navigator = LocalNavigator.currentOrThrow
 
-    // Инжектируем очищенную KMP-модель настроек через Koin
+    // Инжектуем локальную вьюмодель настроек, центральную стейт-машину и синглтон КМР-кэша через Koin
     val screenModel = koinInject<SettingsScreenModel>()
+    val appStartModel = koinInject<AppScreenModel>()
+    val appCache = koinInject<com.russhwolf.settings.Settings>() // Единый синглтон-источник правды
 
-    // ИСПРАВЛЕНО: collectAsStateWithLifecycle заменен универсальным КМР collectAsState()
-    val theme by screenModel.theme.collectAsState()
     val loading by screenModel.loading.collectAsState()
 
-    var themeLocation by remember { mutableStateOf(0) }
+    // ИСПРАВЛЕНО НАМЕРТВО ДЛЯ ЛИКВИДАЦИИ ХАОТИЧНОГО ПЕРЕКЛЮЧЕНИЯ:
+    // Мы переводим чтение текущей темы на прямой синглтон-кэш смартфона appCache!
+    // Карта тем (themes) хранит: [0 -> "light", 1 -> "dark", 2 -> "system"]
+    var activeThemeString by remember {
+      mutableStateOf(appCache.getString(key = "theme_key", defaultValue = "system"))
+    }
 
-    // Плавное КМР переключение лоадера удаления аккаунта / выхода
+    // Вычисляем точный индекс радиокнопки для SingleSelectDialog напрямую из строки кэша диска
+    var themeLocation = remember(activeThemeString) {
+      val index = themes.indexOf(activeThemeString)
+      if (index == -1) 2 else index // Если ключ пуст — по дефолту синяя точка встанет на 2-й индекс ("system")
+    }
+
     Crossfade(targetState = loading, label = "SettingsLoadingFade") { isLoading ->
       if (isLoading) {
-        CenteredProgressIndicator()
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+          CircularProgressIndicator(strokeWidth = 3.dp)
+        }
       } else {
         SettingsScreenStateless(
-          theme = theme,
+          // Передаем строку темы напрямую из нашего дискового стейта, минуя фабричный поток вьюмодели!
+          theme = activeThemeString,
           themeLocation = themeLocation,
           photoUrl = screenModel.photoUrl ?: "",
           email = screenModel.email ?: "",
           onDrawerClick = onDrawerClick,
-          setThemeValues = screenModel::setThemeValue,
-          onThemeChange = {
-            themeLocation = if (theme.isNullOrEmpty()) 2 else themes.indexOf(theme)
+
+          // Метод записи темы: обновляет диск, локальный стейт экрана и сигнализирует вьюмодели
+          setThemeValues = { selectedKey ->
+            println("[YkisLogKMP.$className.Content]: Каскадна фіксація пресету теми на диск: \"$selectedKey\"")
+
+            // 1. Прошиваем значение на физический диск через синглтон-кэш
+            appCache.putString(key = "theme_key", value = selectedKey)
+
+            // 2. Мгновенно обновляем локальный стейт экрана для синхронизации RadioButton!
+            activeThemeString = selectedKey
+
+            // 3. Дублируем запись во вьюмодель настроек (для её внутренних процессов)
+            screenModel.setThemeValue(selectedKey)
           },
+
+          onThemeChange = {
+            // Принудительно перечитываем строку с диска для обновления индексов при открытии окна
+            activeThemeString = appCache.getString(key = "theme_key", defaultValue = "system")
+            println("[YkisLogKMP.$className.Content.onThemeChange]: Потоковий індекс RadioButton синхронізовано: $themeLocation (\"$activeThemeString\")")
+          },
+
           revokeAccess = {
-            // Каскадный КМР-выход с полным стиранием облака и SQLite SQLDelight
+            println("[YkisLogKMP.$className.Content.revokeAccess]: Безвозвратное локальное удаление профиля...")
             screenModel.revokeAccess {
-              println("[$className]: Аккаунт успешно удален")
-              // navigator.replaceAll(AuthScreen()) // Раскомментируй при подключении AuthScreen
+              appCache.putBoolean("is_terms_accepted", false)
+              appStartModel.evaluateStartDestination()
             }
           },
           signOut = {
+            println("[YkisLogKMP.$className.Content.signOut]: Запуск процедуры безопасного логаута...")
             screenModel.signOut {
-              println("[$className.signOut]: Сессия успешно закрыта, уход на авторизацию")
-              // navigator.replaceAll(AuthScreen())
+              appCache.putBoolean("is_terms_accepted", false)
+              appStartModel.evaluateStartDestination()
             }
           }
         )
@@ -195,10 +268,57 @@ fun SettingsScreenStateless(
     )
   }
 
+  // ====================================================================
+  // --- БРОНИРОВАННЫЙ ВЫЗОВ ТВОЕГО РОДНОГО SINGLE_SELECT_DIALOG ---
+  // ====================================================================
   if (showChangeThemeDialog) {
-    // Примени свой кастомный SingleSelectDialog, вычитывая строки через КМР Res
-    println("[$className]: Открытие окна смены темы. Текущий индекс: $themeLocation")
+    onThemeChange()
+    println("[YkisLogKMP.$className]: [THEME_DIALOG] Відкриття модального вікна вибору теми ІС ЮКІС. Індекс у СУБД: $themeLocation")
+
+    // Внутренний флаг-предохранитель для защиты от коллизий и двойных срабатываний
+    var isSubmitTriggered by remember { mutableStateOf(false) }
+
+    val localizedThemeLabels = listOf(
+      stringResource(Res.string.lite_mode),   // Світла тема
+      stringResource(Res.string.dark_mode),   // Темна тема
+      stringResource(Res.string.system_mode)  // Системна тема
+    )
+
+    SingleSelectDialog(
+      modifier = modifier,
+      title = stringResource(Res.string.choose_mode),       // "Оберіть тему оформлення"
+      optionsList = localizedThemeLabels,                   // Локализованные строки КМР в LazyColumn
+      defaultSelected = themeLocation,                      // Текущий выбранный индекс из СУБД
+      submitButtonText = stringResource(Res.string.save),   // Кнопка "Зберегти"
+      dismissButtonText = stringResource(Res.string.cancel), // Кнопка "Скасувати"
+      onSubmitButtonClick = { id ->
+        // Шаг 1. Взводим предохранитель: сохранение запущено!
+        isSubmitTriggered = true
+
+        val selectedStorageKey = themes[id]
+        println("[YkisLogKMP.$className.ThemeDialog]: Клік по кнопці 'Зберегти'. Обрано пресет палітри: \"$selectedStorageKey\"")
+
+        // Шаг 2. Записываем значение в кэш DataStore/Settings через вьюмодель
+        setThemeValues(selectedStorageKey)
+        onThemeChange()
+
+        // Шаг 3. Реактивно закрываем модальное окно диалога
+        showChangeThemeDialog = false
+      },
+      onDismissRequest = {
+        // ИСПРАВЛЕНО НАМЕРТВО: Если встроенный confirmButton пытается вызвать onDismissRequest дуплетом
+        // после успешного сохранения — предохранитель блокирует ложный вызов отмены и очищает рантайм!
+        if (!isSubmitTriggered) {
+          println("[YkisLogKMP.$className.ThemeDialog]: Клік по кнопці 'Скасувати'. Зміни відхилено користувачем.")
+          showChangeThemeDialog = false
+        } else {
+          println("[YkisLogKMP.$className.ThemeDialog]: [GUARD] Каскадний Dismiss після успішного збереження успішно заблоковано.")
+        }
+      }
+    )
   }
+
+
 }
 
 @Composable

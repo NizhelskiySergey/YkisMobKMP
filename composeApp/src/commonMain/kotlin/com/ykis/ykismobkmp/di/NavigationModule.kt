@@ -1,5 +1,6 @@
 package com.ykis.ykismobkmp.di
 
+import com.russhwolf.settings.Settings
 import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentService
 import com.ykis.ykismobkmp.domain.repository.ledger.LedgerService
 import com.ykis.ykismobkmp.domain.repository.meter.MeterService
@@ -27,8 +28,6 @@ val navigationModule = module {
   factory { FamilyListScreenModel(get(), get()) }
   factory { MeterScreenModel(get(), get()) }
   factory { ClearDatabase() }
-
-  // ИСПРАВЛЕНО НАМЕРТВО: Монолитный сервис-комбайн квартир ЮКИС
   single {
     ApartmentService(
       getApartmentList = get(), getOsbbApartmentsList = get(), getRaionList = get(),
@@ -65,7 +64,7 @@ val navigationModule = module {
   // Фабрики ScreenModels финансово-расчетного учета коммунальных услуг
 
 
-  factory {
+  single {
     try {
       SettingsScreenModel(
         settings = get(),

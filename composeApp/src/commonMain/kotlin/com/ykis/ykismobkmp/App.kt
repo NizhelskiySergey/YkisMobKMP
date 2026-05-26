@@ -23,10 +23,6 @@ import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import org.koin.mp.KoinPlatform
-
-/**
- * [YkisPamAppRoot] — Корневой узел графического рантайма приложения ЮКИС.
- */
 @Composable
 fun YkisPamAppRoot(
   windowSize: WindowSizeClass,
@@ -77,11 +73,12 @@ fun YkisPamAppRoot(
       }
     }
 
-    // Запускаем инжекцию темы оформления
+    // Запускаем инжекцию темы оформления (Твой оригинальный чистый вызов)
+    // Из-за того, что в Koin мы прописали single, этот инстанс жестко синхронизирован с экраном настроек!
     val settingsScreenModel = koinInject<SettingsScreenModel>()
     val currentTheme by settingsScreenModel.theme.collectAsState()
 
-    println("[YkisLogKMP.App.YkisPamAppRoot]: Граф DI верифіковано. Ініціалізація теми: ${currentTheme ?: "system"}")
+    println("[YkisLogKMP.App.YkisPamAppRoot]: Граф DI верифіковано. Ініціалізація теми ЮКІС: ${currentTheme ?: "system"}")
 
     YkisPAMTheme(appTheme = currentTheme ?: "system") {
       Surface(
