@@ -1,16 +1,18 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import com.android.build.api.dsl.ApplicationExtension
+import org.gradle.kotlin.dsl.implementation
+
 plugins {
   alias(libs.plugins.kotlinMultiplatform)
   alias(libs.plugins.androidApplication)
   alias(libs.plugins.composeMultiplatform)
   alias(libs.plugins.composeCompiler)
-  alias(libs.plugins.googleServices)
   alias(libs.plugins.composeHotReload)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.sqldelight)
   alias(libs.plugins.crashlytics)
+  alias(libs.plugins.googleServices)
 
 
 }
@@ -111,6 +113,7 @@ kotlin {
       implementation(libs.firebase.storage)
       implementation(libs.multiplatform.settings)
       implementation(libs.multiplatform.settings.no.arg)
+
       // 8. Coil
       implementation(libs.coil.compose)
       implementation(libs.coil.network.ktor)
@@ -136,7 +139,7 @@ kotlin {
       implementation(libs.androidx.camera.lifecycle)
       implementation(libs.androidx.camera.view)
       implementation(libs.androidx.window) // Предоставляет FoldingFeature и DisplayFeature
-
+      implementation(libs.firebase.appcheck.debug)
       implementation(libs.googleid)
       implementation(libs.androidx.credentials)
       implementation(libs.androidx.credentials.play.services.auth)

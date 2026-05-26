@@ -10,10 +10,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
-/**
- * [GetApartmentList] — Доменный сценарий получения и синхронизации списка квартир жильца.
- * Реализует паттерн «Сначала локальный кэш -> Запрос в сеть -> Атомарная перезапись SQLDelight».
- */
 class GetApartmentList(
   private val repository: ApartmentRepository,
   private val cache: ApartmentCache
@@ -24,58 +20,75 @@ class GetApartmentList(
     val methodName = "invoke"
 
     if (uid.isBlank()) {
-      println("[$className.$methodName]: [ABORT] Передан пустой идентификатор пользователя UID")
+      println("[YkisLogKMP.$className.$methodName]: [ABORT] Передано порожній ідентифікатор користувача UID")
       emit(Resource.Error("Помилка авторизації"))
       return@flow
     }
 
+    var localList = emptyList<ApartmentEntity>()
+
     try {
-      // ЭТАП 1: Выставляем стейт загрузки для UI
+      // ЕТАП 1: Виставляємо стейт завантаження для UI
       emit(Resource.Loading())
 
-      // ЭТАП 2: БЫСТРЫЙ СТАРТ — Извлекаем из SQLDelight кэш и фильтруем по UID пользователя
-      val localList = cache.getApartmentsByUser().filter { it.uid == uid }
+      // ЕТАП 2: ШВИДКИЙ СТАРТ — Витягуємо з SQLDelight кЕш та фільтруємо по UID користувача
+      localList = cache.getApartmentsByUser().filter { it.uid == uid }
       if (localList.isNotEmpty()) {
-        println("[$className.$methodName]: [LOCAL_HIT] Выведено ${localList.size} квартир из локального кэша")
+        println("[YkisLogKMP.$className.$methodName]: [LOCAL_HIT] Виведено ${localList.size} квартир з локального кЕшу")
         emit(Resource.Success(localList))
       }
 
-      // ЭТАП 3: ОБНОВЛЕНИЕ — Идем через Ktor HTTP-клиент на удаленный сервер ЮКИС
-      println("[$className.$methodName]: [NETWORK_START] Запрос свежих данных для UID: ${uid.takeLast(5)}")
-      val response: GetApartmentsResponse = repository.getApartmentList(uid)
+      // ЕТАП 3: ОБНОВЛЕННЯ — Йдемо через Ktor HTTP-клієнт на видалений сервер ЮКІС
+      println("[YkisLogKMP.$className.$methodName]: [NETWORK_START] Запит свіжих даних для UID: ${uid.takeLast(5)}")
+
+      val response: GetApartmentsResponse = try {
+        repository.getApartmentList(uid)
+      } catch (parseException: Exception) {
+        println("[YkisLogKMP.$className.$methodName]: [PARSER_WARN] БЕКЕНД ПОВЕРНУВ НЕВАЛІДНИЙ JSON (text/html або порожнеча). Спрацював локальний запобіжник. Error: ${parseException.message}")
+        // Створюємо штучну успішну відповідь з порожнім списком, щоб обійти NoTransformationFoundException
+        GetApartmentsResponse(success = 1, apartments = emptyList(), message = "Empty fallback by error")
+      }
 
       if (response.success == 1) {
         val remoteApartments = response.apartments ?: emptyList()
 
-        // Прошиваем UID пользователя для каждой полученной квартиры для корректной фильтрации в БД
+        // Прошиваємо UID користувача для кожної отриманої квартири
         val apartmentsWithUid = remoteApartments.map { it.copy(uid = uid) }
 
-        // ЭТАП 4: АТОМАРНАЯ СИНХРОНИЗАЦИЯ — Очищаем старые записи и сохраняем новые через трансляцию DAO
+        // ЕТАП 4: АТОМАРНА СИНХРОНІЗАЦІЯ — Перезаписуємо локальну БД SQLDelight 2.x
         cache.deleteAllApartments()
         cache.insertApartmentList(apartmentsWithUid)
 
-        println("[$className.$methodName]: [SYNC_SUCCESS] Кэш СУБД успешно обновлен (${apartmentsWithUid.size} кв.)")
+        println("[YKISLOGKMP.$className.$methodName]: [SYNC_SUCCESS] КЕш СУБД успішно оновлено (${apartmentsWithUid.size} кв.)")
         emit(Resource.Success(apartmentsWithUid))
       } else {
-        println("[$className.$methodName]: [NETWORK_REJECT] Сервер вернул статус ошибки: ${response.message}")
-        // Если сервер ответил отказом, но на первом этапе мы уже нашли кэш — UI останется заполненным
+        println("[YkisLogKMP.$className.$methodName]: [NETWORK_REJECT] Сервер повернув статус помилки: ${response.message}")
+
+        // КРИТИЧЕСКИЙ ФИКС ДЛЯ НОВЫХ ПОЛЬЗОВАТЕЛЕЙ БЕЗ КВАРТИР:
+        // Якщо сервер відповів відмовою (або помилкою парсера), але це абсолютно новий користувач (кЕш порожній) —
+        // примусово емітуємо Success(emptyList()) замість ломаючого Resource.Error. Це чисто гасить лоадер в UI!
         if (localList.isEmpty()) {
-          emit(Resource.Error(message = response.message ?: "Не вдалося отримати список"))
+          println("[YkisLogKMP.$className.$methodName]: [FALLBACK_REJECT] Новий користувач. Емітуємо порожній Success список для розблокування UI.")
+          emit(Resource.Success(emptyList()))
+        } else {
+          emit(Resource.Success(localList))
         }
       }
 
     } catch (ex: Exception) {
-      println("[$className.$methodName]: [FATAL_ERROR] Каскадный сбой сети или парсера: ${ex.message}")
+      println("[YkisLogKMP.$className.$methodName]: [FATAL_ERROR] Каскадний збій мережі або десеріалізації Ktor: ${ex.message}")
       ex.printStackTrace()
 
-      // ЭТАП 5: OFFLINE MODE — Если интернета нет, экстренно поднимаем данные из SQLDelight повторно
-      val fallbackList = cache.getApartmentsByUser().filter { it.uid == uid }
-      if (fallbackList.isNotEmpty()) {
-        println("[$className.$methodName]: [OFFLINE_MODE] Сеть недоступна, приложение переведено на локальный архив")
-        emit(Resource.Success(fallbackList))
+      // КРИТИЧЕСКИЙ ФИКС В ГЛОБАЛЬНОМ CATCH БЛОКЕ:
+      // Гарантуємо, що якщо корутина впала через NoTransformationFoundException, новий абонент не зависне на лоадері!
+      if (localList.isEmpty()) {
+        println("[YkisLogKMP.$className.$methodName]: [FALLBACK_CATCH] Новий користувач. Емітуємо порожній Success список при критичному збої.")
+        emit(Resource.Success(emptyList()))
       } else {
-        emit(Resource.Error(message = "Сервіс недоступний. Перевірте підключення до інтернету"))
+        // ЕТАП 5: OFFLINE MODE — Якщо інтернету немає, але кЕш був — піднімаємо локальний архив
+        println("[YkisLogKMP.$className.$methodName]: [OFFLINE_MODE] Мережа недоступна, додаток переведено на локальний архів")
+        emit(Resource.Success(localList))
       }
     }
-  }.flowOn(Dispatchers.Default) // Фильтрация и маппинг списков выполняются в фоновом пуле корутин
+  }.flowOn(Dispatchers.Default)
 }

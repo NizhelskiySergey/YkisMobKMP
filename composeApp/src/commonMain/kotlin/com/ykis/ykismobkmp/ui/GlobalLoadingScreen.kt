@@ -35,31 +35,3 @@ fun GlobalLoadingBarrier(isVisible: Boolean) {
   }
 }
 
-//
-//@Composable
-//fun GlobalLoadingBarrier(isShowing: Boolean) {
-//  if (isShowing) {
-//    // Box на весь экран, блокирующий ввод
-//    Box(
-//      modifier = Modifier
-//        .fillMaxSize()
-//        .background(Color.Black.copy(alpha = 0.4f)) // Затемнение
-//        .pointerInput(Unit) {}, // Блокировка кликов
-//      contentAlignment = Alignment.Center
-//    ) {
-//      Card(
-//        shape = RoundedCornerShape(12.dp),
-//        elevation = CardDefaults.cardElevation(8.dp)
-//      ) {
-//        Column(
-//          modifier = Modifier.padding(24.dp),
-//          horizontalAlignment = Alignment.CenterHorizontally
-//        ) {
-//          CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-//          Spacer(modifier = Modifier.height(16.dp))
-//          Text(text = "Загрузка...", style = MaterialTheme.typography.bodyMedium)
-//        }
-//      }
-//    }
-//  }
-//}

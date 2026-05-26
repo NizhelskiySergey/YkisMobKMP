@@ -52,6 +52,19 @@ interface FirebaseService {
   suspend fun firebaseSignUpWithEmailAndPassword(email: String, password: String): SignUpResponse
   suspend fun sendEmailVerification(): SendEmailVerificationResponse
   suspend fun sendPasswordResetEmail(email: String): SendPasswordResetEmailResponse
+
+  /**
+   * Инициализация отправки SMS-кода. Платформозависимый вызов.
+   * На Android принимает текущую Activity для прохождения reCAPTCHA.
+   */
+  suspend fun sendSmsCode(phoneNumber: String, platformActivity: Any?): Resource<String>
+
+  /**
+   * Вход в систему по коду из SMS.
+   */
+  suspend fun signInWithSmsCode(verificationId: String, smsCode: String): Resource<Boolean>
+
+
   fun getProvider(viewModelScope: CoroutineScope): String
 
   suspend fun firebaseSignInWithEmailAndPassword(email: String, password: String)

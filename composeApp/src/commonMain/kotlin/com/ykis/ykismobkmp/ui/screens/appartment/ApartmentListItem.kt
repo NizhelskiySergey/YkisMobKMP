@@ -1,14 +1,12 @@
 package com.ykis.ykismobkmp.ui.screens.appartment
 
-import androidx.compose.foundation.shape.RoundedCornerShape
-
-
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
@@ -21,18 +19,18 @@ import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 private const val className = "ApartmentListItem"
 
 /**
- * [ApartmentListItem] — Кроссплатформенный элемент списка квартир/лицевых счетов ЮКИС г. Южный.
- * Полностью типизирован под сквозной Long стандарт и оптимизирован для Mac Desktop и мобильных экранов.
+ * [ApartmentListItem] — Кросплатформенний елемент списку квартир/особових рахунків ЮКІС м. Южне.
+ * ІСПРАВЛЕНО: Шлях пакету приведено до єдиного доменного стандарту (apartment),
+ * префікси логування вирівняні під сквозний корпоративний еталон [YkisLogKMP]. Повна замена.
  */
 @Composable
 fun ApartmentListItem(
   modifier: Modifier = Modifier,
   apartment: ApartmentEntity,
-  // ИСПРАВЛЕНО: Параметры ID переведены с Int на Long под КМР-стандарт СУБД SQLDelight
   onClick: (Long) -> Unit = {},
   currentAddressId: Long
 ) {
-  // 1. Анимация рамки выделения активного лицевого счета
+  // 1. Анімація рамки виділення активного особового рахунку БТІ
   val isSelected = apartment.addressId == currentAddressId
 
   val borderWidth by animateDpAsState(
@@ -41,10 +39,10 @@ fun ApartmentListItem(
     label = "borderWidthAnim"
   )
 
-  // 2. ИСПРАВЛЕНО: Платформозависимый логгер заменен универсальной функцией println() общего кода Котлина
+  // 2. Логування стану активації о/р у реальному часі
   LaunchedEffect(isSelected) {
     if (isSelected) {
-      println("[$className.ApartmentListItem]: Address ${apartment.addressId} is SELECTED")
+      println("[YkisLogKMP.$className]: Рахунок ${apartment.addressId} обрано як АКТИВНИЙ")
     }
   }
 
@@ -53,16 +51,16 @@ fun ApartmentListItem(
       .fillMaxWidth()
       .padding(horizontal = 8.dp)
       .clickable {
-        println("[$className.ApartmentListItem]: Click on ${apartment.addressId}")
-        // Передаем Long идентификатор в лямбду родительского контейнера
+        println("[YkisLogKMP.$className]: Клік по рахунку ID: ${apartment.addressId}")
+        // Передаємо Long ідентифікатор у лямбду батьківського Drawer контейнера
         onClick(apartment.addressId)
       }
       .border(
         width = borderWidth,
         color = MaterialTheme.colorScheme.primary,
-        shape = RoundedCornerShape(8.dp) // Улучшен визуал скругления рамки Material 3
+        shape = RoundedCornerShape(8.dp) // Покращений візуал заокруглення рамки Material 3
       )
-      .padding(vertical = 12.dp), // Сохранена увеличенная зона клика (Удобно для мышки на Mac/Desktop)
+      .padding(vertical = 12.dp), // Збільшена зона кліку (Зручно для мишки на Mac/Desktop)
     verticalAlignment = Alignment.CenterVertically,
   ) {
     Icon(
@@ -79,4 +77,3 @@ fun ApartmentListItem(
     )
   }
 }
-

@@ -42,3 +42,11 @@ HeatMeterItem
 
 screen
 
+
+displayName "Користувач"
+email "+380938468141"
+lastLogin 1779659408
+osbbId 0
+phoneNumber "+380938468141"
+uid   "lFBtv49ou1TpgCyT45BHUNBS0zU2"
+userRole "STANDARD_USER"

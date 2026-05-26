@@ -19,6 +19,7 @@
 		4B1836822FBCB05400E2AB8C /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = 4B1836812FBCB05400E2AB8C /* FirebaseRemoteConfig */; };
 		4B1836842FBCB05400E2AB8C /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 4B1836832FBCB05400E2AB8C /* FirebaseStorage */; };
 		4BCDD97E2FBC72A5008D7B56 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 4BCDD97D2FBC72A5008D7B56 /* libsqlite3.tbd */; };
+		4BF442632FC102A700B1150B /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF442622FC102A700B1150B /* FirebaseAppCheck */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -59,6 +60,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4B1836822FBCB05400E2AB8C /* FirebaseRemoteConfig in Frameworks */,
+				4BF442632FC102A700B1150B /* FirebaseAppCheck in Frameworks */,
 				4B18367E2FBCB05400E2AB8C /* FirebaseMessaging in Frameworks */,
 				4B1836782FBCB05400E2AB8C /* FirebaseDatabase in Frameworks */,
 				4B1836802FBCB05400E2AB8C /* FirebasePerformance in Frameworks */,
@@ -135,6 +137,7 @@
 				4B18367F2FBCB05400E2AB8C /* FirebasePerformance */,
 				4B1836812FBCB05400E2AB8C /* FirebaseRemoteConfig */,
 				4B1836832FBCB05400E2AB8C /* FirebaseStorage */,
+				4BF442622FC102A700B1150B /* FirebaseAppCheck */,
 			);
 			productName = iosApp;
 			productReference = 3825B5DAA5E5BFEEC500E648 /* YkisMobKMP.app */;
@@ -230,10 +233,11 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
-				DEVELOPMENT_TEAM = "${TEAM_ID}";
+				DEVELOPMENT_TEAM = 8AHNTYBJZN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = YkisMobKMP;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -243,6 +247,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -259,10 +264,11 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
-				DEVELOPMENT_TEAM = "${TEAM_ID}";
+				DEVELOPMENT_TEAM = 8AHNTYBJZN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = YkisMobKMP;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -492,6 +498,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4B18366E2FBCB05400E2AB8C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		4BF442622FC102A700B1150B /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4B18366E2FBCB05400E2AB8C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

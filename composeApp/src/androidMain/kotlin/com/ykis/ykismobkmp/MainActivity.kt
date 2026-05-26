@@ -4,8 +4,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import com.google.firebase.Firebase
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.appCheck
 import com.ykis.ykismobkmp.di.initAndroidKoin
 import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 
 private const val tag = "MainActivity"
 
@@ -26,6 +30,19 @@ class MainActivity : ComponentActivity() {
     // ИСПРАВЛЕНО НАМЕРТВО: Передаем applicationContext вместо Activity!
     // Это гарантирует, что драйвер SQLDelight получит вечный доступ к дисковой системе смартфона!
     initAndroidKoin(context = this@MainActivity.applicationContext)
+
+// Внутри onCreate:
+    try {
+      // КРИТИЧЕСКИЙ ФИКС ДЛЯ РЕАЛЬНОГО СМАРТФОНА:
+      // Получаем экземпляр нативного AppCheck и принудительно разворачиваем Debug-фабрику для обхода Play Integrity
+      val firebaseAppCheck = FirebaseAppCheck.getInstance()
+      firebaseAppCheck.installAppCheckProviderFactory(
+        DebugAppCheckProviderFactory.getInstance()
+      )
+      println("[YkisLogKMP.MainActivity]: Нативная отладочная фабрика Google успешно запущена на физическом смартфоне")
+    } catch (e: Exception) {
+      println("[YkisLogKMP.MainActivity_ERROR]: Ошибка предустановки App Check на устройстве: ${e.message}")
+    }
 
 
     setContent {

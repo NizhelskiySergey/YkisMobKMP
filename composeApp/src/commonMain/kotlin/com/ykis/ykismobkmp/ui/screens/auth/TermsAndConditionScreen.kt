@@ -13,82 +13,58 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
-import cafe.adriel.voyager.navigator.LocalNavigator
-import cafe.adriel.voyager.navigator.currentOrThrow
-import com.ykis.ykismobkmp.domain.services.FirebaseService
-import kotlinx.coroutines.launch
+import com.ykis.ykismobkmp.ui.navigation.AppScreenModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.terms_condition
+import ykismobkmp.composeapp.generated.resources.terms_condition_accept
+import ykismobkmp.composeapp.generated.resources.terms_condition_down
 
 private const val className = "TermsAndConditionScreen"
 
 /**
- * [TermsAndConditionScreen] — Стартовый экран лицензионного соглашения ЮКИС.
- * ИСПРАВЛЕНО: Кнопка «Принять» прижата к самому низу экрана и заблокирована до полной прокрутки текста.
+ * [TermsAndConditionScreen] — Стартовий екран ліцензійної угоди (оферти ГІОЦ) біллінгу м. Южне.
+ * ИСПРАВЛЕНО НАМЕРТВО: Объект переведен в класс, принимающий готовый текст оферты.
+ * Все фоновые LaunchedEffect сетевой подгрузки удалены — экран рендерится мгновенно и без мерцаний!
  */
-object TermsAndConditionScreen : Screen {
+class TermsAndConditionScreen(private val termsText: String) : Screen {
+
+  // Жестко фиксируем строковый ключ экрана для стабильного рантайма Voyager
+  override val key: cafe.adriel.voyager.core.screen.ScreenKey = "TermsAndConditionScreen_Static"
 
   @Composable
   override fun Content() {
-    val navigator = LocalNavigator.currentOrThrow
-    val firebaseService = koinInject<FirebaseService>()
-    val coroutineScope = rememberCoroutineScope()
+    val appStartModel = koinInject<AppScreenModel>() // Инжектуем реактивную стейт-машину старта
 
-    // Динамическое реактивное состояние текста соглашения
-    var termsText by remember { mutableStateOf(firebaseService.agreementText) }
+    // ИСПРАВЛЕНО НАМЕРТВО: Так как текст оферты уже скачан в фоне на уровне AppScreenModel,
+    // мы ПОЛНОСТЬЮ вырезали отсюда фоновые лоадеры и проверки isNetworkFetching.
+    // Экран рендерит Material 3 графику мгновенно, полностью исключая визуальные артефакты!
+    TermsAndConditionContent(
+      termsText = termsText,
+      onAccept = {
+        println("[YkisLogKMP.$className.Content.onAccept]: Користувач підтвердив згоду. Фіксація в КМР-кЕш...")
 
-    // Принудительно заставляем Remote Config обновиться из облака при открытии экрана
-    LaunchedEffect(Unit) {
-      println("[YkisLogKMP.$className.Content]: Запуск асинхронной подгрузки Remote Config...")
-      val isSuccess = firebaseService.fetchConfiguration()
-      println("[YkisLogKMP.$className.Content]: Результат fetchConfiguration = $isSuccess")
-
-      termsText = firebaseService.agreementText
-      println("[YkisLogKMP.$className.Content]: Получен текст из облака. Длина: ${termsText.length}")
-    }
-
-    // Если текст из облака Firebase всё ещё пуст — удерживаем безопасный лоадер
-    if (termsText.isBlank()) {
-      Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-      ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-          CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-          Spacer(modifier = Modifier.height(16.dp))
-          Text(
-            text = "Очікування відповіді від серверів розрахункового центру...",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.outline
-          )
+        // Передаем управление стейт-машине: она запишет true и плавно откроет экран входа через RootNavGraph
+        appStartModel.acceptTermsAndConditions {
+          println("[YkisLogKMP.$className.Content.onAccept]: Лямбда успіху. Передано на реактивний розподіл.")
         }
       }
-    } else {
-      // Текст успешно получен из Firebase Remote Config — рендерим оферту
-      TermsAndConditionContent(
-        termsText = termsText,
-        onAccept = {
-          coroutineScope.launch {
-            println("[YkisLogKMP.$className.Content.onAccept]: Користувач підтвердив згоду")
-            firebaseService.setUserAgreed(true)
-            navigator.replaceAll(SignInScreen)
-          }
-        }
-      )
-    }
+    )
   }
 }
 
 /**
- * [TermsAndConditionContent] — Декларативная верстка экрана лицензии Material 3.
+ * [TermsAndConditionContent] — Декларативна чиста верстка екрана ліцензії Material 3.
  */
 @Composable
 fun TermsAndConditionContent(
@@ -97,8 +73,8 @@ fun TermsAndConditionContent(
 ) {
   val scrollState = rememberScrollState()
 
-  // ВЫЧИСЛЕНИЕ ДИНАМИЧЕСКОЙ БЛОКИРОВКИ: Кнопка активна только если пользователь доскроллил до конца.
-  // Если maxValue == 0 (текст поместился целиком без скролла), кнопка активируется сразу.
+  // ОБЧИСЛЕННЯ ДИНАМІЧНОЇ БЛОКУВАННЯ: Кнопка активна тільки якщо користувач доскролив до кінця.
+  // Якщо maxValue == 0 (текст помістився повністю без скролла), кнопка активується відразу.
   val isScrollFinished = remember(scrollState.value, scrollState.maxValue) {
     scrollState.maxValue == 0 || scrollState.value >= scrollState.maxValue
   }
@@ -112,7 +88,7 @@ fun TermsAndConditionContent(
     horizontalAlignment = Alignment.CenterHorizontally
   ) {
     Text(
-      text = "Умови користування ІС \"ЮКІС\"",
+      text = stringResource(Res.string.terms_condition),
       style = MaterialTheme.typography.headlineMedium,
       color = MaterialTheme.colorScheme.primary,
       fontWeight = FontWeight.Bold
@@ -120,8 +96,8 @@ fun TermsAndConditionContent(
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    // Скроллируемый блок занимает ВСЁ свободное место на холсте с помощью .weight(1f).
-    // Это автоматически выталкивает кнопку Button на самый низ экрана!
+    // Скрольований блок займає ВСЕ вільне місце на полотні за допомогою .weight(1f).
+    // Це автоматично притискає кнопку Button до самого низу екрана смартфона!
     Box(modifier = Modifier.weight(1f)) {
       Text(
         text = termsText,
@@ -133,23 +109,23 @@ fun TermsAndConditionContent(
 
     Spacer(modifier = Modifier.height(24.dp))
 
-    // Кнопка фиксации согласия жильца.
-    // Параметр 'enabled' нативно управляет визуальным состоянием (серая/активная)
+    // Кнопка фіксації згоди мешканця м. Южне
     Button(
       modifier = Modifier
         .fillMaxWidth()
         .height(50.dp),
       onClick = {
-        println("[YkisLogKMP.$className.TermsAndConditionContent]: Клик по кнопке фиксации оферты")
+        println("[YkisLogKMP.$className.TermsAndConditionContent]: [EVENT] Клік по кнопці фіксації оферти жильцом")
         onAccept()
       },
-      enabled = isScrollFinished, // Привязываем состояние блокировки к скроллу
+      enabled = isScrollFinished, // Прив'язуємо стан блокування до повзунка скролла
       shape = RoundedCornerShape(12.dp)
     ) {
       Text(
-        text = if (isScrollFinished) "Я приймаю умови угоди" else "Прокрутіть текст до кінця ↓",
+        text = if (isScrollFinished) stringResource(Res.string.terms_condition_accept) else stringResource(Res.string.terms_condition_down),
         style = MaterialTheme.typography.titleMedium
       )
     }
   }
 }
+

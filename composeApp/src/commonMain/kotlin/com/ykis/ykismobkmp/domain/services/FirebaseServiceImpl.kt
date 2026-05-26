@@ -5,10 +5,12 @@ import com.ykis.ykismobkmp.core.Constants.TERMS_ACCEPTED_KEY
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentService
 import com.ykis.ykismobkmp.domain.repository.chat.ChatRepository
-import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.*
 import dev.gitlive.firebase.auth.FirebaseUser
-import dev.gitlive.firebase.auth.auth
 import dev.gitlive.firebase.auth.GoogleAuthProvider
+import dev.gitlive.firebase.auth.PhoneAuthProvider
+import dev.gitlive.firebase.auth.PhoneVerificationProvider
+import dev.gitlive.firebase.auth.auth
 import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.remoteconfig.remoteConfig
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 
 private const val className = "FirebaseServiceImpl"
 
@@ -91,43 +94,60 @@ class FirebaseServiceImpl(
     try {
       val currentUser = auth.currentUser
       val currentUid = currentUser?.uid
-      val userEmail = currentUser?.email ?: ""
+
+      // КРИТИЧЕСКИЙ ФИКС ДЛЯ SMS-ВХОДА:
+      // Если почты нет, берем номер телефона, чтобы поле не оставалось пустым
+      val rawEmail = currentUser?.email
+      val rawPhone = currentUser?.phoneNumber
+      val userEmail = if (!rawEmail.isNullOrBlank()) rawEmail else (rawPhone ?: "")
+
       if (currentUid.isNullOrEmpty()) {
         println("[YkisLogKMP.$className.$methodName]: [ERROR] UID is null")
         return Resource.Error(message = "UID is empty")
       }
       println("[YkisLogKMP.$className.$methodName]: [START] UID: $currentUid")
+
       val userDocRef = db.collection("users").document(currentUid)
-      val isNewUser = try {
-        !userDocRef.get().exists
-      } catch (e: Exception) {
-        true
-      }
+      val currentTimestamp = Clock.System.now().epochSeconds
+
+      // Мы собираем карту полей по умолчанию. Благодаря merge = true, Firebase создаст их только если документа НЕТ.
       val userMap = mutableMapOf<String, Any?>(
         "uid" to currentUid,
         "email" to userEmail,
-        "displayName" to (currentUser.displayName ?: ""),
-        "lastLogin" to "NOW"
+        "phoneNumber" to (rawPhone ?: ""),
+        "displayName" to (currentUser?.displayName ?: "Meшканець м. Южне"),
+        "userRole" to "STANDARD_USER",
+        "osbbId" to 0L,
+
+        // ДОБАВЛЕНО: Гарантируем нулевой ID адреса БТИ для новых абонентов
+        "addressId" to 0L,
+
+        "lastLogin" to currentTimestamp
       )
-      if (isNewUser) {
-        println("[YkisLogKMP.$className.$methodName]: [NEW_USER] Регистрация нового аккаунта...")
-        userMap["userRole"] = "STANDARD_USER"
-        userMap["osbbId"] = 0L
-      }
+
+
+      println("[YkisLogKMP.$className.$methodName]: [PROCESS] Запуск безопасной записи set(merge = true)...")
+
+      // Запись слияния (merge = true) нативно создаст или обновит профиль без предварительного чтения сети!
       userDocRef.set(data = userMap, merge = true)
+
       println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Firestore успешно обновлен")
+
       try {
         println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_SUCCESS] Запуск синхронизации с MySQL")
       } catch (e: Exception) {
         println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_EXCEPTION] ${e.message}")
       }
+
       println("[YkisLogKMP.$className.$methodName]: [FINISH] Профиль готов")
       return Resource.Success(true)
+
     } catch (e: Exception) {
       println("[YkisLogKMP.$className.$methodName]: [FATAL_ERROR] ${e.message}")
       return Resource.Error(message = e.message ?: "Process error")
     }
   }
+
 
   override suspend fun updateUserRoleAndPermissions(
     uid: String,
@@ -231,13 +251,30 @@ class FirebaseServiceImpl(
     println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Потоки корутин контролюються ScreenModel Voyager.")
   }
 
-  override suspend fun reloadFirebaseUser(): ReloadUserResponse = try {
-    val dummyUser = auth.currentUser
-    println("[YkisLogKMP.$className.reloadFirebaseUser]: Оновлення сесії користувача виконано")
-    Resource.Success(dummyUser != null)
+  override suspend fun reloadFirebaseUser(): Resource<Boolean> = try {
+    val user = auth.currentUser
+    if (user != null) {
+      println("[YkisLogKMP.$className.reloadFirebaseUser]: [START] Примусове оновлення токенів та сесії з облака Google...")
+
+      // 1. Стучимся в сеть и обновляем локальный слепок сессии
+      user.reload()
+
+      // 2. КРИТИЧЕСКИЙ ФИКС ДЛЯ КМР: Вычитываем флаг ПОВТОРНО сразу после релоада
+      val freshVerifiedStatus = auth.currentUser?.isEmailVerified == true
+
+      println("[YkisLogKMP.$className.reloadFirebaseUser]: [SUCCESS] Сесію оновлено. Актуальний статус верифікації в мережі: $freshVerifiedStatus")
+
+      // Передаем свежий статус прямо внутрь успешного ресурса
+      Resource.Success(freshVerifiedStatus)
+    } else {
+      println("[YkisLogKMP.$className.reloadFirebaseUser]: [ERROR] Користувач відсутній в рантаймі")
+      Resource.Error(message = "Користувач не знайдений")
+    }
   } catch (e: Exception) {
-    Resource.Error(message = e.message)
+    println("[YkisLogKMP.$className.reloadFirebaseUser]: [FATAL_ERROR] Сбій синхронізації: ${e.message}")
+    Resource.Error(message = e.message ?: "Помилка оновлення сесії")
   }
+
 
   override suspend fun authenticate(email: String, password: String) {
     val methodName = "authenticate"
@@ -278,10 +315,38 @@ class FirebaseServiceImpl(
   }
 
   override suspend fun sendEmailVerification(): SendEmailVerificationResponse = try {
-    println("[YkisLogKMP.$className.sendEmailVerification]: Запит верифікації (Ізольовано для КМР commonMain)")
-    Resource.Success(true)
+    val user = auth.currentUser
+    if (user != null) {
+      println("[YkisLogKMP.$className.sendEmailVerification]: [START] Примусове оновлення сесії перед верифікацією...")
+
+      // КРИТИЧЕСКИЙ ФИКС: Будим сессию пользователя в облаке Firebase, убирая "холодный" блок
+      user.reload()
+
+      println("[YkisLogKMP.$className.sendEmailVerification]: [PROCESS] Сесію оновлено. Надсилання реального листа...")
+
+      // Вызов реального метода отправки из GitLive SDK
+      user.sendEmailVerification()
+
+      println("[YkisLogKMP.$className.sendEmailVerification]: [SUCCESS] Реальний лист верифікації відправлено!")
+      Resource.Success(true)
+    } else {
+      println("[YkisLogKMP.$className.sendEmailVerification]: [ERROR] Користувач відсутній в рантаймі")
+      Resource.Error(message = "Користувач не знайдений в сесії")
+    }
   } catch (e: Exception) {
-    Resource.Error(message = e.message ?: "Verification Error")
+    println("[YkisLogKMP.$className.sendEmailVerification]: [FATAL_ERROR] Firebase rejected request: ${e.message}")
+    e.printStackTrace()
+    Resource.Error(message = e.message ?: "Помилка відправки верифікації")
+  }
+
+  override suspend fun sendSmsCode(phoneNumber: String, platformActivity: Any?): Resource<String> {
+    // Делегируем отправку SMS на уровень конкретной платформы
+    return performPlatformSendSms(auth, phoneNumber, platformActivity)
+  }
+
+  override suspend fun signInWithSmsCode(verificationId: String, smsCode: String): Resource<Boolean> {
+    // Делегируем нативную авторизацию токена на уровень конкретной платформы
+    return performPlatformSignInWithSms(auth, verificationId, smsCode)
   }
 
   override suspend fun sendPasswordResetEmail(email: String): SendPasswordResetEmailResponse = try {
@@ -303,3 +368,20 @@ class FirebaseServiceImpl(
 }
 
 private fun String?.isNullOfBlank(): Boolean = this == null || this.trim().isEmpty()
+// Ожидаемая КМР-функция отправки SMS для реализации на платформах
+// Ожидаемые КМР-функции для реализации на нативных уровнях
+// Ожидаемый мост отправки SMS для нативной реализации на каждой платформе
+// Ожидаемые КМР-функции для изолированной нативной реализации на каждой из платформ
+// В самом низу файла вне класса FirebaseServiceImpl:
+expect suspend fun performPlatformSendSms(
+  auth: dev.gitlive.firebase.auth.FirebaseAuth,
+  phoneNumber: String,
+  platformActivity: Any?
+): Resource<String>
+
+expect suspend fun performPlatformSignInWithSms(
+  auth: dev.gitlive.firebase.auth.FirebaseAuth,
+  verificationId: String,
+  smsCode: String
+): Resource<Boolean>
+

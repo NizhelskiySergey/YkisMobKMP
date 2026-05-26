@@ -38,21 +38,20 @@ import com.ykis.ykismobkmp.ui.components.PasswordField
 import com.ykis.ykismobkmp.ui.components.RepeatPasswordField
 import org.koin.compose.koinInject
 
-private const val tag = "SignUpScreen"
+private const val className = "SignUpScreen"
 
 /**
- * [SignUpScreen] — Кроссплатформенный экран регистрации нового жильца расчетного центра ЮКИС.
- * ИСПРАВЛЕНО: Полностью монолитен, коллизии дублирования Modifier устранены.
+ * [SignUpScreen] — Кроссплатформенный экран регистрации абонента расчетного центра ЮКИС.
  */
-class SignUpScreen : Screen {
+object SignUpScreen : Screen {
 
   @Composable
   override fun Content() {
     val navigator = LocalNavigator.currentOrThrow
     val keyboard = LocalSoftwareKeyboardController.current
 
-    // Внедряем нашу кроссплатформенную ScreenModel (Регистрация) YkisMobKMP
-    val screenModel = koinInject<SignUpScreenModel>()
+    // Внедряем нашу монолитную объединенную модель AuthScreenModel YkisMobKMP
+    val screenModel = koinInject<AuthScreenModel>()
 
     val authUiState by screenModel.authUiState.collectAsState()
     val signUpResponse by screenModel.signUpResponse.collectAsState()
@@ -61,18 +60,18 @@ class SignUpScreen : Screen {
     LaunchedEffect(signUpResponse) {
       when (val response = signUpResponse) {
         is Resource.Success -> {
-          println("[$tag.Content]: [SUCCESS] Реєстрація успішна. Повернення на корінь.")
-          // После успешной регистрации сбрасываем стек.
-          // Firebase KMP обновит сессию, и RootNavGraph направит юзера по сценарию на AddApartmentScreen
-          navigator.popUntilRoot()
+          println("[YkisLogKMP.$className.Content]: [SUCCESS] Реєстрація успішна. Перехід на екран підтвердження пошти.")
+
+          // ИСПРАВЛЕНО: Нативно пушаем синглтон VerifyEmailScreen в стек Voyager без круглых скобок ()
+          navigator.push(VerifyEmailScreen)
         }
         is Resource.Error -> {
-          println("[$tag.Content]: [ERROR] ${response.message}")
+          println("[YkisLogKMP.$className.Content]: [ERROR] ${response.message}")
           val errorMessage = response.message ?: "Помилка реєстрації"
           SnackbarManager.showMessage(errorMessage)
         }
         is Resource.Loading -> {
-          println("[$tag.Content]: [LOADING] Надсилання даних на сервери Firebase...")
+          println("[YkisLogKMP.$className.Content]: [LOADING] Надсилання даних на сервери Firebase...")
         }
         else -> {}
       }
@@ -87,7 +86,7 @@ class SignUpScreen : Screen {
       onSignUpClick = {
         keyboard?.hide()
         screenModel.signUpWithEmailAndPassword {
-          println("[$tag.Content]: [ACTION] Метод реєстрації в ScreenModel запущено")
+          println("[YkisLogKMP.$className.Content]: [ACTION] Метод реєстрації в ScreenModel успішно виконано")
         }
       },
       isLoading = signUpResponse is Resource.Loading
@@ -97,12 +96,11 @@ class SignUpScreen : Screen {
 
 /**
  * [SignUpScreenStateless] — Декларативная верстка разметки полей ввода регистрации.
- * ИСПРАВЛЕНО: Из дочерних элементов вырезано дублирование modifier, сетка адаптирована под Mac Desktop.
  */
 @Composable
 fun SignUpScreenStateless(
   modifier: Modifier = Modifier,
-  authUiState: AuthUiState, // Твой стейт полей ввода
+  authUiState: AuthUiState,
   navigateBack: () -> Unit,
   onEmailChange: (String) -> Unit,
   onPasswordChange: (String) -> Unit,
@@ -125,7 +123,7 @@ fun SignUpScreenStateless(
         title = "Реєстрація",
         canNavigateBack = true,
         onBackClick = {
-          println("[$tag.SignUpScreenStateless]: [BACK_CLICK] Повернення на екран входу")
+          println("[YkisLogKMP.$className.SignUpScreenStateless]: [BACK_CLICK] Поверенння на екран входу")
           navigateBack()
         }
       )
@@ -142,7 +140,6 @@ fun SignUpScreenStateless(
         LogoImage()
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ИСПРАВЛЕНО: Избавлены от ложного наследования внешнего модификатора
         EmailField(
           value = authUiState.email,
           onNewValue = onEmailChange,
@@ -167,7 +164,7 @@ fun SignUpScreenStateless(
         Button(
           modifier = Modifier.fillMaxWidth(),
           onClick = {
-            println("[$tag.SignUpScreenStateless]: [SUBMIT_CLICK] Спроба створення акаунту для: ${authUiState.email}")
+            println("[YkisLogKMP.$className.SignUpScreenStateless]: [SUBMIT_CLICK] Спроба створення акаунту для: ${authUiState.email}")
             onSignUpClick()
           },
           enabled = !isLoading
@@ -192,5 +189,6 @@ fun SignUpScreenStateless(
     }
   }
 }
+
 
 

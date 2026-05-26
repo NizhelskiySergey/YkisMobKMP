@@ -24,7 +24,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.parameters
 
 class KtorApiService(private val client: HttpClient) {
-  private val baseUrl = "https://is.yuzhny.com/YkisMobileRest/rest_api/"
+  private val baseUrl = "https://is.yuzhny.com/YkisMobKMP/rest_api/"
   //  private val baseUrl = "http://10.0.2.2/YkisPAM/YkisMobileRest/rest_api/"
 //  private val baseUrl = "http://192.168.0.77:8080/YkisMobileRest/rest_api/"
 //  private val baseUrl = "http://192.168.0.177/YkisPAM/YkisMobileRest/rest_api/"
@@ -36,15 +36,13 @@ class KtorApiService(private val client: HttpClient) {
    * [postForm] — Универсальный приватный метод для POST FormUrlEncoded (Кроссплатформенный)
    */
   private suspend inline fun <reified T> postForm(path: String, params: Map<String, String>): T {
-    val fullUrl = baseUrl + path
-    println("[$tag.postForm]: Sending request to $fullUrl with params: $params")
-
     return client.submitForm(
-      url = fullUrl,
+      url = baseUrl + path,
       formParameters = parameters {
         params.forEach { (key, value) -> append(key, value) }
       }
     ) {
+      // Указываем серверу и клиенту, что мы работаем с JSON
       header(HttpHeaders.Accept, ContentType.Application.Json)
     }.body()
   }

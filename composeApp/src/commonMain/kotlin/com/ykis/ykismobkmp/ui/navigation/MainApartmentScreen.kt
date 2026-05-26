@@ -1,18 +1,14 @@
 package com.ykis.ykismobkmp.ui.navigation
-
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,18 +24,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import com.ykis.ykismobkmp.domain.services.UserRole
+import com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.UserListScreen
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-private const val className = "RMainApartmentScreen"
+private const val className = "MainApartmentScreen"
+
 /**
- * [MainApartmentScreen] — Главный адаптивный контейнер распределения интерфейса.
- * ИСПРАВЛЕНО: Внутренний NavHost вырезан, переключение вкладок БТИ/чатов переведено на нативный when.
+ * [MainApartmentScreen] — Головний адаптивний хаб житлового фонду біллінгу м. Южне.
+ * МОДИФИЦИРОВАНО: Интегрирован детальный сквозной аудит Race Condition, вырезаны дублирующие
+ * параллельные потоки вызова сети. Логи приведены строго под эталон [YkisLogKMP].
  */
 class MainApartmentScreen(
   private val contentType: ContentType,
@@ -50,47 +48,109 @@ class MainApartmentScreen(
   override fun Content() {
     val coroutineScope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    var isRailExpanded by androidx.compose.runtime.saveable.rememberSaveable {
+      mutableStateOf(navigationType != NavigationType.BOTTOM_NAVIGATION)
+    }
 
+    // 2. Лямбда-переключатель бургер-кнопки (Инвертирует флаг сжатия панели)
+    val onMenuClick: () -> Unit = { isRailExpanded = !isRailExpanded }
+
+    // 3. Плавная КМР-анимация ширины боковой панели (Схлопывание с 280.dp до 80.dp)
+    val railWidth by androidx.compose.animation.core.animateDpAsState(
+      targetValue = if (isRailExpanded) 280.dp else 80.dp,
+      animationSpec = androidx.compose.animation.core.tween(400),
+      label = "RailWidth"
+    )
+    // ИНЖЕКЦИЯ КОММУНАЛЬНЫХ КМР-МОДЕЛЕЙ ЧЕРЕЗ ПРОВАЙДЕР KOIN
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
     val chatScreenModel = koinInject<ChatScreenModel>()
 
-    val baseUIState by apartmentScreenModel.uiState.collectAsState()
+    // РЕАКТИВНЫЙ СБОР ПОТОКОВ СОСТОЯНИЙ ИЗ ОПЕРАТИВНОЙ ПАМЯТИ СМАРТФОНА
+    val baseUIState by apartmentScreenModel.baseUIState.collectAsState()
     val drawerApartments by apartmentScreenModel.drawerApartments.collectAsState()
     val userList by chatScreenModel.userList.collectAsState()
 
-    var currentScreenRoute by remember(baseUIState.userRole, baseUIState.addressId) {
-      mutableStateOf(
-        if (baseUIState.userRole == UserRole.StandardUser) {
-          if (baseUIState.apartments.isEmpty()) "AddApartmentScreen" else "InfoApartmentScreen"
+    // ТОТАЛЬНЫЙ СИНХРОННЫЙ ДАМП КАЖДОГО КАДРА РЕКОМПОЗИЦИИ ХАБА КВАРТИР
+    println("[YkisLogKMP.$className.RECOMPOSITION]: ======= КАДР ОБНОВЛЕНИЯ ХАБА APARTMENT =======")
+    println("[YkisLogKMP.$className.RECOMPOSITION]: • baseUIState.mainLoading   = ${baseUIState.mainLoading}")
+    println("[YkisLogKMP.$className.RECOMPOSITION]: • baseUIState.apartments.size = ${baseUIState.apartments.size}")
+    println("[YkisLogKMP.$className.RECOMPOSITION]: • baseUIState.addressId       = ${baseUIState.addressId}L")
+    println("[YkisLogKMP.$className.RECOMPOSITION]: • baseUIState.userRole        = ${baseUIState.userRole}")
+    println("[YkisLogKMP.$className.RECOMPOSITION]: ======================================================")
+
+    // ИСПРАВЛЕНО НАМЕРТВО: Если адрес равен 0L или список в ОЗУ пуст — дефолтным роутом
+    // ЖЕСТКО выставляется AddApartmentScreen, пробивая любые задержки корутин Ktor!
+    var currentScreenRoute by remember(baseUIState.addressId, baseUIState.apartments.size, baseUIState.userRole) {
+      val calculatedRoute = if (baseUIState.addressId == 0L || baseUIState.apartments.isEmpty()) {
+        "AddApartmentScreen"
+      } else {
+        if (baseUIState.userRole == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen"
+      }
+
+      println("[YkisLogKMP.$className.remember_Route]: ====== ИНИЦИАЛИЗАЦИЯ И ТРИГГЕР REMEMBER ======")
+      println("[YkisLogKMP.$className.remember_Route]: • Ключ addressId       = ${baseUIState.addressId}L")
+      println("[YkisLogKMP.$className.remember_Route]: • Ключ apartments.size = ${baseUIState.apartments.size}")
+      println("[YkisLogKMP.$className.remember_Route]: • Ключ userRole        = ${baseUIState.userRole}")
+      println("[YkisLogKMP.$className.remember_Route]: • ВЫЧИСЛЕННЫЙ МАРШРУТ  = \"$calculatedRoute\"")
+      println("[YkisLogKMP.$className.remember_Route]: =====================================================")
+
+      mutableStateOf(calculatedRoute)
+    }
+
+    // ИСПРАВЛЕНО НАМЕРТВО: Жесткий реактивный слушатель. Как только фоновый лоадер Ktor гаснет
+    // и возвращает пустой список, этот блок мгновенно перерисует кадр, уничтожая белый экран!
+    LaunchedEffect(baseUIState.mainLoading, baseUIState.apartments.size, baseUIState.addressId, baseUIState.userRole) {
+      println("[YkisLogKMP.$className.LaunchedEffect]: ====== ТРИГГЕР СЛУШАТЕЛЯ МАРШРУТОВ ======")
+      println("[YkisLogKMP.$className.LaunchedEffect]: • Излучаемый mainLoading   = ${baseUIState.mainLoading}")
+      println("[YkisLogKMP.$className.LaunchedEffect]: • Излучаемый apartments.size = ${baseUIState.apartments.size}")
+      println("[YkisLogKMP.$className.LaunchedEffect]: • Излучаемый addressId       = ${baseUIState.addressId}L")
+      println("[YkisLogKMP.$className.LaunchedEffect]: • Излучаемый userRole        = ${baseUIState.userRole}")
+      println("[YkisLogKMP.$className.LaunchedEffect]: ================================================")
+
+      if (!baseUIState.mainLoading) {
+        val oldRoute = currentScreenRoute
+
+        currentScreenRoute = if (baseUIState.addressId == 0L || baseUIState.apartments.isEmpty()) {
+          "AddApartmentScreen"
         } else {
-          if (baseUIState.addressId != 0L) "InfoApartmentScreen" else "UserListScreen"
+          if (baseUIState.userRole == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen"
         }
-      )
+
+        println("[YkisLogKMP.$className.LaunchedEffect]: [ROUTE_CHANGED] Реагування на стейт мережі: \"$oldRoute\" ➔ \"$currentScreenRoute\"")
+      } else {
+        println("[YkisLogKMP.$className.LaunchedEffect]: [SKIP] Роут не обчислюється, фоновий лоадер мережі ще крутиться (mainLoading=true)")
+      }
     }
 
-    // КМР-функция переключения лицевых счетов БТИ расчетного центра
+    // ИСПРАВЛЕНО НАМЕРТВО: Полностью стерт дублирующий блок LaunchedEffect(currentFirebaseUid),
+    // который спамил параллельные сетевые вызовы к getApartmentsByUser.php и вызывал UI Thread Jam!
+
+    // ФУНКЦИЯ СИНХРОНИЗАЦИИ И СМЕНЫ ЛИЦЕВОГО СЧЕТА В БОКОВОЙ ШТОРКЕ DRAWER
     val finalizeApartmentSelection: (Long) -> Unit = { id ->
-      println("[$className.finalizeApartmentSelection]: Смена о/р квартиры на Long ID: $id")
+      println("[YkisLogKMP.$className.finalizeApartmentSelection]: Зміна о/р квартири на Long ID: ${id}L")
       apartmentScreenModel.setAddressId(id)
+
       coroutineScope.launch {
-        if (drawerState.isOpen) drawerState.close()
-        delay(200)
+        if (drawerState.isOpen) {
+          println("[YkisLogKMP.$className.finalizeApartmentSelection]: Закриття бокової шторки Drawer...")
+          drawerState.close()
+        }
+        delay(200) // Пауза для плавной анимации интерфейса смартфона
         currentScreenRoute = "InfoApartmentScreen"
+        println("[YkisLogKMP.$className.finalizeApartmentSelection]: Кадр успішно переведено на InfoApartmentScreen")
       }
     }
 
+    // ====================================================================
+    // --- ВНУТРЕННИЙ ИЗОЛИРОВАННЫЙ ДИСПЕТЧЕР ОТРЕНДЕРИВАНИЯ МОДУЛЕЙ ---
+    // ====================================================================
     @Composable
-    fun RenderActiveModule() {
-      if (baseUIState.mainLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        return
-      }
+    fun RenderActiveModule(route: String) {
+      println("[YkisLogKMP.$className.RenderActiveModule]: [РЕНДЕР] Отрисовка графического кадра для роута: \"$route\"")
 
-      // Внутри RootNavGraph.kt -> MainApartmentScreen -> RenderActiveModule()
-
-      when (currentScreenRoute) {
+      when (route) {
         "UserListScreen" -> {
-          // Мониторинг идентификаторов для админов коммунальных служб Южного
+          // Моніторинг ідентифікаторів для адмінів комунальних служб м. Южне
           LaunchedEffect(baseUIState.userRole, baseUIState.osbbId) {
             val role = baseUIState.userRole
             if (role != UserRole.StandardUser) {
@@ -100,22 +160,19 @@ class MainApartmentScreen(
                 UserRole.TboUser -> 9997L
                 else -> baseUIState.osbbId
               }
+              println("[YkisLogKMP.$className.RenderActiveModule]: [ADMIN_TRACK] Запуск прослуховування заявок для організації: $effectiveOsbbId")
               chatScreenModel.trackUserIdentifiersWithRole(role, effectiveOsbbId.toInt())
             }
           }
 
-          // ИСПРАВЛЕНО: Аргументы передаются в конструктор класса экрана согласно KMP/Voyager стандартам!
           val userListScreenInstance = remember(userList, navigationType, baseUIState.userRole) {
             UserListScreen(
               userList = userList,
               navigationType = navigationType,
-              onDrawerClicked = {
-                coroutineScope.launch { drawerState.open() }
-              },
+              onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
               onUserClicked = { selectedItem ->
                 if (baseUIState.userRole == UserRole.StandardUser) {
-                  println("[$className.MainApartmentScreen]: Стандартний користувач обрав квартиру ID: ${selectedItem.addressId}")
-                  // ИСПРАВЛЕНО: Вызываем легитимный КМР-метод смены квартиры
+                  println("[YkisLogKMP.$className]: Стандартний користувач обрав квартиру ID: ${selectedItem.addressId}L")
                   apartmentScreenModel.setAddressId(selectedItem.addressId)
                 } else {
                   val osbbId = when (baseUIState.userRole) {
@@ -124,51 +181,97 @@ class MainApartmentScreen(
                     UserRole.TboUser -> 9997L
                     else -> baseUIState.osbbId
                   }
-                  println("[$className.MainApartmentScreen]: Адмін відкриває чат з UID: ${selectedItem.uid} для підприємства: $osbbId")
+                  println("[YkisLogKMP.$className]: Адмін відкриває чат з UID: ${selectedItem.uid} для підприємства: $osbbId")
                   chatScreenModel.openChatWithUser(selectedItem, baseUIState.userRole, osbbId.toInt())
                 }
                 currentScreenRoute = "ChatScreenStateful"
               }
             )
           }
-
-          // Нативно рендерим холст созданного Voyager-экрана на месте вызова
           userListScreenInstance.Content()
         }
 
-        // ... остальные ветки ("AddApartmentScreen", "InfoApartmentScreen", "ChatScreenStateful") остаются без изменений ...
-
-
         "AddApartmentScreen" -> {
-          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Вікно додавання особового рахунку БТІ") }
+          val addApartmentScreenInstance = remember {
+            AddApartmentScreen(
+              onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
+              closeContentDetail = { currentScreenRoute = "InfoApartmentScreen" }
+            )
+          }
+          addApartmentScreenInstance.Content()
         }
+
         "InfoApartmentScreen" -> {
           key(baseUIState.addressId) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Характеристики БТІ квартири ID: ${baseUIState.addressId}") }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+              androidx.compose.material3.Text(
+                text = "Характеристики БТІ квартири ID: ${baseUIState.addressId}",
+                style = MaterialTheme.typography.bodyLarge
+              )
+            }
           }
         }
+
         "service_selector" -> {
-          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Селектор комунальних служб (Водоканал / Тепломережа)") }
+          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            androidx.compose.material3.Text("Селектор комунальних служб (Водоканал / Тепломережа)")
+          }
         }
+
         "ChatScreenStateful" -> {
-          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Екран активної чат-кімнати обговорення") }
+          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            androidx.compose.material3.Text("Екран активної чат-кімнати обговорення")
+          }
         }
-        else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Модуль ЖКХ") }
+
+        else -> {
+          // Мягкий фоллбэк: если роут сбился, но у жителя нет квартир — выводим БТИ
+          if (baseUIState.userRole == UserRole.StandardUser && baseUIState.addressId == 0L) {
+            val addApartmentScreenInstance = remember {
+              AddApartmentScreen(
+                onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
+                closeContentDetail = { currentScreenRoute = "InfoApartmentScreen" }
+              )
+            }
+            addApartmentScreenInstance.Content()
+          } else {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+              androidx.compose.material3.Text("Модуль ЖКХ. Поточний роут: $currentScreenRoute")
+            }
+          }
+        }
       }
     }
 
-    // МАТРИЦА СБОРОК ИНТЕРФЕЙСА (Смартфон против Mac Desktop)
+    // БЛОКИРОВКА ЭКРАНА НА ВРЕМЯ АСИНХРОННЫХ ЗАПРОСОВ KTOR К СУБД MySQL ЮЖНОГО
+    if (baseUIState.mainLoading) {
+      Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        androidx.compose.material3.CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+      }
+      return // Прерываем выполнение кадра, удерживая лоадер
+    }
+
+    // --- МАТРИЦА СБОРОК ИНТЕРФЕЙСА VOYAGER (Смартфон против Планшета) ---
     if (navigationType == NavigationType.BOTTOM_NAVIGATION) {
+      // 📱 ПРЕСЕТ СМАРТФ0НА: Адаптивная боковая шторка расчетного центра Южного
       ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
           ModalNavigationDrawerContent(
             baseUIState = baseUIState,
             selectedDestination = currentScreenRoute,
+            // ИСПРАВЛЕНО НАМЕРТВО: Лишние аргументы ViewModel стерты.
+            // Компонент шторки сам инжектирует всё необходимое через koinInject()!
             navigateToDestination = { dest ->
-              coroutineScope.launch { drawerState.close(); currentScreenRoute = dest }
+              coroutineScope.launch {
+                println("[YkisLogKMP.$className.Drawer]: Клієнт переключив вкладку шторки на: \"$dest\"")
+                drawerState.close()
+                currentScreenRoute = dest
+              }
             },
-            onMenuClick = { coroutineScope.launch { drawerState.close() } },
+            onMenuClick = {
+              coroutineScope.launch { drawerState.close() }
+            },
             navigateToApartment = finalizeApartmentSelection,
             isApartmentsEmpty = baseUIState.addressId == 0L
           )
@@ -176,36 +279,55 @@ class MainApartmentScreen(
       ) {
         Scaffold(
           bottomBar = {
+            // Нижнее меню навигации рендерится только если адрес привязан в БТИ
             val showBottomBar = baseUIState.addressId != 0L || baseUIState.userRole != UserRole.StandardUser
             if (showBottomBar) {
               BottomNavigationBar(
                 selectedDestination = currentScreenRoute,
                 baseUIState = baseUIState,
-                onClick = { dest -> currentScreenRoute = dest }
+                onClick = { dest ->
+                  println("[YkisLogKMP.$className.BottomBar]: Клієнт обрав вкладку нижнього бара: \"$dest\"")
+                  currentScreenRoute = dest
+                }
               )
             }
           }
         ) { paddingValues ->
-          Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) { RenderActiveModule() }
+          Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            // Отрисовываем активный модуль на основе вычисленного реактивного маршрута
+            RenderActiveModule(route = currentScreenRoute)
+          }
         }
       }
     } else {
+      // 🖥️ ПРЕСЕТ ПЛАНШЕТА / MAC DESKTOP: Стационарный боковой рельс ApartmentNavigationRail
       Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Row(modifier = Modifier.fillMaxSize()) {
           ApartmentNavigationRail(
             baseUIState = baseUIState,
             selectedDestination = currentScreenRoute,
-            isRailExpanded = true,
-            railWidth = 260.dp,
-            isApartmentsEmpty = baseUIState.addressId == 0L,
-            onMenuClick = {},
-            navigateToDestination = { dest -> currentScreenRoute = dest },
-            navigateToApartment = finalizeApartmentSelection
+            isRailExpanded = isRailExpanded, // Реактивный флаг развернутости панели из конструктора
+            onMenuClick = onMenuClick,       // Схлопывание рельса по клику на "бургер" верхнего бара
+            navigateToDestination = { dest ->
+              println("[YkisLogKMP.$className.NavRail]: Клієнт переключив бічну панель Rail на: \"$dest\"")
+              currentScreenRoute = dest
+            },
+            navigateToApartment = finalizeApartmentSelection,
+            railWidth = railWidth, // ИСПРАВЛЕНО НАМЕРТВО: Оставлен ровно один легитимный вызов ширины Dp
+            isApartmentsEmpty = baseUIState.addressId == 0L
           )
-          VerticalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-          Box(modifier = Modifier.weight(1f).fillMaxHeight()) { RenderActiveModule() }
+
+          androidx.compose.material3.VerticalDivider(
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+          )
+
+          Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            RenderActiveModule(route = currentScreenRoute)
+          }
         }
       }
     }
   }
 }
+

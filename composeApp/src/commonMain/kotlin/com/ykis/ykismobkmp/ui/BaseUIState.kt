@@ -22,7 +22,6 @@ private const val className = "BaseUIState"
 
 /**
  * [BaseUIState] — Монолитный кроссплатформенный стейт-снимок всего UI слоя приложения ЮКИС.
- * ДОПИСАНО: Интегрирован блок полей чат-системы, токенов Fcm и Gemini AI для бесшовной работы ChatScreen.
  */
 @Serializable
 data class BaseUIState(
@@ -32,6 +31,7 @@ data class BaseUIState(
   @SerialName("email") val email: String? = null,
   @SerialName("phone") val phone: String? = null,
   @SerialName("photoUrl") val photoUrl: String? = null,
+  @SerialName("isTermsAccepted") val isTermsAccepted: Boolean? = false,
   @SerialName("userRole") val userRole: UserRole = UserRole.StandardUser,
 
   // --- 2. ДАННЫЕ ЖИЛЬЦА (SQLDelight / Ktor) ---

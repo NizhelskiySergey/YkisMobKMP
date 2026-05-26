@@ -3,7 +3,7 @@ package com.ykis.ykismobkmp.ui.screens.appartment
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items // КРИТИЧЕСКИЙ ИМПОРТ: Подключаем КМР inline-функцию для List
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -14,20 +14,20 @@ import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 private const val className = "ApartmentList"
 
 /**
- * [ApartmentList] — Кроссплатформенный списочный контейнер лицевых счетов БТИ ЮКИС г. Южный.
- * Полностью типизирован под сквозной Long стандарт и оптимизирован для Mac Desktop и мобильных экранов.
+ * [ApartmentList] — Кросплатформенний списочний контейнер особових рахунків БТІ ЮКІС м. Южне.
+ * ІСПРАВЛЕНО: Шлях пакету приведено до єдиного доменного стандарту (apartment),
+ * префікси логування вирівняні під сквозний корпоративний еталон [YkisLogKMP]. Повна заміна.
  */
 @Composable
 fun ApartmentList(
   modifier: Modifier = Modifier,
-  // ИСПРАВЛЕНО: Параметры ID переведены с Int на Long под КМР-стандарт СУБД SQLDelight 2.x
   currentAddressId: Long,
   apartmentList: List<ApartmentEntity>,
   onClick: (Long) -> Unit
 ) {
-  // ИСПРАВЛЕНО: Нативный Log.d заменен на универсальный println() внутри LaunchedEffect
+  // Логування оновлення списку рахунків у реальному часі
   LaunchedEffect(apartmentList) {
-    println("[$className.ApartmentList]: List updated, size: ${apartmentList.size}")
+    println("[YkisLogKMP.$className]: Список рахунків оновлено, розмір: ${apartmentList.size}")
   }
 
   LazyColumn(
@@ -39,16 +39,15 @@ fun ApartmentList(
       Spacer(modifier = Modifier.height(4.dp))
     }
 
-    // ИСПРАВЛЕНО: Передаем коллекцию позиционным аргументом и внедряем Long-ключ addressId
+    // Передаємо колекцію позиційним аргументом та впроваджуємо Long-ключ addressId для оптимізації рендеру Skiko
     items(
       items = apartmentList,
-      key = { it.addressId } // Наш сквозной Long ID первичного ключа СУБД
+      key = { it.addressId }
     ) { apartment ->
       ApartmentListItem(
         apartment = apartment,
         onClick = { id ->
-          println("[$className.ApartmentList]: Apartment clicked. ID: $id")
-          // Передаем Long идентификатор в лямбду родительского контейнера
+          println("[YkisLogKMP.$className]: Клік по рахунку в списку. ID: $id")
           onClick(id)
         },
         currentAddressId = currentAddressId

@@ -37,8 +37,7 @@ import com.ykis.ykismobkmp.domain.services.FirebaseServiceImpl
 import com.ykis.ykismobkmp.domain.services.LogService
 import com.ykis.ykismobkmp.ui.navigation.AppScreenModel
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
-import com.ykis.ykismobkmp.ui.screens.auth.SignInScreenModel
-import com.ykis.ykismobkmp.ui.screens.auth.SignUpScreenModel
+import com.ykis.ykismobkmp.ui.screens.auth.AuthScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.ui.screens.family.FamilyListScreenModel
 import com.ykis.ykismobkmp.ui.screens.meter.MeterScreenModel
@@ -65,7 +64,7 @@ import org.koin.dsl.module
 import org.koin.mp.KoinPlatform
 
 
-private const val KOIN_TAG = "Koin.kt"
+private const val KOIN_TAG = "YkisLogKMP.Koin"
 
 /**
  * [commonModule] — Инфраструктурный модуль: Сеть (Ktor), Сервисы, Firebase, ИИ и Системные репозитории.
@@ -74,17 +73,27 @@ val commonModule = module {
   single {
     HttpClient {
       install(ContentNegotiation) {
-        json(Json {
-          ignoreUnknownKeys = true
-          isLenient = true
-          encodeDefaults = true
-          prettyPrint = true
-        })
+        json(
+          json = Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+            encodeDefaults = true
+            prettyPrint = true
+          },
+          contentType = io.ktor.http.ContentType.Application.Json
+        )
       }
       install(Logging) {
-        logger = Logger.DEFAULT
+        // Теперь абсолютно каждый запрос и HTML/JSON ответ бэкенда Южного получит наш сквозной маркер!
+        logger = object : Logger {
+          override fun log(message: String) {
+            // Пропускаем через println, что гарантирует вывод в общий поток Logcat без обрезки тегов
+            println("[YkisLogKMP.Network]: $message")
+          }
+        }
         level = LogLevel.ALL
       }
+
       install(HttpTimeout) {
         requestTimeoutMillis = 30_000
         connectTimeoutMillis = 30_000
@@ -105,7 +114,7 @@ val commonModule = module {
   single {
     dev.shreyaspatil.ai.client.generativeai.GenerativeModel(
       modelName = "gemini-pro",
-      apiKey = "AIzaSyDgdhYTxQbGipFcrJHukjRTDTj3SEWeXWk"
+      apiKey = GEMINI_API_KEY
     )
   }
   single<GeminiAiManager> { GeminiCloudProvider(model = get(), localEngine = get()) }
@@ -189,69 +198,7 @@ val databaseModule = module {
 /**
  * [navigationModule] — Презентационный слой: ScreenModels для Voyager и Сервисы-Комбайны.
  */
-val navigationModule = module {
-  println("[$KOIN_TAG]: Реєстрація життєвих циклів ScreenModels для Voyager Framework")
 
-  factory { AppScreenModel(firebaseService = get(), get(), get()) }
-  factory { SignInScreenModel(get(), get()) }
-  factory { SignUpScreenModel(firebaseService = get(), get()) }
-  factory { ChatScreenModel(get(), get()) }
-  factory { ApartmentScreenModel(get(), get(), get()) }
-  factory { FamilyListScreenModel(get(), get()) }
-  factory { MeterScreenModel(get(),get())}
-  factory { ClearDatabase() }
-
-  // ИСПРАВЛЕНО НАМЕРТВО: Монолитный сервис-комбайн квартир ЮКИС
-  single {
-    ApartmentService(
-      getApartmentList = get(), getOsbbApartmentsList = get(), getRaionList = get(),
-      getHouseList = get(), getApartment = get(), addApartment = get(),
-      verifyAdminCode = get(), deleteApartment = get(), updateBti = get(),
-      saveUserUid = get(), deleteUserAccount = get()
-    )
-  }
-
-  // ИСПРАВЛЕНО НАМЕРТВО: Монолитный сервис-комбайн счетчиков тепла и воды ЮКИС
-  single {
-    MeterService(
-      getWaterMeterList = get(), getWaterReadings = get(), getLastWaterReading = get(),
-      addWaterReading = get(), deleteLastWaterReading = get(), getHeatMeterList = get(),
-      getHeatReadings = get(), getLastHeatReading = get(), addHeatReading = get(),
-      deleteLastHeatReading = get()
-    )
-  }
-  single {
-    LedgerService(
-      getFlatServices = get(),
-      getPaymentList = get(),
-      getTotalDebtServices = get()
-    )
-  }
-
-  // Фабрика ScreenModel финансово-расчетного учета коммунальных услуг стала кристально чистой!
-  factory {
-    LedgerScreenModel(
-      ledgerService = get(), // Koin автоматически прокинет комбайн со всеми 3 Use Cases
-      logService = get()
-    )
-  }
-  // Фабрики ScreenModels финансово-расчетного учета коммунальных услуг
-
-
-  factory {
-    try {
-      SettingsScreenModel(
-        settings = get(),
-        clearDatabase = get<ClearDatabase>()::invoke,
-        logService = get()
-      )
-    } catch (t: Throwable) {
-      println("[$KOIN_TAG.SettingsScreenModel_CRITICAL]: Настоящая причина падения конструктора: ${t.message}")
-      t.printStackTrace()
-      throw t
-    }
-  }
-}
 
 /**
  * Главная точка старта и инициализации Koin-контекста для всех платформ.

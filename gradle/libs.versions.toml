@@ -45,7 +45,8 @@ webcamCapture = "0.3.12"
 datastorePreferencesCore = "1.2.1"
 window = "1.5.1"
 dateTimeVersion = "0.7.1"
-
+buildConfig = "0.15.2"
+firebaseAppcheckDebug = "19.0.2"
 [libraries]
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCore" }
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCore" }
@@ -135,6 +136,7 @@ firebase-functions = { module = "dev.gitlive:firebase-functions", version.ref = 
 firebase-config = { module = "dev.gitlive:firebase-config", version.ref = "gitlive-firebase" }
 firebase-common = { module = "dev.gitlive:firebase-common", version.ref = "gitlive-firebase" }
 firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "gitlive-firebase" }
+firebase-appcheck = { module = "dev.gitlive:firebase-appcheck", version.ref = "gitlive-firebase" }
 firebase-messaging = { module = "dev.gitlive:firebase-messaging", version.ref = "gitlive-firebase" }
 firebase-crashlytics = { module = "dev.gitlive:firebase-crashlytics", version.ref = "gitlive-firebase" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics-ktx", version = "firebase-analytics" }
@@ -147,6 +149,7 @@ coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" 
 coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
 play-services-measurement-api = { group = "com.google.android.gms", name = "play-services-measurement-api", version.ref = "playServicesMeasurementApi" }
 androidx-datastore-preferences-core = { group = "androidx.datastore", name = "datastore-preferences-core", version.ref = "datastorePreferencesCore" }
+firebase-appcheck-debug = { group = "com.google.firebase", name = "firebase-appcheck-debug", version.ref = "firebaseAppcheckDebug" }
 
 
 
@@ -162,4 +165,5 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqlDelight" }
 crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlytics" }
+buildConfig = { id = "com.github.gmazzo.buildkonfig", version.ref = "buildConfig" }
 

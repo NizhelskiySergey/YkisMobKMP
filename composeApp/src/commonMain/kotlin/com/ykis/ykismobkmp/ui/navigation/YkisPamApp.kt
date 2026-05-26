@@ -14,10 +14,6 @@ import org.koin.compose.koinInject
 import kotlin.time.Clock
 
 private const val className = "YkisPamApp"
-
-/**
- * [YkisPamApp] — Основной визуальный адаптивный каркас приложения ЮКИС г. Южный.
- */
 @OptIn(InternalVoyagerApi::class)
 @Composable
 fun YkisPamApp(
@@ -25,20 +21,14 @@ fun YkisPamApp(
   displayFeatures: List<Any>,
   initialChatId: String? = null
 ) {
-  // Вычисляем форм-фактор на основе системных замеров платформ через expect-мост
   val (navigationType, contentType) = rememberAdaptiveLayoutType(
     windowSize = windowSize,
     displayFeatures = displayFeatures
   )
-
-  // Переменная для фиксации времени последнего нажатия кнопки Назад
   var lastBackPressTime by remember { mutableStateOf(0L) }
   val snackbarManager = koinInject<SnackbarManager>()
-
-  // Перехватываем системную кнопку "Назад" на стартовом уровне навигации
   BackHandler(enabled = true) {
     val currentTime = Clock.System.now().toEpochMilliseconds()
-    // Если разница между тапами меньше 2 секунд (2000 мс) — закрываем процесс
     if (currentTime - lastBackPressTime < 2000) {
       println("[YkisLogKMP.$className.BackHandler]: Повторне натискання зафіксовано. Вихід з системи.")
       closeApplication()
@@ -48,12 +38,9 @@ fun YkisPamApp(
       snackbarManager.showMessage("Натисніть ще раз для виходу з програми")
     }
   }
-
   LaunchedEffect(navigationType, contentType) {
     println("[YkisLogKMP.$className.YkisPamApp]: Конфігурація геометрії прийнята. Навігація=$navigationType, Контент=$contentType")
   }
-
-  // Запускаем основной кроссплатформенный граф навигации Voyager
   RootNavGraph(
     appState = rememberAppState(),
     contentType = contentType,
@@ -61,10 +48,6 @@ fun YkisPamApp(
     initialChatId = initialChatId
   )
 }
-
-/**
- * [rememberAppState] — Инициализация кроссплатформенного состояния приложения.
- */
 @Composable
 fun rememberAppState(
   snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
@@ -77,10 +60,6 @@ fun rememberAppState(
     coroutineScope = coroutineScope
   )
 }
-
-/**
- * [YkisPamAppState] — Нативный КМР-менеджер последовательного вывода Snackbar-ошибок ГИОЦ.
- */
 @Stable
 class YkisPamAppState(
   val snackbarHostState: SnackbarHostState,
@@ -88,11 +67,9 @@ class YkisPamAppState(
   val coroutineScope: CoroutineScope
 ) {
   private val logTag = "YkisPamAppState"
-
   init {
     coroutineScope.launch {
       println("[YkisLogKMP.$logTag.init]: Запуск кроссплатформенного слухача Snackbar повідомлень YkisMobKMP")
-
       snackbarManager.snackbarMessages
         .filterNotNull()
         .collect { snackbarMessage ->
@@ -109,13 +86,11 @@ class YkisPamAppState(
             println("[YkisLogKMP.$logTag.init_WARN] Критическая ошибка извлечения строки Res: ${e.message}")
             "Помилка відображення сповіщення"
           }
-
           if (text.isNotBlank()) {
             snackbarHostState.showSnackbar(
               message = text,
               withDismissAction = true
             )
-
             snackbarManager.clearMessage()
             println("[YkisLogKMP.$logTag.init]: Повідомлення Snackbar успішно оброблено та видалено з черги")
           }
@@ -123,18 +98,15 @@ class YkisPamAppState(
     }
   }
 }
-
 enum class NavigationType {
   BOTTOM_NAVIGATION,
   NAVIGATION_RAIL_COMPACT,
   NAVIGATION_RAIL_EXPANDED,
   PERMANENT_NAVIGATION_DRAWER
 }
-
 enum class ContentType {
   SINGLE_PANE, DUAL_PANE
 }
-
 enum class ContentDetail {
   STANDARD_USER,
   BTI,

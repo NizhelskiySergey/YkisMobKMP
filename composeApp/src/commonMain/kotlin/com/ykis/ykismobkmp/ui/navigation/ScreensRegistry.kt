@@ -8,13 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import cafe.adriel.voyager.core.screen.Screen
-import cafe.adriel.voyager.navigator.LocalNavigator
-import cafe.adriel.voyager.navigator.currentOrThrow
-import org.koin.compose.koinInject
-import com.ykis.ykismobkmp.ui.screens.auth.SignInScreen
-import com.ykis.ykismobkmp.ui.screens.auth.SignUpScreen
-import com.ykis.ykismobkmp.ui.screens.auth.SignUpScreenModel
-import com.ykis.ykismobkmp.ui.screens.auth.VerifyEmailScreen
+import com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen
 
 private const val className = "ScreensRegistry"
 
@@ -23,67 +17,91 @@ private const val className = "ScreensRegistry"
 // ====================================================================
 
 /**
- * [SignUpScreen] — Экран регистрации нового жильца г. Южный.
- */
-// ВНУТРИ ФАЙЛА ScreensRegistry.kt:
-
-/**
  * [SignUpScreen] — Маршрутизатор экрана регистрации нового жильца г. Южный.
- * ИСПРАВЛЕНО: Ложный вызов функции с параметрами удален. Нативно перенаправляет отрисовку на оригинальный КМР-класс.
+ * ИСПРАВЛЕНО: Рекурсивный цикл разорван путем вызова графического класса по его полному пути пакета!
  */
 object SignUpScreen : Screen {
   @Composable
   override fun Content() {
-    println("[$className.SignUpScreen]: Маршрутизатор передає управління холсту реєстрації")
+    println("[YkisLogKMP.$className.SignUpScreen]: Маршрутизатор передає управління холсту реєстрації")
 
-    // РЕШЕНИЕ: Напрямую вызываем метод Content() твоего реального графического класса SignUpScreen!
-    SignUpScreen().Content()
+    // ИСПРАВЛЕНО: Явно вызываем графический класс SignUpScreen из папки auth.signup
+    com.ykis.ykismobkmp.ui.screens.auth.SignUpScreen.Content()
   }
 }
 
 /**
  * [VerifyEmailScreen] — Маршрутизатор экрана подтверждения учетной записи через Email.
- * ИСПРАВЛЕНО: Ложный вызов удален, вызов родительского синглтона приведен к виду SignInScreen без скобок ().
+ * ИСПРАВЛЕНО: Рекурсивный цикл разорван путем вызова графического класса по его полному пути пакета!
  */
 object VerifyEmailScreen : Screen {
   @Composable
   override fun Content() {
-    println("[$className.VerifyEmailScreen]: Маршрутизатор передає управління холсту верифікації пошти")
+    println("[YkisLogKMP.$className.VerifyEmailScreen]: Маршрутизатор передає управління холсту верифікації пошти")
 
-    // РЕШЕНИЕ: Напрямую вызываем метод Content() твоего реального графического класса VerifyEmailScreen!
-    VerifyEmailScreen().Content()
+    // ИСПРАВЛЕНО: Явно вызываем графический класс VerifyEmailScreen из папки auth.signup
+    com.ykis.ykismobkmp.ui.screens.auth.VerifyEmailScreen.Content()
+  }
+}
+/**
+ * [AddApartmentScreen] — Маршрутизатор вікна прив'язки квартири БТІ по секретному коду.
+ */
+object AddApartmentScreen : Screen {
+  @Composable
+  override fun Content() {
+    println("[YkisLogKMP.$className.AddApartmentScreen]: Маршрутизатор передає управління живому холсту прив'язки квартири")
+
+    // Явно вызываем графический класс экрана из пакета, который мы зафиксировали шагами ранее
+    val realAddApartmentScreenInstance = remember {
+      AddApartmentScreen(
+        onDrawerClicked = {},
+        closeContentDetail = {}
+      )
+    }
+
+    realAddApartmentScreenInstance.Content()
   }
 }
 
 
-/** [AddApartmentScreen] — Окно привязки квартиры БТИ по секретному коду. */
-object AddApartmentScreen : Screen {
-  @Composable override fun Content() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Экран добавления квартиры БТИ") } }
-}
-
 /** [SendImageScreenDest] — Экран предосмотра и отправки фото счетчика в Gemini AI. */
 object SendImageScreenDest : Screen {
-  @Composable override fun Content() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Предосмотр ИИ-фотографии счетчика") } }
+  @Composable
+  override fun Content() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Перегляд ІИ-фотографії лічильника") }
+  }
 }
 
 /** [CameraScreenDest] — Кроссплатформенный видоискатель камеры. */
 object CameraScreenDest : Screen {
-  @Composable override fun Content() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Экран камеры") } }
+  @Composable
+  override fun Content() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Екран камери") }
+  }
 }
 
 /** [ProfileScreenDest] — Окно персональных данных профиля. */
 object ProfileScreenDest : Screen {
-  @Composable override fun Content() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Профиль пользователя") } }
+  @Composable
+  override fun Content() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Профіль користувача") }
+  }
 }
 
 /** [BtiScreenDest] — Панель характеристик жилья БТИ. */
 object BtiScreenDest : Screen {
-  @Composable override fun Content() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Данные БТИ") } }
+  @Composable
+  override fun Content() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Дані БТІ") }
+  }
 }
 
 /** [FamilyScreenDest] — Список зарегистрированных мешканців квартиры. */
 object FamilyScreenDest : Screen {
-  @Composable override fun Content() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Состав семьи") } }
+  @Composable
+  override fun Content() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Склад сім'ї") }
+  }
 }
 
 // ====================================================================
@@ -92,16 +110,15 @@ object FamilyScreenDest : Screen {
 
 /**
  * [ChatScreenDest] — Универсальный кроссплатформенный экран чат-комнаты ЮКИС.
- * ИСПРАВЛЕНО: Изменен с object на data class. Теперь он нативно принимает и обрабатывает токен пуша chatId!
  */
 data class ChatScreenDest(
   val chatId: String? = null
 ) : Screen {
   @Composable
   override fun Content() {
-    println("[$className.ChatScreenDest]: Отрисовка чата для токена: $chatId")
+    println("[YkisLogKMP.$className.ChatScreenDest]: Отрисовка чату для токена: $chatId")
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-      Text("Лента обговорень чату для ID: $chatId")
+      Text("Стрічка обговорень чату для ID: $chatId")
     }
   }
 }
@@ -111,14 +128,23 @@ data class InfoApartmentScreenDest(
 ) : Screen {
   @Composable
   override fun Content() {
-    println("[$className.InfoApartmentScreenDest]: Open для ID: $addressId")
+    println("[YkisLogKMP.$className.InfoApartmentScreenDest]: Open для ID: $addressId")
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+      Text("Інформація про квартиру ID: $addressId")
+    }
   }
 }
 
 data class ImageDetailScreenDest(
   val imageUrl: String
 ) : Screen {
-  @Composable override fun Content() { println("[$className.ImageDetailScreenDest]: Open для: $imageUrl") }
+  @Composable
+  override fun Content() {
+    println("[YkisLogKMP.$className.ImageDetailScreenDest]: Open для: $imageUrl")
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+      Text("Деталізація зображення: $imageUrl")
+    }
+  }
 }
 
 data class WebViewScreenDest(
@@ -127,8 +153,12 @@ data class WebViewScreenDest(
   @Composable
   override fun Content() {
     val formattedLink = remember(link) { link.replace("*", "/") }
-    println("[$className.WebViewScreenDest]: Open Xpay Link: $formattedLink")
+    println("[YkisLogKMP.$className.WebViewScreenDest]: Open Xpay Link: $formattedLink")
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+      Text("Платіжний шлюз Xpay: $formattedLink")
+    }
   }
 }
+
 
 
