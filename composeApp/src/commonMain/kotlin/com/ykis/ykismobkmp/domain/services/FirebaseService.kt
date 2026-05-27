@@ -13,10 +13,6 @@ typealias addUserFirestoreResponse = Resource<Boolean>
 typealias ReloadUserResponse = Resource<Boolean>
 typealias SendPasswordResetEmailResponse = Resource<Boolean>
 typealias AuthStateResponse = StateFlow<Boolean>
-
-/**
- * [FirebaseService] — Кроссплатформенный контракт авторизации и профиля ЮКИС.
- */
 interface FirebaseService {
   val isUserAuthenticatedInFirebase: Boolean
   val uid: String
@@ -31,52 +27,27 @@ interface FirebaseService {
   val isMobileCheckConfig: Boolean
   val agreementTitle: String
   val agreementText: String
-
   suspend fun fetchConfiguration(): Boolean
-
-  // ИСПРАВЛЕНО: методы соглашения лицензии приведены к одному стандарту имени с Use Cases
   suspend fun isUserAgreed(): Boolean
   suspend fun setUserAgreed(agreed: Boolean)
-
   suspend fun authenticate(email: String, password: String)
   suspend fun sendRecoveryEmail(email: String)
   suspend fun linkAccount(email: String, password: String)
   suspend fun deleteAccount()
-  suspend fun logoutDirectly()
-
-  fun signOut(): Flow<Resource<Boolean>>
-
-  // ИСПРАВЛЕНО: Теперь принимает чистую строковую переменную idToken, стабильную на Mac и Android
+  suspend fun signOut()
   suspend fun firebaseSignInWithGoogle(idToken: String): SignInWithGoogleResponse
-
   suspend fun firebaseSignUpWithEmailAndPassword(email: String, password: String): SignUpResponse
   suspend fun sendEmailVerification(): SendEmailVerificationResponse
   suspend fun sendPasswordResetEmail(email: String): SendPasswordResetEmailResponse
-
-  /**
-   * Инициализация отправки SMS-кода. Платформозависимый вызов.
-   * На Android принимает текущую Activity для прохождения reCAPTCHA.
-   */
   suspend fun sendSmsCode(phoneNumber: String, platformActivity: Any?): Resource<String>
-
-  /**
-   * Вход в систему по коду из SMS.
-   */
   suspend fun signInWithSmsCode(verificationId: String, smsCode: String): Resource<Boolean>
-
-
   fun getProvider(viewModelScope: CoroutineScope): String
-
   suspend fun firebaseSignInWithEmailAndPassword(email: String, password: String)
   suspend fun reloadFirebaseUser(): ReloadUserResponse
-
-  fun revokeAccess(): Flow<Resource<Boolean>>
+  suspend fun revokeAccess(): Resource<Boolean>
   suspend fun addUserFirestore(): addUserFirestoreResponse
-  fun revokeAccessEmail(): Flow<Resource<Boolean>>
   fun getAuthState(viewModelScope: CoroutineScope): AuthStateResponse
   suspend fun getUserProfile(): UserFirebase
-
-  // ИСПРАВЛЕНО: Параметры ID переведены на Long или приведены к платформенной безопасности
   suspend fun updateUserRoleAndPermissions(
     uid: String,
     addressId: Long?, // Переведено на Long под типы SQLDelight
@@ -84,12 +55,9 @@ interface FirebaseService {
     osbbId: Long?,    // Переведено на Long под типы SQLDelight
     displayName: String? = null
   )
-
   suspend fun getUid(): String
   suspend fun getEmail(): String
   suspend fun getDisplayName(): String
-
   suspend fun addFcmToken()
-
   fun stopAllListeners()
 }

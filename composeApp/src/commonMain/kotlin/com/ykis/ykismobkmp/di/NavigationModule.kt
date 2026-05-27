@@ -68,6 +68,7 @@ val navigationModule = module {
     try {
       SettingsScreenModel(
         settings = get(),
+        firebaseService = get(),
         clearDatabase = get<ClearDatabase>()::invoke,
         logService = get()
       )

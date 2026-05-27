@@ -25,7 +25,7 @@
   <string name="password_match_error">Паролі не збігатися.</string>
   <string name="verify_email_message">Ми надіслали вам електронний лист із посиланням для підтвердження електронної пошти.</string>
   <string name="reset_password_message">Ми надіслали вам електронний лист із посиланням для скидання пароля.</string>
-  <string name="revoke_access_message">Вам потрібно повторно автентифікуватися, перш ніж скасувати доступ.</string>
+  <string name="revoke_access_message">Задля безпеки вашого профілю, перед повним видаленням аккаунта необхідно підтвердити особу. Будь ласка, натисніть 'Перезайти' — додаток виконає безпечний вихід, після чого ви зможете зайти знову та завершити видалення."</string>
   <string name="access_revoked_message">Ваш доступ скасовано.</string>
   <string name="email_not_verified_message">Ваша електронна пошта не підтверджена.</string>
   <string name="repeat_email_not_verified_message">надіслати ще раз</string>

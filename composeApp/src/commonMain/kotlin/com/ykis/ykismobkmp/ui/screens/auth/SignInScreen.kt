@@ -92,21 +92,14 @@ object SignInScreen : Screen {
   override fun Content() {
     val navigator = LocalNavigator.currentOrThrow
     val keyboard = LocalSoftwareKeyboardController.current
-
     val screenModel = koinInject<AuthScreenModel>()
-
-    // УДАЛЕНО: apartmentScreenModel здесь больше не нужен,
-    // так как очистка кэша и запуск профиля перенесены на корневой уровень RootNavGraph!
-
     val singInUiState by screenModel.authUiState.collectAsState()
     val googleResponse by screenModel.signInWithGoogleResponse.collectAsState()
     val signInResponse by screenModel.signInResponse.collectAsState()
     val smsSendResponse by screenModel.smsSendResponse.collectAsState()
-
     val contextActivity = platformActivityContext()
-
-    val isGoogleLoading = googleResponse is Resource.Loading
     val isSmsLoading = signInResponse is Resource.Loading || smsSendResponse is Resource.Loading
+    val isGoogleLoading by screenModel.isGoogleLoading.collectAsState()
 
     var currentContentType by remember { mutableStateOf(ContentType.SINGLE_PANE) }
     var currentNavigationType by remember { mutableStateOf(NavigationType.BOTTOM_NAVIGATION) }
@@ -149,8 +142,6 @@ object SignInScreen : Screen {
         onVerifySmsClick = {
           keyboard?.hide()
           screenModel.verifySmsAndSignIn {
-            // ИСПРАВЛЕНО НАМЕРТВО: Лишние вызовы и ручные replaceAll стерты.
-            // Кнопка просто фиксирует успех сессии, а управление навигацией полностью берет на себя RootNavGraph!
             println("[YkisLogKMP.$className.Content]: [SUCCESS] Вхід за SMS успішний. Передано під контроль реактивного ядра.")
           }
         },
@@ -165,7 +156,6 @@ object SignInScreen : Screen {
               println("[YkisLogKMP.$className.Content]: Вхід успішний, але пошта НЕ підтверджена. Навігація на VerifyEmailScreen.")
               navigator.push(VerifyEmailScreen)
             } else {
-              // ИСПРАВЛЕНО НАМЕРТВО: Убраны ручные переходы, вызывавшие графический клин навигатора
               println("[YkisLogKMP.$className.Content]: [SUCCESS] Вхід за Email успішний. Передано під контроль реактивного ядра.")
             }
           }

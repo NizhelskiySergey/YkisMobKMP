@@ -48,6 +48,7 @@ import com.ykis.ykismobkmp.ui.navigation.MainApartmentScreen
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.alredy_user
 import ykismobkmp.composeapp.generated.resources.repeat_email_not_verified_message
 import ykismobkmp.composeapp.generated.resources.terms_condition_down
 import ykismobkmp.composeapp.generated.resources.verify_email
@@ -196,7 +197,7 @@ fun VerifyEmailScreenStateless(
         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-          text = stringResource(Res.string.repeat_email_not_verified_message),
+          text = stringResource(Res.string.alredy_user),
           style = MaterialTheme.typography.labelLarge,
           textDecoration = TextDecoration.Underline,
           color = MaterialTheme.colorScheme.secondary

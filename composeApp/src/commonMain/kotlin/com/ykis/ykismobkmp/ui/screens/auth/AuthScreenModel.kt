@@ -51,6 +51,9 @@ class AuthScreenModel(
   val reloadUserResponse: StateFlow<Resource<Boolean>> = _reloadUserResponse.asStateFlow()
   private val _smsSendResponse = MutableStateFlow<Resource<String>?>(null)
   val smsSendResponse = _smsSendResponse.asStateFlow()
+  private val _isGoogleLoading = MutableStateFlow(false)
+  val isGoogleLoading: StateFlow<Boolean> = _isGoogleLoading.asStateFlow()
+
 
   private var currentVerificationId: String? = null
 
@@ -66,10 +69,9 @@ class AuthScreenModel(
     get() = Firebase.auth.currentUser?.isEmailVerified ?: false
 
   init {
-    println("[YkisLogKMP.$className.init]: Монолитный менеджер AuthScreenModel успешно инициализирован в KMP слое")
+    println("[YkisLogKMP.$className.init]:  менеджер AuthScreenModel успешно инициализирован в KMP слое")
   }
 
-  // --- МЕТОДЫ ИЗМЕНЕНИЯ СТЕЙТОВ ПОЛЕЙ ВВОДЫ ---
   fun onEmailChange(newValue: String) {
     _authUiState.update { it.copy(email = newValue) }
   }
@@ -82,7 +84,6 @@ class AuthScreenModel(
     _authUiState.update { it.copy(repeatPassword = newValue) }
   }
 
-  // --- ВНУТРЕННЯЯ КРOСС-ПЛАТФОРМЕННАЯ ВАЛИДАЦИЯ СТРОК ---
   private fun isValidEmailKmp(target: String): Boolean {
     val emailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$".toRegex()
     return target.isNotBlank() && emailRegex.matches(target)
@@ -96,14 +97,28 @@ class AuthScreenModel(
   // --- БЛОК ЛОГИКИ СЦЕНАРИЯ СТАНДАРТНОЙ АВТОРnetworkИЗАЦИИ (SIGN IN) ---
   // ====================================================================
 
+  /**
+   * [onSignInClick] — Атомарна процедура авторизації абонента білінгу м. Южне за Email.
+   * ИСПРАВЛЕНО НАМЕРТВО: Интегрирован вызов appScreenModel.evaluateStartDestination() для мгновенного
+   * пробития навигационного тупика, а также добавлен взвод лоадера с жестким сбросом в finally блоке!
+   */
+  /**
+   * [onSignInClick] — Атомарна процедура авторизації абонента білінгу м. Южне за Email.
+   * ИСПРАВЛЕНО НАМЕРТВО: Ошибка Unresolved reference '_isSmsLoading' ликвидирована!
+   * Защита от дребезга кликов и лоадер переведены на твой родной поток _signInResponse.
+   * Интегрирован вызов appScreenModel.evaluateStartDestination() для мгновенного пробития навигации.
+   */
   fun onSignInClick(onSuccessNavigate: () -> Unit) {
     val methodName = "onSignInClick"
     val currentEmail = email
     val currentPassword = password
 
+    // ЗАЩИТА ОТ ДРЕБЕЗГА: Если транзакция уже запущена в сеть — сбрасываем любые повторные тапы по кнопке
+    if (_signInResponse.value is Resource.Loading) return
+
     if (!isValidEmailKmp(currentEmail)) {
       println("[YkisLogKMP.$className.$methodName]: [VALIDATION_ERROR] Некорректный email")
-      SnackbarManager.showMessage("Некоректний формат email")
+      SnackbarManager.showMessage("Некоректний format email")
       return
     }
 
@@ -114,21 +129,45 @@ class AuthScreenModel(
     }
 
     launchCatching {
-      println("[YkisLogKMP.$className.$methodName]: [START] Запрос авторизации для $currentEmail")
-      _signInResponse.value = Resource.Loading()
+      try {
+        println("[YkisLogKMP.$className.$methodName]: [START] Запрос авторизации для $currentEmail")
 
-      // ИСПРАВЛЕНО: Канонический позиционный вызов GitLive SDK без именованных параметров
-      // Это полностью исключает ошибки резолва сигнатур компилятором Kotlin
-      Firebase.auth.signInWithEmailAndPassword(currentEmail, currentPassword)
+        // Взводим доменный статус загрузки: кнопка заблокируется, закрутится CircularProgressIndicator
+        _signInResponse.value = Resource.Loading()
 
-      firebaseService.addFcmToken()
+        // Канонический позиционный вызов GitLive SDK без именованных параметров
+        Firebase.auth.signInWithEmailAndPassword(currentEmail, currentPassword)
 
-      println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Авторизация успешна. Verified: $isEmailVerified")
-      _signInResponse.value = Resource.Success(true)
+        // Шаг 2. Регистрируем FCM-токен устройства в облаке Google Cloud для пуш-сообщений
+        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Крок 2: Реєстрація FCM токена сповіщень...")
+        firebaseService.addFcmToken()
 
-      onSuccessNavigate()
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Авторизация успешна. Verified: $isEmailVerified")
+
+        // Переключаем доменный стейт в Успех
+        _signInResponse.value = Resource.Success(true)
+
+        // ====================================================================
+        // --- КРИТИЧЕСКИЙ НАВИГАЦИОННЫЙ ФИКС: ПРОБУЖДАЕМ СТЕЙТ-МАШИНУ ЯДРА ---
+        // ====================================================================
+        // Принудительно заставляем AppScreenModel заново опросить Firebase Auth
+        // и запустить Use Case чтения профиля БТИ из Firestore.
+        // Модель увидит, что квартир 0, и мгновенно переведет поток в AppStartState.AddApartment!
+        appScreenModel.evaluateStartDestination()
+        // ====================================================================
+
+        // Нативная КМР лямбда Voyager для бесшовной отрисовки хаба MainApartmentScreen
+        onSuccessNavigate()
+
+      } catch (e: Exception) {
+        println("[YkisLogKMP.$className.$methodName]: Фатальний збій авторизації за Email: ${e.message}")
+        _signInResponse.value = Resource.Error(message = e.message ?: "Невідома помилка")
+        SnackbarManager.showMessage("Помилка входу: ${e.message}")
+      }
     }
   }
+
+
 
 
   // --- ВОССТАНОВЛЕНИЕ ПАРОЛЯ ---
@@ -268,46 +307,66 @@ class AuthScreenModel(
 
   /**
    * [onSignUpWithGoogle] — Синхронізація профілю та авторизація через Google ID Token.
-   * ІСПРАВЛЕНО: Забезпечено примусове гасіння лоадера при будь-яких помилках Firestore,
-   * мітка return@launch замінена на легітимну для архітектури KMP.
+   */
+  /**
+   * [onSignUpWithGoogle] — Каскадна процедура авторизації та лінкування профілю мешканця через Google.
+   * ИСПРАВЛЕНО НАМЕРТВО: Интегрирован независимый булевый флаг _isGoogleLoading с защитой от дребезга кликов!
+   * Лоадер гарантированно гаснет в блоке finally при любых сетевых таймаутах Google Credential Manager.
    */
   fun onSignUpWithGoogle(idToken: String, onFinishedNavigate: () -> Unit) {
     val methodName = "onSignUpWithGoogle"
 
+    // ЗАЩИТА ОТ ДРЕБЕЗГА: Если транзакция уже запущена в ОЗУ — игнорируем повторные тапы по кнопке!
+    if (_isGoogleLoading.value) return
+    _isGoogleLoading.value = true
+
     screenModelScope.launch {
       try {
+        // Выставляем доменный статус загрузки для внешних систем экрана
         _signInWithGoogleResponse.value = Resource.Loading()
-        println("[YkisLogKMP.$className.$methodName]: [START] Фоновий лоадер Google запущено.")
+        println("[YkisLogKMP.$className.$methodName]: [START] Фоновий лоадер Google запущено. Блокування інтерфейсу активовано.")
 
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Крок 1: Авторизація Firebase...")
+        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Крок 1: Авторизація Firebase Auth...")
         signInAndLinkWithGoogle(idToken)
 
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Крок 2: Синхронізація БД та профілю Firestore...")
+        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Крок 2: Синхронізація СУБД та створення профілю Firestore...")
         val dbResult = firebaseService.addUserFirestore()
 
-        // КРИТИЧЕСКИЙ ФИКС: Принудительно передаем финальный статус ответа БД в стейт лоадера интерфейса!
+        // Принудительно передаем финальный статус ответа БД в стейт ответа интерфейса
         _signInWithGoogleResponse.value = dbResult
 
         if (dbResult is Resource.Error) {
           println("[YkisLogKMP.$className.$methodName]: [ERROR] Помилка при збереженні профілю в Firestore: ${dbResult.message}")
           SnackbarManager.showMessage("Помилка синхронізації профілю: ${dbResult.message}")
-          // ІСПРАВЛЕНО: Замінили return@launch на легітимне повернення з поточного scope
-          return@launch
+          return@launch // Легитимный выход из корутины scope при ошибке Firestore
         }
 
+        // Шаг 3. Регистрируем FCM-токен устройства в облаке Google Cloud для пуш-сообщений биллинга
+        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Крок 3: Реєстрація FCM токена сповіщень...")
         firebaseService.addFcmToken()
-        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Всі перевірки пройдено. Виклик навігації.")
+
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Всі шлюзи безпеки пройдено. Запуск перерахунку стартової траєкторії.")
         _signInWithGoogleResponse.value = Resource.Success(true)
+
+        // Пересчитываем стейт-машину, чтобы КМР-рантайм бесшовно зафиксировал вход жильца
         appScreenModel.evaluateStartDestination()
-        onFinishedNavigate() // Бесшовно перенаправляет на MainApartmentScreen через replaceAll
+
+        // Вызываем нативную лямбду навигации Voyager для replaceAll перехода на MainApartmentScreen
+        onFinishedNavigate()
 
       } catch (e: Exception) {
-        println("[YkisLogKMP.$className.$methodName]: [CRITICAL] Помилка рантайма Google: ${e.message}")
+        println("[YkisLogKMP.$className.$methodName]: Помилка рантайма Google Credential Manager: ${e.message}")
         _signInWithGoogleResponse.value = Resource.Error(message = e.message ?: "Невідома помилка")
         SnackbarManager.showMessage("Помилка входу Google: ${e.message}")
+      } finally {
+        // ИСПРАВЛЕНО НАМЕРТВО: Блок finally сработает ВСЕГДА, пробивая любые сетевые лаги Google Cloud!
+        // Кнопка в интерфейсе гарантированно разблокируется, а крутилка погаснет.
+        println("[YkisLogKMP.$className.$methodName]: [FINISH] Транзакція завершена. Зняття блокування кнопки.")
+        _isGoogleLoading.value = false
       }
     }
   }
+
 
   // ====================================================================
   // --- ДОБАВЛЕНО: МЕТОДЫ АУТЕНТИФИКАЦИИ ПО НОМЕРУ ТЕЛЕФОНА (SMS) ---

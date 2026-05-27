@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
@@ -37,6 +38,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
@@ -55,6 +58,8 @@ import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.components.SingleSelectDialog
 import com.ykis.ykismobkmp.ui.navigation.AppScreenModel
 import com.ykis.ykismobkmp.ui.screens.settings.ThemeValues.Companion.fromStorageKey
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
@@ -71,6 +76,7 @@ import ykismobkmp.composeapp.generated.resources.delete_my_account
 import ykismobkmp.composeapp.generated.resources.ic_account_circle
 import ykismobkmp.composeapp.generated.resources.lite_mode
 import ykismobkmp.composeapp.generated.resources.log_out
+import ykismobkmp.composeapp.generated.resources.revoke_access_message
 import ykismobkmp.composeapp.generated.resources.save
 import ykismobkmp.composeapp.generated.resources.settings
 import ykismobkmp.composeapp.generated.resources.sign_out
@@ -82,11 +88,6 @@ import ykismobkmp.composeapp.generated.resources.version
 
 private const val className = "SettingsScreen"
 
-// Глобальная КМР константа тем оформления для диалогов
-
-/**
- * [SettingsScreen] — Нативный кроссплатформенный экран конфигурации профиля и безопасности Voyager.
- */
 class SettingsScreen(
   private val onDrawerClick: () -> Unit
 ) : Screen {
@@ -96,17 +97,11 @@ class SettingsScreen(
   @Composable
   override fun Content() {
     val navigator = LocalNavigator.currentOrThrow
-
-    // Инжектуем локальную вьюмодель настроек, центральную стейт-машину и синглтон КМР-кэша через Koin
     val screenModel = koinInject<SettingsScreenModel>()
     val appStartModel = koinInject<AppScreenModel>()
     val appCache = koinInject<com.russhwolf.settings.Settings>() // Единый синглтон-источник правды
-
+    val coroutineScope = rememberCoroutineScope()
     val loading by screenModel.loading.collectAsState()
-
-    // ИСПРАВЛЕНО НАМЕРТВО ДЛЯ ЛИКВИДАЦИИ ХАОТИЧНОГО ПЕРЕКЛЮЧЕНИЯ:
-    // Мы переводим чтение текущей темы на прямой синглтон-кэш смартфона appCache!
-    // Карта тем (themes) хранит: [0 -> "light", 1 -> "dark", 2 -> "system"]
     var activeThemeString by remember {
       mutableStateOf(appCache.getString(key = "theme_key", defaultValue = "system"))
     }
@@ -116,7 +111,7 @@ class SettingsScreen(
       val index = themes.indexOf(activeThemeString)
       if (index == -1) 2 else index // Если ключ пуст — по дефолту синяя точка встанет на 2-й индекс ("system")
     }
-
+    var showReauthDialog by remember { mutableStateOf(false) }
     Crossfade(targetState = loading, label = "SettingsLoadingFade") { isLoading ->
       if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -152,21 +147,80 @@ class SettingsScreen(
           },
 
           revokeAccess = {
-            println("[YkisLogKMP.$className.Content.revokeAccess]: Безвозвратное локальное удаление профиля...")
-            screenModel.revokeAccess {
-              appCache.putBoolean("is_terms_accepted", false)
-              appStartModel.evaluateStartDestination()
+            println("[YkisLogKMP.$className.Content.revokeAccess]: Пользователь подтвердил удаление аккаунта.")
+
+            screenModel.revokeAccess { isSessionExpired ->
+              if (isSessionExpired) {
+                // ИСПРАВЛЕНО НАМЕРТВО: Сессия Google/SMS устарела! Включаем триггер диалога-инструкции!
+                println("[YkisLogKMP.$className]: [SHOW_ALERT] Сессия устарела. Включение триггера showReauthDialog.")
+                showReauthDialog = true
+              } else {
+                // УСПЕХ: Облако и локальная СУБД чисты, переходим на стартовую оферту
+                println("[YkisLogKMP.$className]: Профиль полностью ликвидирован. Уход на оферту.")
+                appCache.putBoolean("is_terms_accepted", false)
+                appStartModel.evaluateStartDestination()
+              }
             }
           },
+
+          // Внутри override fun Content() в классе SettingsScreen:
           signOut = {
-            println("[YkisLogKMP.$className.Content.signOut]: Запуск процедуры безопасного логаута...")
+            println("[YkisLogKMP.$className.Content.signOut]: Клієнт підтвердив вихід. Запуск процедури...")
             screenModel.signOut {
-              appCache.putBoolean("is_terms_accepted", false)
+              println("[YkisLogKMP.$className.Content.signOut]: Локальний логаут завершено. Перерахунок стартової траєкторії ЮКИС.")
+
+              // Принудительно заставляем центральный диспетчер пересчитать граф.
+              // Поскольку сессия Firebase теперь false, он бесшовно и плавно развернет SignInScreen!
               appStartModel.evaluateStartDestination()
             }
           }
+
         )
       }
+    }
+    // ====================================================================
+    // ЖИВАЯ НАВЕДЕННАЯ ИНСТРУКЦИЯ ПЕРЕЗАХОДА ---
+    // ====================================================================
+    if (showReauthDialog) {
+      AlertDialog(
+        onDismissRequest = { showReauthDialog = false },
+        title = {
+          Text(
+            text = "⚠️ Безпека облікового запису",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+          )
+        },
+        text = {
+          Text(
+            text = stringResource(Res.string.revoke_access_message),
+            style = MaterialTheme.typography.bodyMedium
+          )
+        },
+        dismissButton = {
+          TextButton(onClick = { showReauthDialog = false }) {
+            Text("Скасувати", style = MaterialTheme.typography.labelLarge)
+          }
+        },
+        confirmButton = {
+          Button(
+            onClick = {
+              showReauthDialog = false
+              println("[YkisLogKMP.$className]: Инструкция принята. Запуск автоматического signOut для перезахода...")
+
+              // Нативно запускаем наш отлаженный метод выхода, который сотрет локальный кэш и переведет на SignInScreen
+              screenModel.signOut {
+                appCache.putBoolean("is_terms_accepted", false)
+                appStartModel.evaluateStartDestination()
+              }
+            }
+          ) {
+            Text("Перезайти", style = MaterialTheme.typography.labelLarge)
+          }
+        },
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+      )
     }
   }
 }

@@ -135,26 +135,44 @@ val commonModule = module {
       apartmentService = get(),
       chatRepo = get()
     )
+
+    //  КМР-ПРОКСИ СЕРВИСА GOOGLE FIREBASE
     object : FirebaseService by realService {
+
+      // 1. Каскадное глушение Snapshot-соединений в ОЗУ смартфона
       override fun stopAllListeners() {
-        try { realService.stopAllListeners() } catch (e: Exception) {
-          println("[$KOIN_TAG.FirebaseProxy]: Сбой при остановке слушателей: ${e.message}")
+        try {
+          realService.stopAllListeners()
+        } catch (e: Exception) {
+          println("[$KOIN_TAG.FirebaseProxy_ERR]: Сбой при остановке слушателей: ${e.message}")
         }
       }
-      override suspend fun logoutDirectly() {
-        try { realService.logoutDirectly() } catch (e: Exception) {
-          println("[$KOIN_TAG.FirebaseProxy]: Сбой при закрытии Auth сессии: ${e.message}")
+
+      //  прокси-объект нативно перехватывает наш suspend вызов signOut(),
+      // аннулирует Auth сессию в Keystore и стирает UID, полностью вычищая рантайм!
+      override suspend fun signOut() {
+        try {
+          println("[$KOIN_TAG.FirebaseProxy]: Перехват вызова безопасного логаута. Перенаправление в realService...")
+          realService.signOut()
+        } catch (e: Exception) {
+          println("[$KOIN_TAG.FirebaseProxy_ERR]: Каскадный сбой при закрытии Auth сессии Firebase: ${e.message}")
         }
       }
-      override fun revokeAccess(): kotlinx.coroutines.flow.Flow<Resource<Boolean>> =
-        kotlinx.coroutines.flow.flow {
-          try { realService.revokeAccess().collect { emit(it) } } catch (e: Exception) {
-            println("[$KOIN_TAG.FirebaseProxy]: Каскадный сбой удаления аккаунта: ${e.message}")
-            emit(Resource.Success(true))
-          }
+
+      // 3. Каскадное безвозвратное удаление коммунального профиля из баз данных
+      // Внутри анонимного прокси object : FirebaseService by realService в Koin:
+      override suspend fun revokeAccess(): Resource<Boolean> {
+        return try {
+          println("[$KOIN_TAG.FirebaseProxy]: Перехват вызова безвозвратного удаления профиля ЮКИС...")
+          realService.revokeAccess()
+        } catch (e: Exception) {
+          println("[$KOIN_TAG.FirebaseProxy_ERR]: Каскадный сбой при удалении аккаунта: ${e.message}")
+          Resource.Error(message = e.message)
         }
+      }
     }
-  }
+    }
+
 
   // ====================================================================
   // --- ИСПРАВЛЕНО НАМЕРТВО: ПОЛНАЯ СЕТЕВАЯ СВЯЗКА РЕПОЗИТОРИЕВ ЮКИС ---

@@ -8,31 +8,25 @@ import com.ykis.ykismobkmp.domain.repository.chat.ChatRepository
 import dev.gitlive.firebase.*
 import dev.gitlive.firebase.auth.FirebaseUser
 import dev.gitlive.firebase.auth.GoogleAuthProvider
-import dev.gitlive.firebase.auth.PhoneAuthProvider
-import dev.gitlive.firebase.auth.PhoneVerificationProvider
 import dev.gitlive.firebase.auth.auth
 import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.remoteconfig.remoteConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
-private const val className = "FirebaseServiceImpl"
 
-/**
- * [FirebaseServiceImpl] — Кроссплатформенная реализация ядра авторизации и профиля ЮКИС г. Южный.
- * ИСПРАВЛЕНО: Префиксы логирования переведены на YkisLogKMP, выровнены все методы интерфейса.
- * Зафиксирован для полной замены.
- */
+private const val className = "FirebaseServiceImpl"
 class FirebaseServiceImpl(
   private val settings: Settings,      // Общий КМР Key-Value кэш
   private val apartmentService: ApartmentService,  // Сервис управления лицевыми счетами БТИ
@@ -42,7 +36,6 @@ class FirebaseServiceImpl(
   private val auth get() = Firebase.auth
   private val db get() = Firebase.firestore
   private val remoteConfig get() = Firebase.remoteConfig
-
   override val isUserAuthenticatedInFirebase: Boolean get() = auth.currentUser != null
   override val uid: String get() = auth.currentUser?.uid ?: ""
   override val hasUser: Boolean get() = auth.currentUser != null
@@ -52,19 +45,27 @@ class FirebaseServiceImpl(
   override val email: String get() = auth.currentUser?.email ?: ""
   override val photoUrl: String get() = auth.currentUser?.photoURL ?: ""
   override val providerId: String get() = auth.currentUser?.providerId ?: ""
-
   override val isWiFiCheckConfig: Boolean get() = remoteConfig.getValue("loading_from_wifi").asBoolean()
   override val isMobileCheckConfig: Boolean get() = remoteConfig.getValue("loading_from_mobile").asBoolean()
   override val agreementTitle: String get() = remoteConfig.getValue("agreement_title").asString()
   override val agreementText: String get() = remoteConfig.getValue("agreement_text").asString()
 
+  // Список активных КМР-слушателей Cloud Firestore (Профиль БТИ, Квартиры)
+  private val firestoreJobs = mutableListOf<Job>()
+  // Список фоновых корутин-потоков, слушающих Realtime Database (Чаты, Бейджи)
+  private val rtdbJobs = mutableListOf<Job>()
+
+  override suspend fun getUid() = uid
+  override suspend fun getEmail() = email
+  override suspend fun getDisplayName() = displayName
+
+  // Список фоновых корутин-потоков (Jobs), слушающих Realtime Database (чаты, бейджи)
   override suspend fun fetchConfiguration(): Boolean = try {
     remoteConfig.fetchAndActivate()
     true
   } catch (e: Exception) {
     false
   }
-
 
   override suspend fun isUserAgreed(): Boolean {
     // Читаем по единому системному ключу
@@ -115,7 +116,7 @@ class FirebaseServiceImpl(
         "uid" to currentUid,
         "email" to userEmail,
         "phoneNumber" to (rawPhone ?: ""),
-        "displayName" to (currentUser?.displayName ?: "Meшканець м. Южне"),
+        "displayName" to (currentUser?.displayName ?: "Meшканець"),
         "userRole" to "STANDARD_USER",
         "osbbId" to 0L,
 
@@ -124,15 +125,10 @@ class FirebaseServiceImpl(
 
         "lastLogin" to currentTimestamp
       )
-
-
       println("[YkisLogKMP.$className.$methodName]: [PROCESS] Запуск безопасной записи set(merge = true)...")
-
       // Запись слияния (merge = true) нативно создаст или обновит профиль без предварительного чтения сети!
       userDocRef.set(data = userMap, merge = true)
-
       println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Firestore успешно обновлен")
-
       try {
         println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_SUCCESS] Запуск синхронизации с MySQL")
       } catch (e: Exception) {
@@ -195,22 +191,47 @@ class FirebaseServiceImpl(
     }
   }
 
-  override fun revokeAccess(): Flow<Resource<Boolean>> = flow {
+  override suspend fun revokeAccess(): Resource<Boolean> {
     val methodName = "revokeAccess"
-    emit(Resource.Loading())
-    try {
-      val user = auth.currentUser ?: throw Exception("Auth session expired")
-      val currentUid = user.uid
-      println("[YkisLogKMP.$className.$methodName]: [START] Видалення профілю $currentUid")
-      db.collection("users").document(currentUid).delete()
-      user.delete()
-      println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Профілі успішно зачищено в хмарі")
-      emit(Resource.Success(true))
-    } catch (e: Exception) {
-      println("[YkisLogKMP.$className.$methodName]: [ERROR] $e")
-      emit(Resource.Error(message = e.message))
+    return withContext(Dispatchers.Default) {
+      try {
+        // 1. Проверяем валидность текущей КМР-сессии Auth
+        val user = auth.currentUser ?: throw Exception("Auth session expired")
+        val currentUid = user.uid
+        println("[YkisLogKMP.$className.$methodName]: [START] Запуск процедури деструкції профілю UID: \"$currentUid\"")
+
+        // 2. КРИТИЧЕСКИЙ ШАГ БЕЗОПАСНОСТИ: Первым делом пробуем удалить Auth-аккаунт в облаке Google!
+        // Если сессия устарела, Firebase Auth SDK мгновенно выбросит исключение ДО того,
+        // как код успеет безвозвратно стереть данные жильца из Cloud Firestore.
+        try {
+          user.delete()
+          println("[YkisLogKMP.$className.$methodName]: [AUTH_DELETED] Аккаунт авторизації успішно стерто з серверів Google.")
+        } catch (authException: Exception) {
+          val errMessage = authException.message ?: ""
+
+          // Проверяем нативный строковый маркер безопасности Google ("recent login required")
+          if (errMessage.contains("recent", ignoreCase = true) || errMessage.contains("credentials", ignoreCase = true)) {
+            println("[YkisLogKMP.$className.$methodName]: [REAUTHENTICATION_REQUIRED] Виявлено застарілу сесію! Зупинка каскаду.")
+            // Возвращаем кастомное сообщение ошибки, которое вьюмодель распарсит как требование перезахода
+            return@withContext Resource.Error(message = "CREDENTIALS_TOO_OLD")
+          }
+          throw authException // Если ошибка другая (например, таймаут сети) — пробрасываем её дальше
+        }
+
+        // 3. СЕССИЯ ПОДТВЕРЖДЕНА И СВЕЖАЯ — Теперь безопасно вырезаем документы пользователя из Cloud Firestore!
+        db.collection("users").document(currentUid).delete()
+        println("[YkisLogKMP.$className.$methodName]: [FIRESTORE_DELETED] Документи користувача успішно вилучені з баз даних.")
+
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Повне каскадне видалення профілю у хмарі завершено успішно.")
+        Resource.Success(true)
+
+      } catch (e: Exception) {
+        println("[YkisLogKMP.$className.$methodName]: Фатальний збій деструкції аккаунта: ${e.message}")
+        Resource.Error(message = e.message ?: "Unknown deletion error")
+      }
     }
-  }.flowOn(Dispatchers.Default)
+  }
+
 
   override fun getAuthState(viewModelScope: CoroutineScope): AuthStateResponse {
     val methodName = "getAuthState"
@@ -232,23 +253,55 @@ class FirebaseServiceImpl(
     )
   }
 
-  override suspend fun logoutDirectly() {
-    auth.signOut()
-  }
 
-  override fun signOut() = flow {
-    auth.signOut()
-    println("[YkisLogKMP.$className.signOut]: Вихід з облікового запису ЮКИС виконано успішно")
-    emit(Resource.Success(true))
-  }
+  override suspend fun signOut() {
+    val methodName = "signOut"
+    try {
+      println("[YkisLogKMP.$className.$methodName]: [START] Запит до GitLive SDK на анулювання токена сесії...")
 
-  override suspend fun getUid() = uid
-  override suspend fun getEmail() = email
-  override suspend fun getDisplayName() = displayName
+      // Нативно удаляем сессионный токен из защищенного хранилища Keystore смартфона!
+      auth.signOut()
+
+      println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Вихід з облікового запису ЮКИС виконано успішно. Сесію закрито.")
+    } catch (e: Exception) {
+      println("[YkisLogKMP.$className.${methodName}_CRITICAL_ERROR]: Помилка під час нативного логауту Firebase Auth: ${e.message}")
+    }
+  }
 
   override fun stopAllListeners() {
     val methodName = "stopAllListeners"
-    println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Потоки корутин контролюються ScreenModel Voyager.")
+    println("[YkisLogKMP.FirebaseService.$methodName]: [START] Повне очищення всіх активних з'єднань мережі KMP.")
+
+    try {
+      // 1. Очищення КМР-слухачів Cloud Firestore (Характеристики квартир БТИ, профиль)
+      firestoreJobs.forEach { job ->
+        try {
+          if (job.isActive) {
+            job.cancel() // Принудительно закрываем корутинный канал, GitLive нативно сотрет SnapshotListener!
+          }
+        } catch (e: Exception) {
+          println("[YkisLogKMP.FirebaseService.$methodName.Firestore_ERR]: Помилка зупинки потоку Cloud Firestore: ${e.message}")
+        }
+      }
+      firestoreJobs.clear()
+      println("[YkisLogKMP.FirebaseService.$methodName]: Слухачі Cloud Firestore успішно видалені з пам'яті КМР.")
+
+      // 2. Очищення Realtime Database (Кімнати обговорення чатів, лічильники непрочитаних ГИОЦ)
+      rtdbJobs.forEach { job ->
+        try {
+          if (job.isActive) {
+            job.cancel() // Намертво рвем асинхронную корутину связи с чатами Google RTDB
+          }
+        } catch (e: Exception) {
+          println("[YkisLogKMP.FirebaseService.$methodName.RTDB_ERR]: Помилка закриття каналу Realtime Database: ${e.message}")
+        }
+      }
+      rtdbJobs.clear()
+      println("[YkisLogKMP.FirebaseService.$methodName]: Потоки Realtime Database успішно зупинені та видалені з пам'яті КМР.")
+
+    } catch (e: Exception) {
+      println("[YkisLogKMP.FirebaseService.$methodName]: Помилка під час каскадної зупинки слухачів Firebase: ${e.message}")
+    }
   }
 
   override suspend fun reloadFirebaseUser(): Resource<Boolean> = try {
@@ -360,7 +413,6 @@ class FirebaseServiceImpl(
     return auth.currentUser?.providerId ?: "password"
   }
 
-  override fun revokeAccessEmail(): Flow<Resource<Boolean>> = revokeAccess()
 
   override suspend fun addFcmToken() {
     println("[YkisLogKMP.$className.addFcmToken]: Ініціалізація реєстрації токена сповіщень...")
