@@ -27,10 +27,10 @@ class ApartmentRepositoryImpl(
     }
   }
 
-  override suspend fun updateBti( addressId: Long, phone: String, email: String): GetApartmentsResponse {
-    println("[$className.updateBti]: addressId=$addressId, email=${email}, phone=${phone}")
+  override suspend fun updateBti( uid: String,addressId: Long, phone: String, email: String): GetApartmentsResponse {
+    println("[$className.updateBti]: uid=$uid,addressId=$addressId, email=${email}, phone=${phone}")
     return try {
-      remote.updateBti(addressId = addressId, phone = phone, email = email)
+      remote.updateBti(uid = uid,addressId = addressId, phone = phone, email = email)
     } catch (ex: Exception) {
       println("[$className.updateBti] Error: ${ex.message}")
       // ИСПРАВЛЕНО НАМЕРТВО: Возвращаем GetApartmentsResponse вместо GetSimpleResponse для строгого соблюдения контракта!
@@ -60,7 +60,7 @@ class ApartmentRepositoryImpl(
     }
   }
 
-  override suspend fun addApartmentUser(uid: String, code: String, email: String): GetSimpleResponse {
+  override suspend fun addApartmentUser( code: String,uid: String, email: String): GetSimpleResponse {
     println("[$className.addApartmentUser]: code=$code, uid=${uid.takeLast(5)}")
     return try {
       remote.addApartment(code, uid, email)

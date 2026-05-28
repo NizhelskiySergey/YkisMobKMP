@@ -77,7 +77,7 @@ private val appCache: Settings
       println("[YkisLogKMP.$className.evaluateStartDestination]: [SESSION_OK] Запуск моніторингу профілю...")
       apartmentScreenModel.observeUserProfile()
 
-      val finalUIState = apartmentScreenModel.baseUIState.first { state ->
+      val finalUIState = apartmentScreenModel.apartmentUiState.first { state ->
         state.userRole != UserRole.Unknown && !state.mainLoading
       }
 

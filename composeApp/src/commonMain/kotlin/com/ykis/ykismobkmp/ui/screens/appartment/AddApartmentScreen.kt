@@ -20,15 +20,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -38,9 +33,7 @@ import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.ykismobkmp.ui.screens.meter.MainMeterScreen
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
@@ -49,11 +42,9 @@ import ykismobkmp.composeapp.generated.resources.add_appartment
 import ykismobkmp.composeapp.generated.resources.secret_сode
 import ykismobkmp.composeapp.generated.resources.tooltip_code
 
+
 private const val className = "AddApartmentScreen"
 
-/**
- * [AddApartmentScreen] — Экран ввода секретных инфо-кодов ГИОЦ/БТИ расчетного центра г. Южный.
- */
 class AddApartmentScreen(
   private val onDrawerClicked: () -> Unit = {},
   private val closeContentDetail: () -> Unit = {}
@@ -67,8 +58,6 @@ class AddApartmentScreen(
 
     // Приведено к каноническому КМР-синтаксису collectAsState
     val secretCode by screenModel.secretCode.collectAsState()
-    val snackbarMessage by SnackbarManager.snackbarMessages.collectAsState(initial = null)
-
 
     Scaffold(
       modifier = Modifier.fillMaxSize(),
@@ -85,14 +74,7 @@ class AddApartmentScreen(
         onAddClick = {
           println("[YkisLogKMP.$className.onAddClick]: Клік по кнопці відправки коду БТІ: $secretCode")
           keyboard?.hide()
-
-          // ИСПРАВЛЕНО НАМЕРТВО: Возвращен твой каноничный и легитимный навигационный колбэк!
-          screenModel.addApartment {
-            println("[YkisLogKMP.$className.onAddClick]: [SUCCESS] Код успішно верифіковано біллінгом г. Южне")
-            closeContentDetail()
-            // Нативно и бесшовно перенаправляем на экран счетчиков (MainMeterScreen) после привязки жилья
-            navigator.replaceAll(MainMeterScreen(onDrawerClick = onDrawerClicked))
-          }
+          screenModel.addApartment()
         }
       )
     }
@@ -172,3 +154,4 @@ fun AddApartmentScreenStateless(
     }
   }
 }
+

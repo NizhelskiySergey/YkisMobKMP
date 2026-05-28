@@ -35,7 +35,7 @@ open class BaseScreenModel(
     snackbar: Boolean = true,
     showLoader: Boolean = false,
     block: suspend CoroutineScope.() -> Unit
-  ) = screenModelScope.launch( // ИСПРАВЛЕНО: Область корутин переведена на screenModelScope
+  ) = screenModelScope.launch(
     CoroutineExceptionHandler { _, throwable ->
       println("[$className.launchCatching]: Перехвачено критическое исключение: ${throwable.message}")
 
@@ -54,16 +54,15 @@ open class BaseScreenModel(
     block()
     if (showLoader) hideProgress()
   }
-
   /**
    * Управление состоянием загрузки лицевых счетов и биллинга ГИОЦ
    */
   fun showProgress() {
-    _uiState.update { it.copy(mainLoading = true) } // Синхронизировано с твоим стейтом mainLoading
+    _uiState.update { it.copy(mainLoading = true) } // Синхронизировано со стейтом mainLoading
   }
 
   fun hideProgress() {
-    _uiState.update { it.copy(mainLoading = false) } // Синхронизировано с твоим стейтом mainLoading
+    _uiState.update { it.copy(mainLoading = false) } // Синхронизировано со стейтом mainLoading
   }
 
   /**

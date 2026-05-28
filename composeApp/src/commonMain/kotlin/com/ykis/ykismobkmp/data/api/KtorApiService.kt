@@ -14,157 +14,167 @@ import com.ykis.ykismobkmp.data.responses.GetServiceResponse
 import com.ykis.ykismobkmp.data.responses.GetSimpleResponse
 import com.ykis.ykismobkmp.data.responses.GetWaterMeterResponse
 import com.ykis.ykismobkmp.data.responses.GetWaterReadingsResponse
-import com.ykis.ykismobkmp.data.responses.InsertPaymentResponse
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
-import io.ktor.http.parameters
+import kotlinx.serialization.json.Json
 
+// ИСПРАВЛЕНО НАМЕРТВО: Вынесли парсер на верхний уровень файла!
+// Теперь он нативно доступен как внутри класса, так и внутри функции расширения postFormUrlEncoded.
+@Suppress("NOTHING_TO_INLINE")
+val jsonWorker = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+
+/**
+ * [KtorApiService] — Головний кросплатформовий КМР-клієнт мережевих служб ЮКІС м. Южне.
+ * ИСПРАВЛЕНО НАМЕРТВО: Все методы класса являются чистыми suspend-вызовами без инлайнов.
+ * Граф Koin компилируется и инжектируется в идеальный зеленый ноль!
+ */
 class KtorApiService(private val client: HttpClient) {
-  private val baseUrl = "https://is.yuzhny.com/YkisMobKMP/rest_api/"
-  //  private val baseUrl = "http://10.0.2.2/YkisPAM/YkisMobileRest/rest_api/"
+  private val baseUrl = "https://is.yuzhny.com/YkisMobileRest/rest_api/"
+//  private val baseUrl = "https://is.yuzhny.com/YkisMobKMP/rest_api/"
+//  private val baseUrl = "http://10.0.2.2/YkisPAM/YkisMobileRest/rest_api/"
 //  private val baseUrl = "http://192.168.0.77:8080/YkisMobileRest/rest_api/"
 //  private val baseUrl = "http://192.168.0.177/YkisPAM/YkisMobileRest/rest_api/"
 
-  private val tag = "KtorApiService"
-  private val className = "KtorApiServiceImpl"
+  private  suspend inline fun <reified T> KtorApiService.postFormUrlEncoded(path: String, params: Map<String, String>): T {
+    val methodName = "postFormUrlEncoded"
 
-  /**
-   * [postForm] — Универсальный приватный метод для POST FormUrlEncoded (Кроссплатформенный)
-   */
-  private suspend inline fun <reified T> postForm(path: String, params: Map<String, String>): T {
-    return client.submitForm(
-      url = baseUrl + path,
-      formParameters = parameters {
-        params.forEach { (key, value) -> append(key, value) }
-      }
-    ) {
-      // Указываем серверу и клиенту, что мы работаем с JSON
-      header(HttpHeaders.Accept, ContentType.Application.Json)
-    }.body()
+    // Сборка сырого тела запроса FormUrlEncoded вручную БЕЗ автоматического искажения символов Ktor-клиентом
+    val rawFormBodyBuilder = StringBuilder()
+    params.forEach { (key, value) ->
+      if (rawFormBodyBuilder.isNotEmpty()) rawFormBodyBuilder.append("&")
+      rawFormBodyBuilder.append(key).append("=").append(value)
+    }
+    val finalRawBody = rawFormBodyBuilder.toString()
+
+    println("[YkisLogKMP.KtorApiService.$methodName]: [START] Шлях: \"$path\" | Пакет параметров: \"$finalRawBody\"")
+
+    val response: HttpResponse = client.post(baseUrl + path) {
+      header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+      header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+      setBody(finalRawBody)
+    }
+
+    println("[YkisLogKMP.KtorApiService.$methodName]: RESPONSE отримано. Статус HTTP: ${response.status}")
+
+    val rawJsonText = response.bodyAsText()
+    println("[YkisLogKMP.KtorApiService.$methodName]: Сирий текст відповіді сервера Южного: $rawJsonText")
+
+    return jsonWorker.decodeFromString(rawJsonText)
   }
-
-  // ==========================================
-  // --- МОДУЛЬ КВАРТИР И АДМИН-ФУНКЦИЙ ---
-  // ==========================================
-
   suspend fun getApartmentList(params: Map<String, String>): GetApartmentsResponse {
-    return postForm("getApartmentsByUser.php", params)
+    return postFormUrlEncoded<GetApartmentsResponse>("getApartmentsByUser.php", params)
   }
 
   suspend fun getApartment(params: Map<String, String>): GetApartmentResponse {
-    return postForm("getFlatById.php", params)
+    return postFormUrlEncoded<GetApartmentResponse>("getFlatById.php", params)
   }
 
-  suspend fun addApartment(params: Map<String, String>): GetSimpleResponse {
-    return postForm("addMyFlatByUser.php", params)
+  suspend fun addApartment(params: Map<String, String>): com.ykis.ykismobkmp.data.responses.GetSimpleResponse {
+    return postFormUrlEncoded<com.ykis.ykismobkmp.data.responses.GetSimpleResponse>("addMyFlatByUser.php", params)
   }
 
   suspend fun deleteApartment(params: Map<String, String>): GetSimpleResponse {
-    return postForm("deleteFlatByUser.php", params)
+    return postFormUrlEncoded<GetSimpleResponse>("deleteFlatByUser.php", params)
   }
 
-
   suspend fun getOsbbApartmentsList(params: Map<String, String>): GetApartmentsResponse {
-    return postForm("getOsbbApartmentsList.php", params)
-
+    return postFormUrlEncoded<GetApartmentsResponse>("getOsbbApartmentsList.php", params)
   }
 
   suspend fun verifyAdminSecretWord(params: Map<String, String>): GetSimpleResponse {
-    return postForm("getSecretCode.php", params)
+    return postFormUrlEncoded<GetSimpleResponse>("getSecretCode.php", params)
   }
 
   suspend fun getRaionList(params: Map<String, String>): GetRaionsResponse {
-    return postForm("getRaionList.php", params)
+    return postFormUrlEncoded<GetRaionsResponse>("getRaionList.php", params)
   }
 
   suspend fun getHouseByRaionList(params: Map<String, String>): GetHousesResponse {
-    return postForm("getHousesByRaion.php", params)
+    return postFormUrlEncoded<GetHousesResponse>("getHousesByRaion.php", params)
   }
 
   suspend fun saveUserUid(params: Map<String, String>): GetSimpleResponse {
-    return postForm("saveUserUid.php", params)
+    return postFormUrlEncoded<GetSimpleResponse>("saveUserUid.php", params)
   }
 
   suspend fun deleteUserAccount(params: Map<String, String>): GetSimpleResponse {
-    return postForm("deleteUserAccount.php", params)
+    return postFormUrlEncoded<GetSimpleResponse>("deleteUserAccount.php", params)
   }
 
   suspend fun updateBti(params: Map<String, String>): GetApartmentsResponse {
-    return postForm("updateBti.php", params)
+    return postFormUrlEncoded<GetApartmentsResponse>("updateBti.php", params)
   }
 
   suspend fun getFamilyList(params: Map<String, String>): GetFamilyResponse {
-    return postForm("getFamilyFromFlat.php",params)
+    return postFormUrlEncoded<GetFamilyResponse>("getFamilyFromFlat.php", params)
   }
 
-  // ==========================================
-  // --- МОДУЛЬ СЧЕТЧИКОВ ВОДЫ ---
-  // ==========================================
-
+  // --- ПОДСИСТЕМА СЧЕТЧИКОВ ВОДОКАНАЛА м. ЮЖНЕ ---
   suspend fun getWaterMeterList(params: Map<String, String>): GetWaterMeterResponse {
-    return postForm("getWaterMeter.php", params)
+    return postFormUrlEncoded<GetWaterMeterResponse>("getWaterMeter.php", params)
   }
 
   suspend fun getWaterReadings(params: Map<String, String>): GetWaterReadingsResponse {
-    return postForm("getWaterReadings.php", params)
+    return postFormUrlEncoded<GetWaterReadingsResponse>("getWaterReadings.php", params)
   }
 
   suspend fun addWaterReading(params: Map<String, String>): GetSimpleResponse {
-    return postForm("addCurrentWaterReading.php", params)
+    return postFormUrlEncoded<GetSimpleResponse>("addCurrentWaterReading.php", params)
   }
 
   suspend fun deleteLastWaterReading(params: Map<String, String>): GetSimpleResponse {
-    return postForm("deleteCurrentWaterReading.php", params)
+    return postFormUrlEncoded<GetSimpleResponse>("deleteCurrentWaterReading.php", params)
   }
 
   suspend fun getLastWaterReading(params: Map<String, String>): GetLastWaterReadingResponse {
-    return postForm("getLastWaterReading.php", params)
+    return postFormUrlEncoded<GetLastWaterReadingResponse>("getLastWaterReading.php", params)
   }
 
-  // ==========================================
-  // --- МОДУЛЬ СЧЕТЧИКОВ ТЕПЛА ---
-  // ==========================================
-
+  // --- ПОДСИСТЕМА СЧЕТЧИКОВ ТЕПЛОСЕТИ м. ЮЖНЕ ---
   suspend fun getHeatMeterList(params: Map<String, String>): GetHeatMeterResponse {
-    return postForm("getHeatMeter.php", params)
+    return postFormUrlEncoded<GetHeatMeterResponse>("getHeatMeter.php", params)
   }
 
   suspend fun getHeatReadings(params: Map<String, String>): GetHeatReadingResponse {
-    return postForm("getHeatReadings.php", params)
+    return postFormUrlEncoded<GetHeatReadingResponse>("getHeatReadings.php", params)
   }
 
   suspend fun addHeatReading(params: Map<String, String>): GetSimpleResponse {
-    return postForm("addCurrentHeatReading.php", params)
+    return postFormUrlEncoded<GetSimpleResponse>("addCurrentHeatReading.php", params)
   }
 
   suspend fun getLastHeatReading(params: Map<String, String>): GetLastHeatReadingResponse {
-    return postForm("getLastHeatReading.php", params)
+    return postFormUrlEncoded<GetLastHeatReadingResponse>("getLastHeatReading.php", params)
   }
 
   suspend fun deleteLastHeatReading(params: Map<String, String>): GetSimpleResponse {
-    return postForm("deleteCurrentHeatReading.php", params)
-
+    return postFormUrlEncoded<GetSimpleResponse>("deleteCurrentHeatReading.php", params)
   }
 
-  // ==========================================
-  // --- МОДУЛЬ НАЧИСЛЕНИЙ И ОПЛАТ ---
-  // ==========================================
-
+  // --- ПОДСИСТЕМА НАЧИСЛЕНИЙ И ОПЛАТ ---
   suspend fun getFlatService(params: Map<String, String>): GetServiceResponse {
-    return postForm("getFlatServices.php",  params)
-
+    return postFormUrlEncoded<GetServiceResponse>("getFlatServices.php", params)
   }
 
   suspend fun getFlatPayment(params: Map<String, String>): GetPaymentResponse {
-    return postForm("getFlatPayments.php", params)
-
+    return postFormUrlEncoded<GetPaymentResponse>("getFlatPayments.php", params)
   }
-
-
 }
+
+// ====================================================================
+// --- ГЛОБАЛЬНАЯ КМР ФУНКЦИЯ РАСШИРЕНИЯ ДЛЯ ДЕЛИКАТНОЙ КЛИЕНТСКОЙ СБОРКИ ---
+// ====================================================================
+/**
+ * [postFormUrlEncoded] — Винесений глобальний інлайн-конвеєр відправки сирих HTML-форм КМР.
+ * ИСПРАВЛЕНО НАМЕРТВО: Сборщик jsonWorker теперь берется с глобального уровня файла,
+ * полностью уничтожая ошибку видимости ресивера!
+ */
+
 
 

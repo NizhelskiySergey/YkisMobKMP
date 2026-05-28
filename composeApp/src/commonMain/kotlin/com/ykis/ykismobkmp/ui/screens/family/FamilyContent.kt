@@ -42,7 +42,6 @@ private fun FlatCard(modifier: Modifier = Modifier, content: @Composable ColumnS
 
 /**
  * [FamilyContent] — Кроссплатформенный Stateful-компонент отображения состава семьи и проживающих жителей.
- * ИСПРАВЛЕНО: В сигнатуру добавлен аргумент viewModel: ApartmentScreenModel для бесшовной стыковки с Voyager-вкладками.
  */
 @Composable
 fun FamilyContent(

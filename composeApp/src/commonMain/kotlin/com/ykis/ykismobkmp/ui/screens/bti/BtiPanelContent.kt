@@ -1,29 +1,16 @@
 package com.ykis.ykismobkmp.ui.screens.bti
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key.Companion.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.ui.BaseUIState
@@ -34,42 +21,19 @@ import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.absent_text
-import ykismobkmp.composeapp.generated.resources.area_extra
-import ykismobkmp.composeapp.generated.resources.area_flat
-import ykismobkmp.composeapp.generated.resources.area_full
-import ykismobkmp.composeapp.generated.resources.area_life
-import ykismobkmp.composeapp.generated.resources.area_otopl
-import ykismobkmp.composeapp.generated.resources.compound_text
-import ykismobkmp.composeapp.generated.resources.data_bti
-import ykismobkmp.composeapp.generated.resources.date_orde_colon
-import ykismobkmp.composeapp.generated.resources.elevator_colon
-import ykismobkmp.composeapp.generated.resources.employer_text_colon
-import ykismobkmp.composeapp.generated.resources.order_text
-import ykismobkmp.composeapp.generated.resources.podnan_text
-import ykismobkmp.composeapp.generated.resources.private_text_colon
-import ykismobkmp.composeapp.generated.resources.rooms_colon
-import ykismobkmp.composeapp.generated.resources.secret_сode
-import ykismobkmp.composeapp.generated.resources.tenant_text
-
-// Временные КМР-заглушки специфических UI-карточек и чекбоксов ЮКИС г. Южный
+import ykismobkmp.composeapp.generated.resources.*
+import kotlin.toString
 
 private const val className = "BtiPanelContent"
 
-/**
- * [BtiPanelContent] — Кроссплатформенный Stateful-контейнер панели характеристик БТИ.
- * ИСПРАВЛЕНО: Сигнатура согласована с BtiTab, повторный get/koinInject удален во избежание дублирования сессий в ОЗУ.
- */
 @Composable
 fun BtiPanelContent(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
-  viewModel: ApartmentScreenModel // ИСПРАВЛЕНО: Принимаем заинжекченную ScreenModel напрямую из вызывающего контекста вкладок
+  viewModel: ApartmentScreenModel
 ) {
-  // Реактивно подписываемся на локальный поток контактов БТИ формы изменения из переданного инстанса
-  val contactUiState by viewModel.contactUIState.collectAsState()
+  val liveBtiState by viewModel.apartmentUiState.collectAsState()
 
-  // Инициализируем стартовые текстовые поля при смене активного лицевого счета
   LaunchedEffect(baseUIState.addressId) {
     println("[$className.invoke]: Ініціалізація полей форми контактів біллінгу ЮКИС для адреси ID Long: ${baseUIState.addressId}")
     viewModel.initialContactState()
@@ -77,29 +41,28 @@ fun BtiPanelContent(
 
   BtiContent(
     modifier = modifier,
-    baseUIState = baseUIState,
-    contactUiState = contactUiState,
+    baseUIState = baseUIState, // Панелі площ читають стабільний snapshot
+    currentEmail = liveBtiState.email ?: "",
+    currentPhone = liveBtiState.phone ?: "",
     onEmailChange = viewModel::onEmailChange,
     onPhoneChange = viewModel::onPhoneChange,
-    onUpdateBti = {
-      baseUIState.uid?.let { currentUid ->
-        viewModel.onUpdateBti(currentUid)
-      }
+    onUpdateBti = { typedPhone, typedEmail ->
+      println("[YkisLogKMP.$className.onUpdateBti]: Користувач підтвердив збереження контактів. Тел: '$typedPhone', Email: '$typedEmail'")
+      viewModel.onUpdateBti(phone = typedPhone, email = typedEmail)
     }
   )
 }
 
-/**
- * [BtiContent] — Чистая Stateless-верстка характеристик квартиры и площадей Material 3.
- */
 @Composable
 fun BtiContent(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
-  contactUiState: Any?, // Заменено на Any?, пока не прислана структура ContactUiState
+  currentEmail: String,
+  currentPhone: String,
   onEmailChange: (String) -> Unit,
   onPhoneChange: (String) -> Unit,
-  onUpdateBti: () -> Unit
+  // ИСПРАВЛЕНО НАМЕРТВО: Сигнатура приведена к (String, String) -> Unit! Ошибка Mismatch полностью уничтожена!
+  onUpdateBti: (String, String) -> Unit
 ) {
   Column(
     modifier = modifier
@@ -109,7 +72,6 @@ fun BtiContent(
     verticalArrangement = Arrangement.spacedBy(12.dp),
     horizontalAlignment = Alignment.CenterHorizontally
   ) {
-    // 1. Карточка Ответственного (Нанимателя / Собственника БТИ)
     BaseCard {
       ColumnLabelTextWithTextAndIcon(
         imageVector = Icons.Default.Person,
@@ -117,32 +79,28 @@ fun BtiContent(
         valueText = baseUIState.apartment.nanim
       )
     }
-
-    // 2. Карточка состава семьи и зарегистрированных жильцов г. Южный
     BaseCard(label = stringResource(Res.string.compound_text)) {
       Row(modifier = Modifier.fillMaxWidth()) {
         InfoItem(
           modifier = Modifier.weight(1f),
           label = stringResource(Res.string.tenant_text),
-          value = baseUIState.apartment.tenant.toString(),
+          value = baseUIState.apartment.tenant?.toString() ?: "0",
           icon = Icons.Default.Groups
         )
         InfoItem(
           modifier = Modifier.weight(1f),
           label = stringResource(Res.string.podnan_text),
-          value = baseUIState.apartment.podnan.toString()
+          value = baseUIState.apartment.podnan?.toString() ?: "0"
         )
       }
       Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
         InfoItem(
           modifier = Modifier.weight(1f),
           label = stringResource(Res.string.absent_text),
-          value = baseUIState.apartment.absent.toString()
+          value = baseUIState.apartment.absent?.toString() ?: "0"
         )
       }
     }
-
-    // 3. Расчетные площади БТИ (Акцент на цифрах для биллинга коммунальных услуг)
     BaseCard(label = stringResource(Res.string.area_flat)) {
       Row(modifier = Modifier.fillMaxWidth()) {
         InfoItem(Modifier.weight(1f), stringResource(Res.string.area_full), baseUIState.apartment.areaFull.toString())
@@ -154,30 +112,26 @@ fun BtiContent(
         InfoItem(Modifier.weight(1f), stringResource(Res.string.area_otopl), baseUIState.apartment.areaOtopl.toString())
       }
     }
-
-    // 4. Технический паспорт, приватизация и архивные ордера
     BaseCard(label = stringResource(Res.string.data_bti)) {
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        InfoItem(Modifier.weight(1f), stringResource(Res.string.rooms_colon), baseUIState.apartment.room.toString())
+        InfoItem(Modifier.weight(1f), stringResource(Res.string.rooms_colon), baseUIState.apartment.room?.toString() ?: "0")
 
         LabelTextWithCheckBox(
           modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
           labelText = stringResource(Res.string.private_text_colon),
-          checked = baseUIState.apartment.privat == 1
+          checked = baseUIState.apartment.privat == 1 || baseUIState.apartment.privat?.toString() == "1"
         )
         LabelTextWithCheckBox(
           modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
           labelText = stringResource(Res.string.elevator_colon),
-          checked = baseUIState.apartment.lift == 1
+          checked = baseUIState.apartment.lift == 1 || baseUIState.apartment.lift?.toString() == "1"
         )
       }
-
       HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
-
       Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -188,7 +142,6 @@ fun BtiContent(
           valueText = baseUIState.apartment.kod
         )
       }
-
       Column(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         LabelTextWithText(
           modifier = Modifier.padding(vertical = 2.dp),
@@ -202,14 +155,13 @@ fun BtiContent(
         )
       }
     }
-
     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
 
-    // 5. Вложенная КМР-карточка вывода и изменения контактов абонента БТИ
+    // Передаем обновленную двухпараметрическую лямбду в ContactsCard
     ContactsCard(
       baseUIState = baseUIState,
-      phone = "", // Настрой вычитывание строк, когда пришлешь дата-класс ContactUiState
-      email = "",
+      phone = currentPhone,
+      email = currentEmail,
       onEmailChange = onEmailChange,
       onPhoneChange = onPhoneChange,
       onUpdateBti = onUpdateBti
@@ -217,9 +169,9 @@ fun BtiContent(
   }
 }
 
-/**
- * [InfoItem] — Вспомогательный КМР-компонент ячейки численных параметров площадей БТИ.
- */
+
+
+
 @Composable
 fun InfoItem(
   modifier: Modifier = Modifier,
@@ -251,4 +203,3 @@ fun InfoItem(
     }
   }
 }
-

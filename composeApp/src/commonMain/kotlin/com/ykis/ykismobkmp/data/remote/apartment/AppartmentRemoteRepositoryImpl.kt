@@ -41,8 +41,16 @@ class ApartmentRemoteImpl(
   override suspend fun getApartment(addressId: Long, uid: String): GetApartmentResponse {
     return ktorApiService.getApartment(createRequestByAddressId(addressId = addressId, uid = uid))
   }
-  override suspend fun updateBti(addressId: Long, phone: String, email: String): GetApartmentsResponse {
-    return ktorApiService.updateBti(createRequestUpdateBti(addressId = addressId, phone = phone,email=email))
+  override suspend fun updateBti(uid:String,addressId: Long, phone: String, email: String): GetApartmentsResponse {
+    return ktorApiService.updateBti(createRequestUpdateBti(uid=uid,addressId = addressId, phone = phone,email=email))
+  }
+  private fun createRequestUpdateBti(uid: String,addressId: Long, phone: String, email: String): Map<String, String> {
+    val map = HashMap<String, String>()
+    map[UID] = uid
+    map[ADDRESS_ID] = addressId.toString()
+    map[PHONE] = phone
+    map[EMAIL] = email
+    return map
   }
   override suspend fun deleteApartment(addressId: Long, uid: String): GetSimpleResponse {
     return ktorApiService.deleteApartment(createRequestByAddressId(addressId, uid))
@@ -51,7 +59,13 @@ class ApartmentRemoteImpl(
   override suspend fun addApartment(code: String, uid: String, email: String): GetSimpleResponse {
     return ktorApiService.addApartment(createAddApartmentMap(code = code, uid = uid, email = email))
   }
-
+  private fun createAddApartmentMap(code: String, uid: String, email: String): Map<String, String> {
+    val map = HashMap<String, String>()
+    map[CODE] = code
+    map[UID] = uid
+    map[EMAIL] = email
+    return map
+  }
   override suspend fun verifyAdminSecretWord(code: String, uid: String): GetSimpleResponse {
     return ktorApiService.verifyAdminSecretWord(createVerifyAdminSecretWord(code = code, uid = uid))
   }
@@ -112,21 +126,9 @@ class ApartmentRemoteImpl(
     return map
   }
 
-  private fun createRequestUpdateBti(addressId: Long, phone: String, email: String): Map<String, String> {
-    val map = HashMap<String, String>()
-    map[ADDRESS_ID] = addressId.toString()
-    map[PHONE] = phone
-    map[EMAIL] = email
-    return map
-  }
 
-  private fun createAddApartmentMap(code: String, uid: String, email: String): Map<String, String> {
-    val map = HashMap<String, String>()
-    map[CODE] = code
-    map[UID] = uid
-    map[EMAIL] = email
-    return map
-  }
+
+
 
   private fun createVerifyAdminSecretWord(code: String, uid: String): Map<String, String> {
     val map = HashMap<String, String>()

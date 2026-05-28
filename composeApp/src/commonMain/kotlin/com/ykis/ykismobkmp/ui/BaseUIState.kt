@@ -1,15 +1,5 @@
 package com.ykis.ykismobkmp.ui
 
-/**
- * Глобальное состояние приложения.
- * Содержит данные профиля, текущей квартиры и метаданные для навигации.
- */
-
-/**
- * [BaseUIState] — Единый источник истины (Single Source of Truth) для UI слоя ЮКИС.
- * Полностью типизирован под сквозной Long стандарт для бесшовной стыковки с СУБД SQLDelight.
- */
-
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.entity.RaionEntity
 import com.ykis.ykismobkmp.domain.services.UserRole
@@ -21,7 +11,9 @@ import kotlinx.serialization.Serializable
 private const val className = "BaseUIState"
 
 /**
- * [BaseUIState] — Монолитный кроссплатформенный стейт-снимок всего UI слоя приложения ЮКИС.
+ * [BaseUIState] — Кросплатформенний стейт-знімок всього UI шару додатка ЮКІС м. Южне.
+ * ИСПРАВЛЕНО НАМЕРТВО: Интегрированы детальные анкетные поля БТИ (nanim, площади, комнаты, жильцы),
+ * что полностью ликвидирует пустые заглушки первой вкладки при холодном старте и синхронизации СУБД!
  */
 @Serializable
 data class BaseUIState(
@@ -43,6 +35,14 @@ data class BaseUIState(
   @SerialName("addressNumber") val addressNumber: String? = null,
   @SerialName("isApartmentsLoaded") val isApartmentsLoaded: Boolean = false,
 
+  // --- ИСПРАВЛЕНО НАМЕРТВО: ДОБАВЛЕНЫ ДЕТАЛЬНЫЕ АНКЕТНЫЕ ПОЛЯ БТИ ГИОЦ ---
+  @SerialName("nanim") val nanim: String? = null,           // ФИО владельца/ответственного нанимателя
+  @SerialName("area_full") val areaFull: String? = null,     // Общая площадь жилого помещения в кв.м.
+  @SerialName("area_otopl") val areaOtopl: String? = null,   // Отапливаемая площадь жилого помещения
+  @SerialName("room") val room: String? = null,               // Количество зарегистрированных комнат
+  @SerialName("tenant_tbo") val tenantTbo: String? = null,   // Число прописанных человек (норма ТБО/Воды)
+  // ====================================================================
+
   // --- 3. ДАННЫЕ АДМИНИСТРАТОРА (ОСББ / Горслужбы г. Южного) ---
   @SerialName("osbbId") val osbbId: Long = 0L, // ID предприятия (9997L - ТБО, 9998L - ЮТКЕ, 9999L - Водоканал)
   @SerialName("osmdId") val osmdId: Long = 0L, // Совместимость со старым API биллинга
@@ -55,17 +55,17 @@ data class BaseUIState(
   @SerialName("searchMode") val searchMode: Boolean = false,
   @SerialName("listMode") val listMode: ListMode = ListMode.APARTMENTS,
 
-  // --- 4. НОВОЕ: ИНТЕГРАЦИЯ ЧАТ-СИСТЕМЫ И ПУШ-ВЕЛОСИПЕДОВ (YkisMobPAM) ---
-  @SerialName("currentChatUid") val currentChatUid: String? = null,              // Уникальный ID текущей ветки чата
-  @SerialName("opponentUid") val opponentUid: String? = null,                  // UID собеседника (жильца или диспетчера)
-  @SerialName("opponentName") val opponentName: String? = null,                // Имя собеседника на appBar чата
-  @SerialName("opponentLogoUrl") val opponentLogoUrl: String? = null,            // Аватарка собеседника в MessageListItem
-  @SerialName("activeRecipientFcmTokens") val activeRecipientFcmTokens: List<String> = emptyList(), // Токены для моментальной отправки пушей
-  @SerialName("selectedImagePath") val selectedImagePath: String? = null,        // Путь к прикрепляемому файлу/фото из галереи KMP
-  @SerialName("isOpponentTyping") val isOpponentTyping: Boolean = false,          // Индикатор "Собеседник набирает сообщение..."
-  @SerialName("isForwarding") val isForwarding: Boolean = false,                  // Режим пересылки сообщения в другую службу
-  @SerialName("assistantResponse") val assistantResponse: String? = null,        // Текст-подсказка, сгенерированный Gemini AI
-  @SerialName("isLoadingAfterSending") val isLoadingAfterSending: Boolean = false, // Лоадер отправки тяжелого медиа-сообщения
+  // --- 4. ИНТЕГРАЦИЯ ЧАТ-СИСТЕМЫ И ПУШ-ВЕЛОСИПЕДОВ (YkisMobPAM) ---
+  @SerialName("currentChatUid") val currentChatUid: String? = null,
+  @SerialName("opponentUid") val opponentUid: String? = null,
+  @SerialName("opponentName") val opponentName: String? = null,
+  @SerialName("opponentLogoUrl") val opponentLogoUrl: String? = null,
+  @SerialName("activeRecipientFcmTokens") val activeRecipientFcmTokens: List<String> = emptyList(),
+  @SerialName("selectedImagePath") val selectedImagePath: String? = null,
+  @SerialName("isOpponentTyping") val isOpponentTyping: Boolean = false,
+  @SerialName("isForwarding") val isForwarding: Boolean = false,
+  @SerialName("assistantResponse") val assistantResponse: String? = null,
+  @SerialName("isLoadingAfterSending") val isLoadingAfterSending: Boolean = false,
 
   // --- 5. СОСТОЯНИЕ ИНТЕРФЕЙСА (Voyager / Adaptive UI) ---
   @SerialName("selectedContentDetail") val selectedContentDetail: ContentDetail = ContentDetail.BTI,
@@ -73,18 +73,19 @@ data class BaseUIState(
   @SerialName("showDetail") val showDetail: Boolean = false,
 
   // --- 6. СТАТУСЫ ЗАГРУЗКИ (Системные лоадеры) ---
-  @SerialName("isLoading") val isLoading: Boolean = false,             // Фоновый процесс кэширования SQLDelight
-  @SerialName("mainLoading") val mainLoading: Boolean = true,          // Холодный старт графа навигации
-  @SerialName("isGlobalLoading") val isGlobalLoading: Boolean = false, // Блокирующий лоадер (Внесение Л/С)
-  @SerialName("apartmentLoading") val apartmentLoading: Boolean = true, // Загрузка БТИ ведомостей
+  @SerialName("isLoading") val isLoading: Boolean = false,
+  @SerialName("mainLoading") val mainLoading: Boolean = true,
+  @SerialName("isGlobalLoading") val isGlobalLoading: Boolean = false,
+  @SerialName("apartmentLoading") val apartmentLoading: Boolean = true,
 
   // --- 7. ОШИБКИ ---
   @SerialName("error") val error: String? = null
 ) {
   init {
-    // Логирование инициализации стейта согласно правилу [Класс.Метод]
-    println("[$className.init]: Снимок BaseUIState обновлен. Активный о/р: $addressId, Роль: $userRole")
+    // Логирование инициализации стейта согласно сквозному правилу [Класс.Метод]
+    println("[$className.init]: Снімок BaseUIState оновлено в ОЗУ. Активний о/р: ${addressId}L, Наймач: $nanim, Роль: $userRole")
   }
 }
+
 
 

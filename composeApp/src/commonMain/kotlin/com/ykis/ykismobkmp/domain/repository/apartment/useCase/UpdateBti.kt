@@ -18,7 +18,7 @@ class UpdateBti(
 ) {
   private val className = "UpdateBti"
 
-  operator fun invoke(addressId: Long,phone: String,email: String): Flow<Resource<GetApartmentsResponse>> = flow {
+  operator fun invoke(uid:String,addressId: Long,phone: String,email: String): Flow<Resource<GetApartmentsResponse>> = flow {
     val methodName = "invoke"
     try {
       println("[$className.$methodName]: [START] ID лицевого счета: $addressId")
@@ -30,9 +30,8 @@ class UpdateBti(
         emit(Resource.Error(message = "email та номер телефону не можуть бути порожніми"))
         return@flow
       }
-
-      // 2. СЕТЕВОЙ ЗАПРОС ЧЕРЕЗ РЕПОЗИТОРИЙ НА СТРОГО ВЫРОВНЕННЫХ ПАРАМЕТРАХ СЕТИ
       val response = repository.updateBti(
+        uid= uid,
         addressId = addressId,
         phone = phone,
         email = email
@@ -41,11 +40,6 @@ class UpdateBti(
       if (response.success == 1) {
         println("[$className.$methodName]: [SUCCESS] Данные БТИ успешно обновлены на сервере")
 
-        /**
-         * АТОМАРНОЕ ОБНОВЛЕНИЕ СУБД:
-         * Вычитываем текущую квартиру из SQLDelight, обновляем локальные поля контактов
-         * и запечатываем обратно на диск для мгновенного обновления графического UI.
-         */
         try {
           val oldApartment = cache.getApartmentById(addressId)
           if (oldApartment != null) {

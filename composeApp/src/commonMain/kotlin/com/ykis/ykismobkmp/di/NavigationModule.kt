@@ -24,7 +24,7 @@ val navigationModule = module {
   // Остальные локальные модели экранов остаются в режиме factory для очистки памяти при закрытии окон
   factory { AuthScreenModel(get(), get(), get()) }
   factory { ChatScreenModel(get(), get()) }
-  factory { ApartmentScreenModel(get(), get(), get()) }
+  single { ApartmentScreenModel(get(), get(), get()) }
   factory { FamilyListScreenModel(get(), get()) }
   factory { MeterScreenModel(get(), get()) }
   factory { ClearDatabase() }
@@ -61,7 +61,11 @@ val navigationModule = module {
       logService = get()
     )
   }
-  // Фабрики ScreenModels финансово-расчетного учета коммунальных услуг
+
+  // Внутри твоего Koin-модуля:
+  // ИСПРАВЛЕНО НАМЕРТВО: Чистый проброс без лямбд и оберток. Спецификации типов теперь совпадают идеально!
+  factory { FamilyListScreenModel(getFamilyListUseCase = get(), logService = get()) }
+
 
 
   single {

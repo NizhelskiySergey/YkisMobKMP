@@ -12,22 +12,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
+import com.ykis.ykismobkmp.ui.components.EmailField
 import com.ykis.ykismobkmp.ui.components.LabelTextWithTextAndIcon
-
-// ИМПОРТЫ КМР РЕСУРСОВ JETBRAINS:
+import com.ykis.ykismobkmp.ui.components.PhoneField
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.*
 
-private const val className = "ContactsCard"
-
-/**
- * [ContactsCard] — Кроссплатформенная карточка контактных данных абонента БТИ г. Южный.
- */
 @Composable
 fun ContactsCard(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState = BaseUIState(),
-  onUpdateBti: () -> Unit,
+  // ИСПРАВЛЕНО НАМЕРТВО: Изменен тип с () -> Unit на (String, String) -> Unit!
+  onUpdateBti: (String, String) -> Unit,
   phone: String,
   email: String,
   onEmailChange: (String) -> Unit,
@@ -37,7 +33,6 @@ fun ContactsCard(
 
   BaseCard(
     modifier = modifier,
-    // ИСПРАВЛЕНО: Заменен Android R.string на КМР Res.string
     label = stringResource(Res.string.contacts),
     actionButton = {
       IconButton(onClick = { openDialog.value = true }) {
@@ -48,7 +43,6 @@ fun ContactsCard(
       }
     }
   ) {
-    // ИСПРАВЛЕНО: Каждой строке передан явный модификатор отступа для симметрии верстки
     LabelTextWithTextAndIcon(
       modifier = Modifier.padding(vertical = 2.dp),
       imageVector = Icons.Default.Phone,
@@ -67,13 +61,11 @@ fun ContactsCard(
     ChangeContactsDialog(
       baseUIState = baseUIState,
       onDismissRequest = { openDialog.value = false },
-      phone = phone,
-      email = email,
-      previousPhone = baseUIState.apartment.phone,
-      previousEmail = baseUIState.apartment.email,
+      initialPhone = phone,
+      initialEmail = email,
       onEmailChange = onEmailChange,
       onPhoneChange = onPhoneChange,
-      onUpdateClick = onUpdateBti
+      onUpdateClick = onUpdateBti // Передаем двухпараметрический канал дальше
     )
   }
 }
@@ -86,15 +78,19 @@ fun ChangeContactsDialog(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
   onDismissRequest: () -> Unit,
-  onUpdateClick: () -> Unit,
-  phone: String,
-  email: String,
-  previousPhone: String,
-  previousEmail: String,
+  // ИСПРАВЛЕНО НАМЕРТВО: Изменен тип с () -> Unit на (String, String) -> Unit для синхронизации!
+  onUpdateClick: (String, String) -> Unit,
+  initialPhone: String,
+  initialEmail: String,
   onEmailChange: (String) -> Unit,
   onPhoneChange: (String) -> Unit
 ) {
-  // ИСПРАВЛЕНО: Низкоуровневый Dialog заменен на стандартный AlertDialog для стабильности на Mac/iOS
+  var localPhone by remember { mutableStateOf(initialPhone) }
+  var localEmail by remember { mutableStateOf(initialEmail) }
+
+  val previousPhone = baseUIState.apartment.phone.orEmpty().trim()
+  val previousEmail = baseUIState.apartment.email.orEmpty().trim()
+
   AlertDialog(
     modifier = modifier.widthIn(max = 400.dp),
     onDismissRequest = onDismissRequest,
@@ -106,18 +102,16 @@ fun ChangeContactsDialog(
       )
     },
     text = {
-      // ИСПРАВЛЕНО: Внутренние элементы больше не дублируют параметры входящего modifier
       Column(modifier = Modifier.fillMaxWidth()) {
-        // Твои кастомные КМР-компоненты полей ввода текста (PhoneField / EmailField)
         PhoneField(
           modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-          value = phone,
-          onNewValue = onPhoneChange
+          value = localPhone,
+          onNewValue = { localPhone = it }
         )
         EmailField(
           modifier = Modifier.fillMaxWidth(),
-          value = email,
-          onNewValue = onEmailChange
+          value = localEmail,
+          onNewValue = { localEmail = it }
         )
       }
     },
@@ -125,8 +119,6 @@ fun ChangeContactsDialog(
       TextButton(
         onClick = {
           onDismissRequest()
-          onEmailChange(previousEmail)
-          onPhoneChange(previousPhone)
         }
       ) {
         Text(
@@ -138,11 +130,11 @@ fun ChangeContactsDialog(
     confirmButton = {
       Button(
         onClick = {
+          // АТОМАРНО ПРОШИВАЕМ ДАННЫЕ В МОМЕНТ КЛИКА СОХРАНЕНИЯ ПРЯМО В КТOR СЕТЬ!
+          onUpdateClick(localPhone, localEmail)
           onDismissRequest()
-          onUpdateClick()
         },
-        // Кнопка активна только в случае реального изменения кубов/данных в полях
-        enabled = (previousEmail != email || previousPhone != phone),
+        enabled = (previousEmail != localEmail.trim() || previousPhone != localPhone.trim()),
         shape = RoundedCornerShape(12.dp)
       ) {
         Text(
@@ -154,6 +146,5 @@ fun ChangeContactsDialog(
   )
 }
 
-// Временные заглушки полей ввода для успешной компиляции файла (замени на свои из TextFields.kt)
-@Composable fun PhoneField(modifier: Modifier = Modifier, value: String, onNewValue: (String) -> Unit) { OutlinedTextField(value = value, onValueChange = onNewValue, modifier = modifier, label = { Text("Телефон") }) }
-@Composable fun EmailField(modifier: Modifier = Modifier, value: String, onNewValue: (String) -> Unit) { OutlinedTextField(value = value, onValueChange = onNewValue, modifier = modifier, label = { Text("Email") }) }
+
+

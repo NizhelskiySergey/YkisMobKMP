@@ -25,47 +25,33 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-private const val tag = "ApartmentScreenModel"
 
 // Режимы вложенности списков (Районы г. Южное -> Дома -> Квартиры жителей)
 enum class ListMode { RAIONS, HOUSES, APARTMENTS }
 
 /**
  * [ApartmentScreenModel] — Кроссплатформенная модель управления привязкой лицевых счетов и админ-панелей ОСМД.
- * ИСПРАВЛЕНО (ЧАСТЬ 1): Интегрирован блок init сброса лоадера для SMS-входа,
- * префиксы логирования приведены под сквозной стандарт [YkisLogKMP].
- */
+  */
 class ApartmentScreenModel(
   val firebaseService: FirebaseService,
   private val apartmentService: ApartmentService,
   logService: LogService
 ) : BaseScreenModel(logService) {
   private val className = "ApartmentScreenModel"
-  private val isEmailVerified get() = firebaseService.currentUser?.isEmailVerified ?: false
-  val uid get() = firebaseService.uid
 
-  private val displayName get() = firebaseService.displayName
+  val uid get() = firebaseService.uid
   val email get() = firebaseService.email
 
   private var observeJob: Job? = null
   private var isHandlingResult = false
-
-  private val _apartment = MutableStateFlow(ApartmentEntity())
-  val apartment: StateFlow<ApartmentEntity> get() = _apartment.asStateFlow()
-
-  private var isObservingStarted = false
   private val _secretCode = MutableStateFlow("")
   val secretCode: StateFlow<String> = _secretCode.asStateFlow()
-  var lastLoadedAddressId: Long = 0L
-    private set
-
   private var lastHandledResultId: Long? = null
-
   // LaunchScreen
   private val _showError = MutableStateFlow(false)
-  val showError: StateFlow<Boolean> = _showError.asStateFlow()
+//  val showError: StateFlow<Boolean> = _showError.asStateFlow()
 
-  val authState = firebaseService.getAuthState(screenModelScope)
+//  val authState = firebaseService.getAuthState(screenModelScope)
 
   private val _drawerHouses = MutableStateFlow<List<HouseEntity>>(emptyList())
   val drawerHouses = _drawerHouses.asStateFlow()
@@ -74,36 +60,27 @@ class ApartmentScreenModel(
   val drawerApartments = _drawerApartments.asStateFlow()
 
   private val _drawerLoading = MutableStateFlow(false)
-  val drawerLoading = _drawerLoading.asStateFlow()
+//  val drawerLoading = _drawerLoading.asStateFlow()
 
   private val _contactUiState = MutableStateFlow(BaseUIState())
   val contactUIState: StateFlow<BaseUIState> = _contactUiState.asStateFlow()
 
+  private val _apartmentUiState = MutableStateFlow(BaseUIState())
+  val apartmentUiState: StateFlow<BaseUIState> = _apartmentUiState.asStateFlow()
   private val _searchQuery = MutableStateFlow("")
   val searchQuery = _searchQuery.asStateFlow()
 
-  private val _apartmentUiState = MutableStateFlow(BaseUIState())
-  val baseUIState: StateFlow<BaseUIState> = _apartmentUiState.asStateFlow()
-
-  // ГАРАНТИЯ СОВМЕСТИМОСТИ С ЭКРАНОМ: Направляем uiState на наш главный КМР-поток БТИ
 
   init {
     println("[YkisLogKMP.$className.init]: Ініціалізація ApartmentScreenModel в КМР шарі.")
-    // Принудительно выключаем стартовую блокировку экрана загрузки, если пользователь зашел по SMS
     disableMainLoading()
   }
 
-  /**
-   * [disableMainLoading] — Принудительное гашение лоадера жилого фонда биллинга.
-   */
   fun disableMainLoading() {
     _apartmentUiState.update { it.copy(mainLoading = false) }
     println("[YkisLogKMP.$className.disableMainLoading]: Глобальний лоадер БТИ примусово переведено в FALSE")
   }
 
-  /**
-   * [filteredApartments] — Адаптивный КМР-поток реактивной фильтрации списков БТИ при вводе в поисковую строку.
-   */
   val filteredApartments: StateFlow<List<ApartmentEntity>> = combine(
     _searchQuery,
     _apartmentUiState,
@@ -155,7 +132,6 @@ class ApartmentScreenModel(
 
     // Каскадно отменяем активные фоновые корутин-потоки прослушивания Firestore
     observeJob?.cancel()
-    lastLoadedAddressId = -1L
 
     _apartmentUiState.update { currentState ->
       // ИСПРАВЛЕНО: Не создаем пустой класс с нуля, а точечно модифицируем текущий стейт через .copy(),
@@ -445,68 +421,101 @@ class ApartmentScreenModel(
     }
   }
 
-  // ====================================================================
-  // --- ДОБАВЛЕНО: МЕТОД ВЕРИФИКАЦИИ И ПРИВЯЗКИ ЛИЦЕВЫХ СЧЕТОВ БТИ ---
-  // ====================================================================
-
   /**
-   * [addApartment] — Отправка инфо-кода ГИОЦ/БТИ на сервер Ktor и привязка жилья.
-   * Требуется экраном AddApartmentScreen для бесшовной компиляции рантайма.
-   */
-
-
-
-  /**
-   * [handleStandardUserResult] — Обробка результату завантаження прив'язаного житлового фонду звичайного мешканця.
+   * [handleStandardUserResult] — Обробка та атомарна фіксація списку квартир мешканця м. Южне в СУБД ЮКІС.
+   * ИСПРАВЛЕНО НАМЕРТВО: Интегрирован параметр forcedAddressId для принудительной активации новой квартиры,
+   * а также вшито КМР-объединение incoming-массивов с защитой от дубликатов по .distinctBy { it.addressId }.
    */
   private suspend fun handleStandardUserResult(
     result: Resource<List<ApartmentEntity>>,
     uid: String,
-    role: UserRole
+    role: UserRole,
+    forcedAddressId: Long = 0L // ИСПРАВЛЕНО НАМЕРТВО: Необязательный целевой ID для сценария добавления!
   ) {
     val methodName = "handleStandardUserResult"
+
+    // Переменные-якоря для безопасного проброса вычисленных данных в фоновый suspend-поток Firebase
+    var calculatedTarget: ApartmentEntity? = null
+    var calculatedCombinedName = ""
+
     _apartmentUiState.update { state ->
       when (result) {
         is Resource.Success -> {
-          val apartments = result.data ?: emptyList()
-          println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Отримано квартир: ${apartments.size}")
+          val incomingApartments = result.data ?: emptyList()
+          println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Отримано квартир з СУБД: ${incomingApartments.size}")
 
-          if (apartments.isNotEmpty()) {
-            apartments.forEachIndexed { index, apt ->
+          val combinedApartments = (state.apartments + incomingApartments)
+            .distinctBy { it.addressId }
+          // ====================================================================
+
+          if (combinedApartments.isNotEmpty()) {
+            combinedApartments.forEachIndexed { index, apt ->
               println("[YkisLogKMP.$className.$methodName]: [LIST_ITEM] #$index: ID=${apt.addressId}, Адрес=${apt.address}, OSBB_RAW='${apt.osbb}'")
             }
 
-            val target = apartments.find { it.addressId == state.addressId } ?: apartments.first()
-            println("[YkisLogKMP.$className.$methodName]: [TARGET_SELECT] Обрано ID=${target.addressId} (Поточний в стейті був: ${state.addressId})")
+            val targetFromList = when {
+              forcedAddressId != 0L -> combinedApartments.find { it.addressId == forcedAddressId } ?: combinedApartments.first()
+              state.addressId == 0L -> combinedApartments.first()
+              else -> combinedApartments.find { it.addressId == state.addressId } ?: combinedApartments.first()
+            }
 
-            val combinedName = "${target.address} | ${target.nanim ?: ""}"
+            // ====================================================================
+            // --- ИСПРАВЛЕНО НАМЕРТВО: ЗАЩИТА АНКЕТЫ ОТ АСИНХРОННОГО ЗАТИРАНИЯ ---
+            // ====================================================================
+            // Если мы находимся в сценарии добавления новой квартиры (forcedAddressId != 0L),
+            // мы КАТЕГОРИЧЕСКИ запрещаем брать пустую заготовку-заглушку из state.apartment.
+            // Мы принудительно вытаскиваем полностью наполненный куб данных из СУБД/сети (targetFromList)!
+            val target = if (forcedAddressId != 0L) {
+              targetFromList // Берем 100% наполненный сетевой объект ЮКІС со всеми площадями!
+            } else {
+              if (targetFromList.addressId == state.apartment.addressId && !state.apartment.address.isNullOrBlank()) {
+                state.apartment
+              } else {
+                targetFromList
+              }
+            }
+            // ====================================================================
+
+            calculatedTarget = target
+            calculatedCombinedName = "${target.address} | ${target.nanim ?: ""}"
+
+            println("[YkisLogKMP.$className.$methodName]: [TARGET_SELECT] Фіксація адреси мешканця ID=${target.addressId} (Поточний в стейті був: ${state.addressId}L)")
+
             val rawOsbb = target.osbb?.toString()
-
             val finalOsbbName = if (rawOsbb.isNullOrBlank() || rawOsbb == "0") {
               "Мій ОСББ"
             } else {
               rawOsbb
             }
-            println("[YkisLogKMP.$className.$methodName]: [FINAL_OSBB] Встановлюємо в UI: '$finalOsbbName' (із сирого: '$rawOsbb')")
+            println("[YkisLogKMP.$className.$methodName]: [FINAL_OSBB] Встановлюємо в UI: '$finalOsbbName'")
 
-            firebaseService.updateUserRoleAndPermissions(
-              uid = uid,
-              addressId = target.addressId,
-              userRole =  role,
-              osbbId = target.osmdId,
-              displayName = combinedName
-            )
+            // Дублируем анкетные свойства в плоские поля корня стейта для гарантированной совместимости верстки!
+            val finalNanim = target.nanim ?: "Власник не вказаний"
+            val finalAreaFull = target.areaFull ?: target.areaFull?.toString() ?: "0.00"
+            val finalAreaOtopl = target.areaOtopl ?: target.areaOtopl?.toString() ?: "0.00"
+            val finalRoom = target.room ?: target.room?.toString() ?: "0"
+            val finalTenantTbo = target.tenantTbo ?: target.tenantTbo?.toString() ?: "0"
 
             state.copy(
-              apartments = apartments,
+              apartments = combinedApartments, // Запечатываем полный защищенный массив (3 квартиры)
+              apartment = target,             // Копируем объект целиком со всеми 20+ полями БТИ!
               isApartmentsLoaded = true,
-              addressId = target.addressId,
+              addressId = target.addressId,   // Гарантированно фиксируем новый числовой ID из Ktor!
               address = target.address,
               osbbId = target.osmdId,
               osbb = finalOsbbName,
-              displayName = combinedName,
+
+              // Прошиваем корень стейта для совместимости со старыми панелями экранов
+              nanim = finalNanim,
+              areaFull = finalAreaFull.toString(),
+              areaOtopl = finalAreaOtopl.toString(),
+              room = finalRoom.toString(),
+              tenantTbo = finalTenantTbo.toString(),
+
+              displayName = calculatedCombinedName,
               mainLoading = false
             )
+            // ====================================================================
           } else {
             println("[YkisLogKMP.$className.$methodName]: [WARNING] Список квартир порожній")
             state.copy(mainLoading = false, isApartmentsLoaded = true)
@@ -521,11 +530,33 @@ class ApartmentScreenModel(
         is Resource.Loading -> state.copy(mainLoading = true)
       }
     }
+
+    val finalTarget = calculatedTarget
+    if (finalTarget != null) {
+      try {
+        println("[YkisLogKMP.$className.$methodName]: [FIREBASE_SYNC] Запуск фонового оновлення прав у Firestore для о/р: ${finalTarget.addressId}L")
+        firebaseService.updateUserRoleAndPermissions(
+          uid = uid,
+          addressId = finalTarget.addressId,
+          userRole = role,
+          osbbId = finalTarget.osmdId,
+          displayName = calculatedCombinedName
+        )
+        println("[YkisLogKMP.$className.$methodName]: [FIREBASE_SUCCESS] Права Firestore успішно запечатані.")
+      } catch (e: Exception) {
+        println("[YkisLogKMP.$className.${methodName}_WARN]: Помилка фонової синхронізації прав у хмарі: ${e.message}")
+      }
+
+      // ====================================================================
+      // --- ИСПРАВЛЕНО НАМЕРТВО: СИНХРОННЫЙ ПРОГРЕВ СНИМКА АНКЕТНЫХ КОНТАКТОВ ---
+      // ====================================================================
+      // Вызываем фиксацию контактов строго ЗДЕСЬ — когда Ktor полностью докачал
+      // и монолитно сохранил в ОЗУ все характеристики новой квартиры! Гонка потоков уничтожена.
+      println("[YkisLogKMP.$className.$methodName]: [CONTACT_PREWARM] Каскадний прогрев знімку контактів для о/р: ${finalTarget.addressId}L")
+      initialContactState()
+    }
   }
 
-  /**
-   * [handleOrganizationResult] — Обробка списку доступних районів Одеської області для комунальних служб Южного.
-   */
   private suspend fun handleOrganizationResult(
     result: Resource<List<RaionEntity>>,
     uid: String,
@@ -554,9 +585,6 @@ class ApartmentScreenModel(
     }
   }
 
-  /**
-   * [resetToAdminMode] — Повернення до панелі адміністрування та моніторингу житлового фонду.
-   */
   fun resetToAdminMode() {
     val methodName = "resetToAdminMode"
     println("[YkisLogKMP.$className.$methodName]: [RESET] Повернення до адміністрування комунального фонду")
@@ -571,34 +599,45 @@ class ApartmentScreenModel(
     observeUserProfile()
   }
 
-
   /**
-   * [addApartment] — Точка обробки введення інфо-кодів. Валідація ГІОЦ та ОСББ г. Южне.
+   * [addApartment] — Єдиний шлюз верифікації та додавання секретних кодів розрахункового центру ЮКІС.
+   *  Добавлено моментальное обнуление реактивного инпута _secretCode.value!
+   * Теперь при клике на кнопку поле ввода на экране мгновенно очищается, полностью исключая
+   * застревание текста в ОЗУ синглтона вьюмодели при повторных заходах в меню.
    */
-  fun addApartment(restartApp: () -> Unit) {
+  fun addApartment() {
     val methodName = "addApartment"
     val input = _secretCode.value.trim() // Считываем значение из реактивного потока
     if (input.isEmpty()) return
 
-    println("[YkisLogKMP.$className.$methodName]: Клік по кнопці. Введено код БТІ: $input")
+    println("[YkisLogKMP.$className.$methodName]: Клік по кнопці верифікації. Введено код ЮКІС: $input")
     val uid = firebaseService.uid ?: return
     val email = firebaseService.email ?: ""
+
+    // ИСПРАВЛЕНО НАМЕРТВО: Моментально выжигаем введенный код из оперативной памяти!
+    // Текстовое поле на холсте AddApartmentScreen сразу станет чистым, защищая интерфейс от дребезга.
+    _secretCode.value = ""
 
     if (input.all { it.isDigit() }) {
       // --- ЛОГІКА ЖИЛЬЦА ЮЖНОГО ---
       apartmentService.addApartment(input, uid, email).onEach { result ->
-        handleApartmentResult(uid, result, restartApp)
+        handleApartmentResult(uid, result, restartApp = {})
       }.launchIn(screenModelScope)
     } else {
       // --- ЛОГІКА АДМИНИСТРАТОРА ОСМД ---
       apartmentService.verifyAdminCode(input, uid).onEach { result ->
-        handleAdminResult(result, restartApp)
+        handleAdminResult(result, restartApp = {})
       }.launchIn(screenModelScope)
     }
   }
 
+
+
   /**
-   * [handleApartmentResult] — Обробка відповіді Ktor-сервера при успішній прив'язці інфо-коду ГІОЦ звичайним жильцем Южного.
+   * [handleApartmentResult] — Каскадна процедура обробки успішної верифікації коду ЮКІС.
+   * ИСПРАВЛЕНО НАМЕРТВО: Преждевременный вызов initialContactState() полностью ВЫРЕЗАН!
+   * Порядок сборки стейта ОЗУ перевернут, а фоновый поток СУБД изолирован от затирания анкеты,
+   * что полностью уничтожает Race Condition и пустые вкладки БТИ при добавлении квартиры!
    */
   private suspend fun handleApartmentResult(
     uid: String,
@@ -620,12 +659,12 @@ class ApartmentScreenModel(
       is Resource.Success -> {
         isHandlingResult = true
         val data = result.data ?: run {
-          println("[YkisLogKMP.$className.$methodName]: [ERROR] Мережева відповідь порожня")
+          println("[YkisLogKMP.$className.$methodName]: [ERROR] Дані відповіді сервера порожні")
           isHandlingResult = false
           return
         }
 
-        // 1. ИЗВЛЕЧЕНИЕ И СИНХРОНИЗАЦИЯ ТИПОВ ДАННЫХ
+        // ШАГ 1: ЗАПОМИНАЕМ ПОЛУЧЕННЫЙ ИЗ СЕТИ addressId
         val newAddressId = data.addressId ?: 0L
         val newOsbbId = data.osbbId ?: 0L
         val rawOsbbName = data.osbb?.toString()
@@ -636,10 +675,36 @@ class ApartmentScreenModel(
         } else {
           rawOsbbName
         }
-        println("[YkisLogKMP.$className.$methodName]: [DATA_PARSE] ID: $newAddressId, OSBB_RAW: '$rawOsbbName', FINAL: '$finalOsbbName'")
+        println("[YkisLogKMP.$className.$methodName]: [DATA_PARSE] Запам'ятовано ID: $newAddressId, OSBB_RAW: '$rawOsbbName', FINAL: '$finalOsbbName'")
 
         try {
-          // 2. СИНХРОНИЗАЦИЯ С ОБЛАКОМ (Firestore)
+          // ШАГ 2: МГНОВЕННО ОБНОВЛЯЕМ АКТИВНЫЙ АДРЕС И ОБЪЕКТ В СТЭЙТЕ ОЗУ!
+          // Прошиваем новый ID (например, 3371L) и базовую заготовку квартиры, благодаря чему
+          // стейт-машина хаба сразу перехватит новую траекторию и сотрет из ОЗУ старый адрес!
+          println("[YkisLogKMP.$className.$methodName]: [IMPERATIVE_UPDATE] Атомарне встановлення нового о/р: ${newAddressId}L")
+
+          val initialApartmentEntity = ApartmentEntity(
+            addressId = newAddressId,
+            address = newAddress,
+            osbb = finalOsbbName,
+            osmdId = newOsbbId,
+            uid = uid
+          )
+
+          _apartmentUiState.update { state ->
+            state.copy(
+              addressId = newAddressId,                 // Запечатываем новый ID
+              apartment = initialApartmentEntity,       // Заливаем базовую сущность для LaunchedEffect
+              address = newAddress,
+              osmdId = newOsbbId,
+              osbbId = newOsbbId,
+              osbb = finalOsbbName,
+              userRole = UserRole.StandardUser,
+              mainLoading = false                       // Тушим лоадер, плавно открывая InfoApartmentScreen
+            )
+          }
+
+          // 3. СИНХРОНИЗАЦИЯ С ОБЛАКОМ (Firestore КМР-сессия)
           println("[YkisLogKMP.$className.$methodName]: [STEP 1] Фіксація прав у Firestore. Адреса: $newAddress")
           firebaseService.updateUserRoleAndPermissions(
             uid = uid,
@@ -649,35 +714,39 @@ class ApartmentScreenModel(
             displayName = newAddress
           )
 
-          // 3. ОБНОВЛЕНИЕ UI STATE И ЧАТ-КАНАЛОВ
-          println("[YkisLogKMP.$className.$methodName]: [STEP 2] Встановлення стейту. Прив'язка під контроль OSBB: $finalOsbbName")
-          _apartmentUiState.update {
-            it.copy(
-              addressId = newAddressId,
-              osmdId = newOsbbId,
-              osbbId = newOsbbId,
-              osbb = finalOsbbName,
-              address = newAddress,
-              userRole = UserRole.StandardUser,
-              mainLoading = false
-            )
+          // ШАГ 4: Вызываем getApartmentList(uid), который через последовательный collect{}
+          // дождется записи обновленного кэша квартир на диск смартфона в СУБД SQLDelight.
+          println("[YkisLogKMP.$className.$methodName]: [STEP 2] Запуск послідовної синхронізації кЕшу СУБД...")
+          apartmentService.getApartmentList(uid).collect { syncResult ->
+            if (syncResult is Resource.Success) {
+              println("[YkisLogKMP.$className.$methodName]: [SYNC_DB_OK] Дисковий кЕш СУБД успішно оновлено.")
+
+              // ШАГ 5: Передаем успешный пакет И НАШ НОВЫЙ forcedAddressId в handleStandardUserResult!
+              // Этот метод сам атомарно сделает умное слияние, пропишет apartments (размер станет равен 3),
+              // скопирует живую квартиру со всеми 20+ полями БТИ в поле apartment и выставит addressId!
+              handleStandardUserResult(
+                result = syncResult,
+                uid = uid,
+                role = UserRole.StandardUser,
+                forcedAddressId = newAddressId // Передаем явный маркер-якорь
+              )
+            }
           }
 
           if (lastHandledResultId != newAddressId) {
             lastHandledResultId = newAddressId
-            println("[YkisLogKMP.$className.$methodName]: [STEP 3] Ініціалізація резидент-чатів для особового рахунку $newAddressId")
-            // chatScreenModel.initResidentChats(uid, newOsbbId, newAddressId, newAddress, "")
+            println("[YkisLogKMP.$className.$methodName]: [STEP 4] Ініціалізація резидент-чатів для особового рахунку $newAddressId")
           }
 
+          // Очищаем реактивное текстовое поле ввода кода ЮКІС
           _secretCode.value = ""
-          SnackbarManager.showMessage("Особовий рахунок успішно прив'язано")
+          SnackbarManager.showMessage("Особовий рахунок успішно прив'язано до профілю ЮКІС")
 
-          println("[YkisLogKMP.$className.$methodName]: Очікування стабілізації контексту...")
+          println("[YkisLogKMP.$className.$methodName]: Очікування стабілизации контексту...")
           kotlinx.coroutines.delay(500)
           isHandlingResult = false
 
-          println("[YkisLogKMP.$className.$methodName]: [FINISH] Перезапуск графа навігації (restartApp)")
-          restartApp()
+          println("[YkisLogKMP.$className.$methodName]: [FINISH] Рахунок прив'язано. Реактивно залишаємось у модулі БТІ ЮКІС.")
 
         } catch (e: Exception) {
           println("[YkisLogKMP.$className.$methodName]: [CRITICAL ERROR] ${e.message}")
@@ -688,17 +757,16 @@ class ApartmentScreenModel(
       }
 
       is Resource.Error -> {
-        println("[YkisLogKMP.$className.$methodName]: [API ERROR] ${result.message}")
+        val errorMessage = result.message ?: "Помилка додавання особового рахунку"
+        println("[YkisLogKMP.$className.$methodName]: [API ERROR] $errorMessage")
         isHandlingResult = false
+        _secretCode.value = ""
         _apartmentUiState.update { it.copy(mainLoading = false) }
-        SnackbarManager.showMessage(result.message ?: "Помилка додавання особового рахунку")
+        SnackbarManager.showMessage(errorMessage)
       }
     }
   }
 
-  /**
-   * [handleAdminResult] — Обробка результату при введенні секретного слова доступу керівника або диспетчера служб Южного.
-   */
   private fun handleAdminResult(
     result: Resource<GetSimpleResponse>,
     restartApp: () -> Unit
@@ -770,31 +838,41 @@ class ApartmentScreenModel(
   }
 
 
-// КМР Regex-паттерн валидации электронной почты без привязки к android.util.Patterns
-  /**
-   * [isValidEmailKmp] — Локальна КМР-валідація регулярного виразу пошти для анкети БТІ.
-   */
   private fun String.isValidEmailKmp(): Boolean {
-    val emailRegex = "^[A-Za-is0-9_+=%.&-]+@[A-Za-is0-9.-]+\\.[a-zA-is]{2,}\$"
+    // Канонический паттерн RFC, устойчивый к любым текстовым автозаменам в IDE
+    val emailRegex = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$"
     return this.matches(emailRegex.toRegex())
   }
+
 
   /**
    * [initialContactState] — Ініціалізація локального КМР-стану контактів абонента БТІ міста Южне.
    */
+
+
   fun initialContactState() {
     val methodName = "initialContactState"
     val currentState = _apartmentUiState.value
 
     println("[YkisLogKMP.$className.$methodName]: [START] Фіксація знімку анкетних даних БТІ для о/р ${currentState.addressId}")
 
-    _contactUiState.value = BaseUIState(
-      email = currentState.apartment.email ?: "",
-      phone = currentState.apartment.phone ?: "",
-      addressId = currentState.addressId,
-      address = currentState.address
-    )
+    val finalEmail = currentState.apartment.email ?: currentState.email ?: ""
+
+    val rawPhone = currentState.apartment.phone ?: currentState.phone ?: ""
+    val finalPhone = rawPhone.trim() // Выжигаем скрытые пробелы биллинга, оставляя чистый текст
+
+    // Обновляем наш главный реактивный поток ЮКІС
+    _apartmentUiState.update { state ->
+      state.copy(
+        email = finalEmail,
+        phone = finalPhone
+      )
+    }
+
+    println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Контакти ЮКІС зафіксовано (Тел: '$finalPhone', Email: '$finalEmail')")
   }
+
+
 
   fun onEmailChange(newValue: String) {
     _contactUiState.value = _contactUiState.value.copy(email = newValue)
@@ -807,45 +885,69 @@ class ApartmentScreenModel(
   /**
    * [onUpdateBti] — Оновлення контактних даних абонента БТІ г. Южне на сервері Ktor.
    */
-  fun onUpdateBti(uid: String) {
+  /**
+   * [onUpdateBti] — Оновлення контактних даних абонента БТІ на сервері Ktor через прямі параметри.
+   * ИСПРАВЛЕНО НАМЕРТВО: Метод принимает phone и email напрямую из полей ввода диалога,
+   * полностью исключая отправку пустых строк из-за асинхронных задержек обновления UI-стейта!
+   */
+  fun onUpdateBti(phone: String, email: String) {
     val methodName = "onUpdateBti"
-    val currentEmail = _contactUiState.value.email ?: ""
-
-    if (!currentEmail.isValidEmailKmp() && currentEmail.isNotEmpty()) {
+    val currentState = _apartmentUiState.value
+    val cleanEmail = email.trim()
+    val cleanPhone = phone.trim()
+    val currentUid = firebaseService.uid ?: ""
+    if (!cleanEmail.isValidEmailKmp() && cleanEmail.isNotEmpty()) {
       SnackbarManager.showMessage("Некоректний формат Email адреси")
       return
     }
 
-    println("[YkisLogKMP.$className.$methodName]: [START] Надсилання нових контактів БТІ на сервер ЮКІС...")
+    println("[YkisLogKMP.$className.$methodName]: [START] Надсилання нових контактів БТІ на сервер ЮКІС... (Тел: '$cleanPhone', Email: '$cleanEmail')")
+
+    // Сразу фиксируем введенные строки в ОЗУ стейта, чтобы UI обновился мгновенно
+    _apartmentUiState.update { state ->
+      state.copy(
+        email = cleanEmail,
+        phone = cleanPhone
+      )
+    }
 
     apartmentService.updateBti(
-      addressId = _contactUiState.value.addressId,
-      phone = _contactUiState.value.phone.toString(),
-      email = _contactUiState.value.email.toString()
+      uid= currentUid,
+      addressId = currentState.addressId,
+      phone = cleanPhone,
+      email = cleanEmail
     ).onEach { result ->
       when (result) {
         is Resource.Success -> {
           println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Дані БТІ успішно оновлені на сервері та в СУБД")
           SnackbarManager.showMessage("Дані БТІ успішно оновлено")
-          getApartment(_contactUiState.value.addressId)
+          getApartment(currentState.addressId) // Перевычитываем анкету
         }
 
         is Resource.Error -> {
           println("[YkisLogKMP.$className.$methodName]: [ERROR] Збій оновлення БТІ: ${result.message}")
+          _apartmentUiState.update { it.copy(apartmentLoading = false) }
           SnackbarManager.showMessage(result.message ?: "Помилка оновлення даних")
         }
 
         is Resource.Loading -> {
           println("[YkisLogKMP.$className.$methodName]: [LOADING] Синхронізація анкети БТІ з сервером ЮКІС...")
+          _apartmentUiState.update { it.copy(apartmentLoading = true) }
         }
       }
     }.launchIn(screenModelScope)
   }
 
+
   private var lastProcessingAddressId: Long = -1L
 
   /**
    * [getApartment] — Завантаження детальної інформації по конкретній квартирі з біллінгу.
+   */
+  /**
+   * [getApartment] — Завантаження детальної інформації по конкретній квартирі з біллінгу ЮКІС.
+   * ИСПРАВЛЕНО НАМЕРТВО: Предохранитель ATOMIC SKIP переведен на жесткую проверку наполнения анкеты!
+   * Если адрес пустой, замок пробивается, гарантируя 100% догрузку 20+ полей БТИ с сервера ЮКІС.
    */
   fun getApartment(addressId: Long = _apartmentUiState.value.addressId) {
     val methodName = "getApartment"
@@ -854,26 +956,35 @@ class ApartmentScreenModel(
     val state = _apartmentUiState.value
 
     if (state.addressId == addressId && state.apartmentLoading) return
-    if (state.addressId == addressId && state.apartment.addressId != 0L) {
+
+    // ====================================================================
+    // --- ИСПРАВЛЕНО НАМЕРТВО: УМНЫЙ РЕАКТИВНЫЙ ПРЕДОХРАНИТЕЛЬ КЭША ---
+    // ====================================================================
+    // Проверяем: если ID совпадает И текстовый адрес уже реально наполнен даными из сети,
+    // только тогда мы делаем ATOMIC SKIP. Если адрес пустой — это заглушка, качаем сеть!
+    val isAlreadyFullyLoaded = state.addressId == addressId &&
+      state.apartment.addressId != 0L &&
+      !state.apartment.address.isNullOrBlank()
+
+    if (isAlreadyFullyLoaded) {
       println("[YkisLogKMP.$className.$methodName($addressId)]: -> ATOMIC SKIP (Дані вже актуальні в ОЗУ)")
       return
     }
 
     println("[YkisLogKMP.$className.$methodName]: [FORCE_FETCH] Завантаження о/р $addressId з біллінгу міста Южне")
 
-    observeJob?.cancel()
-    lastLoadedAddressId = -1L
-
+    // Убрана деструктивная отмена observeJob?.cancel(),
+    // чтобы этот метод не сжигал фоновый поток слияния списков handleStandardUserResult!
     val currentUid = firebaseService.uid
-    lastLoadedAddressId = addressId
 
-    observeJob = apartmentService.getApartment(addressId = addressId, uid = currentUid).onEach { result ->
+    apartmentService.getApartment(addressId = addressId, uid = currentUid).onEach { result ->
       when (result) {
         is Resource.Success -> {
           val data = result.data ?: ApartmentEntity()
           val currentUserRole = _apartmentUiState.value.userRole
           val isStandardUser = currentUserRole == UserRole.StandardUser
 
+          // Прошиваем детальный наполненный объект в наш главный поток ЮКІС
           _apartmentUiState.update { currentState ->
             currentState.copy(
               apartment = data,
@@ -904,7 +1015,6 @@ class ApartmentScreenModel(
         is Resource.Error -> {
           println("[YkisLogKMP.$className.$methodName]: -> КРИТИЧНА ПОМИЛКА БІЛІНГУ КТOR: ${result.message}")
           _apartmentUiState.update { it.copy(apartmentLoading = false) }
-          lastLoadedAddressId = -1L
         }
 
         is Resource.Loading -> {
@@ -913,8 +1023,9 @@ class ApartmentScreenModel(
       }
     }.launchIn(screenModelScope)
   }
+
   /**
-   * [getApartmentList] — Завантаження повного списку прив'язаних квартир абонента з біллінгу.
+   * [getApartmentList] — Завантаження повного списку прив'язаних квартир абонента з біллінгу ЮКІС.
    */
   fun getApartmentList(onSuccess: () -> Unit = {}) {
     val methodName = "getApartmentList"
@@ -960,55 +1071,78 @@ class ApartmentScreenModel(
     }.launchIn(screenModelScope)
   }
 
-  /**
-   * [deleteApartmentFromProfile] — Видалення особового рахунку з профілю абонента в базі даних ГІОЦ.
-   */
+
+
   fun deleteApartmentFromProfile(addressId: Long, onNavigateToAddScreen: () -> Unit) {
     val methodName = "deleteApartmentFromProfile"
-    val uid = firebaseService.uid
-    if (addressId <= 0L) return
+    val uid = firebaseService.uid ?: ""
+    if (addressId <= 0L || uid.isBlank()) return
 
     launchCatching(showLoader = true) {
       println("[YkisLogKMP.$className.$methodName]: [START] Запит на видалення о/р $addressId для UID: $uid")
-      apartmentService.deleteApartment(addressId, uid)
-      apartmentService.getApartmentList(uid)
 
+      // 1. Физически удаляем квартиру на сервере биллинга Южного через Ktor
+      apartmentService.deleteApartment(addressId, uid).collect { deleteResult ->
+        if (deleteResult is Resource.Success) {
+          println("[YkisLogKMP.$className.$methodName]: [DELETE_SERVER_OK] Квартира успішно видалена з бази Южного.")
+        }
+      }
+
+      // 2. ИСПРАВЛЕНО НАМЕРТВО: Железная ручная чистка ОЗУ от удаленной квартиры!
+      // Мы берем текущий список, фильтруем его, вырезая удаленный addressId, и заливаем обратно в стейт!
+      _apartmentUiState.update { currentState ->
+        val cleanList = currentState.apartments.filter { it.addressId != addressId }
+        currentState.copy(
+          apartments = cleanList,
+          error = null
+        )
+      }
+
+      // 3. Запускаем фоновое обновление СУБД "выстрелил и забыл" для полной синхронизации с диском смартфона
+      println("[YkisLogKMP.$className.$methodName]: [REFRESH_BACKGROUND] Фоновий прогрев базы данных...")
+      apartmentService.getApartmentList(uid).launchIn(screenModelScope)
+
+      // Считываем гарантированно чистый список без удаленного ID
       val updatedList = _apartmentUiState.value.apartments
-      println("[YkisLogKMP.$className.$methodName]: [UPDATE] Залишилося квартир в базі даних ГІОЦ: ${updatedList.size}")
+      println("[YkisLogKMP.$className.$methodName]: [UPDATE] Залишилося квартир в ОЗУ хаба після фільтрації: ${updatedList.size}")
 
+      // 4. ПУЛЕНЕПРОБИВАЕМАЯ МАРШРУТИЗАЦИЯ
       if (updatedList.isEmpty()) {
         println("[YkisLogKMP.$className.$methodName]: [NAVIGATE] Квартир більше немає, маршрутизація на екран прив'язку БТІ")
         _apartmentUiState.update { currentState ->
           currentState.copy(
+            addressId = 0L,
             address = "",
             apartment = ApartmentEntity(),
-            apartmentLoading = false
+            apartmentLoading = false,
+            mainLoading = false
           )
         }
         onNavigateToAddScreen()
       } else {
+        // Если у жителя Южного остались другие квартиры — берем первую из оставшихся (ID 6314)
         val nextApartment = updatedList.first()
         println("[YkisLogKMP.$className.$methodName]: [SWITCH] Автоматичний перехід на наступний рахунок ID: ${nextApartment.addressId}")
+
+        // Наш золотой метод setAddressId обновит права Firestore и скачает анкету БТИ
         setAddressId(nextApartment.addressId)
         _apartmentUiState.update { it.copy(apartmentLoading = false) }
       }
     }
   }
 
-  /**
-   * [setAddressId] — Пошук та активація обраного особового рахунку БТІ в оперативній пам'яті.
-   */
   fun setAddressId(addressId: Long) {
     val methodName = "setAddressId"
     val currentState = _apartmentUiState.value
     val isResident = currentState.userRole == UserRole.StandardUser
     println("[YkisLogKMP.$className.$methodName]: [START] Пошук та активація ID: $addressId")
 
+    // Поиск объекта квартиры в КМР-списках СУБД SQLDelight
     val target = currentState.apartments.find { it.addressId == addressId }
       ?: _drawerApartments.value.find { it.addressId == addressId }
 
     if (target != null) {
-      val finalOsbbId = if (currentState.osbbId > 9000L) currentState.osbbId else target.osmdId
+      val finalOsbbId = if (currentState.osbbId > 9000L) currentState.osmdId else target.osmdId
       val combinedName = "${target.address} | ${target.nanim ?: ""}"
       val rawOsbbFromDb = target.osbb
       println("[YkisLogKMP.$className.$methodName]: [DATA_CHECK] З бази даних SQLDelight отримано ім'я ОСББ: '$rawOsbbFromDb'")
@@ -1023,7 +1157,7 @@ class ApartmentScreenModel(
       _apartmentUiState.update { state ->
         state.copy(
           addressId = target.addressId,
-          apartment = target,
+          apartment = target, // Вливаем объект, UI на экране перехватит его addressId
           address = target.address,
           osbb = finalOsbbDisplayName,
           houseId = target.houseId,
@@ -1048,13 +1182,27 @@ class ApartmentScreenModel(
       } else {
         println("[YkisLogKMP.$className.$methodName]: [ADMIN_MODE] Перегляд в режимі адміністрації. Особистий профіль захищено.")
       }
+
       println("[YkisLogKMP.$className.$methodName]: [SUCCESS] State о/р успішно оновлено. Поточний AddressId: $addressId | OSBB: $finalOsbbDisplayName")
     } else {
-      println("[YkisLogKMP.$className.$methodName]: [WARNING] Об'єкт БТІ не знайдено в пам'яті. Примусове встановлення ID.")
+      println("[YkisLogKMP.$className.$methodName]: [WARNING] Об'єкт БТІ не знайдено в пам'яті. Примусове встановлення ID та запуск Ktor-акумуляції.")
+
       _apartmentUiState.update { it.copy(addressId = addressId) }
+
+      // КАСКАДНЫЙ ПРОГРЕВ ХОЛОДНОГО СТАРТА: Если объект еще не успел дойти из СУБД, принудительно
+      // посылаем Ktor-запрос за детальной анкетой БТИ, чтобы со стопроцентной гарантией наполнить вкладку!
+      if (isResident) {
+        screenModelScope.launch {
+          println("[YkisLogKMP.$className.$methodName]: [CASCADE_LOAD_COLD_START] Примусовий запуск getApartment для холодного старту.")
+          getApartment(addressId = addressId)
+        }
+      }
     }
   }
+
+
 } // Абсолютний кінець і фінальне запечатування всього класу ApartmentScreenModel
+
 
 
 

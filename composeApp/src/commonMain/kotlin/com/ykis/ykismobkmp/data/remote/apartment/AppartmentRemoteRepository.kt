@@ -18,7 +18,7 @@ interface ApartmentRemote {
   suspend fun getOsbbApartmentsList(targetId: Long, isHouse: Boolean): GetApartmentsResponse
   suspend fun getRaionList(uid: String): GetRaionsResponse
   suspend fun getHouseByRaionList(raionId: Long): GetHousesResponse
-  suspend fun updateBti(addressId: Long,phone: String,email: String): GetApartmentsResponse
+  suspend fun updateBti(uid: String,addressId: Long,phone: String,email: String): GetApartmentsResponse
   suspend fun getApartment(addressId: Long, uid: String): GetApartmentResponse
   suspend fun deleteApartment(addressId: Long, uid: String): GetSimpleResponse
   suspend fun addApartment(code: String, uid: String, email: String): GetSimpleResponse

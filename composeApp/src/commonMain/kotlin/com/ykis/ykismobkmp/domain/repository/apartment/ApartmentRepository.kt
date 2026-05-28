@@ -14,13 +14,13 @@ interface ApartmentRepository {
 
   suspend fun getApartmentList(uid: String): GetApartmentsResponse
 
-  suspend fun updateBti( addressId: Long, phone: String, email: String): GetApartmentsResponse
+  suspend fun updateBti( uid: String,addressId: Long, phone: String, email: String): GetApartmentsResponse
 
   suspend fun getApartment(uid: String, addressId: Long): GetApartmentResponse
 
   suspend fun deleteApartment(uid: String, addressId: Long): GetSimpleResponse
 
-  suspend fun addApartmentUser(uid: String, code: String, email: String): GetSimpleResponse
+  suspend fun addApartmentUser(code: String,uid: String,  email: String): GetSimpleResponse
 
   suspend fun verifyAdminSecretWord(uid: String, code: String): GetSimpleResponse
 

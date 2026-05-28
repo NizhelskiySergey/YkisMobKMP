@@ -56,7 +56,7 @@ fun RootNavGraph(
 
   // РЕАКТИВНЫЙ СБОР ПОТОКОВ СОСТОЯНИЙ ИЗ ОПЕРАТИВНОЙ ПАМЯТИ СМАРТФОНА
   val currentStartState by appStartModel.startState.collectAsState()
-  val baseUIState by apartmentScreenModel.baseUIState.collectAsState()
+  val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
   val pendingChatId by chatScreenModel.pendingPushChatId.collectAsState()
   val selectedUser by chatScreenModel.selectedUser.collectAsState()
 

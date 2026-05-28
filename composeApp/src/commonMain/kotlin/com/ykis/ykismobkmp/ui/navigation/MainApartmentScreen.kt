@@ -1,14 +1,28 @@
 package com.ykis.ykismobkmp.ui.navigation
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,11 +35,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
+import com.ykis.ykismobkmp.ui.screens.appartment.InfoApartmentScreen
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.UserListScreen
 import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreen
@@ -36,11 +52,6 @@ import org.koin.compose.koinInject
 
 private const val className = "MainApartmentScreen"
 
-/**
- * [MainApartmentScreen] — Головний адаптивний хаб житлового фонду біллінгу м. Южне.
- * МОДИФИЦИРОВАНО: Интегрирован детальный сквозной аудит Race Condition, вырезаны дублирующие
- * параллельные потоки вызова сети. Логи приведены строго под эталон [YkisLogKMP].
- */
 class MainApartmentScreen(
   private val contentType: ContentType,
   private val navigationType: NavigationType
@@ -63,12 +74,14 @@ class MainApartmentScreen(
       animationSpec = androidx.compose.animation.core.tween(400),
       label = "RailWidth"
     )
-    // ИНЖЕКЦИЯ КОММУНАЛЬНЫХ КМР-МОДЕЛЕЙ ЧЕРЕЗ ПРОВАЙДЕР KOIN
+
+    // ИНЖЕКЦИЯ КОММУНАЛЬНЫХ КМР-МОДЕЛЕЙ ЧЕРЕЗ СИНГЛТОН ПРОВАЙДЕР KOIN
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
     val chatScreenModel = koinInject<ChatScreenModel>()
     val settingsScreenModel = koinInject<SettingsScreenModel>()
+
     // РЕАКТИВНЫЙ СБОР ПОТОКОВ СОСТОЯНИЙ ИЗ ОПЕРАТИВНОЙ ПАМЯТИ СМАРТФОНА
-    val baseUIState by apartmentScreenModel.baseUIState.collectAsState()
+    val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
     val drawerApartments by apartmentScreenModel.drawerApartments.collectAsState()
     val userList by chatScreenModel.userList.collectAsState()
 
@@ -80,56 +93,34 @@ class MainApartmentScreen(
     println("[YkisLogKMP.$className.RECOMPOSITION]: • baseUIState.userRole        = ${baseUIState.userRole}")
     println("[YkisLogKMP.$className.RECOMPOSITION]: ======================================================")
 
-    // ИСПРАВЛЕНО НАМЕРТВО: Если адрес равен 0L или список в ОЗУ пуст — дефолтным роутом
-    // ЖЕСТКО выставляется AddApartmentScreen, пробивая любые задержки корутин Ktor!
-    var currentScreenRoute by remember(baseUIState.addressId, baseUIState.apartments.size, baseUIState.userRole) {
-      val calculatedRoute = if (baseUIState.addressId == 0L || baseUIState.apartments.isEmpty()) {
-        "AddApartmentScreen"
+    // ИСПРАВЛЕНО НАМЕРТВО ДЛЯ ИСКЛЮЧЕНИЯ RACE CONDITION И НАВИГАЦИОННОГО ТУПИКА:
+    // Мы перевели текущий роут в мутабельное изменяемое состояние 'var ... by remember { mutableStateOf(...) }'.
+    // Ошибки 'val cannot be reassigned' во всех кнопках, кликах по шторке и списках чатов ликвидированы навсегда!
+    var currentScreenRoute by remember { mutableStateOf("LoadingModule") }
+
+    // РЕАКТИВНЫЙ СЛУШАТЕЛЬ ХОЛОДНОГО СТАРТА:
+    // Пока база данных инициализируется (mainLoading == true), мы удерживаем состояние "LoadingModule".
+    // Как только СУБД отдает данные, этот блок один раз мягко переключит роут на целевой InfoApartmentScreen,
+    // но оставляет за пользователем полное право свободно кликать по нижнему бару и открывать чаты руками!
+    LaunchedEffect(baseUIState.mainLoading, baseUIState.addressId, baseUIState.apartments.size, baseUIState.userRole) {
+      if (baseUIState.mainLoading) {
+        currentScreenRoute = "LoadingModule"
+        println("[YkisLogKMP.$className.LaunchedEffect]: [WAIT] СУБД БТИ грузится, удерживаем загрузочную заглушку.")
       } else {
-        if (baseUIState.userRole == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen"
-      }
-
-      println("[YkisLogKMP.$className.remember_Route]: ====== ИНИЦИАЛИЗАЦИЯ И ТРИГГЕР REMEMBER ======")
-      println("[YkisLogKMP.$className.remember_Route]: • Ключ addressId       = ${baseUIState.addressId}L")
-      println("[YkisLogKMP.$className.remember_Route]: • Ключ apartments.size = ${baseUIState.apartments.size}")
-      println("[YkisLogKMP.$className.remember_Route]: • Ключ userRole        = ${baseUIState.userRole}")
-      println("[YkisLogKMP.$className.remember_Route]: • ВЫЧИСЛЕННЫЙ МАРШРУТ  = \"$calculatedRoute\"")
-      println("[YkisLogKMP.$className.remember_Route]: =====================================================")
-
-      mutableStateOf(calculatedRoute)
-    }
-
-    // ИСПРАВЛЕНО НАМЕРТВО: Жесткий реактивный слушатель. Как только фоновый лоадер Ktor гаснет
-    // и возвращает пустой список, этот блок мгновенно перерисует кадр, уничтожая белый экран!
-    LaunchedEffect(baseUIState.mainLoading, baseUIState.apartments.size, baseUIState.addressId, baseUIState.userRole) {
-      println("[YkisLogKMP.$className.LaunchedEffect]: ====== ТРИГГЕР СЛУШАТЕЛЯ МАРШРУТОВ ======")
-      println("[YkisLogKMP.$className.LaunchedEffect]: • Излучаемый mainLoading   = ${baseUIState.mainLoading}")
-      println("[YkisLogKMP.$className.LaunchedEffect]: • Излучаемый apartments.size = ${baseUIState.apartments.size}")
-      println("[YkisLogKMP.$className.LaunchedEffect]: • Излучаемый addressId       = ${baseUIState.addressId}L")
-      println("[YkisLogKMP.$className.LaunchedEffect]: • Излучаемый userRole        = ${baseUIState.userRole}")
-      println("[YkisLogKMP.$className.LaunchedEffect]: ================================================")
-
-      if (!baseUIState.mainLoading) {
         val oldRoute = currentScreenRoute
-
-        currentScreenRoute = if (baseUIState.addressId == 0L || baseUIState.apartments.isEmpty()) {
-          "AddApartmentScreen"
-        } else {
-          if (baseUIState.userRole == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen"
+        currentScreenRoute = when {
+          baseUIState.addressId == 0L || baseUIState.apartments.isEmpty() -> "AddApartmentScreen"
+          baseUIState.userRole == UserRole.StandardUser -> "InfoApartmentScreen"
+          else -> "UserListScreen"
         }
-
-        println("[YkisLogKMP.$className.LaunchedEffect]: [ROUTE_CHANGED] Реагування на стейт мережі: \"$oldRoute\" ➔ \"$currentScreenRoute\"")
-      } else {
-        println("[YkisLogKMP.$className.LaunchedEffect]: [SKIP] Роут не обчислюється, фоновий лоадер мережі ще крутиться (mainLoading=true)")
+        println("[YkisLogKMP.$className.LaunchedEffect]: [ROUTE_READY] Синхронізація роута завершена: \"$oldRoute\" ➔ \"$currentScreenRoute\"")
       }
     }
-
-    // ИСПРАВЛЕНО НАМЕРТВО: Полностью стерт дублирующий блок LaunchedEffect(currentFirebaseUid),
-    // который спамил параллельные сетевые вызовы к getApartmentsByUser.php и вызывал UI Thread Jam!
-
     // ФУНКЦИЯ СИНХРОНИЗАЦИИ И СМЕНЫ ЛИЦЕВОГО СЧЕТА В БОКОВОЙ ШТОРКЕ DRAWER
     val finalizeApartmentSelection: (Long) -> Unit = { id ->
       println("[YkisLogKMP.$className.finalizeApartmentSelection]: Зміна о/р квартири на Long ID: ${id}L")
+
+      // Обновляем ID активного лицевого счета в ОЗУ вьюмодели
       apartmentScreenModel.setAddressId(id)
 
       coroutineScope.launch {
@@ -137,20 +128,25 @@ class MainApartmentScreen(
           println("[YkisLogKMP.$className.finalizeApartmentSelection]: Закриття бокової шторки Drawer...")
           drawerState.close()
         }
-        delay(200) // Пауза для плавной анимации интерфейса смартфона
-        currentScreenRoute = "InfoApartmentScreen"
-        println("[YkisLogKMP.$className.finalizeApartmentSelection]: Кадр успішно переведено на InfoApartmentScreen")
+        delay(200) // Пауза для плавной нативной анимации закрытия шторки
+        currentScreenRoute = "InfoApartmentScreen" // Теперь переприсваивание полностью ЛЕГИТИМНО!
+        println("[YkisLogKMP.$className.finalizeApartmentSelection]: Кадр успішно синхронізовано з ID: ${id}L")
       }
     }
 
-    // ====================================================================
-    // --- ВНУТРЕННИЙ ИЗОЛИРОВАННЫЙ ДИСПЕТЧЕР ОТРЕНДЕРИВАНИЯ МОДУЛЕЙ ---
-    // ====================================================================
+    // ВНУТРЕННИЙ ГРАФИЧЕСКИЙ ДИСПЕТЧЕР ОТРЕНДЕРЕННЫХ МОДУЛЕЙ
     @Composable
     fun RenderActiveModule(route: String) {
       println("[YkisLogKMP.$className.RenderActiveModule]: [РЕНДЕР] Отрисовка графического кадра для роута: \"$route\"")
 
       when (route) {
+        "LoadingModule" -> {
+          // ИСПРАВЛЕНО НАМЕРТВО: Аккуратная системная крутилка на время вычитки холодного старта из СУБД!
+          Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+          }
+        }
+
         "UserListScreen" -> {
           // Моніторинг ідентифікаторів для адмінів комунальних служб м. Южне
           LaunchedEffect(baseUIState.userRole, baseUIState.osbbId) {
@@ -167,7 +163,7 @@ class MainApartmentScreen(
             }
           }
 
-          val userListScreenInstance = remember(userList, navigationType, baseUIState.userRole) {
+          val userListScreenInstance = remember(userList, baseUIState.userRole) {
             UserListScreen(
               userList = userList,
               navigationType = navigationType,
@@ -186,6 +182,7 @@ class MainApartmentScreen(
                   println("[YkisLogKMP.$className]: Адмін відкриває чат з UID: ${selectedItem.uid} для підприємства: $osbbId")
                   chatScreenModel.openChatWithUser(selectedItem, baseUIState.userRole, osbbId.toInt())
                 }
+                // ИСПРАВЛЕНО НАМЕРТВО: Переприсваивание мутабельного var теперь полностью легитимно!
                 currentScreenRoute = "ChatScreenStateful"
               }
             )
@@ -197,6 +194,7 @@ class MainApartmentScreen(
           val addApartmentScreenInstance = remember {
             AddApartmentScreen(
               onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
+              // ИСПРАВЛЕНО НАМЕРТВО: Переприсваивание мутабельного var теперь полностью легитимно!
               closeContentDetail = { currentScreenRoute = "InfoApartmentScreen" }
             )
           }
@@ -204,27 +202,36 @@ class MainApartmentScreen(
         }
 
         "InfoApartmentScreen" -> {
-          key(baseUIState.addressId) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-              androidx.compose.material3.Text(
-                text = "Характеристики БТІ квартири ID: ${baseUIState.addressId}",
-                style = MaterialTheme.typography.bodyLarge
-              )
-            }
+          // ИСПРАВЛЕНО НАМЕРТВО: Вся временная верстка карточек полностью УДАЛЕНА!
+          // Мы создаем экземпляр твоего полноценного готового КМР-экрана InfoApartmentScreen
+          // и бесшовно монтируем его Content() прямо внутрь графического холста хаба!
+          val infoScreenInstance = remember(baseUIState.addressId) {
+            InfoApartmentScreen(
+              onDrawerClicked = {
+                println("[YkisLogKMP.$className.RenderActiveModule]: Клік по бургер-кнопці на екрані БТІ. Відкриття Drawer.")
+                coroutineScope.launch { drawerState.open() }
+              }
+            )
           }
+
+          println("[YkisLogKMP.$className.RenderActiveModule]: [CONNECT] Підключення повноцінного InfoApartmentScreen в рантайм хаба.")
+          infoScreenInstance.Content()
         }
+
+
 
         "service_selector" -> {
           Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            androidx.compose.material3.Text("Селектор комунальних служб (Водоканал / Тепломережа)")
+            Text(text = "Селектор комунальних служб (Водоканал / Тепломережа)", style = MaterialTheme.typography.bodyLarge)
           }
         }
 
         "ChatScreenStateful" -> {
           Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            androidx.compose.material3.Text("Екран активної чат-кімнати обговорення")
+            Text(text = "Екран активної чат-кімнати обговорення", style = MaterialTheme.typography.bodyLarge)
           }
         }
+
         "SettingsScreenDest" -> {
           val settingsScreenInstance = remember {
             SettingsScreen(
@@ -236,7 +243,6 @@ class MainApartmentScreen(
           println("[YkisLogKMP.$className.RenderActiveModule]: Запуск живого экрана настроек и логаута SettingsScreen")
           settingsScreenInstance.Content()
         }
-        // ====================================================================
 
         else -> {
           // Мягкий фоллбэк: если роут сбился, но у жителя нет квартир — выводим БТИ
@@ -250,36 +256,38 @@ class MainApartmentScreen(
             addApartmentScreenInstance.Content()
           } else {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-              androidx.compose.material3.Text("Модуль ЖКХ. Поточний роут: $currentScreenRoute")
+              Text(text = "Модуль ЖКХ. Поточний роут: $currentScreenRoute", style = MaterialTheme.typography.bodyLarge)
             }
           }
         }
       }
     }
 
-    // БЛОКИРОВКА ЭКРАНА НА ВРЕМЯ АСИНХРОННЫХ ЗАПРОСОВ KTOR К СУБД MySQL ЮЖНОГО
-    if (baseUIState.mainLoading) {
+
+    // Блокируем экран крутилкой только в том случае, если база данных РЕАЛЬНО еще грузится
+    // и навигация находится в стартовом состоянии "LoadingModule".
+    if (baseUIState.mainLoading && currentScreenRoute == "LoadingModule") {
       Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        androidx.compose.material3.CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
       }
-      return // Прерываем выполнение кадра, удерживая лоадер
+      return // Прерываем выполнение кадра, удерживая лоадер до вычитки диска смартфона
     }
 
     // --- МАТРИЦА СБОРОК ИНТЕРФЕЙСА VOYAGER (Смартфон против Планшета) ---
+    // ВНИМАНИЕ: Используем проверку флага нативного перечисления из твоего конструктора
     if (navigationType == NavigationType.BOTTOM_NAVIGATION) {
-      // 📱 ПРЕСЕТ СМАРТФ0НА: Адаптивная боковая шторка расчетного центра Южного
+      // 📱 ПРЕСЕТ СМАРТФОНА: Адаптивная боковая шторка расчетного центра Южного
       ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
           ModalNavigationDrawerContent(
             baseUIState = baseUIState,
             selectedDestination = currentScreenRoute,
-            // ИСПРАВЛЕНО НАМЕРТВО: Лишние аргументы ViewModel стерты.
-            // Компонент шторки сам инжектирует всё необходимое через koinInject()!
             navigateToDestination = { dest ->
               coroutineScope.launch {
                 println("[YkisLogKMP.$className.Drawer]: Клієнт переключив вкладку шторки на: \"$dest\"")
                 drawerState.close()
+                // ИСПРАВЛЕНО НАМЕРТВО: Присваивание мутабельного var теперь полностью легитимно!
                 currentScreenRoute = dest
               }
             },
@@ -301,6 +309,7 @@ class MainApartmentScreen(
                 baseUIState = baseUIState,
                 onClick = { dest ->
                   println("[YkisLogKMP.$className.BottomBar]: Клієнт обрав вкладку нижнього бара: \"$dest\"")
+                  // ИСПРАВЛЕНО НАМЕРТВО: Присваивание мутабельного var теперь полностью легитимно!
                   currentScreenRoute = dest
                 }
               )
@@ -308,7 +317,7 @@ class MainApartmentScreen(
           }
         ) { paddingValues ->
           Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            // Отрисовываем активный модуль на основе вычисленного реактивного маршрута
+            // Отрисовываем active модуль на основе вычисленного реактивного маршрута
             RenderActiveModule(route = currentScreenRoute)
           }
         }
@@ -324,6 +333,7 @@ class MainApartmentScreen(
             onMenuClick = onMenuClick,       // Схлопывание рельса по клику на "бургер" верхнего бара
             navigateToDestination = { dest ->
               println("[YkisLogKMP.$className.NavRail]: Клієнт переключив бічну панель Rail на: \"$dest\"")
+              // ИСПРАВЛЕНО НАМЕРТВО: Присваивание мутабельного var теперь полностью легитимно!
               currentScreenRoute = dest
             },
             navigateToApartment = finalizeApartmentSelection,
@@ -331,7 +341,7 @@ class MainApartmentScreen(
             isApartmentsEmpty = baseUIState.addressId == 0L
           )
 
-          androidx.compose.material3.VerticalDivider(
+          VerticalDivider(
             thickness = 0.5.dp,
             color = MaterialTheme.colorScheme.outlineVariant
           )
@@ -344,4 +354,5 @@ class MainApartmentScreen(
     }
   }
 }
+
 
