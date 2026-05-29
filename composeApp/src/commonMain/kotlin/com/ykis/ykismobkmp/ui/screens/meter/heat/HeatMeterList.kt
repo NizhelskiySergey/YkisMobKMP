@@ -1,22 +1,46 @@
 package com.ykis.ykismobkmp.ui.screens.meter.heat
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
 import com.ykis.ykismobkmp.ui.components.EmptyListState
+import com.ykis.ykismobkmp.ui.components.LabelTextWithText
+import org.jetbrains.compose.resources.painterResource
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.ic_heat_meter5_24px
 
-// Переиспользуем твой локальный легковесный центрированный лоадер
+private const val className = "HeatMeterList"
+
 @Composable
 private fun CenteredProgressIndicator(modifier: Modifier = Modifier) {
   Box(
@@ -27,7 +51,6 @@ private fun CenteredProgressIndicator(modifier: Modifier = Modifier) {
   }
 }
 
-// Легковесный КМР-компонент отображения пустого состояния списка
 @Composable
 private fun EmptyListState(title: String, subtitle: String) {
   Column(
@@ -35,61 +58,55 @@ private fun EmptyListState(title: String, subtitle: String) {
     verticalArrangement = Arrangement.Center,
     horizontalAlignment = Alignment.CenterHorizontally
   ) {
-    Text(text = title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+    Text(
+      text = title,
+      style = MaterialTheme.typography.titleMedium,
+      textAlign = TextAlign.Center
+    )
     Spacer(Modifier.height(8.dp))
-    Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline, textAlign = TextAlign.Center)
+    Text(
+      text = subtitle,
+      style = MaterialTheme.typography.bodyMedium,
+      color = MaterialTheme.colorScheme.outline,
+      textAlign = TextAlign.Center
+    )
   }
 }
 
-// Временная заглушка элемента карточки тепла, пока не присланы сорцы ее верстки
-
-private const val className = "HeatMeterList"
-
-/**
- * [HeatMeterList] — Кроссплатформенный Stateless-список счетчиков тепла ЮКИС.
- * ИСПРАВЛЕНО: Свойство CardDefaults.outlinedShape заменено на стандартный КМР-совместимый CardDefaults.shape.
- */
 @Composable
 fun HeatMeterList(
   modifier: Modifier = Modifier,
   heatMeterState: HeatMeterState,
   onHeatMeterClick: (HeatMeterEntity) -> Unit
 ) {
-  // Используем кроссплатформенный Crossfade для плавной смены состояний экрана
   Crossfade(
     targetState = heatMeterState.isMetersLoading,
     animationSpec = tween(durationMillis = 300, delayMillis = 100),
     label = "HeatMeterListFade"
   ) { isLoading ->
     if (isLoading) {
-      // Показываем индикатор прогресса по центру холста
       CenteredProgressIndicator()
     } else if (heatMeterState.heatMeterList.isEmpty()) {
-      // Предотвращаем падения на Mac JVM из-за легаси Android-ресурсов
       EmptyListState(
         title = "Лічильники не знайдені",
         subtitle = "За вашою адресою у місті Южне не зафіксовано приладів обліку тепла"
       )
     } else {
-      // Отрисовываем оптимизированную вертикальную ленту счетчиков тепла г. Южного
       LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
       ) {
         items(
           items = heatMeterState.heatMeterList,
-          // Проставляем КМР-ключ на базе Long ID для оптимизации рекомпозиции LazyColumn в ОЗУ
           key = { it.teplomerId }
         ) { heatMeter ->
           HeatMeterItem(
             modifier = Modifier
               .fillMaxWidth()
               .padding(vertical = 4.dp, horizontal = 12.dp)
-              // ИСПРАВЛЕНО: Заменено на каноничное свойство CardDefaults.shape
               .clip(CardDefaults.shape)
               .clickable {
                 println("[$className.Content]: Выбран тепломер ID Long: ${heatMeter.teplomerId}")
-                // Безопасно передаем Long-сущность тепломера в callback клика родителя
                 onHeatMeterClick(heatMeter)
               },
             heatMeter = heatMeter
@@ -100,4 +117,80 @@ fun HeatMeterList(
   }
 }
 
+@Composable
+fun HeatMeterItem(
+  modifier: Modifier = Modifier,
+  heatMeter: HeatMeterEntity
+) {
+  val statusText: String
+  val componentAlpha: Float
+  when {
+    heatMeter.spisan == 1L -> {
+      statusText = "Списаний"
+      componentAlpha = 0.5f
+    }
+    heatMeter.isOut == 1L -> {
+      statusText = "На повірці"
+      componentAlpha = 0.5f
+    }
+    else -> {
+      statusText = "Працює"
+      componentAlpha = 1f
+    }
+  }
+
+  OutlinedCard(
+    modifier = modifier.graphicsLayer { alpha = componentAlpha }, // ИСПРАВЛЕНО: Рендеринг прозрачности через GPU-слой
+    colors = CardDefaults.cardColors(
+      containerColor = MaterialTheme.colorScheme.surfaceContainer
+    )
+  ) {
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 12.dp, horizontal = 8.dp),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Icon(
+        modifier = Modifier
+          .padding(horizontal = 8.dp)
+          .size(48.dp),
+        painter = painterResource(Res.drawable.ic_heat_meter5_24px),
+        contentDescription = null,
+        tint = if (heatMeter.work == 1L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+      )
+
+      Column(
+        modifier = Modifier.weight(1f).padding(start = 4.dp)
+      ) {
+        Text(
+          text = heatMeter.model,
+          style = MaterialTheme.typography.titleMedium,
+          color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        LabelTextWithText(
+          labelText = "Номер: ",
+          valueText = heatMeter.number
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+          text = statusText,
+          style = MaterialTheme.typography.bodyMedium,
+          color = if (heatMeter.spisan == 1L || heatMeter.isOut == 1L)
+            MaterialTheme.colorScheme.error
+          else
+            MaterialTheme.colorScheme.primary
+        )
+      }
+
+      Icon(
+        modifier = Modifier.padding(end = 12.dp),
+        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+    }
+  }
+}
 

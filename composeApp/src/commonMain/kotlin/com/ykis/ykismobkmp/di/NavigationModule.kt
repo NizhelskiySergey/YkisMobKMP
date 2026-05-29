@@ -1,6 +1,5 @@
 package com.ykis.ykismobkmp.di
 
-import com.russhwolf.settings.Settings
 import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentService
 import com.ykis.ykismobkmp.domain.repository.ledger.LedgerService
 import com.ykis.ykismobkmp.domain.repository.meter.MeterService
@@ -9,7 +8,7 @@ import com.ykis.ykismobkmp.ui.navigation.AppScreenModel
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.auth.AuthScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
-import com.ykis.ykismobkmp.ui.screens.family.FamilyListScreenModel
+import com.ykis.ykismobkmp.ui.screens.appartment.FamilyListScreenModel
 import com.ykis.ykismobkmp.ui.screens.ledger.LedgerScreenModel
 import com.ykis.ykismobkmp.ui.screens.meter.MeterScreenModel
 import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreenModel

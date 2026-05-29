@@ -90,9 +90,6 @@ fun RootNavGraph(
       }
     }
   }
-
-
-
   // СЛУЖЕБНЫЙ КАЛЬКУЛЯТОР ДИНАМИЧНЫХ ТОКЕНОВ ХАБУ ЧАТІВ ЖКГ МІСТА ЮЖНОГО
   val chatUid = remember(baseUIState.userRole, baseUIState.apartment, selectedUser, baseUIState.uid) {
     val userRole = baseUIState.userRole
@@ -121,16 +118,8 @@ fun RootNavGraph(
       ) {
         Navigator(screen = initialScreen) { navigator ->
           SlideTransition(navigator)
-
-          // ====================================================================
-          // --- [ЗОЛОТОЙ ФОНД] ЕДИНЫЙ РЕАКТИВНЫЙ ДИСПЕТЧЕР ПЕРЕХОДОВ VOYAGER ---
-          // ====================================================================
-          // ИСПРАВЛЕНО НАМЕРТВО: Текст оферты теперь извлекается из кэша стейт-машины
-          // и пробрасывается в конструктор класса TermsAndConditionScreen.
-          // Проверка типа экрана переведена на оператор 'is' для исключения графических петель.
           LaunchedEffect(currentStartState) {
             val currentRoute = navigator.lastItem
-
             println("[YkisLogKMP.$className.Dispatcher]: ====== РЕАКТИВНЫЙ ПЕРЕКЛЮЧАТЕЛЬ ЭКРАНОВ ======")
             println("[YkisLogKMP.$className.Dispatcher]: • Текущий активный экран в стеке: $currentRoute")
             println("[YkisLogKMP.$className.Dispatcher]: • Получена команда от AppScreenModel: $currentStartState")

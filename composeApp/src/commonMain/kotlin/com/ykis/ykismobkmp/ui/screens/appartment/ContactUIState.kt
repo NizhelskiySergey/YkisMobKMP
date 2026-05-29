@@ -1,4 +1,4 @@
-package com.ykis.ykismobkmp.ui.screens.bti
+package com.ykis.ykismobkmp.ui.screens.appartment
 
 import kotlinx.serialization.Serializable
 

@@ -1,35 +1,42 @@
 package com.ykis.ykismobkmp.ui.screens.meter.water
 
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CardDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
-import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
 import com.ykis.ykismobkmp.domain.entity.WaterReadingEntity
+import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.components.LabelTextWithCheckBox
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import com.ykis.ykismobkmp.ui.screens.meter.AddReadingDialog
 import com.ykis.ykismobkmp.ui.screens.meter.DeleteReadingDialog
 import com.ykis.ykismobkmp.ui.screens.meter.LastReadingCardButtons
-import com.ykis.ykismobkmp.ui.screens.meter.water.reading.WaterReadingItemContent
 
 private const val tag = "WaterMeterDetail"
 
-/**
- * [WaterMeterDetail] — Кроссплатформенный Stateless-экран детальной информации и ввода кубометров воды.
- * для стопроцентной ликвидации конфликтов Type mismatch со стейтом WaterMeterState.
- */
 @Composable
 fun WaterMeterDetail(
   modifier: Modifier = Modifier,
@@ -48,17 +55,15 @@ fun WaterMeterDetail(
   var showAddReadingDialog by rememberSaveable { mutableStateOf(false) }
   var showDeleteReadingDialog by rememberSaveable { mutableStateOf(false) }
 
-  // Безопасно распаковываем зануляемую доменную сущность показаний во избежание NullPointerException
   val safeLastReading = remember(lastReading) {
     lastReading ?: WaterReadingEntity(current = 0L)
   }
 
-  // --- ЛОГИКА ЯКОРЯ ВАЛИДАЦИИ (Переведена на Double для дробных кубометров) ---
   val enabledButton by remember(newWaterReading, safeLastReading.current) {
     derivedStateOf {
-      val newValue = newWaterReading.toDoubleOrNull() ?: -1.0
+      // ИСПРАВЛЕНО: Приведение к LongOrNull в соответствии с архитектурой СУБД для воды
+      val newValue = newWaterReading.toLongOrNull() ?: -1L
       val isValid = newValue > safeLastReading.current
-
       if (newWaterReading.isNotEmpty() && !isValid) {
         println("[$tag.Validation]: Значення $newValue менше за попередній якір ${safeLastReading.current}")
       }
@@ -66,7 +71,6 @@ fun WaterMeterDetail(
     }
   }
 
-  // Загрузка последнего показания расчетного центра при смене адреса квартиры БТИ
   LaunchedEffect(baseUIState.addressId, waterMeterEntity.vodomerId) {
     if (isWorking && waterMeterEntity.vodomerId != 0L) {
       println("[$tag.LaunchedEffect]: Оновлення показань для водоміра ID Long: ${waterMeterEntity.vodomerId}")
@@ -103,8 +107,6 @@ fun WaterMeterDetail(
           ) {
             WaterReadingItemContent(reading = safeLastReading)
           }
-
-          // Кнопки управления атомарным съемом (Добавить / Удалить кубы)
           LastReadingCardButtons(
             onAddButtonClick = {
               println("[$tag.Action]: Відкриття діалогу додавання")
@@ -118,7 +120,6 @@ fun WaterMeterDetail(
           )
         }
 
-        // 2-Я ЧАСТЬ: Карточка детальной информации технического паспорта БТИ
         BaseCard(
           modifier = Modifier.padding(vertical = 4.dp),
           label = "Технічні характеристики приладу"
@@ -143,7 +144,6 @@ fun WaterMeterDetail(
             labelText = "Позиція у вузлі: ",
             valueText = waterMeterEntity.position
           )
-
           LabelTextWithCheckBox(
             modifier = Modifier.padding(vertical = 2.dp),
             labelText = "Враховувати стоки (Водовідведення): ",
@@ -154,7 +154,6 @@ fun WaterMeterDetail(
             labelText = "Загальнобудинковий лічильник: ",
             checked = waterMeterEntity.avg == 1L
           )
-
           LabelTextWithText(
             modifier = Modifier.padding(vertical = 2.dp),
             labelText = "Дата пломбування держповірником: ",
@@ -165,7 +164,6 @@ fun WaterMeterDetail(
             labelText = "Дата початкового монтажу: ",
             valueText = waterMeterEntity.sdate
           )
-
           if (waterMeterEntity.spisan == 1L) {
             LabelTextWithText(
               modifier = Modifier.padding(vertical = 2.dp),
@@ -176,7 +174,6 @@ fun WaterMeterDetail(
         }
 
         if (isWorking) {
-          // Карточка межповерочного интервала госстандарта
           BaseCard(
             modifier = Modifier.padding(vertical = 4.dp),
             label = "Державна повірка приладу"
@@ -203,7 +200,6 @@ fun WaterMeterDetail(
     }
   }
 
-  // --- СИСТЕМНЫЕ КМР ДИАЛОГИ ВВОДА ---
   if (showAddReadingDialog) {
     AddReadingDialog(
       onDismissRequest = {
@@ -219,7 +215,7 @@ fun WaterMeterDetail(
       newReading = newWaterReading,
       onReadingChange = onNewReadingChange,
       enabledButton = enabledButton,
-      isInteger = false
+      isInteger = true // ИСПРАВЛЕНО: Для водоснабжения кубы всегда целые
     )
   }
 
@@ -234,3 +230,4 @@ fun WaterMeterDetail(
     )
   }
 }
+

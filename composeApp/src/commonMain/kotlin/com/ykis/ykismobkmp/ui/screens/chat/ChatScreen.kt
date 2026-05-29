@@ -35,7 +35,10 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.core.utils.formatDateFull
 import com.ykis.ykismobkmp.domain.services.UserRole
+import com.ykis.ykismobkmp.ui.navigation.CameraScreenDest
+import com.ykis.ykismobkmp.ui.navigation.ImageDetailScreenDest
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
+import com.ykis.ykismobkmp.ui.navigation.SendImageScreenDest
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.apply_suggestion
@@ -53,9 +56,10 @@ sealed class ChatItem {
 }
 @Composable
 fun ChatScreenStateful(
-  screenModel: ChatScreenModel, // Наш новый ScreenModel
-  baseUIState: BaseUIState,     // Твой обновленный стейт
-  navigationType: NavigationType
+  screenModel: ChatScreenModel,
+  baseUIState: BaseUIState,
+  navigationType: NavigationType,
+  onBackClick: () -> Unit // ИСПРАВЛЕНО: Callback для безопасного возврата в String-роутер Хаба
 ) {
   val navigator = LocalNavigator.currentOrThrow
 
@@ -69,7 +73,6 @@ fun ChatScreenStateful(
     } else {
       selectedUser?.uid ?: ""
     }
-    // Используем твой стандарт логов
     println("[ChatScreen.Stateful]: [RE-CALC] UID: ${uid.takeLast(5)}")
     uid
   }
@@ -80,13 +83,19 @@ fun ChatScreenStateful(
     baseUIState = baseUIState,
     navigationType = navigationType,
     chatUid = chatUid,
-    navigateBack = { navigator.pop() },
-    // Voyager навигация:
-    navigateToSendImageScreen = { /* navigator.push(SendImageScreen()) */ },
-    navigateToCameraScreen = { /* navigator.push(CameraScreen()) */ },
+    navigateBack = onBackClick, // ИСПРАВЛЕНО: Возвращаемся на UserListScreen без падения стека Voyager
+
+    // ИСПРАВЛЕНО НАМЕРТВО: Сняты заглушки навигации через реестр ScreensRegistry
+    navigateToSendImageScreen = {
+      navigator.push(SendImageScreenDest)
+    },
+    navigateToCameraScreen = {
+      navigator.push(CameraScreenDest)
+    },
     navigateToImageDetailScreen = { message ->
       screenModel.setSelectedMessage(message)
-      // navigator.push(ImageDetailScreen(message))
+      // Передаем URL медиафайла в типизированный роут Voyager
+      navigator.push(ImageDetailScreenDest(imageUrl = message.imageUrl ?: ""))
     }
   )
 }

@@ -1,4 +1,4 @@
-package com.ykis.ykismobkmp.ui.screens.family
+package com.ykis.ykismobkmp.ui.screens.appartment
 
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.ykis.ykismobkmp.core.utils.Resource

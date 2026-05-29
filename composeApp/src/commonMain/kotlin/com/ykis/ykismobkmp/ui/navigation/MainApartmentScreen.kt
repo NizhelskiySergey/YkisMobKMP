@@ -43,7 +43,12 @@ import com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.appartment.InfoApartmentScreen
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
+import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenStateful
 import com.ykis.ykismobkmp.ui.screens.chat.UserListScreen
+import com.ykis.ykismobkmp.ui.screens.meter.MainMeterScreen
+import com.ykis.ykismobkmp.ui.screens.meter.MainMeterScreenInternal
+import com.ykis.ykismobkmp.ui.screens.meter.MeterListScreen
+import com.ykis.ykismobkmp.ui.screens.meter.MeterScreenModel
 import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreen
 import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreenModel
 import kotlinx.coroutines.delay
@@ -92,16 +97,8 @@ class MainApartmentScreen(
     println("[YkisLogKMP.$className.RECOMPOSITION]: • baseUIState.addressId       = ${baseUIState.addressId}L")
     println("[YkisLogKMP.$className.RECOMPOSITION]: • baseUIState.userRole        = ${baseUIState.userRole}")
     println("[YkisLogKMP.$className.RECOMPOSITION]: ======================================================")
-
-    // ИСПРАВЛЕНО НАМЕРТВО ДЛЯ ИСКЛЮЧЕНИЯ RACE CONDITION И НАВИГАЦИОННОГО ТУПИКА:
-    // Мы перевели текущий роут в мутабельное изменяемое состояние 'var ... by remember { mutableStateOf(...) }'.
-    // Ошибки 'val cannot be reassigned' во всех кнопках, кликах по шторке и списках чатов ликвидированы навсегда!
     var currentScreenRoute by remember { mutableStateOf("LoadingModule") }
 
-    // РЕАКТИВНЫЙ СЛУШАТЕЛЬ ХОЛОДНОГО СТАРТА:
-    // Пока база данных инициализируется (mainLoading == true), мы удерживаем состояние "LoadingModule".
-    // Как только СУБД отдает данные, этот блок один раз мягко переключит роут на целевой InfoApartmentScreen,
-    // но оставляет за пользователем полное право свободно кликать по нижнему бару и открывать чаты руками!
     LaunchedEffect(baseUIState.mainLoading, baseUIState.addressId, baseUIState.apartments.size, baseUIState.userRole) {
       if (baseUIState.mainLoading) {
         currentScreenRoute = "LoadingModule"
@@ -141,7 +138,6 @@ class MainApartmentScreen(
 
       when (route) {
         "LoadingModule" -> {
-          // ИСПРАВЛЕНО НАМЕРТВО: Аккуратная системная крутилка на время вычитки холодного старта из СУБД!
           Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
           }
@@ -182,7 +178,6 @@ class MainApartmentScreen(
                   println("[YkisLogKMP.$className]: Адмін відкриває чат з UID: ${selectedItem.uid} для підприємства: $osbbId")
                   chatScreenModel.openChatWithUser(selectedItem, baseUIState.userRole, osbbId.toInt())
                 }
-                // ИСПРАВЛЕНО НАМЕРТВО: Переприсваивание мутабельного var теперь полностью легитимно!
                 currentScreenRoute = "ChatScreenStateful"
               }
             )
@@ -191,20 +186,14 @@ class MainApartmentScreen(
         }
 
         "AddApartmentScreen" -> {
-          val addApartmentScreenInstance = remember {
-            AddApartmentScreen(
-              onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
-              // ИСПРАВЛЕНО НАМЕРТВО: Переприсваивание мутабельного var теперь полностью легитимно!
-              closeContentDetail = { currentScreenRoute = "InfoApartmentScreen" }
-            )
-          }
-          addApartmentScreenInstance.Content()
+          // ИСПРАВЛЕНО: Прямой безопасный вызов без утечек в remember
+          AddApartmentScreen(
+            onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
+            closeContentDetail = { currentScreenRoute = "InfoApartmentScreen" }
+          )
         }
 
         "InfoApartmentScreen" -> {
-          // ИСПРАВЛЕНО НАМЕРТВО: Вся временная верстка карточек полностью УДАЛЕНА!
-          // Мы создаем экземпляр твоего полноценного готового КМР-экрана InfoApartmentScreen
-          // и бесшовно монтируем его Content() прямо внутрь графического холста хаба!
           val infoScreenInstance = remember(baseUIState.addressId) {
             InfoApartmentScreen(
               onDrawerClicked = {
@@ -213,24 +202,47 @@ class MainApartmentScreen(
               }
             )
           }
-
           println("[YkisLogKMP.$className.RenderActiveModule]: [CONNECT] Підключення повноцінного InfoApartmentScreen в рантайм хаба.")
           infoScreenInstance.Content()
         }
 
-
-
         "service_selector" -> {
-          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = "Селектор комунальних служб (Водоканал / Тепломережа)", style = MaterialTheme.typography.bodyLarge)
-          }
+          println("[YkisLogKMP.$className.RenderActiveModule]: [CONNECT] Безопасный запуск хаба счетчиков ЮКІС")
+
+          // Инжектим модели один раз на уровне Хаба, чтобы не плодить инстансы в цикле
+          val meterScreenModel = koinInject<MeterScreenModel>()
+          val apartmentScreenModel = koinInject<ApartmentScreenModel>()
+
+          val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
+
+          // Вызываем внутренний контейнер напрямую, минуя создание инстанса Screen
+          MainMeterScreenInternal(
+            modifier = Modifier.fillMaxSize(),
+            viewModel = meterScreenModel,
+            baseUIState = baseUIState,
+            navigationType = navigationType, // Используйте переменную navigationType вашего Хаба
+            onDrawerClick = { coroutineScope.launch { drawerState.open() } },
+            contentType = contentType // Используйте переменную LocalContentType хаба
+          )
         }
+
+
+
 
         "ChatScreenStateful" -> {
-          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = "Екран активної чат-кімнати обговорення", style = MaterialTheme.typography.bodyLarge)
-          }
+          println("[YkisLogKMP.$className.RenderActiveModule]: [CONNECT] Запуск живой чат-комнаты ЮКІС")
+
+          ChatScreenStateful(
+            screenModel = chatScreenModel,
+            baseUIState = baseUIState,
+            navigationType = navigationType,
+            onBackClick = {
+              // При нажатии кнопки "Назад" внутри чата — плавно переключаем роутер на список пользователей
+              currentScreenRoute = "UserListScreen"
+            }
+          )
         }
+
 
         "SettingsScreenDest" -> {
           val settingsScreenInstance = remember {
@@ -247,13 +259,10 @@ class MainApartmentScreen(
         else -> {
           // Мягкий фоллбэк: если роут сбился, но у жителя нет квартир — выводим БТИ
           if (baseUIState.userRole == UserRole.StandardUser && baseUIState.addressId == 0L) {
-            val addApartmentScreenInstance = remember {
-              AddApartmentScreen(
-                onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
-                closeContentDetail = { currentScreenRoute = "InfoApartmentScreen" }
-              )
-            }
-            addApartmentScreenInstance.Content()
+            AddApartmentScreen(
+              onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
+              closeContentDetail = { currentScreenRoute = "InfoApartmentScreen" }
+            )
           } else {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
               Text(text = "Модуль ЖКХ. Поточний роут: $currentScreenRoute", style = MaterialTheme.typography.bodyLarge)
@@ -263,18 +272,12 @@ class MainApartmentScreen(
       }
     }
 
-
-    // Блокируем экран крутилкой только в том случае, если база данных РЕАЛЬНО еще грузится
-    // и навигация находится в стартовом состоянии "LoadingModule".
     if (baseUIState.mainLoading && currentScreenRoute == "LoadingModule") {
       Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
       }
       return // Прерываем выполнение кадра, удерживая лоадер до вычитки диска смартфона
     }
-
-    // --- МАТРИЦА СБОРОК ИНТЕРФЕЙСА VOYAGER (Смартфон против Планшета) ---
-    // ВНИМАНИЕ: Используем проверку флага нативного перечисления из твоего конструктора
     if (navigationType == NavigationType.BOTTOM_NAVIGATION) {
       // 📱 ПРЕСЕТ СМАРТФОНА: Адаптивная боковая шторка расчетного центра Южного
       ModalNavigationDrawer(

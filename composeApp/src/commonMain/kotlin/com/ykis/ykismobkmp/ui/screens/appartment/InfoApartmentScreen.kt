@@ -57,8 +57,6 @@ import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.ContentType
 import com.ykis.ykismobkmp.ui.navigation.LocalContentType
 import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
-import com.ykis.ykismobkmp.ui.screens.bti.BtiPanelContent
-import com.ykis.ykismobkmp.ui.screens.family.FamilyContent
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res

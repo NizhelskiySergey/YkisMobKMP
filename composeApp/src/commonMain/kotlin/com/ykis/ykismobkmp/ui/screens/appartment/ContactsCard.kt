@@ -1,4 +1,4 @@
-package com.ykis.ykismobkmp.ui.screens.bti
+package com.ykis.ykismobkmp.ui.screens.appartment
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape

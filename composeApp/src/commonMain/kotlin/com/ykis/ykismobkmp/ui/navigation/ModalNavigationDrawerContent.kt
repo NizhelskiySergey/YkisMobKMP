@@ -167,8 +167,6 @@ fun ModalNavigationDrawerContent(
 
       HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-      // --- 2. ЦЕНТРАЛЬНАЯ ЧАСТЬ: СПИСОК КВАРТИР (Занимает ВСЁ доступное пространство) ---
-      // КРИТИЧЕСКИЙ ФИКС: Вес weight(1f) заставит этот блок растянуться, вытолкнув настройки вниз!
       Column(modifier = Modifier.weight(1f)) {
 
         // Кнопка НАЗАД (Только для многоуровневых служб водоканала/теплосети)
@@ -261,8 +259,7 @@ fun ModalNavigationDrawerContent(
         }
       } // Конец Column(modifier = Modifier.weight(1f))
 
-      // --- 3. НИЖНЯЯ СИСТЕМНАЯ ЧАСТЬ ШТОРКИ (НАСТРОЙКИ ЮКИС) ---
-      // Блок находится ВНЕ скролла и ВНЕ weight(1f), что гарантирует жесткий прижим к низу!
+
       Column(
         modifier = Modifier
           .fillMaxWidth()

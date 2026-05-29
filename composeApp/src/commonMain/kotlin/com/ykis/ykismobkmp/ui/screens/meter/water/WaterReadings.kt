@@ -1,11 +1,17 @@
-package com.ykis.ykismobkmp.ui.screens.meter.water.reading
+package com.ykis.ykismobkmp.ui.screens.meter.water
 
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,9 +25,8 @@ import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import com.ykis.ykismobkmp.domain.entity.WaterReadingEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
-import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterState
+import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 
-private const val tag = "WaterReadings"
 @Composable
 private fun CenteredProgressIndicator(modifier: Modifier = Modifier) {
   Box(
@@ -32,9 +37,6 @@ private fun CenteredProgressIndicator(modifier: Modifier = Modifier) {
   }
 }
 
-/**
- * [WaterReadings] — Кроссплатформенный Stateless-компонент истории показаний водомера г. Южный.
- */
 @Composable
 fun WaterReadings(
   modifier: Modifier = Modifier,
@@ -42,7 +44,6 @@ fun WaterReadings(
   waterMeterState: WaterMeterState,
   getWaterReadings: () -> Unit
 ) {
-  // Каскадный триггер загрузки истории начислений биллинга ГИОЦ г. Южный
   LaunchedEffect(key1 = baseUIState.addressId, key2 = waterMeterState.selectedWaterMeter) {
     if (baseUIState.addressId != 0L && waterMeterState.selectedWaterMeter.vodomerId != 0L) {
       println("[WaterReadings.LaunchedEffect]: Запит історії водопостачання для о/р Long: ${baseUIState.addressId}")
@@ -62,7 +63,6 @@ fun WaterReadings(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
       ) {
-        // Передаем коллекцию позиционным аргументом и внедряем Long-ключ pokId под SQLDelight
         items(
           items = waterMeterState.waterReadings,
           key = { it.pokId } // Наш сквозной Long ID первичного ключа таблицы waterReadingEntity
@@ -74,23 +74,77 @@ fun WaterReadings(
   }
 }
 
-/**
- * [WaterReadingItem] — Дописанный компонент карточки для одной записи из истории водопостачання.
- */
 @Composable
 fun WaterReadingItem(
   modifier: Modifier = Modifier,
   reading: WaterReadingEntity
 ) {
-  // Если флаг avg == 1, биллинг ЮКИС рассчитал месяц по среднему тарифу абонента Одесской обл.
   val cardLabel = if (reading.avg == 1L) "Розрахунок за середнім нормативом" else null
-
   BaseCard(
     modifier = modifier.padding(vertical = 4.dp, horizontal = 12.dp),
     label = cardLabel
   ) {
-    // Внутренний контент строки истории начислений (разница показаний, кубы, даты)
     WaterReadingItemContent(reading = reading)
+  }
+}
+
+@Composable
+fun WaterReadingItemContent(
+  modifier: Modifier = Modifier,
+  reading: WaterReadingEntity
+) {
+  Column(modifier = modifier.fillMaxWidth()) {
+    if (reading.avg == 1L) {
+      LabelTextWithText(
+        labelText = "Початкове показання: ", // Приведено к единому безопасному KMP-стандарту строк ЮКІС
+        valueText = reading.pokOt.toString()
+      )
+      LabelTextWithText(
+        labelText = "Кінцеве показання: ",
+        valueText = reading.pokDo.toString()
+      )
+      LabelTextWithText(
+        labelText = "Кількість кубів: ",
+        valueText = reading.qtyKub.toString()
+      )
+      LabelTextWithText(
+        labelText = "Розрахункові дні: ",
+        valueText = reading.rday.toString()
+      )
+      LabelTextWithText(
+        labelText = "Споживання на день: ",
+        valueText = "${reading.kubDay} м³"
+      )
+    } else {
+      LabelTextWithText(
+        labelText = "Період нарахування: ",
+        valueText = "${reading.dateOt} — ${reading.dateDo}"
+      )
+      LabelTextWithText(
+        labelText = "Кількість днів: ",
+        valueText = reading.days.toString()
+      )
+      Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        LabelTextWithText(
+          modifier = Modifier.weight(0.5f),
+          labelText = "Попередні: ",
+          valueText = reading.last.toString()
+        )
+        LabelTextWithText(
+          modifier = Modifier.weight(0.5f),
+          labelText = "Поточні: ",
+          valueText = reading.current.toString()
+        )
+      }
+      Spacer(modifier = Modifier.height(2.dp))
+      LabelTextWithText(
+        labelText = "Використано кубів: ",
+        valueText = "${reading.kub} м³"
+      )
+    }
   }
 }
 

@@ -9,61 +9,33 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import cafe.adriel.voyager.core.screen.Screen
 import com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen
+import com.ykis.ykismobkmp.ui.screens.meter.MainMeterScreen
 
 private const val className = "ScreensRegistry"
-
-// ====================================================================
-// --- МОНОЛИТНЫЕ КМР ЭКРАНЫ VOYAGER (ГРАФИКА + НАВИГАЦИЯ В СТАТИКЕ) ---
-// ====================================================================
-
-/**
- * [SignUpScreen] — Маршрутизатор экрана регистрации нового жильца г. Южный.
- * ИСПРАВЛЕНО: Рекурсивный цикл разорван путем вызова графического класса по его полному пути пакета!
- */
 object SignUpScreen : Screen {
   @Composable
   override fun Content() {
     println("[YkisLogKMP.$className.SignUpScreen]: Маршрутизатор передає управління холсту реєстрації")
-
-    // ИСПРАВЛЕНО: Явно вызываем графический класс SignUpScreen из папки auth.signup
     com.ykis.ykismobkmp.ui.screens.auth.SignUpScreen.Content()
   }
 }
-
-/**
- * [VerifyEmailScreen] — Маршрутизатор экрана подтверждения учетной записи через Email.
- * ИСПРАВЛЕНО: Рекурсивный цикл разорван путем вызова графического класса по его полному пути пакета!
- */
 object VerifyEmailScreen : Screen {
   @Composable
   override fun Content() {
     println("[YkisLogKMP.$className.VerifyEmailScreen]: Маршрутизатор передає управління холсту верифікації пошти")
-
-    // ИСПРАВЛЕНО: Явно вызываем графический класс VerifyEmailScreen из папки auth.signup
     com.ykis.ykismobkmp.ui.screens.auth.VerifyEmailScreen.Content()
   }
 }
-/**
- * [AddApartmentScreen] — Маршрутизатор вікна прив'язки квартири БТІ по секретному коду.
- */
 object AddApartmentScreen : Screen {
   @Composable
   override fun Content() {
     println("[YkisLogKMP.$className.AddApartmentScreen]: Маршрутизатор передає управління живому холсту прив'язки квартири")
-
-    // Явно вызываем графический класс экрана из пакета, который мы зафиксировали шагами ранее
-    val realAddApartmentScreenInstance = remember {
-      AddApartmentScreen(
-        onDrawerClicked = {},
-        closeContentDetail = {}
-      )
-    }
-
-    realAddApartmentScreenInstance.Content()
+    AddApartmentScreen(
+      onDrawerClicked = { /* Открытие боковой панели шторки */ },
+      closeContentDetail = { /* Закрытие подмодуля привязки */ }
+    )
   }
 }
-
-
 /** [SendImageScreenDest] — Экран предосмотра и отправки фото счетчика в Gemini AI. */
 object SendImageScreenDest : Screen {
   @Composable
@@ -71,15 +43,15 @@ object SendImageScreenDest : Screen {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Перегляд ІИ-фотографії лічильника") }
   }
 }
-
-/** [CameraScreenDest] — Кроссплатформенный видоискатель камеры. */
+/**
+ * [CameraScreenDest] — Кроссплатформенный видоискатель камеры.
+ * */
 object CameraScreenDest : Screen {
   @Composable
   override fun Content() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Екран камери") }
   }
 }
-
 /** [ProfileScreenDest] — Окно персональных данных профиля. */
 object ProfileScreenDest : Screen {
   @Composable
@@ -87,30 +59,27 @@ object ProfileScreenDest : Screen {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Профіль користувача") }
   }
 }
-
-/** [BtiScreenDest] — Панель характеристик жилья БТИ. */
+/**
+ * [BtiScreenDest] — Панель характеристик жилья БТИ.
+ * */
 object BtiScreenDest : Screen {
   @Composable
   override fun Content() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Дані БТІ") }
   }
 }
-
-/** [FamilyScreenDest] — Список зарегистрированных мешканців квартиры. */
+/**
+ * [FamilyScreenDest] — Список зарегистрированных мешканців квартиры.
+ * */
 object FamilyScreenDest : Screen {
   @Composable
   override fun Content() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Склад сім'ї") }
   }
 }
-
-// ====================================================================
-// --- ДИНАМИЧЕСКИЕ КЛАССЫ ЭКРАНОВ VOYAGER (ПЕРЕДАЧА АРГУМЕНТОВ) ---
-// ====================================================================
-
 /**
- * [ChatScreenDest] — Универсальный кроссплатформенный экран чат-комнаты ЮКИС.
- */
+  [ChatScreenDest] — Универсальный кроссплатформенный экран чат-комнаты ЮКИС.
+ **/
 data class ChatScreenDest(
   val chatId: String? = null
 ) : Screen {
@@ -159,6 +128,11 @@ data class WebViewScreenDest(
     }
   }
 }
-
-
-
+object MainMeterScreenDest : Screen {
+  @Composable
+  override fun Content() {
+    println("[YkisLogKMP.$className.MainMeterScreenDest]: Маршрутизатор передає управління головному екрану лічильників")
+    // Вызов реального холста из вашего feature-модуля приборов учета
+    MainMeterScreen()
+  }
+}

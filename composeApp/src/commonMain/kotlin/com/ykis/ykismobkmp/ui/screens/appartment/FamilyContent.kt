@@ -1,4 +1,4 @@
-package com.ykis.ykismobkmp.ui.screens.family
+package com.ykis.ykismobkmp.ui.screens.appartment
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.sp
 import com.ykis.ykismobkmp.domain.entity.FamilyEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
-import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.*

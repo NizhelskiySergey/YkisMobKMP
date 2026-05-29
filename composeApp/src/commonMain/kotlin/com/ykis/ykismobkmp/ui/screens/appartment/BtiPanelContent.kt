@@ -1,4 +1,4 @@
-package com.ykis.ykismobkmp.ui.screens.bti
+package com.ykis.ykismobkmp.ui.screens.appartment
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.key.Key.Companion.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.ui.BaseUIState
@@ -18,11 +17,9 @@ import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.components.ColumnLabelTextWithTextAndIcon
 import com.ykis.ykismobkmp.ui.components.LabelTextWithCheckBox
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
-import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.*
-import kotlin.toString
 
 private const val className = "BtiPanelContent"
 
