@@ -200,9 +200,7 @@ fun ApartmentNavigationRail(
             FloatingActionButton(
               onClick = {
                 keyboardController?.hide()
-                // ИСПРАВЛЕНО НАМЕРТВО: Убран деструктивный navigator.replaceAll!
-                // Нативно переключаем внутренний подмодуль Хаба ЖКХ через сквозной коллбек,
-                // полностью сохраняя каркас рельса и мгновенно выводя форму ввода лицевого счета!
+
                 onSubModuleChange("AddApartmentScreen")
               },
               modifier = Modifier.fillMaxWidth().height(40.dp),
@@ -332,8 +330,6 @@ fun ApartmentNavigationRail(
           .padding(bottom = 16.dp)
       ) {
         HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
-
-        // ИСПРАВЛЕНО НАМЕРТВО: Вычисляем активность вкладок на основе сквозной переменной activeSubModule Хаба!
         val isHomeSelected =
           activeSubModule == "InfoApartmentScreen" || activeSubModule == "UserListScreen"
         val isFinanceSelected = activeSubModule == "finance_selector"
@@ -405,14 +401,19 @@ fun ApartmentNavigationRail(
         )
 
         // 5. Кнопка Системні Налаштування (Voyager накат поверх Хаба)
+        // 4. ИСПРАВЛЕНО НАМЕРТВО: Кнопка Системні Налаштування переведена на сквозной роутинг Хаба!
+        // Убран деструктивный накат navigator.push, вызывавший белый экран.
+        // Теперь переключение вкладки профиля происходит идеально плавно внутри Crossfade!
         NavigationRailItem(
-          selected = navigator.lastItem is SettingsScreenDest,
-          onClick = { navigator.push(SettingsScreenDest) },
+          selected = activeSubModule == "SettingsScreenDest",
+          onClick = {
+            println("[$className.ApartmentNavigationRail]: Перехід на модуль системних налаштувань профиля.")
+            onSubModuleChange("SettingsScreenDest")
+          },
           icon = { Icon(Icons.Default.Settings, null) },
-          label = if (isRailExpanded) {
-            { Text("Налаштування", fontSize = 11.sp) }
-          } else null
+          label = if (isRailExpanded) { { Text("Налаштування", fontSize = 11.sp) } } else null
         )
+
       }
     }
     }

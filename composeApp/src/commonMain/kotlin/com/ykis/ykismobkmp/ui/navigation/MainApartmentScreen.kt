@@ -148,9 +148,6 @@ class MainApartmentScreen(
             ).Content()
           }
           "AddApartmentScreen" -> {
-            // ИСПРАВЛЕНО НАМЕРТВО: Вызов globalNavigator.replaceAll полностью уничтожен!
-            // Теперь при успешной привязке или отмене экран плавно переключает activeSubModule,
-            // сохраняя боковой рельс на планшете неподвижным. Переход становится идеально мягким!
             AddApartmentScreen(
               onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
               closeContentDetail = {
@@ -159,7 +156,6 @@ class MainApartmentScreen(
               }
             ).Content()
           }
-
           "service_selector" -> {
             MainMeterScreen(
               onDrawerClick = { coroutineScope.launch { drawerState.open() } }
@@ -184,10 +180,13 @@ class MainApartmentScreen(
 //          }
 
           "SettingsScreenDest" -> {
-            SettingsScreen(
-              onDrawerClick = { coroutineScope.launch { drawerState.open() } }
-            ).Content()
+            rememberSaveable(globalNavigator.lastItem) {
+              SettingsScreen(
+                onDrawerClick = { coroutineScope.launch { drawerState.open() } }
+              )
+            }.Content()
           }
+
 
           else -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

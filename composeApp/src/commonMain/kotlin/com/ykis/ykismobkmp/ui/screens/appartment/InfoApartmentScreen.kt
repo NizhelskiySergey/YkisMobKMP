@@ -87,7 +87,7 @@ class InfoApartmentScreen(
         onDismissRequest = { showWarningDialog = false },
         icon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
         title = { Text(stringResource(Res.string.delete_account_title), fontWeight = FontWeight.Bold) },
-        text = { stringResource(Res.string.desc_delete_appartment)},
+        text = { Text(stringResource(Res.string.desc_delete_appartment))},
         dismissButton = {
           TextButton(onClick = { showWarningDialog = false }) {
             Text(stringResource(Res.string.cancel))
