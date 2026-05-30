@@ -75,8 +75,8 @@ class KtorApiService(private val client: HttpClient) {
     return postFormUrlEncoded<GetApartmentResponse>("getFlatById.php", params)
   }
 
-  suspend fun addApartment(params: Map<String, String>): com.ykis.ykismobkmp.data.responses.GetSimpleResponse {
-    return postFormUrlEncoded<com.ykis.ykismobkmp.data.responses.GetSimpleResponse>("addMyFlatByUser.php", params)
+  suspend fun addApartment(params: Map<String, String>): GetSimpleResponse {
+    return postFormUrlEncoded<GetSimpleResponse>("addMyFlatByUser.php", params)
   }
 
   suspend fun deleteApartment(params: Map<String, String>): GetSimpleResponse {

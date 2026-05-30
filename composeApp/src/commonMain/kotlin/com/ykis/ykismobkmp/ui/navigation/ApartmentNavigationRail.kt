@@ -200,8 +200,10 @@ fun ApartmentNavigationRail(
             FloatingActionButton(
               onClick = {
                 keyboardController?.hide()
-                // Нативно замещаем корень стека экраном привязки AddApartmentScreen
-                navigator.replaceAll(AddApartmentScreen)
+                // ИСПРАВЛЕНО НАМЕРТВО: Убран деструктивный navigator.replaceAll!
+                // Нативно переключаем внутренний подмодуль Хаба ЖКХ через сквозной коллбек,
+                // полностью сохраняя каркас рельса и мгновенно выводя форму ввода лицевого счета!
+                onSubModuleChange("AddApartmentScreen")
               },
               modifier = Modifier.fillMaxWidth().height(40.dp),
               containerColor = MaterialTheme.colorScheme.primaryContainer,

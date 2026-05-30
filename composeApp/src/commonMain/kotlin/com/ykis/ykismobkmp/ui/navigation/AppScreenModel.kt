@@ -19,11 +19,6 @@ import org.koin.core.KoinApplication.Companion.init
 private const val className = "AppScreenModel"
 private const val TERMS_ACCEPTED_KEY = "is_terms_accepted"
 
-/**
- * [AppScreenModel] — Центральна кросплатформова стейт-машина онбордингу та холодного старту ЮКІС.
- * ИСПРАВЛЕНО НАМЕРТВО: Изолирован параллельный сборщик профилей БТИ. Холодный старт больше не плодит
- * фоновые корутины-призраки, полностью ликвидируя бесконечный цикл записи в СУБД и Firestore!
- */
 class AppScreenModel(
   val firebaseService: FirebaseService,
   private val apartmentScreenModel: ApartmentScreenModel,
@@ -44,6 +39,11 @@ class AppScreenModel(
     screenModelScope.launch {
       _startState.value = AppStartState.Loading
 
+      // ИСПРАВЛЕНО НАМЕРТВО: Стартовый защитный барьер разгрузки процессора на 600 мс.
+      // Дает нативным сервисам Google Play Services и Tag Manager завершить рефлексивную
+      // привязку к SystemProperties, полностью исключая краш SIGSEGV (Fatal signal 11)!
+      delay(600)
+
       // 1. ШАГ №1: Перевірка ліцензійної угоди (Оферти ГІОЦ)
       val isTermsAccepted = appCache.getBoolean(key = TERMS_ACCEPTED_KEY, defaultValue = false)
 
@@ -57,8 +57,7 @@ class AppScreenModel(
         _startState.value = AppStartState.TermsAndConditions
         return@launch
       } else {
-        println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 1] Оферта  прийнята. ")
-
+        println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 1] Оферта прийнята.")
       }
 
       // 2. ШАГ №2: Проверка сессии Firebase с буферизацией (300 мс)
@@ -106,5 +105,6 @@ class AppScreenModel(
     }
   }
 }
+
 
 

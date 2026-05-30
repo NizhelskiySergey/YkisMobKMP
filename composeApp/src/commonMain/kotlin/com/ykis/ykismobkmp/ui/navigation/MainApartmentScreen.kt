@@ -80,9 +80,7 @@ class MainApartmentScreen(
 
     val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
     val userList by chatScreenModel.userList.collectAsState()
-    // ИСПРАВЛЕНО НАМЕРТВО: Возвращено реактивное состояние подмодулей Хаба ЖКХ ЮКІС.
-    // Ошибка 'Unresolved reference activeSubModule' полностью уничтожена!
-    // Теперь при повороте планшета и холодном старте стейт удерживается в памяти рантайма.
+
     var activeSubModule by rememberSaveable {
       mutableStateOf(
         when {
@@ -116,41 +114,20 @@ class MainApartmentScreen(
         chatScreenModel.trackUserIdentifiersWithRole(role, effectiveOsbbId.toInt())
       }
     }
-
-    // Функция безопасной смены лицевого счета в боковой шторке по канонам Voyager
     val finalizeApartmentSelection: (Long) -> Unit = { id ->
       println("[YkisLogKMP.$className.finalizeApartmentSelection]: Зміна о/р квартири на Long ID: ${id}L")
-
-      // Нативно переключаем идентификатор квартиры в СУБД SQLDelight
+      activeSubModule = "InfoApartmentScreen"
       apartmentScreenModel.setAddressId(id)
-
       coroutineScope.launch {
         if (drawerState.isOpen) {
           println("[YkisLogKMP.$className.finalizeApartmentSelection]: Закриття бокової шторки Drawer...")
           drawerState.close()
         }
-
-        delay(200) // Пауза для завершения нативной анимации закрытия шторки БТИ
-
-        // ИСПРАВЛЕНО НАМЕРТВО: Чистый Voyager! Замещаем стек новым инстансом Хаба.
-        // Корневой RootNavGraph считает новый ID, прокинет его в стек, и экран отобразится без белых пятен!
-        globalNavigator.replaceAll(
-          MainApartmentScreen(
-            contentType = contentType,
-            navigationType = navigationType
-          )
-        )
         println("[YkisLogKMP.$className.finalizeApartmentSelection]: Кадр успішно синхронізовано з о/р: ${id}L")
       }
     }
-
-
-
     @Composable
     fun RenderSubContent() {
-      // ИСПРАВЛЕНО НАМЕРТВО: Возвращаем реактивное управление подмодулями Хаба!
-      // Теперь фоновые обновления Flow-потоков никогда не будут сжигать и перезапускать
-      // жизненный цикл экранов, полностью ликвидируя белый экран на планшете!
       Crossfade(targetState = activeSubModule, label = "SubModuleVoyagerFade") { route ->
         when (route) {
           "InfoApartmentScreen" -> {
@@ -170,23 +147,26 @@ class MainApartmentScreen(
               }
             ).Content()
           }
-
           "AddApartmentScreen" -> {
+            // ИСПРАВЛЕНО НАМЕРТВО: Вызов globalNavigator.replaceAll полностью уничтожен!
+            // Теперь при успешной привязке или отмене экран плавно переключает activeSubModule,
+            // сохраняя боковой рельс на планшете неподвижным. Переход становится идеально мягким!
             AddApartmentScreen(
               onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
-              closeContentDetail = { activeSubModule = "InfoApartmentScreen" }
+              closeContentDetail = {
+                println("[YkisLogKMP.MainApartmentScreen.AddApartmentScreen]: Успішне закриття форми прив'язки. Повернення на анкету БТІ.")
+                activeSubModule = "InfoApartmentScreen"
+              }
             ).Content()
           }
 
           "service_selector" -> {
-            // ВОССТАНОВЛЕНО: Вызов оригинального экрана счетчиков ЮКІС через метод .Content()
             MainMeterScreen(
               onDrawerClick = { coroutineScope.launch { drawerState.open() } }
             ).Content()
           }
 
           "finance_selector" -> {
-            // ВОССТАНОВЛЕНО: Вызов оригинального экрана финансов MainServiceScreen
             MainServiceScreen(
               baseUIState = baseUIState,
               navigationType = navigationType,

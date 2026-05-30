@@ -109,7 +109,7 @@
   <string name="number_text">Номер:</string>
   <string name="date_issue_text">Дата видачі:</string>
   <string name="issued_text">Виданий:</string>
-  <string name="desc_delete_appartment">Ви дійсно бажаєте видалити\n%s зі списку ваших квартир? Додати її заново можно задопомогою секретного кода</string>
+  <string name="desc_delete_appartment">Ви дійсно бажаєте видалити зі списку ваших квартир? Додати її заново можно задопомогою секретного кода</string>
   <string name="title_delete_appartment">Видалити квартиру?</string>
   <string name="delete_appartment">Видалити квартиру</string>
   <string name="response_address_id">особовий рахунок %s </string>

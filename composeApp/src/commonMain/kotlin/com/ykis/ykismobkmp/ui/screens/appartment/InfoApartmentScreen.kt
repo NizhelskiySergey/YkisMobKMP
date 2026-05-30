@@ -63,6 +63,7 @@ import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.cancel
 import ykismobkmp.composeapp.generated.resources.delete_account_title
 import ykismobkmp.composeapp.generated.resources.delete_my_account
+import ykismobkmp.composeapp.generated.resources.desc_delete_appartment
 import ykismobkmp.composeapp.generated.resources.info
 private const val className = "InfoApartmentScreen"
 
@@ -86,7 +87,7 @@ class InfoApartmentScreen(
         onDismissRequest = { showWarningDialog = false },
         icon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
         title = { Text(stringResource(Res.string.delete_account_title), fontWeight = FontWeight.Bold) },
-        text = { Text("Ви дійсно хочете видалити цю квартиру з облікового запису? Дані нарахувань на сервері неможливо буде відновити локально.") },
+        text = { stringResource(Res.string.desc_delete_appartment)},
         dismissButton = {
           TextButton(onClick = { showWarningDialog = false }) {
             Text(stringResource(Res.string.cancel))
