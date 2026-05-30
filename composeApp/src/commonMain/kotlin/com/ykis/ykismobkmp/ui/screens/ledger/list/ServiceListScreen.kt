@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Commute
 import androidx.compose.material.icons.filled.CorporateFare
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.HotTub
 import androidx.compose.material.icons.filled.Water
 import androidx.compose.material3.*
@@ -26,9 +27,6 @@ import ykismobkmp.composeapp.generated.resources.*
 
 private const val tag = "ServiceListScreen"
 
-/**
- * [TotalServiceDebt] — Кроссплатформенная UI-модель распределения финансовых долей ЖКХ-служб.
- */
 data class TotalServiceDebt(
   val name: String,
   val color: Color,
@@ -36,10 +34,7 @@ data class TotalServiceDebt(
   val icon: ImageVector,
   val contentDetail: ContentDetail
 )
-/**
- * [assembleServiceList] — Сборщик локализованного списка долгов ГИОЦ по предприятиям города Южный.
- * ИСПРАВЛЕНО: Платформенные цвета и строки переведены на КМР-стандарты JetBrains Res.
- */
+
 @Composable
 fun assembleServiceList(
   totalDebtState: TotalDebtState,
@@ -58,13 +53,11 @@ fun assembleServiceList(
       )
     )
   }
-
   serviceList.addAll(
     listOf(
       TotalServiceDebt(
         name = stringResource(Res.string.vodokanal),
         color = Color(0xFF2196F3),
-        // RECHЕNIE: Страхуем все Double-поля начислений биллинга г. Южного
         debt = totalDebtState.totalDebt.dolg1 ?: 0.0,
         icon = Icons.Default.Water,
         contentDetail = ContentDetail.WATER_SERVICE
@@ -88,10 +81,6 @@ fun assembleServiceList(
   return serviceList
 }
 
-
-/**
- * [ServiceListScreen] — Сводный экран структуры задолженностей и переплат лицевого счета.
- */
 @Composable
 fun ServiceListScreen(
   baseUIState: BaseUIState,
@@ -101,9 +90,6 @@ fun ServiceListScreen(
   setContentDetail: (ContentDetail) -> Unit
 ) {
   val methodName = "ServiceListScreen"
-
-  // ТРИГГЕР ЗАГРУЗКИ ФИНАНСОВЫХ МЕТРИК ИЗ REST API KTOR
-  // ИСПРАВЛЕНО: Условия проверок переведены на сквозные Long-константы (0L)
   LaunchedEffect(key1 = baseUIState.addressId) {
     val addrId = baseUIState.addressId
     val houseId = baseUIState.houseId
@@ -114,7 +100,6 @@ fun ServiceListScreen(
 
     if (addrId > 0L) {
       println("[$tag.$methodName]: [SEND_CHECK] Запрос баланса. UID: $uid, House: $houseId, OSBB: $osbbId")
-
       getTotalServiceDebt(
         LedgerParams(
           uid = uid,
@@ -127,7 +112,6 @@ fun ServiceListScreen(
       )
     }
   }
-
   Column(
     modifier = Modifier.fillMaxSize(),
     horizontalAlignment = Alignment.CenterHorizontally,
@@ -139,11 +123,12 @@ fun ServiceListScreen(
       onDrawerClick = onDrawerClick,
       canNavigateBack = false,
       actionButton = {
-        // Переход в архив совершенных квитанций
         IconButton(onClick = { setContentDetail(ContentDetail.PAYMENT_LIST) }) {
+          // ИСПРАВЛЕНО НАМЕРТВО: Забагованная иконка painterResource вырезана из финансового хаба!
+          // Подключен стабильный встроенный ImageVector Icons.Default.History.
+          // Исключение java.lang.NullPointerException: lookupPrefix(...) полностью уничтожено!
           Icon(
-            // ИСПРАВЛЕНО: Заменен нативный Android-вектор на кроссплатформенный КМР-ресурс JetBrains Res
-            painter = painterResource(Res.drawable.ic_history),
+            imageVector = Icons.Default.History,
             contentDescription = "Історія платіжок",
             tint = MaterialTheme.colorScheme.onSurface
           )
@@ -162,10 +147,7 @@ fun ServiceListScreen(
           CircularProgressIndicator()
         }
       } else {
-        // Вызываем Composable-сборку списка долей начислений
         val allItems = assembleServiceList(totalDebtState = totalDebtState, baseUIState = baseUIState)
-
-        // Динамическая КМР-фильтрация видимости предприятий на основе уровня прав доступа сессии (Роли)
         val filteredItems = remember(allItems, baseUIState.userRole) {
           when (baseUIState.userRole) {
             UserRole.VodokanalUser -> allItems.filter { it.contentDetail == ContentDetail.WATER_SERVICE }
@@ -179,9 +161,6 @@ fun ServiceListScreen(
             else -> allItems // Рядовой жилец видит все квитанции ГИОЦ
           }
         }
-
-        // Расчет итоговой консолидированной суммы задолженности
-        // ИСПРАВЛЕНО: Безопасное извлечение общего консолидированного долга
         val displayTotal = remember(filteredItems, baseUIState.userRole) {
           if (baseUIState.userRole == UserRole.StandardUser) {
             totalDebtState.totalDebt.dolg ?: 0.0
@@ -189,10 +168,7 @@ fun ServiceListScreen(
             filteredItems.sumOf { it.debt }
           }
         }
-
-
         println("[$tag.$methodName]: [DISPLAY] Роль аккаунта: ${baseUIState.userRole}. Видимых служб в хабе: ${filteredItems.size}")
-
         ServiceListStateless(
           modifier = Modifier.fillMaxSize(),
           items = filteredItems,
@@ -214,4 +190,5 @@ fun ServiceListScreen(
     }
   }
 }
+
 

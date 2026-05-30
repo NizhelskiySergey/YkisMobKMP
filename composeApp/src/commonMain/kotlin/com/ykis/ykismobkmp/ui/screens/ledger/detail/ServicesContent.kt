@@ -31,23 +31,14 @@ import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.*
 
 private const val tag = "ServiceDetailContent"
-
-/**
- * [ServiceDetailContent] — Кроссплатформенный Stateful-хаб детальной сетки тарифов и начислений БТИ.
- */
 @Composable
 fun ServiceDetailContent(
   modifier: Modifier = Modifier,
   contentDetail: ContentDetail,
   baseUIState: BaseUIState
 ) {
-  // Инжектируем очищенную КМР финансовую модель экрана через Koin
   val screenModel = koinInject<LedgerScreenModel>()
-
-  // ИСПРАВЛЕНО: collectAsStateWithLifecycle заменен кроссплатформенным collectAsState()
   val serviceDetail by screenModel.detailState.collectAsState()
-
-  // Нативно вычисляем текущий год без SimpleDateFormat
   val currentYearString = remember {
     val currentMoment = kotlin.time.Clock.System.now()
     val localDateTime = currentMoment.toLocalDateTime(TimeZone.currentSystemDefault())
@@ -87,10 +78,6 @@ fun ServiceDetailContent(
     onSelectedChanged = { selectedChip = it }
   )
 }
-
-/**
- * [ServiceDetailContentStateless] — Разметка чипсов фильтрации и ленивой ленты месяцев.
- */
 @Composable
 fun ServiceDetailContentStateless(
   modifier: Modifier = Modifier,
@@ -100,7 +87,6 @@ fun ServiceDetailContentStateless(
   selectedChip: String,
   onSelectedChanged: (String) -> Unit
 ) {
-  // ИСПРАВЛЕНО: Генерация двадцатилетнего архива защищена хелпером remember от утечек памяти
   val yearsList = remember(year) {
     val baseYear = year.toIntOrNull() ?: 2026
     List(20) { index -> (baseYear - index).toString() }
@@ -170,16 +156,12 @@ fun ServiceDetailItem(
   serviceEntity: ServiceEntity
 ) {
   val scrollState = rememberScrollState()
-
-  // ИСПРАВЛЕНО: Безопасный КМР-парсер названий месяцев на украинском языке без Java SimpleDateFormat
   val monthTitle = rememberMonthTitleKmp(serviceEntity.id.toString())
-
   BaseCard(
     modifier = modifier
       .fillMaxWidth()
       .padding(vertical = 4.dp, horizontal = 12.dp)
   ) {
-    // Заголовок отчетного месяца (например, «Березень 2026»)
     Text(
       text = monthTitle,
       style = MaterialTheme.typography.titleMedium,
@@ -187,9 +169,7 @@ fun ServiceDetailItem(
       color = MaterialTheme.colorScheme.primary,
       modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 12.dp)
     )
-
     Box(modifier = Modifier.fillMaxWidth()) {
-      // Задний слой: Фоновые горизонтальные разделители строк таблицы начислений
       Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(29.dp)
@@ -210,7 +190,6 @@ fun ServiceDetailItem(
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.SpaceBetween,
       ) {
-        // ИСПРАВЛЕНО: Из всех дочерних элементов ColumnItemInTable вырезан деструктивный входящий modifier
         ColumnItemInTable(
           alignment = Alignment.Start,
           value1 = "Послуга 1",

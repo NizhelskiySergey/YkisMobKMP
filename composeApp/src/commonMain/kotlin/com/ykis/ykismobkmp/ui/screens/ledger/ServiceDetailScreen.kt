@@ -16,9 +16,6 @@ import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "ServiceDetailScreen"
 
-/**
- * [ServiceDetailScreen] — Кроссплатформенный Stateless-экран детализации начислений, оплат и тарифов ГИОЦ г. Южный.
- */
 @Composable
 fun ServiceDetailScreen(
   modifier: Modifier = Modifier,
@@ -54,8 +51,6 @@ fun ServiceDetailScreen(
       },
       subtitle = baseUIState.address
     )
-
-    // Каскадный КМР-выбор отображаемого финансового контента
     when (contentDetail) {
       ContentDetail.PAYMENT_LIST -> {
         PaymentListStateful(
@@ -72,7 +67,6 @@ fun ServiceDetailScreen(
         )
       }
       else -> {
-        // ИСПРАВЛЕНО НАМЕРТВО: Вызываем нашу реальную, отлаженную панель чип-фильтров лет!
         Box(modifier = Modifier.weight(1f)) {
           ServiceDetailContentWrapper(
             contentDetail = contentDetail,

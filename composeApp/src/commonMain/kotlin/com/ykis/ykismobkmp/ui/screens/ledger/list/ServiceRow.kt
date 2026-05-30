@@ -33,10 +33,6 @@ import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.uah
 
 private const val className = "ServiceRow"
-
-/**
- * [ServiceRow] — Кроссплатформенный элемент строки отображения баланса и долга по конкретной ЖКХ-службе г. Южный.
- */
 @Composable
 fun ServiceRow(
   modifier: Modifier = Modifier,
@@ -46,7 +42,6 @@ fun ServiceRow(
   icon: ImageVector,
   onClick: () -> Unit
 ) {
-  // Вызов утилиты перевода копеек, запечатанной в истории проекта
   val rounded = (debt * 100.0).toLong()
   val mainPart = rounded / 100
   val kopecks = rounded % 100
@@ -95,7 +90,6 @@ fun ServiceRow(
           color = MaterialTheme.colorScheme.onSurface
         )
       }
-
       Spacer(modifier = Modifier.width(8.dp))
 
       Row(
@@ -114,8 +108,6 @@ fun ServiceRow(
           color = MaterialTheme.colorScheme.onSurfaceVariant
         )
       }
-
-      // ИСПРАВЛЕНО: Заменена отсутствующая ChevronRight на легитимную КМР AutoMirrored KeyboardArrowRight
       Icon(
         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
         contentDescription = null,
@@ -127,10 +119,6 @@ fun ServiceRow(
 
   HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), thickness = 1.dp)
 }
-
-/**
- * [ServiceIndicator] — Кроссплатформенный цветовой маркер состояния задолженности ЖКХ-службы.
- */
 @Composable
 fun ServiceIndicator(
   color: Color,

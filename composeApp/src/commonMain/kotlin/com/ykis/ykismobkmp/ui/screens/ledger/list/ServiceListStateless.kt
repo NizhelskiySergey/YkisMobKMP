@@ -27,11 +27,6 @@ import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.uah
 
 private const val className = "ServiceListStateless"
-
-/**
- * [KmpAnimatedCircle] — Полностью кроссплатформенный, аппаратно ускоренный холст круговой диаграммы ЖЭК/ОСМД.
- * РЕШЕНИЕ ОШИБКИ: Реализован нативно через Canvas drawArc, стабилен на Mac Desktop (JVM), Android и iOS.
- */
 @Composable
 fun KmpAnimatedCircle(
   proportions: List<Float>,
@@ -56,11 +51,6 @@ fun KmpAnimatedCircle(
     }
   }
 }
-
-/**
- * [ServiceListStateless] — Кроссплатформенный генерик-компонент круговой диаграммы баланса коммунальных начислений ЮКИС.
- * ИСПРАВЛЕНО: Несовместимый AnimatedCircle заменен на стабильный KmpAnimatedCircle, убран Unresolved reference.
- */
 @Composable
 fun <T> ServiceListStateless(
   modifier: Modifier = Modifier,
@@ -73,31 +63,25 @@ fun <T> ServiceListStateless(
 ) {
   BoxWithConstraints(modifier = modifier.fillMaxSize()) {
     val height = maxHeight
-
-    // Создаем чистый, локальный изолированный Modifier для Box графика
     val chartBoxModifier = if (height > 600.dp) {
       Modifier.height(height - 224.dp)
     } else {
       Modifier.height(300.dp)
     }
-
     Column(
       modifier = Modifier
         .fillMaxSize()
         .verticalScroll(rememberScrollState()),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
-      // Контейнер круговой интерактивной диаграммы ЮКИС г. Южного
       Box(
         modifier = chartBoxModifier
           .padding(16.dp)
           .fillMaxWidth()
       ) {
-        // Извлекаем пропорциональные доли долгов для секторов графика через КМР-хелпер
         val accountsProportion = remember(items) { items.extractProportionsKmp { debts(it) } }
         val circleColors = remember(items) { items.map { colors(it) } }
 
-        // ИСПРАВЛЕНО: Заменен ложный компонент на наш легитимный KmpAnimatedCircle
         KmpAnimatedCircle(
           proportions = accountsProportion,
           colors = circleColors,
@@ -105,8 +89,6 @@ fun <T> ServiceListStateless(
             .align(Alignment.Center)
             .fillMaxSize(0.75f) // Ограничиваем масштаб, чтобы график не прилипал к краям Mac-окна
         )
-
-        // Текстовый блок суммы задолженности по центру круга
         Column(
           modifier = Modifier.align(Alignment.Center),
           horizontalAlignment = Alignment.CenterHorizontally
@@ -128,8 +110,6 @@ fun <T> ServiceListStateless(
           )
         }
       }
-
-      // Карточка-контейнер списка ЖКХ-предприятий города Южный
       Card(
         modifier = Modifier
           .fillMaxWidth()

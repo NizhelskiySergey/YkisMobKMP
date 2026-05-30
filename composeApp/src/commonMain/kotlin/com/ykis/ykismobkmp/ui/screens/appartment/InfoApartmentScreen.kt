@@ -100,9 +100,6 @@ class InfoApartmentScreen(
               addressId = baseUIState.addressId,
               onNavigateToAddScreen = {
                 println("[YkisLogKMP.$className.Content]: Заміна кореня стеку Voyager на екран прив'язки квартири БТІ")
-
-                // ИСПРАВЛЕНО НАМЕРТВО: Указываем полный Package Path синглтон-объекта из ScreensRegistry,
-                // полностью исключая конфликт имен с @Composable-функцией в рантайме!
                 navigator.replaceAll(com.ykis.ykismobkmp.ui.navigation.AddApartmentScreen)
               }
             )

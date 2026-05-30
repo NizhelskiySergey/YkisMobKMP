@@ -351,16 +351,17 @@ fun ApartmentNavigationRail(
         )
 
         // 2. Кнопка Финансы ЮКІС
+
         NavigationRailItem(
           selected = isFinanceSelected,
           onClick = {
+            println("[$className.ApartmentNavigationRail]: Перехід на модуль комунальних нарахувань та заборгованостей.")
             onSubModuleChange("finance_selector")
           },
           icon = { Icon(Icons.Default.CreditCard, null) },
-          label = if (isRailExpanded) {
-            { Text("Фінанси", fontSize = 11.sp) }
-          } else null
+          label = if (isRailExpanded) { { Text("Фінанси", fontSize = 11.sp) } } else null
         )
+
 
         // 3. Кнопка Приборы учета ЮКІС
         NavigationRailItem(
@@ -401,9 +402,6 @@ fun ApartmentNavigationRail(
         )
 
         // 5. Кнопка Системні Налаштування (Voyager накат поверх Хаба)
-        // 4. ИСПРАВЛЕНО НАМЕРТВО: Кнопка Системні Налаштування переведена на сквозной роутинг Хаба!
-        // Убран деструктивный накат navigator.push, вызывавший белый экран.
-        // Теперь переключение вкладки профиля происходит идеально плавно внутри Crossfade!
         NavigationRailItem(
           selected = activeSubModule == "SettingsScreenDest",
           onClick = {
