@@ -1,12 +1,26 @@
 package com.ykis.ykismobkmp.ui.screens.appartment
 
-import androidx.compose.foundation.layout.*
+// Подключаем ваши ресурсы строк ЮКІС
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -19,7 +33,23 @@ import com.ykis.ykismobkmp.ui.components.LabelTextWithCheckBox
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.*
+import ykismobkmp.composeapp.generated.resources.absent_text
+import ykismobkmp.composeapp.generated.resources.area_extra
+import ykismobkmp.composeapp.generated.resources.area_flat
+import ykismobkmp.composeapp.generated.resources.area_full
+import ykismobkmp.composeapp.generated.resources.area_life
+import ykismobkmp.composeapp.generated.resources.area_otopl
+import ykismobkmp.composeapp.generated.resources.compound_text
+import ykismobkmp.composeapp.generated.resources.data_bti
+import ykismobkmp.composeapp.generated.resources.date_orde_colon
+import ykismobkmp.composeapp.generated.resources.elevator_colon
+import ykismobkmp.composeapp.generated.resources.employer_text_colon
+import ykismobkmp.composeapp.generated.resources.order_text
+import ykismobkmp.composeapp.generated.resources.podnan_text
+import ykismobkmp.composeapp.generated.resources.private_text_colon
+import ykismobkmp.composeapp.generated.resources.rooms_colon
+import ykismobkmp.composeapp.generated.resources.secret_сode
+import ykismobkmp.composeapp.generated.resources.tenant_text
 
 private const val className = "BtiPanelContent"
 
@@ -38,7 +68,7 @@ fun BtiPanelContent(
 
   BtiContent(
     modifier = modifier,
-    baseUIState = baseUIState, // Панелі площ читають стабільний snapshot
+    baseUIState = baseUIState,
     currentEmail = liveBtiState.email ?: "",
     currentPhone = liveBtiState.phone ?: "",
     onEmailChange = viewModel::onEmailChange,
@@ -58,7 +88,6 @@ fun BtiContent(
   currentPhone: String,
   onEmailChange: (String) -> Unit,
   onPhoneChange: (String) -> Unit,
-  // ИСПРАВЛЕНО НАМЕРТВО: Сигнатура приведена к (String, String) -> Unit! Ошибка Mismatch полностью уничтожена!
   onUpdateBti: (String, String) -> Unit
 ) {
   Column(
@@ -76,6 +105,7 @@ fun BtiContent(
         valueText = baseUIState.apartment.nanim
       )
     }
+
     BaseCard(label = stringResource(Res.string.compound_text)) {
       Row(modifier = Modifier.fillMaxWidth()) {
         InfoItem(
@@ -98,6 +128,7 @@ fun BtiContent(
         )
       }
     }
+
     BaseCard(label = stringResource(Res.string.area_flat)) {
       Row(modifier = Modifier.fillMaxWidth()) {
         InfoItem(Modifier.weight(1f), stringResource(Res.string.area_full), baseUIState.apartment.areaFull.toString())
@@ -109,6 +140,7 @@ fun BtiContent(
         InfoItem(Modifier.weight(1f), stringResource(Res.string.area_otopl), baseUIState.apartment.areaOtopl.toString())
       }
     }
+
     BaseCard(label = stringResource(Res.string.data_bti)) {
       Row(
         modifier = Modifier.fillMaxWidth(),
@@ -117,15 +149,21 @@ fun BtiContent(
       ) {
         InfoItem(Modifier.weight(1f), stringResource(Res.string.rooms_colon), baseUIState.apartment.room?.toString() ?: "0")
 
+        // ИСПРАВЛЕНО НАМЕРТВО: Очищено от платформенных вызовов .toString() == "1".
+        // Приведение типов выполняется нативно на базе сквозного стандарта Long-значений СУБД.
+        val isPrivatChecked = baseUIState.apartment.privat == 1L
+        val isLiftChecked = baseUIState.apartment.lift == 1L
+
+
         LabelTextWithCheckBox(
           modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
           labelText = stringResource(Res.string.private_text_colon),
-          checked = baseUIState.apartment.privat == 1 || baseUIState.apartment.privat?.toString() == "1"
+          checked = isPrivatChecked
         )
         LabelTextWithCheckBox(
           modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
           labelText = stringResource(Res.string.elevator_colon),
-          checked = baseUIState.apartment.lift == 1 || baseUIState.apartment.lift?.toString() == "1"
+          checked = isLiftChecked
         )
       }
       HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
@@ -154,7 +192,6 @@ fun BtiContent(
     }
     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
 
-    // Передаем обновленную двухпараметрическую лямбду в ContactsCard
     ContactsCard(
       baseUIState = baseUIState,
       phone = currentPhone,
@@ -165,9 +202,6 @@ fun BtiContent(
     )
   }
 }
-
-
-
 
 @Composable
 fun InfoItem(
@@ -200,3 +234,4 @@ fun InfoItem(
     }
   }
 }
+

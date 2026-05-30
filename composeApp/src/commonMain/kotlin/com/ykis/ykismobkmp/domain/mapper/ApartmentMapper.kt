@@ -3,10 +3,9 @@ package com.ykis.ykismobkmp.domain.mapper
 // Явно разделяем алиасы сгенерированной таблицы БД и нашей UI доменной сущности
 import com.ykis.ykismobkmp.db.ApartmentEntity as DbApartment
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity as DomainApartment
-
 /**
  * [DomainApartment.toDbApartment] — Маппинг доменной сущности в запись СУБД SQLDelight.
- * ИСПРАВЛЕНО: Убраны ложные вызовы .toLong() для полей, которые уже являются Long в домене.
+ * ИСПРАВЛЕНО НАМЕРТВО: Вырезаны все вызовы .toLong() для полей, которые стали Long в домене ApartmentEntity!
  */
 fun DomainApartment.toDbApartment(): DbApartment {
   return DbApartment(
@@ -26,50 +25,47 @@ fun DomainApartment.toDbApartment(): DbApartment {
     areaBalk = this.areaBalk,
     areaOtopl = this.areaOtopl,
 
-    // Все Int-поля домена переводим в Long СУБД через .toLong()
-    tenant = this.tenant.toLong(),
-    podnan = this.podnan.toLong(),
-    absent = this.absent.toLong(),
-    tenantTbo = this.tenantTbo.toLong(),
-    room = this.room.toLong(),
-    privat = this.privat.toLong(),
-    lift = this.lift.toLong(),
+    // ИСПРАВЛЕНО НАМЕРТВО: Вызовы .toLong() удалены, типы совпадают нативно
+    tenant = this.tenant,
+    podnan = this.podnan,
+    absent = this.absent,
+    tenantTbo = this.tenantTbo,
+    room = this.room,
+    privat = this.privat,
+    lift = this.lift,
 
-    // ИСПРАВЛЕНО: Эти поля уже являются Long в домене ApartmentEntity, убираем .toLong()
     blockId = this.blockId,
     houseId = this.houseId,
 
     fio = this.fio,
 
-    // Все Int ЖКХ-флаги домена конвертируем в Long СУБД
-    subsidia = this.subsidia.toLong(),
-    vxvoda = this.vxvoda.toLong(),
-    teplomer = this.teplomer.toLong(),
-    distributor = this.distributor.toLong(),
-    kvartplata = this.kvartplata.toLong(),
-    otoplenie = this.otoplenie.toLong(),
-    ateplo = this.ateplo.toLong(),
-    podogrev = this.podogrev.toLong(),
-    voda = this.voda.toLong(),
-    stoki = this.stoki.toLong(),
-    avoda = this.avoda.toLong(),
-    astoki = this.astoki.toLong(),
-    tbo = this.tbo.toLong(),
+    subsidia = this.subsidia,
+    vxvoda = this.vxvoda,
+    teplomer = this.teplomer,
+    distributor = this.distributor,
+    kvartplata = this.kvartplata,
+    otoplenie = this.otoplenie,
+    ateplo = this.ateplo,
+    podogrev = this.podogrev,
+    voda = this.voda,
+    stoki = this.stoki,
+    avoda = this.avoda,
+    astoki = this.astoki,
+    tbo = this.tbo,
 
-    aggrKv = this.aggrKv.toLong(),
-    aggrVoda = this.aggrVoda.toLong(),
-    aggrTeplo = this.aggrTeplo.toLong(),
-    aggrTbo = this.aggrTbo.toLong(),
+    aggrKv = this.aggrKv,
+    aggrVoda = this.aggrVoda,
+    aggrTeplo = this.aggrTeplo,
+    aggrTbo = this.aggrTbo,
 
-    boiler = this.boiler.toLong(),
-    enaudit = this.enaudit.toLong(),
-    heated = this.heated.toLong(),
-    ztp = this.ztp.toLong(),
-    ovu = this.ovu.toLong(),
-    paused = this.paused.toLong(),
-    osmd = this.osmd.toLong(),
+    boiler = this.boiler,
+    enaudit = this.enaudit,
+    heated = this.heated,
+    ztp = this.ztp,
+    ovu = this.ovu,
+    paused = this.paused,
+    osmd = this.osmd,
 
-    // ИСПРАВЛЕНО: Убран .toLong(), эти ID уже Long
     osmdId = this.osmdId,
     osbb = this.osbb,
     whatChange = this.whatChange,
@@ -88,20 +84,19 @@ fun DomainApartment.toDbApartment(): DbApartment {
     length = this.length,
     diametr = this.diametr,
 
-    // ИСПРАВЛЕНО: Убран .toLong(), приборы учета имеют тип Long
     dvodomerId = this.dvodomerId,
     dteplomerId = this.dteplomerId,
     operator_ = this.operator,
     dataIn = this.dataIn,
-    ipay = this.ipay.toLong(),
-    pb = this.pb.toLong(),
-    mtb = this.mtb.toLong()
+    ipay = this.ipay,
+    pb = this.pb,
+    mtb = this.mtb
   )
 }
 
 /**
  * [DbApartment.toDomainApartment] — Преобразование записи СУБД в доменную сущность UI.
- * ИСПРАВЛЕНО: Удалены ложные .toByte() и .toInt() вызовы, восстановлено Long -> Long сопоставление.
+ * ИСПРАВЛЕНО НАМЕРТВО: Полностью удалены деструктивные вызовы .toInt(), восстановлен чистый Long -> Long бесшовный поток.
  */
 fun DbApartment.toDomainApartment(): DomainApartment {
   return DomainApartment(
@@ -121,52 +116,48 @@ fun DbApartment.toDomainApartment(): DomainApartment {
     areaBalk = this.areaBalk,
     areaOtopl = this.areaOtopl,
 
-    // Возвращаем Long из базы в Int-поля домена через .toInt()
-    tenant = this.tenant.toInt(),
-    podnan = this.podnan.toInt(),
-    absent = this.absent.toInt(),
-    tenantTbo = this.tenantTbo.toInt(),
-    room = this.room.toInt(),
+    // ИСПРАВЛЕНО НАМЕРТВО: Вызовы .toInt() вырезаны, домен принимает Long без посредников
+    tenant = this.tenant,
+    podnan = this.podnan,
+    absent = this.absent,
+    tenantTbo = this.tenantTbo,
+    room = this.room,
 
-    // ИСПРАВЛЕНО: Платформозависимый .toByte() стерт, заменен КМР-совместимым .toInt()
-    privat = this.privat.toInt(),
-    lift = this.lift.toInt(),
+    privat = this.privat,
+    lift = this.lift,
 
-    // ИСПРАВЛЕНО: Убран .toInt(), эти поля в ApartmentEntity имеют сквозной Long тип
     blockId = this.blockId,
     houseId = this.houseId,
 
     fio = this.fio,
 
-    // ИСПРАВЛЕНО: Все ЖКХ-флаги переводятся из Long базы в Int домена через .toInt()
-    subsidia = this.subsidia.toInt(),
-    vxvoda = this.vxvoda.toInt(),
-    teplomer = this.teplomer.toInt(),
-    distributor = this.distributor.toInt(),
-    kvartplata = this.kvartplata.toInt(),
-    otoplenie = this.otoplenie.toInt(),
-    ateplo = this.ateplo.toInt(),
-    podogrev = this.podogrev.toInt(),
-    voda = this.voda.toInt(),
-    stoki = this.stoki.toInt(),
-    avoda = this.avoda.toInt(),
-    astoki = this.astoki.toInt(),
-    tbo = this.tbo.toInt(),
+    subsidia = this.subsidia,
+    vxvoda = this.vxvoda,
+    teplomer = this.teplomer,
+    distributor = this.distributor,
+    kvartplata = this.kvartplata,
+    otoplenie = this.otoplenie,
+    ateplo = this.ateplo,
+    podogrev = this.podogrev,
+    voda = this.voda,
+    stoki = this.stoki,
+    avoda = this.avoda,
+    astoki = this.astoki,
+    tbo = this.tbo,
 
-    aggrKv = this.aggrKv.toInt(),
-    aggrVoda = this.aggrVoda.toInt(),
-    aggrTeplo = this.aggrTeplo.toInt(),
-    aggrTbo = this.aggrTbo.toInt(),
+    aggrKv = this.aggrKv,
+    aggrVoda = this.aggrVoda,
+    aggrTeplo = this.aggrTeplo,
+    aggrTbo = this.aggrTbo,
 
-    boiler = this.boiler.toInt(),
-    enaudit = this.enaudit.toInt(),
-    heated = this.heated.toInt(),
-    ztp = this.ztp.toInt(),
-    ovu = this.ovu.toInt(),
-    paused = this.paused.toInt(),
-    osmd = this.osmd.toInt(),
+    boiler = this.boiler,
+    enaudit = this.enaudit,
+    heated = this.heated,
+    ztp = this.ztp,
+    ovu = this.ovu,
+    paused = this.paused,
+    osmd = this.osmd,
 
-    // ИСПРАВЛЕНО: Оставлен чистый Long без кастов к Int
     osmdId = this.osmdId,
     osbb = this.osbb,
     whatChange = this.whatChange,
@@ -185,13 +176,13 @@ fun DbApartment.toDomainApartment(): DomainApartment {
     length = this.length,
     diametr = this.diametr,
 
-    // ИСПРАВЛЕНО: Идентификаторы счетчиков остаются чистым Long
     dvodomerId = this.dvodomerId,
     dteplomerId = this.dteplomerId,
     operator = this.operator_,
     dataIn = this.dataIn,
-    ipay = this.ipay.toInt(),
-    pb = this.pb.toInt(),
-    mtb = this.mtb.toInt()
+    ipay = this.ipay,
+    pb = this.pb,
+    mtb = this.mtb
   )
 }
+

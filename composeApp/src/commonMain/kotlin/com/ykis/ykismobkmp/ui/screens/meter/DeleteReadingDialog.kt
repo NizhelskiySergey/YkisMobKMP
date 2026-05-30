@@ -83,7 +83,7 @@ fun DeleteReadingDialog(
       ) {
         Text(
           // ИСПРАВЛЕНО: Заменен ложный ресурс Res.string.cancel на правильную строку подтверждения удаления
-          text = stringResource(Res.string.delete_my_account), // Используй Res.string.delete, когда добавишь в Res
+          text = stringResource(Res.string.delete_reading_title), // Используй Res.string.delete, когда добавишь в Res
           style = MaterialTheme.typography.labelLarge
         )
       }

@@ -245,9 +245,7 @@
   <string name="current_reading">Поточне показання</string>
   <string name="add_reading">Додати нове</string>
   <string name="delete_reading">Видалити показання</string>
-  //deleteReadingDialog
   <string name="delete_reading_title">Видалити останнє показання?</string>
-  //Payment
   <string name="mtb_text">МТБ БАНК</string>
   <string name="pay_text">Оплатити за допомогою :</string>
   <string name="pb_text">ПриватБанк</string>

@@ -4,12 +4,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.navigator.currentOrThrow
+import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen
+import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
+import com.ykis.ykismobkmp.ui.screens.appartment.InfoApartmentScreen
+import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
+import com.ykis.ykismobkmp.ui.screens.chat.UserListScreen
+import com.ykis.ykismobkmp.ui.screens.ledger.LedgerScreenModel
+import com.ykis.ykismobkmp.ui.screens.ledger.MainServiceScreen
 import com.ykis.ykismobkmp.ui.screens.meter.MainMeterScreen
+import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreen
+import org.koin.compose.koinInject
 
 private const val className = "ScreensRegistry"
 object SignUpScreen : Screen {
@@ -95,15 +107,26 @@ data class ChatScreenDest(
 data class InfoApartmentScreenDest(
   val addressId: Long = 0L
 ) : Screen {
+
+  // Явное переопределение KMP-ключа Voyager для защиты от крашей при повороте планшета
+  override val key: cafe.adriel.voyager.core.screen.ScreenKey
+    get() = "InfoApartmentScreenDest_${addressId}"
+
   @Composable
   override fun Content() {
-    println("[YkisLogKMP.$className.InfoApartmentScreenDest]: Open для ID: $addressId")
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-      Text("Інформація про квартиру ID: $addressId")
-    }
+    val classNameRegistry = "ScreensRegistry"
+    println("[YkisLogKMP.$classNameRegistry.InfoApartmentScreenDest]: Маршрутизатор передає управління ЖИВОМУ холсту БТІ для о/р: $addressId")
+
+    // ДОБАВЛЕНО НАМЕРТВО: Достаем контекст верхнего навигатора Voyager
+    val navigator = cafe.adriel.voyager.navigator.LocalNavigator.currentOrThrow
+
+    InfoApartmentScreen(
+      onDrawerClicked = {
+        println("[YkisLogKMP.$classNameRegistry.InfoApartmentScreenDest]: Клік по бургер-кнопці на екрані БТІ.")
+      }
+    )
   }
 }
-
 data class ImageDetailScreenDest(
   val imageUrl: String
 ) : Screen {
@@ -115,7 +138,6 @@ data class ImageDetailScreenDest(
     }
   }
 }
-
 data class WebViewScreenDest(
   val link: String
 ) : Screen {
@@ -136,3 +158,92 @@ object MainMeterScreenDest : Screen {
     MainMeterScreen()
   }
 }
+
+object AdminUserListScreenDest : cafe.adriel.voyager.core.screen.Screen {
+  @Composable
+  override fun Content() {
+    val classNameRegistry = "ScreensRegistry"
+    println("[YkisLogKMP.$classNameRegistry.AdminUserListScreenDest]: Маршрутизатор передає управління холсту списку абонентів")
+
+    val chatScreenModel = org.koin.compose.koinInject<ChatScreenModel>()
+    val apartmentScreenModel = org.koin.compose.koinInject<ApartmentScreenModel>()
+
+    val userList by chatScreenModel.userList.collectAsState()
+    val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
+    val navigator = cafe.adriel.voyager.navigator.LocalNavigator.currentOrThrow
+
+    // Вызываем оригинальный компонент (холст), передавая круглые скобки
+    UserListScreen(
+      userList = userList,
+      navigationType = LocalNavigationType.current,
+      onDrawerClicked = {
+        // Коллбек клика по бургер-кнопке для открытия Drawer
+      },
+      onUserClicked = { selectedItem ->
+        if (baseUIState.userRole == UserRole.StandardUser) {
+          println("[YkisLogKMP.$classNameRegistry]: Стандартний користувач обрав квартиру ID: ${selectedItem.addressId}L")
+          apartmentScreenModel.setAddressId(selectedItem.addressId)
+          navigator.replaceAll(InfoApartmentScreenDest(selectedItem.addressId))
+        } else {
+          val osbbId = when (baseUIState.userRole) {
+            UserRole.VodokanalUser -> 9999L
+            UserRole.YtkeUser -> 9998L
+            UserRole.TboUser -> 9997L
+            else -> baseUIState.osbbId
+          }
+          println("[YkisLogKMP.$classNameRegistry]: Адмін відкриває чат з UID: ${selectedItem.uid} для підприємства: $osbbId")
+          chatScreenModel.openChatWithUser(selectedItem, baseUIState.userRole, osbbId.toInt())
+          navigator.push(ChatScreenDest(chatId = selectedItem.uid))
+        }
+      }
+    )
+  }
+}
+data class MainServiceScreenDest(
+  val addressId: Long = 0L
+) : Screen {
+
+  // ИСПРАВЛЕНО НАМЕРТВО: Явное переопределение KMP-ключа Voyager для защиты от крашей при повороте планшета
+  override val key: cafe.adriel.voyager.core.screen.ScreenKey
+    get() = "MainServiceScreenDest_${addressId}"
+
+  @Composable
+  override fun Content() {
+    val classNameRegistry = "ScreensRegistry"
+    println("[YkisLogKMP.$classNameRegistry.MainServiceScreenDest]: Маршрутизатор передає управління ЖИВОМУ фінансовому хабу для о/р: $addressId")
+
+    val apartmentScreenModel = koinInject<ApartmentScreenModel>()
+    val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
+
+    // Вызываем оригинальный полноценный экран коммунальных начислений ЮКІС
+    MainServiceScreen(
+      baseUIState = baseUIState,
+      navigationType = LocalNavigationType.current, // Берем тип навигации из стабильного CompositionLocal
+      onDrawerClick = {
+        println("[YkisLogKMP.$classNameRegistry.MainServiceScreenDest]: Клік по бургер-кнопці на екрані фінансів.")
+      }
+    )
+  }
+}
+
+object SettingsScreenDest : cafe.adriel.voyager.core.screen.Screen {
+  @Composable
+  override fun Content() {
+    val classNameRegistry = "ScreensRegistry"
+    println("[YkisLogKMP.$classNameRegistry.SettingsScreenDest]: Маршрутизатор передає управління холсту системних налаштувань")
+
+    // Извлекаем навигатор Voyager из текущего контекста KMP-холста
+    val navigator = cafe.adriel.voyager.navigator.LocalNavigator.currentOrThrow
+
+    // Вызываем оригинальный компонент интерфейса настроек
+    SettingsScreen(
+      onDrawerClick = {
+        // Так как в чистом Voyager шторкой Drawer управляет родительский навигатор,
+        // при клике на бургер-кнопку внутри настроек мы можем нативно возвращать пользователя назад
+        println("[YkisLogKMP.$classNameRegistry.SettingsScreenDest]: Запрос закрытия экрана настроек, возврат по стеку.")
+        navigator.pop()
+      }
+    )
+  }
+}
+

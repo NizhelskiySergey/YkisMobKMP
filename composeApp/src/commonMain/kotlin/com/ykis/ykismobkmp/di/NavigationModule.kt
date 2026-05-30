@@ -24,7 +24,7 @@ val navigationModule = module {
   factory { AuthScreenModel(get(), get(), get()) }
   factory { ChatScreenModel(get(), get()) }
   single { ApartmentScreenModel(get(), get(), get()) }
-  factory { FamilyListScreenModel(get(), get()) }
+  single { FamilyListScreenModel(get(), get()) }
   factory { MeterScreenModel(get(), get()) }
   factory { ClearDatabase() }
   single {

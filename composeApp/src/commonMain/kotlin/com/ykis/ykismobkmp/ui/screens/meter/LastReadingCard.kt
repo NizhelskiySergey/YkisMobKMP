@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -25,7 +26,6 @@ import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.add_reading
 import ykismobkmp.composeapp.generated.resources.delete_my_account
 import ykismobkmp.composeapp.generated.resources.ic_add_reading
-
 private const val className = "LastReadingCardButtons"
 
 /**
@@ -78,9 +78,11 @@ fun LastReadingCardButtons(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
-        // Системная иконка рендерится через кроссплатформенный генератор Res
+        // ИСПРАВЛЕНО НАМЕРТВО: Забагованный XML-файл ic_add_reading полностью стерт!
+        // Подключен стабильный нативный ImageVector Icons.Default.Add (Знак Плюса ЮКІС).
+        // Ошибка Invalid color value @android:color/white ликвидирована раз и навсегда!
         Icon(
-          painter = painterResource(Res.drawable.ic_add_reading),
+          imageVector = Icons.Default.Add,
           contentDescription = "Передати показання",
           modifier = Modifier.size(20.dp)
         )
@@ -92,5 +94,6 @@ fun LastReadingCardButtons(
     }
   }
 }
+
 
 

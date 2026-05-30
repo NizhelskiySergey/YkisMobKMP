@@ -47,23 +47,18 @@ import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.login_details
 import ykismobkmp.composeapp.generated.resources.repeat_email_not_verified_message
 import ykismobkmp.composeapp.generated.resources.sign_in_with_google
-
 private const val className = "SignInScreen"
 
 @Composable
 fun GoogleAuthButton(buttonTextRes: Int, isLoading: Boolean, onTokenReceived: (String) -> Unit) {
-  // Извлекаем контекст через твою отлаженную Activity-функцию
   val contextActivity = platformActivityContext()
-
   Button(
     onClick = {
       if (contextActivity == null) {
         println("[YkisLogKMP.GoogleAuthButton]: [ERROR] Контекст Activity відсутній у рантаймі КМР")
         return@Button
       }
-
       println("[YkisLogKMP.GoogleAuthButton]: [START] Запуск системного вікна вибору Google-аккаунтів через Play Services")
-
       triggerNativeGoogleSignIn(
         activityContext = contextActivity,
         onTokenReceived = { realIdToken ->
@@ -82,11 +77,6 @@ fun GoogleAuthButton(buttonTextRes: Int, isLoading: Boolean, onTokenReceived: (S
     Text("Увійти через Google")
   }
 }
-
-
-/**
- * [SignInScreen] — Кросплатформенний екран авторизації абонента розрахункового центру ЮКІС.
- */
 object SignInScreen : Screen {
   @Composable
   override fun Content() {
@@ -100,10 +90,8 @@ object SignInScreen : Screen {
     val contextActivity = platformActivityContext()
     val isSmsLoading = signInResponse is Resource.Loading || smsSendResponse is Resource.Loading
     val isGoogleLoading by screenModel.isGoogleLoading.collectAsState()
-
     var currentContentType by remember { mutableStateOf(ContentType.SINGLE_PANE) }
     var currentNavigationType by remember { mutableStateOf(NavigationType.BOTTOM_NAVIGATION) }
-
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
       val windowWidth = maxWidth
       LaunchedEffect(windowWidth) {
@@ -121,7 +109,6 @@ object SignInScreen : Screen {
           println("[YkisLogKMP.$className.Content]: Адаптивний режим: Смартфон (SINGLE_PANE)")
         }
       }
-
       SignInScreenStateless(
         email = singInUiState.email,
         onEmailChange = screenModel::onEmailChange,
@@ -176,7 +163,6 @@ object SignInScreen : Screen {
     }
   }
 }
-
 @Composable
 fun SignInScreenStateless(
   modifier: Modifier = Modifier,

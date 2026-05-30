@@ -25,10 +25,8 @@ import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.*
-
 private const val className = "FamilyContent"
 
-// Вспомогательная локальная КМР-карточка FlatCard для изоляции стилей Material 3
 @Composable
 private fun FlatCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
   Card(
@@ -39,20 +37,16 @@ private fun FlatCard(modifier: Modifier = Modifier, content: @Composable ColumnS
   }
 }
 
-/**
- * [FamilyContent] — Кроссплатформенный Stateful-компонент отображения состава семьи и проживающих жителей.
- */
 @Composable
 fun FamilyContent(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
-  viewModel: ApartmentScreenModel // ИСПРАВЛЕНО НАМЕРТВО: Полноценное закрытие рассинхронизации вкладок FamilyTab/FamilyContent
+  viewModel: ApartmentScreenModel // Удерживаем КМР-синхронизацию вкладок Хаба
 ) {
   // Внедряем нашу чистую кроссплатформенную модель экрана семьи
   val familyScreenModel = koinInject<FamilyListScreenModel>()
   val state by familyScreenModel.state.collectAsState()
 
-  // Триггер фонового обновления списка жителей при смене активного адреса квартиры
   LaunchedEffect(baseUIState.addressId) {
     // Первичный Long-идентификатор ГИОЦ передается напрямую в КМР-метод без кастинга типов
     if (baseUIState.addressId != 0L) {
@@ -77,17 +71,12 @@ fun FamilyContent(
         modifier = Modifier.fillMaxSize()
       )
     }
-
-    // Кроссплатформенный круговой индикатор прогресса по центру холста
     if (state.isLoading) {
       CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
     }
   }
 }
 
-/**
- * [FamilyList] — Вертикальная Lazy-лента карточек проживающих мешканців г. Южный.
- */
 @Composable
 fun FamilyList(
   familyList: List<FamilyEntity>,
@@ -114,15 +103,12 @@ fun FamilyList(
   }
 }
 
-/**
- * [FamilyListItem] — Визуальная карточка одного зарегистрированного жильца ЮКИС.
- */
 @Composable
 fun FamilyListItem(
   modifier: Modifier = Modifier,
   person: FamilyEntity,
 ) {
-  // ИСПРАВЛЕНО: BaseCard заменен на КМР-совместимую FlatCard для бесперебойного рендеринга Skiko на Mac Desktop
+  // Нативно рендерим FlatCard для бесперебойной отрисовки Skiko на Mac Desktop и Android
   FlatCard(
     modifier = modifier
       .fillMaxWidth()
@@ -147,7 +133,6 @@ fun FamilyListItem(
           )
         }
       }
-
       Column(
         modifier = Modifier
           .padding(start = 16.dp)
@@ -160,8 +145,6 @@ fun FamilyListItem(
           color = MaterialTheme.colorScheme.onSurface,
           lineHeight = 22.sp
         )
-
-        // Статус родства (например, Власник рахунку / Дитина) под ФИО абонента
         Text(
           text = person.rodstvo.takeIf { it.isNotEmpty() } ?: "Мешканець",
           style = MaterialTheme.typography.labelMedium,
@@ -177,7 +160,6 @@ fun FamilyListItem(
       color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
     )
 
-    // 2. Блок технических данных БТИ: Дата рождения, Паспорт, ИНН налоговой г. Южный
     Column(
       modifier = Modifier.fillMaxWidth(),
       verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -206,4 +188,5 @@ fun FamilyListItem(
     }
   }
 }
+
 

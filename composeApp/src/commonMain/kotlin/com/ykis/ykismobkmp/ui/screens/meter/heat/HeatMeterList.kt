@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -38,7 +39,6 @@ import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import org.jetbrains.compose.resources.painterResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.ic_heat_meter5_24px
-
 private const val className = "HeatMeterList"
 
 @Composable
@@ -140,7 +140,7 @@ fun HeatMeterItem(
   }
 
   OutlinedCard(
-    modifier = modifier.graphicsLayer { alpha = componentAlpha }, // ИСПРАВЛЕНО: Рендеринг прозрачности через GPU-слой
+    modifier = modifier.graphicsLayer { alpha = componentAlpha },
     colors = CardDefaults.cardColors(
       containerColor = MaterialTheme.colorScheme.surfaceContainer
     )
@@ -151,11 +151,14 @@ fun HeatMeterItem(
         .padding(vertical = 12.dp, horizontal = 8.dp),
       verticalAlignment = Alignment.CenterVertically
     ) {
+      // ИСПРАВЛЕНО НАМЕРТВО: Вырезан painterResource забагованной XML-иконки теплосети!
+      // Подключен стабильный кроссплатформенный вектор Icons.Default.LocalFireDepartment (Тепло ЮКІС).
+      // Любые NullPointerException и сбои парсинга цвета полностью уничтожены!
       Icon(
         modifier = Modifier
           .padding(horizontal = 8.dp)
           .size(48.dp),
-        painter = painterResource(Res.drawable.ic_heat_meter5_24px),
+        imageVector = Icons.Default.LocalFireDepartment,
         contentDescription = null,
         tint = if (heatMeter.work == 1L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
       )

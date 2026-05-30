@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -35,7 +36,6 @@ import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import org.jetbrains.compose.resources.painterResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.ic_water_meter9_24px
-
 private const val className = "WaterMeterList"
 
 @Composable
@@ -117,18 +117,21 @@ fun WaterMeterItem(
   ) {
     Row(
       modifier = Modifier
-        .graphicsLayer { alpha = alphaValue } // ИСПРАВЛЕНО: Оптимизация отрисовки через слой GPU
+        .graphicsLayer { alpha = alphaValue }
         .fillMaxWidth()
         .padding(vertical = 12.dp, horizontal = 8.dp),
       verticalAlignment = Alignment.CenterVertically
     ) {
+      // ИСПРАВЛЕНО НАМЕРТВО: Вырезан painterResource() забагованного XML-файла ic_water_meter9_24px!
+      // Подключен стабильный кроссплатформенный вектор Icons.Default.WaterDrop (Капля воды ЮКІС).
+      // Краш Invalid color value @android:color/white уничтожен полностью!
       Icon(
         modifier = Modifier
           .padding(horizontal = 8.dp)
           .size(48.dp),
-        painter = painterResource(Res.drawable.ic_water_meter9_24px),
+        imageVector = Icons.Default.WaterDrop,
         contentDescription = null,
-        tint = if (waterMeter.voda?.contains("гар", ignoreCase = true) == true) // ИСПРАВЛЕНО: Безопасный вызов Nullable строки
+        tint = if (waterMeter.voda?.contains("гар", ignoreCase = true) == true)
           MaterialTheme.colorScheme.error
         else
           MaterialTheme.colorScheme.primary
@@ -172,5 +175,6 @@ fun WaterMeterItem(
     }
   }
 }
+
 
 

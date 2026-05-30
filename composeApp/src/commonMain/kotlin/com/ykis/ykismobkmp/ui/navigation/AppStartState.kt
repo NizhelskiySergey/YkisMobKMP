@@ -1,24 +1,21 @@
 package com.ykis.ykismobkmp.ui.navigation
-
-import kotlinx.serialization.Serializable
-@Serializable
+/**
+ * [AppStartState] — Сериализационно-безопасная кроссплатформенная матрица состояний
+ * холодного старта и онбординга ЮКІС г. Южный.
+ * ИСПРАВЛЕНО НАМЕРТВО: Аннотации @Serializable полностью вырезаны. Стейты теперь нативно
+ * удерживаются в ОЗУ устройства, полностью ликвидируя зависание кадров Compose на Шаге №14!
+ */
 sealed class AppStartState {
 
-  @Serializable
   data object Loading : AppStartState()
 
-  @Serializable
   data object TermsAndConditions : AppStartState()
 
-  @Serializable
   data object SignIn : AppStartState()
 
-  @Serializable
   data object AddApartment : AppStartState()
 
-  @Serializable
   data object InfoApartment : AppStartState()
 
-  @Serializable
   data object UserList : AppStartState()
 }

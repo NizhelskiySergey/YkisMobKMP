@@ -64,7 +64,6 @@ import ykismobkmp.composeapp.generated.resources.cancel
 import ykismobkmp.composeapp.generated.resources.delete_account_title
 import ykismobkmp.composeapp.generated.resources.delete_my_account
 import ykismobkmp.composeapp.generated.resources.info
-
 private const val className = "InfoApartmentScreen"
 
 class InfoApartmentScreen(
@@ -100,7 +99,10 @@ class InfoApartmentScreen(
               addressId = baseUIState.addressId,
               onNavigateToAddScreen = {
                 println("[YkisLogKMP.$className.Content]: Заміна кореня стеку Voyager на екран прив'язки квартири БТІ")
-                navigator.replaceAll(AddApartmentScreen(onDrawerClicked = {}, closeContentDetail = {}))
+
+                // ИСПРАВЛЕНО НАМЕРТВО: Указываем полный Package Path синглтон-объекта из ScreensRegistry,
+                // полностью исключая конфликт имен с @Composable-функцией в рантайме!
+                navigator.replaceAll(com.ykis.ykismobkmp.ui.navigation.AddApartmentScreen)
               }
             )
             showWarningDialog = false
@@ -108,6 +110,7 @@ class InfoApartmentScreen(
             Text(text = stringResource(Res.string.delete_my_account), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
           }
         }
+
       )
     }
 
@@ -131,12 +134,12 @@ class InfoApartmentScreen(
 
       if (targetId != 0L && !isAnketaValid) {
         println("[YkisLogKMP.$className.$methodName]: [LOAD] Анкета пуста або ID змінено. Запит детальних даних ЮКІС з мережі Ktor для ID: ${targetId}L")
-        // Напрямую скачиваем детальную анкету квартиры со всеми 20+ полями БТИ
         apartmentScreenModel.getApartment(addressId = targetId)
       } else {
         println("[YkisLogKMP.$className.$methodName]: [SKIP] Об'єкт БТІ ${targetId}L вже повністю наповнений даними (Адрес: ${baseUIState.apartment.address}). Мережевий спам відсічено.")
       }
     }
+
     Scaffold(
       topBar = {
         DefaultAppBar(
@@ -154,6 +157,7 @@ class InfoApartmentScreen(
           }
         )
       }
+
     ) { innerPadding ->
       Column(
         modifier = Modifier
@@ -235,6 +239,7 @@ class InfoApartmentScreen(
     }
   }
 }
+
 @Composable
 fun InfoScreenDualPanelContent(
   baseUIState: BaseUIState,
@@ -293,6 +298,7 @@ private fun DualPaneHeader(icon: androidx.compose.ui.graphics.vector.ImageVector
   }
   HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 1.dp)
 }
+
 
 
 

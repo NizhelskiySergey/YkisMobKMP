@@ -171,7 +171,7 @@ val commonModule = module {
 
   // Пакет 2. Приборы учета (Meter)
   single<MeterRemoteRepository> { MeterRemoteRepositoryImpl(ktorApiService = get()) }
-  single<MeterRepository> { MeterRepositoryImpl(apiService = get()) }
+  single<MeterRepository> { MeterRepositoryImpl( get()) }
 
   // Пакет 3. Биллинг и бухгалтерские начисления (Ledger)
   single<LedgerRemoteRepository> { LedgerRemoteRepositoryImpl(ktorApiService = get()) }

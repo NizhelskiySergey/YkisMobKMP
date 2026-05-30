@@ -19,17 +19,19 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.navigation.ContentType
 import com.ykis.ykismobkmp.ui.navigation.LocalContentType
+import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.ledger.list.ServiceListScreen
 import org.koin.compose.koinInject
-
-
 private const val tag = "MainServiceScreen"
 
 /**
  * [MainServiceScreen] — Главный КМР-экран финансового хаба начислений и оплат ЮКИС г. Южный.
+ * ИСПРАВЛЕНО НАМЕРТВО: Сигнатура конструктора приведена к сквозному стандарту адаптивного Хаба!
  */
 class MainServiceScreen(
+  private val baseUIState: BaseUIState, // ДОБАВЛЕНО: Принимаем снимок состояния БТИ
+  private val navigationType: NavigationType, // ДОБАВЛЕНО: Принимаем тип навигации для DefaultAppBar
   private val onDrawerClick: () -> Unit = {},
   private val navigateToWebView: (String) -> Unit = {}
 ) : Screen {
@@ -44,7 +46,10 @@ class MainServiceScreen(
 
     // Извлекаем BaseUIState напрямую из его легитимного КМР-источника — ApartmentScreenModel
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
-    val baseUIState by apartmentScreenModel.uiState.collectAsState()
+
+    // ИСПРАВЛЕНО НАМЕРТВО: Поле приведено к правильному имени apartmentUiState,
+    // полностью уничтожая ошибку Unresolved reference!
+    val currentLiveState by apartmentScreenModel.apartmentUiState.collectAsState()
 
     // 2. Подписываемся на финансовое состояние задолженностей и тарифов ЮКИС
     val totalDebtState by ledgerScreenModel.totalDebtState.collectAsState()
@@ -59,17 +64,15 @@ class MainServiceScreen(
         // Левая панель: Сводный баланс и список служб биллинга (45% ширины дисплея)
         Box(modifier = Modifier.weight(0.45f).fillMaxHeight()) {
           ServiceListScreen(
-            baseUIState = baseUIState,
+            baseUIState = currentLiveState, // Передаем живой стейт БТИ квартиры
             onDrawerClick = onDrawerClick,
             totalDebtState = totalDebtState,
             getTotalServiceDebt = { params ->
-              println("[$tag.Tablet]: [GET_DEBT] Триггер запроса баланса ГИОЦ для о/р Long: ${params.addressId}")
-              // ИСПРАВЛЕНО: Вызываем метод на правильном инстансе serviceScreenModel
-              ledgerScreenModel.getTotalServiceDebt(params.uid, params.addressId,params.year,params.service,params.total)
+              println("[$tag.Tablet]: [GET_DEBT] Trigger запроса баланса ГИОЦ для о/р Long: ${params.addressId}")
+              ledgerScreenModel.getTotalServiceDebt(params.uid, params.addressId, params.year, params.service, params.total)
             },
             setContentDetail = { content ->
               println("[$tag.Tablet]: [CLICK_EVENT] Переключение финансовой вкладки: $content")
-              // ИСПРАВЛЕНО: Вызываем метод на правильном инстансе serviceScreenModel
               ledgerScreenModel.setContentDetail(content)
             }
           )
@@ -83,7 +86,7 @@ class MainServiceScreen(
             ServiceDetailScreen(
               modifier = Modifier.background(Color.Transparent),
               contentDetail = contentDetail,
-              baseUIState = baseUIState,
+              baseUIState = currentLiveState,
               totalDebtState = totalDebtState,
               navigateToWebView = navigateToWebView
             )
@@ -114,10 +117,10 @@ class MainServiceScreen(
       // Мобильный режим смартфона (Одноэкранное каскадное переключение через Crossfade)
       SinglePanelService(
         contentDetail = contentDetail,
-        baseUIState = baseUIState,
+        baseUIState = currentLiveState,
         onDrawerClick = onDrawerClick,
         totalDebtState = totalDebtState,
-        screenModel = ledgerScreenModel, // ИСПРАВЛЕНО: Передаем легитимную переменную serviceScreenModel
+        screenModel = ledgerScreenModel,
         navigateToWebView = navigateToWebView
       )
     }
@@ -161,12 +164,13 @@ fun SinglePanelService(
         baseUIState = baseUIState,
         onDrawerClick = onDrawerClick,
         totalDebtState = totalDebtState,
-        getTotalServiceDebt = { params -> screenModel.getTotalServiceDebt(params.uid,params.addressId,params.year,params.service,params.total) },
+        getTotalServiceDebt = { params -> screenModel.getTotalServiceDebt(params.uid, params.addressId, params.year, params.service, params.total) },
         setContentDetail = { content -> screenModel.setContentDetail(content) }
       )
     }
   }
 }
+
 
 
 

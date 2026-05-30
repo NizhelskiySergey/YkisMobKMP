@@ -36,7 +36,6 @@ import com.ykis.ykismobkmp.ui.screens.meter.DeleteReadingDialog
 import com.ykis.ykismobkmp.ui.screens.meter.LastReadingCardButtons
 
 private const val tag = "WaterMeterDetail"
-
 @Composable
 fun WaterMeterDetail(
   modifier: Modifier = Modifier,
@@ -54,14 +53,11 @@ fun WaterMeterDetail(
 ) {
   var showAddReadingDialog by rememberSaveable { mutableStateOf(false) }
   var showDeleteReadingDialog by rememberSaveable { mutableStateOf(false) }
-
   val safeLastReading = remember(lastReading) {
     lastReading ?: WaterReadingEntity(current = 0L)
   }
-
   val enabledButton by remember(newWaterReading, safeLastReading.current) {
     derivedStateOf {
-      // ИСПРАВЛЕНО: Приведение к LongOrNull в соответствии с архитектурой СУБД для воды
       val newValue = newWaterReading.toLongOrNull() ?: -1L
       val isValid = newValue > safeLastReading.current
       if (newWaterReading.isNotEmpty() && !isValid) {
@@ -70,14 +66,12 @@ fun WaterMeterDetail(
       isValid
     }
   }
-
   LaunchedEffect(baseUIState.addressId, waterMeterEntity.vodomerId) {
     if (isWorking && waterMeterEntity.vodomerId != 0L) {
       println("[$tag.LaunchedEffect]: Оновлення показань для водоміра ID Long: ${waterMeterEntity.vodomerId}")
       getLastReading()
     }
   }
-
   Crossfade(
     targetState = isLastReadingLoading,
     label = "WaterDetailLoadingFade",
@@ -93,7 +87,6 @@ fun WaterMeterDetail(
           .padding(horizontal = 8.dp)
       ) {
         if (isWorking) {
-          // Карточка последнего зафиксированного показания водоканала г. Южного
           BaseCard(
             modifier = Modifier
               .fillMaxWidth()
@@ -119,7 +112,6 @@ fun WaterMeterDetail(
             showDeleteButton = true
           )
         }
-
         BaseCard(
           modifier = Modifier.padding(vertical = 4.dp),
           label = "Технічні характеристики приладу"
@@ -172,7 +164,6 @@ fun WaterMeterDetail(
             )
           }
         }
-
         if (isWorking) {
           BaseCard(
             modifier = Modifier.padding(vertical = 4.dp),
@@ -199,7 +190,6 @@ fun WaterMeterDetail(
       }
     }
   }
-
   if (showAddReadingDialog) {
     AddReadingDialog(
       onDismissRequest = {
@@ -218,7 +208,6 @@ fun WaterMeterDetail(
       isInteger = true // ИСПРАВЛЕНО: Для водоснабжения кубы всегда целые
     )
   }
-
   if (showDeleteReadingDialog) {
     DeleteReadingDialog(
       onDismissRequest = { showDeleteReadingDialog = false },

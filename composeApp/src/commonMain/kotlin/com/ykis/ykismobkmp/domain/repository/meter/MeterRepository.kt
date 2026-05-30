@@ -9,11 +9,6 @@ import com.ykis.ykismobkmp.data.responses.GetWaterMeterResponse
 import com.ykis.ykismobkmp.data.responses.GetWaterReadingsResponse
 
 
-/**
- * [MeterRepository] — Главный доменный контракт взаимодействия с данными счетчиков (Вода / Тепло) ЮКИС.
- * ИСПРАВЛЕНО НАМЕРТВО: Все числовые идентификаторы приведены к единому сквозному стандарту Long.
- * Намертво зафиксирован для полной замены.
- */
 interface MeterRepository {
 
   suspend fun getWaterMeterList(uid: String, addressId: Long): GetWaterMeterResponse

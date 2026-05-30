@@ -2,15 +2,59 @@ package com.ykis.ykismobkmp.ui.navigation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ArrowBackIosNew
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Domain
+import androidx.compose.material.icons.filled.ElectricMeter
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationRailDefaults
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.contentColorFor
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,16 +62,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.compose.koinInject
-import com.ykis.ykismobkmp.ui.BaseUIState
+import cafe.adriel.voyager.navigator.Navigator
 import com.ykis.ykismobkmp.domain.services.UserRole
+import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
-import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
-
 import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
+import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.add_appartment
 
 private const val className = "ApartmentNavigationRail"
 
@@ -64,22 +112,25 @@ fun CustomNavigationRail(
 
 /**
  * [ApartmentNavigationRail] — Нативное боковое КМР-меню для админов на Mac Desktop и планшетах.
+ * Сбалансировано под управление внутренними подмодулями Единого Хаба расчетного центра ЮКІС.
+ * Полностью переведено на каноничное управление Voyager-стеком навигатора верхнего уровня!
  */
 @Composable
 fun ApartmentNavigationRail(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
-  selectedDestination: String,
-  navigateToDestination: (String) -> Unit = {},
+  navigator: Navigator, // Единственный легитимный навигатор верхнего уровня
+  activeSubModule: String,
+  onSubModuleChange: (String) -> Unit,
+
   isRailExpanded: Boolean,
   onMenuClick: () -> Unit,
-  navigateToApartment: (Long) -> Unit = {}, // Сквозной Long стандарт из BaseUIState под каноны SQLDelight
+  navigateToApartment: (Long) -> Unit = {},
   railWidth: Dp,
   isApartmentsEmpty: Boolean
 ) {
   val keyboardController = LocalSoftwareKeyboardController.current
 
-  // Нативная КМР инжекция ScreenModels вместо Android ViewModel
   val chatViewModel = koinInject<ChatScreenModel>()
   val apartmentViewModel = koinInject<ApartmentScreenModel>()
 
@@ -88,14 +139,12 @@ fun ApartmentNavigationRail(
   val isUserAdmin = baseUIState.userRole != UserRole.StandardUser
   val unreadCounts by chatViewModel.unreadCounts.collectAsState()
   val listMode = baseUIState.listMode
-  val isOrgAdmin = baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
+  val isOrgAdmin =
+    baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
   val raions = baseUIState.raions
 
-  // Считываем реактивные списки домов и квартир БТИ расчетного центра
   val houses by apartmentViewModel.drawerHouses.collectAsState()
   val drawerApartments by apartmentViewModel.drawerApartments.collectAsState()
-
-  // Реактивный пересчет: Суммарный счетчик непрочитанных сообщений ГИОЦ г. Южного
   val totalUnread = remember(unreadCounts) { unreadCounts.values.sum() }
 
   LaunchedEffect(totalUnread) {
@@ -149,7 +198,11 @@ fun ApartmentNavigationRail(
             }
           } else {
             FloatingActionButton(
-              onClick = { navigateToDestination("AddApartmentScreen") },
+              onClick = {
+                keyboardController?.hide()
+                // Нативно замещаем корень стека экраном привязки AddApartmentScreen
+                navigator.replaceAll(AddApartmentScreen)
+              },
               modifier = Modifier.fillMaxWidth().height(40.dp),
               containerColor = MaterialTheme.colorScheme.primaryContainer,
               elevation = FloatingActionButtonDefaults.elevation(0.dp)
@@ -157,7 +210,10 @@ fun ApartmentNavigationRail(
               Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Home, null, Modifier.size(18.dp))
                 if (railWidth > 150.dp) {
-                  Text(" Додати", style = MaterialTheme.typography.labelSmall)
+                  Text(
+                    stringResource(Res.string.add_appartment),
+                    style = MaterialTheme.typography.labelSmall
+                  )
                 }
               }
             }
@@ -167,7 +223,7 @@ fun ApartmentNavigationRail(
     }
   ) {
     Column(modifier = Modifier.fillMaxSize()) {
-      // --- 1. ВЕРХНЯЯ ЧАСТЬ (СПИСКИ + ПОИСК) ---
+      // --- 1. ВЕРХНЯЯ ЧАСТЬ (СПИСКИ БТИ + ПОИСК) ---
       Column(
         modifier = Modifier
           .fillMaxWidth()
@@ -194,7 +250,7 @@ fun ApartmentNavigationRail(
             if (searchQuery.isNotEmpty()) {
               items(apartments, key = { "search_${it.addressId}" }) { item ->
                 RailItemContent(
-                  title = item.address,
+                  title = item.address ?: "",
                   subtitle = item.nanim,
                   extraInfo = "о/р ${item.addressId}",
                   icon = if (listMode == ListMode.HOUSES) Icons.Default.Domain else Icons.Default.Home,
@@ -210,7 +266,6 @@ fun ApartmentNavigationRail(
                 )
               }
             } else {
-              // Использование оригинального enum ListMode без конфликтов компиляции
               when (listMode) {
                 ListMode.RAIONS -> {
                   items(raions, key = { "r_${it.raionId}" }) { raion ->
@@ -225,6 +280,7 @@ fun ApartmentNavigationRail(
                     )
                   }
                 }
+
                 ListMode.HOUSES -> {
                   items(houses, key = { "h_${it.houseId}" }) { house ->
                     RailItemContent(
@@ -238,6 +294,7 @@ fun ApartmentNavigationRail(
                     )
                   }
                 }
+
                 ListMode.APARTMENTS -> {
                   val aptList = if (isOrgAdmin) drawerApartments else baseUIState.apartments
                   items(aptList, key = { "a_${it.addressId}" }) { apartment ->
@@ -245,7 +302,7 @@ fun ApartmentNavigationRail(
                     val badgeCount = apartmentBadges[apartment.addressId.toString()] ?: 0
 
                     RailItemContent(
-                      title = "кв. ${apartment.address}",
+                      title = "кв. ${apartment.address ?: ""}",
                       subtitle = apartment.nanim,
                       extraInfo = "о/р ${apartment.addressId}",
                       icon = Icons.Default.Home,
@@ -253,7 +310,7 @@ fun ApartmentNavigationRail(
                       badgeCount = badgeCount,
                       onClick = {
                         keyboardController?.hide()
-                        println("[$className.ApartmentNavigationRail]: Выбрана квартира о/р Long: ${apartment.addressId}")
+                        println("[$className.ApartmentNavigationRail]: Вибрана квартира о/р Long: ${apartment.addressId}")
                         navigateToApartment(apartment.addressId)
                       }
                     )
@@ -265,7 +322,7 @@ fun ApartmentNavigationRail(
         }
       }
 
-      // --- 2. НИЖНЯЯ СИСТЕМНАЯ ЧАСТЬ (МЕНЮ) ---
+      // --- 2. НИЖНЯЯ СИСТЕМНАЯ ЧАСТЬ (МЕНЮ БЕЗ ДЕСТРУКТИВНЫХ REPLACEALL) ---
       Column(
         modifier = Modifier
           .fillMaxWidth()
@@ -274,98 +331,154 @@ fun ApartmentNavigationRail(
       ) {
         HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
 
-        val navDestinations = getNavDestinations(role = baseUIState.userRole)
+        // ИСПРАВЛЕНО НАМЕРТВО: Вычисляем активность вкладок на основе сквозной переменной activeSubModule Хаба!
+        val isHomeSelected =
+          activeSubModule == "InfoApartmentScreen" || activeSubModule == "UserListScreen"
+        val isFinanceSelected = activeSubModule == "finance_selector"
+        val isMetersSelected = activeSubModule == "service_selector"
+        val isChatSelected = activeSubModule == "ChatScreenStateful"
 
-        navDestinations.forEach { destination ->
-          val shouldShow = destination.alwaysVisible || !isApartmentsEmpty
+        // 1. Кнопка Главная (БТИ / Список абонентов)
+        NavigationRailItem(
+          selected = isHomeSelected,
+          onClick = {
+            val targetRoute =
+              if (baseUIState.userRole == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen"
+            onSubModuleChange(targetRoute)
+          },
+          icon = { Icon(Icons.Default.Home, null) },
+          label = if (isRailExpanded) {
+            { Text("Головна", fontSize = 11.sp) }
+          } else null
+        )
 
-          if (shouldShow) {
-            val isSelected = selectedDestination.substringBefore("/") == destination.route.substringBefore("/")
+        // 2. Кнопка Финансы ЮКІС
+        NavigationRailItem(
+          selected = isFinanceSelected,
+          onClick = {
+            onSubModuleChange("finance_selector")
+          },
+          icon = { Icon(Icons.Default.CreditCard, null) },
+          label = if (isRailExpanded) {
+            { Text("Фінанси", fontSize = 11.sp) }
+          } else null
+        )
 
-            NavigationRailItem(
-              selected = isSelected,
-              onClick = {
-                println("[$className.ApartmentNavigationRail]: [CLICK] Переход в раздел: ${destination.route} | Роль: ${baseUIState.userRole}")
-
-                if (destination.route == "service_selector") {
-                  chatViewModel.setSelectedService(null as String?)
-                }
-
-                navigateToDestination(destination.route)
-              },
-              icon = {
-                BadgedBox(
-                  badge = {
-                    val isChatRoute = destination.route == "service_selector" || destination.route == "UserListScreen"
-                    if (isChatRoute && totalUnread > 0) {
-                      Badge(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                      ) {
-                        Text(text = if (totalUnread > 9) "9+" else totalUnread.toString())
-                      }
-                    }
+        // 3. Кнопка Приборы учета ЮКІС
+        NavigationRailItem(
+          selected = isMetersSelected,
+          onClick = {
+            chatViewModel.setSelectedService(null as String?)
+            // ИСПРАВЛЕНО НАМЕРТВО: Переключаем внутренний подмодуль Хаба без уничтожения каркаса рельса!
+            onSubModuleChange("service_selector")
+          },
+          icon = {
+            BadgedBox(
+              badge = {
+                if (totalUnread > 0) {
+                  Badge(containerColor = MaterialTheme.colorScheme.error) {
+                    Text(text = if (totalUnread > 9) "9+" else totalUnread.toString())
                   }
-                ) {
-                  Icon(
-                    imageVector = if (isSelected) destination.selectedIcon else destination.unselectedIcon,
-                    contentDescription = null
-                  )
                 }
-              },
-              label = if (isRailExpanded) {
-                { Text(destination.route, fontSize = 11.sp) }
-              } else null,
-              alwaysShowLabel = false
-            )
-          }
-        }
+              }
+            ) {
+              Icon(Icons.Default.ElectricMeter, null)
+            }
+          },
+          label = if (isRailExpanded) {
+            { Text("Лічильники", fontSize = 11.sp) }
+          } else null
+        )
+
+        // 4. Кнопка Чат обговорення
+        NavigationRailItem(
+          selected = isChatSelected,
+          onClick = {
+            onSubModuleChange("ChatScreenStateful")
+          },
+          icon = { Icon(Icons.Default.Chat, null) },
+          label = if (isRailExpanded) {
+            { Text("Чат", fontSize = 11.sp) }
+          } else null
+        )
+
+        // 5. Кнопка Системні Налаштування (Voyager накат поверх Хаба)
+        NavigationRailItem(
+          selected = navigator.lastItem is SettingsScreenDest,
+          onClick = { navigator.push(SettingsScreenDest) },
+          icon = { Icon(Icons.Default.Settings, null) },
+          label = if (isRailExpanded) {
+            { Text("Налаштування", fontSize = 11.sp) }
+          } else null
+        )
       }
     }
-  }
+    }
 }
 
-@Composable
-fun RailItemContent(
-  title: String,
-  subtitle: String? = null,
-  extraInfo: String? = null,
-  icon: ImageVector,
-  isSelected: Boolean,
-  badgeCount: Int = 0,
-  onClick: () -> Unit
-) {
-  Box(
-    modifier = Modifier
-      .padding(horizontal = 8.dp, vertical = 2.dp)
-      .fillMaxWidth()
-      .clip(RoundedCornerShape(8.dp))
-      .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f) else Color.Transparent)
-      .clickable { onClick() }
-      .padding(8.dp)
-  ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      Icon(
-        imageVector = icon,
-        contentDescription = null,
-        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-        modifier = Modifier.size(20.dp)
-      )
-      Spacer(Modifier.width(12.dp))
-      Column(modifier = Modifier.weight(1f)) {
+      @Composable
+    fun RailItemContent(
+      title: String,
+      subtitle: String? = null,
+      extraInfo: String? = null,
+      icon: ImageVector,
+      isSelected: Boolean,
+      badgeCount: Int = 0,
+      onClick: () -> Unit
+    ) {
+      Box(
+        modifier = Modifier
+          .padding(horizontal = 8.dp, vertical = 2.dp)
+          .fillMaxWidth()
+          .clip(RoundedCornerShape(8.dp))
+          .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f) else Color.Transparent)
+          .clickable { onClick() }
+          .padding(8.dp)
+      ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-          if (extraInfo != null) {
-            Text(" $extraInfo", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+          Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+            modifier = Modifier.size(20.dp)
+          )
+          Spacer(Modifier.width(12.dp))
+          Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Text(
+                title,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+              )
+              if (extraInfo != null) {
+                Text(
+                  " $extraInfo",
+                  style = MaterialTheme.typography.labelSmall,
+                  color = MaterialTheme.colorScheme.outline
+                )
+              }
+            }
+            subtitle?.let {
+              Text(
+                it,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+              )
+            }
+          }
+          if (badgeCount > 0) {
+            Badge { Text(badgeCount.toString()) }
           }
         }
-        subtitle?.let {
-          Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-        }
-      }
-      if (badgeCount > 0) {
-        Badge { Text(badgeCount.toString()) }
       }
     }
-  }
-}
+
+
+
+
+
+

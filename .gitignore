@@ -18,3 +18,5 @@ captures
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
 composeApp/src/commonMain/kotlin/com/ykis/ykismobkmp/di/Secrets.kt
+composeApp/google-services.json
+README.md

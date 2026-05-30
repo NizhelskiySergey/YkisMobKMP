@@ -4,6 +4,8 @@ package com.ykis.ykismobkmp.ui.screens.meter
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -67,11 +69,13 @@ fun MeterDetailScreen(
             },
           ) {
             Icon(
-              painter = painterResource(Res.drawable.ic_history),
+
+              imageVector = Icons.Default.History,
               contentDescription = "Історія показань",
               tint = MaterialTheme.colorScheme.onSurface
             )
           }
+
         }
       }
     )
