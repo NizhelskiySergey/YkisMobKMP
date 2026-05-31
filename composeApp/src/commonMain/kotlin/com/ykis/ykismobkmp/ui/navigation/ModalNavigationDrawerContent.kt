@@ -33,7 +33,9 @@ private const val className = "ModalNavigationDrawerContent"
 fun ModalNavigationDrawerContent(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
-  navigator: Navigator, // Единственный легитимный навигатор верхнего уровня
+  navigator: Navigator, // Единственный навигатор верхнего уровня (для системных окон)
+  activeSubModule: String, // ДОБАВЛЕНО НАМЕРТВО: Сквозной стейт активного подмодуля Хаба ЮКІС
+  onSubModuleChange: (String) -> Unit, // ДОБАВЛЕНО НАМЕРТВО: Сквозной коллбек смены кадра
   onMenuClick: () -> Unit = {}, // Закрытие шторки drawerState.close()
   navigateToApartment: (Long) -> Unit,
   isApartmentsEmpty: Boolean
@@ -104,9 +106,10 @@ fun ModalNavigationDrawerContent(
             onClick = {
               println("[$className.$methodName]: [ADD_CLICK] Переход на привязку БТИ квартиры")
               keyboardController?.hide()
+
+              // Плавный Stateless переход: Закрываем шторку меню
               onMenuClick()
-              // ИСПРАВЛЕНО НАМЕРТВО: Чистый Voyager! Нативно замещаем корень стека экраном привязки AddApartmentScreen
-              navigator.replaceAll(AddApartmentScreen)
+              onSubModuleChange("AddApartmentScreen")
             },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp)
@@ -135,6 +138,7 @@ fun ModalNavigationDrawerContent(
           )
           HorizontalDivider()
         }
+
 
 
         // --- ЛЕНТА КВАРТИР И ДОМОВ ---
@@ -223,17 +227,23 @@ fun ModalNavigationDrawerContent(
       ) {
         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
 
+        // ИСПРАВЛЕНО НАМЕРТВО: Опрашиваем сквозной стейт activeSubModule Хаба!
+        val isSettingsSelected = activeSubModule == "SettingsScreenDest"
+
         NavigationDrawerItem(
           label = { Text("Налаштування", fontWeight = FontWeight.SemiBold) },
-          // ИСПРАВЛЕНО НАМЕРТВО: Чистый Voyager! Опрашиваем тип верхнего экрана в стеке
-          selected = navigator.lastItem is SettingsScreenDest,
+          selected = isSettingsSelected,
           icon = { Icon(Icons.Default.Settings, contentDescription = "Настройки") },
           onClick = {
             println("[$className.$methodName]: [SETTINGS_CLICK] Клик по системным настройкам профиля.")
             keyboardController?.hide()
+
+            // Плавное Stateless закрытие шторки на смартфоне
             onMenuClick()
-            // ИСПРАВЛЕНО НАМЕРТВО: Нативно накатываем экран настроек Voyager поверх текущего стека
-            navigator.push(SettingsScreenDest)
+
+            // ИСПРАВЛЕНО НАМЕРТВО: Вырезан деструктивный накат navigator.push!
+            // Переключаем внутренний подмодуль Хаба без разрыва контекста ОЗУ
+            onSubModuleChange("SettingsScreenDest")
           },
           modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
           colors = NavigationDrawerItemDefaults.colors(
@@ -318,6 +328,7 @@ fun DrawerItemContent(
     modifier = modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
   )
 }
+
 
 
 

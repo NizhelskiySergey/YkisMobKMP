@@ -69,7 +69,7 @@ class MainServiceScreen(
             totalDebtState = totalDebtState,
             getTotalServiceDebt = { params ->
               println("[$tag.Tablet]: [GET_DEBT] Trigger запроса баланса ГИОЦ для о/р Long: ${params.addressId}")
-              ledgerScreenModel.getTotalServiceDebt(params.uid, params.addressId, params.year, params.service, params.total)
+              ledgerScreenModel.getTotalServiceDebt(params.uid, params.addressId,params.houseId, params.year, params.service, params.total)
             },
             setContentDetail = { content ->
               println("[$tag.Tablet]: [CLICK_EVENT] Переключение финансовой вкладки: $content")
@@ -164,7 +164,7 @@ fun SinglePanelService(
         baseUIState = baseUIState,
         onDrawerClick = onDrawerClick,
         totalDebtState = totalDebtState,
-        getTotalServiceDebt = { params -> screenModel.getTotalServiceDebt(params.uid, params.addressId, params.year, params.service, params.total) },
+        getTotalServiceDebt = { params -> screenModel.getTotalServiceDebt(params.uid, params.addressId, params.houseId,params.year, params.service, params.total) },
         setContentDetail = { content -> screenModel.setContentDetail(content) }
       )
     }

@@ -14,6 +14,7 @@ interface LedgerRepository {
   suspend fun getFlatDetailService(
     uid: String,
     addressId: Long,
+    houseId: Long,
     year: String,
     service: Byte,
     total: Byte
@@ -25,13 +26,11 @@ interface LedgerRepository {
   suspend fun getTotalDebtService(
     uid: String,
     addressId: Long,
+    houseId: Long,
     year: String,
     service: Byte,
     total: Byte
   ): GetServiceResponse
 
-  /**
-   * Получение истории платежей (оплат) жильца по выбранному лицевому счету за указанный год.
-   */
-  suspend fun getPaymentList(uid: String,addressId: Long,year: String): GetPaymentResponse
+
 }

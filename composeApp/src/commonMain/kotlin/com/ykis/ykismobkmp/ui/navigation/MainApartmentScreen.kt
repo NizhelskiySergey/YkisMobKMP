@@ -205,13 +205,17 @@ class MainApartmentScreen(
       ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
+          // Внутри пресета смартфона в MainApartmentScreen.kt обновите вызов шторки:
           ModalNavigationDrawerContent(
             baseUIState = baseUIState,
             navigator = globalNavigator,
+            activeSubModule = activeSubModule,
+            onSubModuleChange = { newModule -> activeSubModule = newModule },
             onMenuClick = { coroutineScope.launch { drawerState.close() } },
             navigateToApartment = finalizeApartmentSelection,
             isApartmentsEmpty = baseUIState.addressId == 0L
           )
+
         }
       ) {
         Scaffold(
@@ -219,10 +223,14 @@ class MainApartmentScreen(
             val showBottomBar = baseUIState.addressId != 0L || baseUIState.userRole != UserRole.StandardUser
             if (showBottomBar) {
               // ИСПРАВЛЕНО НАМЕРТВО: Передаем нативный глобальный навигатор Voyager в нижний бар
+              // Внутри пресета телефона в MainApartmentScreen.kt обновите вызов:
               BottomNavigationBar(
                 navigator = globalNavigator,
-                baseUIState = baseUIState
+                baseUIState = baseUIState,
+                activeSubModule = activeSubModule,
+                onSubModuleChange = { newModule -> activeSubModule = newModule }
               )
+
             }
           }
         ) { paddingValues ->

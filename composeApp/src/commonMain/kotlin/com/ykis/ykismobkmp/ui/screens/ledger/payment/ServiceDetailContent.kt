@@ -107,6 +107,7 @@ fun ServiceDetailContentWrapper(
       viewModel.getDetailService(
           uid = currentUid,
           addressId = baseUIState.addressId, // Сквозной Long ID СУБД
+        houseId = baseUIState.houseId,
           total = 0L.toByte(),
           year = selectedChip,
           service = when (contentDetail) {

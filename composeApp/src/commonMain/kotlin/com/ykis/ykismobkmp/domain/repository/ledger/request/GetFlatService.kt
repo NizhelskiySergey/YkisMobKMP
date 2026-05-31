@@ -27,6 +27,7 @@ class GetFlatServices(
   operator fun invoke(
     uid: String,
     addressId: Long,
+    houseId: Long,
     year: String,
     service: Byte,
     total: Byte
@@ -58,6 +59,7 @@ class GetFlatServices(
         repository.getFlatDetailService(
           uid = uid,
           addressId = addressId,
+          houseId = houseId,
           year = year,
           service = service,
           total = total

@@ -1,5 +1,6 @@
 package com.ykis.ykismobkmp.domain.repository.ledger
 
+import androidx.compose.animation.shrinkOut
 import com.ykis.ykismobkmp.data.remote.ledger.LedgerRemoteRepository
 import com.ykis.ykismobkmp.data.responses.GetPaymentResponse
 import com.ykis.ykismobkmp.data.responses.GetServiceResponse
@@ -19,6 +20,7 @@ class LedgerRepositoryImpl(
   override suspend fun getFlatDetailService(
     uid: String,
     addressId: Long,
+    houseId: Long,
     year: String,
     service: Byte,
     total: Byte
@@ -27,7 +29,7 @@ class LedgerRepositoryImpl(
 
     return try {
       // Пробрасываем вызов напрямую в сетевой шлюз remote
-      remote.getFlatDetailServices(uid = uid, addressId = addressId, year = year)
+      remote.getFlatDetailServices(uid = uid, addressId = addressId,houseId=houseId, year = year,service=service,total=total)
     } catch (ex: Exception) {
       println("[$currentClassName.getFlatDetailService] Критическая ошибка сети Ktor: ${ex.message}")
       GetServiceResponse(
@@ -43,6 +45,7 @@ class LedgerRepositoryImpl(
   override suspend fun getTotalDebtService(
     uid: String,
     addressId: Long,
+    houseId: Long,
     year: String,
     service: Byte,
     total: Byte
@@ -53,6 +56,7 @@ class LedgerRepositoryImpl(
       remote.getTotalDebtService(
         uid = uid,
         addressId = addressId,
+        houseId = houseId ,
         year = year,
         service = service,
         total = total
@@ -66,22 +70,6 @@ class LedgerRepositoryImpl(
     }
   }
 
-  /**
-   * [getPaymentList] — Получение архива оплат жильца.
-   */
-  override suspend fun getPaymentList(
-    uid: String,
-    addressId: Long,
-    year: String
-  ): GetPaymentResponse {
-    println("[$currentClassName.getPaymentList]: Запрос архива оплат за рік $year для о/р: $addressId")
-    return try {
-      // Пробрасываем вызов напрямую в сетевой шлюз remote
-      remote.getPaymentList(uid = uid, addressId = addressId, year = year)
-    } catch (ex: Exception) {
-      println("[$currentClassName.getPaymentList] Critical Fatal Error: ${ex.message}")
-      GetPaymentResponse(success = 0, message = ex.message ?: "Невідома помилка мережі оплат")
-    }
-  }
+
 }
 

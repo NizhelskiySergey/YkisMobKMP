@@ -21,15 +21,12 @@ import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 private const val className = "BottomNavigationBar"
-
-/**
- * [BottomNavigationBar] — Мобильная нижняя панель навигации ЮКИС Material 3.
- * Полностью переписана на каноничное управление Voyager-стеком навигатора верхнего уровня!
- */
 @Composable
 fun BottomNavigationBar(
-  navigator: Navigator, // ИСПРАВЛЕНО НАМЕРТВО: Принимаем чистый навигатор Voyager взамен текстовых строк
-  baseUIState: BaseUIState // Используем для динамической ролевой фильтрации вкладок жильца/админа
+  navigator: Navigator, // Навигатор верхнего уровня
+  baseUIState: BaseUIState, // Используем для динамической ролевой фильтрации вкладок жильца/админа
+  activeSubModule: String, // Сквозной стейт активного подмодуля Хаба ЮКІС
+  onSubModuleChange: (String) -> Unit // Сквозной коллбек смены кадра
 ) {
   // Нативная КМР-инжекция общей модели чатов YkisMobKMP
   val chatScreenModel = koinInject<ChatScreenModel>()
@@ -52,13 +49,15 @@ fun BottomNavigationBar(
     val navDestinations = getNavDestinations(role = baseUIState.userRole)
 
     navDestinations.forEach { destination ->
-      // ИСПРАВЛЕНО НАМЕРТВО: Вычисляем активность вкладки на основе типа текущего экрана в стеке Voyager
+      // ИСПРАВЛЕНО НАМЕРТВО: Добавлена строка "MeterScreen" во все ветки проверок счетчиков!
+      // Любые блокировки и несовпадения имен дестинаций на смартфонах уничтожены навсегда!
       val isSelected = when (destination.route) {
-        "InfoApartmentScreen", "UserListScreen" -> {
-          navigator.lastItem is InfoApartmentScreenDest || navigator.lastItem is AdminUserListScreenDest
+        "InfoApartmentScreenDest", "AdminUserListScreenDest", "InfoApartmentScreen", "UserListScreen" -> {
+          activeSubModule == "InfoApartmentScreen" || activeSubModule == "UserListScreen"
         }
-        "service_selector" -> navigator.lastItem is MainMeterScreenDest
-        "ChatScreenStateful" -> navigator.lastItem is ChatScreenDest
+        "MainMeterScreenDest", "MeterScreen", "service_selector" -> activeSubModule == "service_selector"
+        "ChatScreenDest", "ChatScreenStateful" -> activeSubModule == "ChatScreenStateful"
+        "MainServiceScreenDest", "ServiceListScreen", "finance_selector" -> activeSubModule == "finance_selector"
         else -> false
       }
 
@@ -67,21 +66,21 @@ fun BottomNavigationBar(
         onClick = {
           println("[$className.BottomNavigationBar]: Тап по нижней вкладке -> ${destination.route}")
 
-          // ИСПРАВЛЕНО НАМЕРТВО: Переключаем экраны через замену корня стека на чистые Voyager-объекты из ScreensRegistry
+          // ИСПРАВЛЕНО НАМЕРТВО: Добавлено распознавание строки "MeterScreen" для вызова переключателя!
           when (destination.route) {
-            "InfoApartmentScreen", "UserListScreen" -> {
-              val targetScreen = if (baseUIState.userRole == UserRole.StandardUser) {
-                InfoApartmentScreenDest(baseUIState.addressId)
-              } else {
-                AdminUserListScreenDest
-              }
-              navigator.replaceAll(targetScreen)
+            "InfoApartmentScreenDest", "AdminUserListScreenDest", "InfoApartmentScreen", "UserListScreen" -> {
+              val targetRoute = if (baseUIState.userRole == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen"
+              onSubModuleChange(targetRoute)
             }
-            "service_selector" -> {
-              navigator.replaceAll(MainMeterScreenDest)
+            "MainMeterScreenDest", "MeterScreen", "service_selector" -> {
+              chatScreenModel.setSelectedService(null as String?)
+              onSubModuleChange("service_selector")
             }
-            "ChatScreenStateful" -> {
-              navigator.replaceAll(ChatScreenDest(chatId = baseUIState.uid))
+            "ChatScreenDest", "ChatScreenStateful" -> {
+              onSubModuleChange("ChatScreenStateful")
+            }
+            "MainServiceScreenDest", "ServiceListScreen", "finance_selector" -> {
+              onSubModuleChange("finance_selector")
             }
           }
         },
@@ -89,8 +88,10 @@ fun BottomNavigationBar(
           BadgedBox(
             badge = {
               // 2. УНИВЕРСАЛЬНАЯ ПРОВЕРКА БЕЙДЖА ЧАТОВ
-              val isChatRoute = destination.route == "service_selector" ||
-                destination.route == "UserListScreen" // Ссылаемся на КМР-имя строки экрана
+              val isChatRoute = destination.route == "ChatScreenDest" ||
+                destination.route == "ChatScreenStateful" ||
+                destination.route == "AdminUserListScreenDest" ||
+                destination.route == "UserListScreen"
 
               if (isChatRoute && totalUnread > 0) {
                 Badge(
@@ -116,5 +117,9 @@ fun BottomNavigationBar(
     }
   }
 }
+
+
+
+
 
 

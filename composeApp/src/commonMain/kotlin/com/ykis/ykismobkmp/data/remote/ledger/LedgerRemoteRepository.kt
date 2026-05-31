@@ -15,7 +15,10 @@ interface LedgerRemoteRepository {
   suspend fun getFlatDetailServices(
     uid: String,
     addressId: Long,
-    year: String
+    houseId: Long,
+    year: String,
+    service: Byte,
+    total: Byte
   ): GetServiceResponse
 
   /**
@@ -24,19 +27,12 @@ interface LedgerRemoteRepository {
   suspend fun getTotalDebtService(
     uid: String,
     addressId: Long,
+    houseId: Long,
     year: String,
     service: Byte,
     total: Byte
   ): GetServiceResponse
 
-  /**
-   * Получение архива оплат жильца по лицевому счету за указанный год.
-   */
-  suspend fun getPaymentList(
-    uid: String,
-    addressId: Long,
-    year: String
-  ): GetPaymentResponse
 
 
 }

@@ -90,28 +90,49 @@ fun ServiceListScreen(
   setContentDetail: (ContentDetail) -> Unit
 ) {
   val methodName = "ServiceListScreen"
-  LaunchedEffect(key1 = baseUIState.addressId) {
+
+  // Извлекаем текущий выбранный подмодуль из общего стейта задолженностей
+  val currentDetail = totalDebtState.serviceDetail
+
+  // ИСПРАВЛЕНО НАМЕРТВО: Добавлен второй триггерный ключ currentDetail!
+  // Теперь при клике мышкой по любой ЖКХ-службе Южного LaunchedEffect мгновенно перезапустится,
+  // высчитает правильный код service и отправит точечный запрос в Ktor-сеть без зависаний!
+  // ИСПРАВЛЕНО НАМЕРТВО: Все числовые коды приведены к типу Byte через .toByte()!
+  // Ошибка 'Argument type mismatch: actual type is Int, but Byte was expected' полностью уничтожена.
+  LaunchedEffect(key1 = baseUIState.addressId, key2 = currentDetail) {
     val addrId = baseUIState.addressId
     val houseId = baseUIState.houseId
     val osbbId = baseUIState.osmdId
     val uid = baseUIState.uid ?: ""
 
-    println("[$tag.$methodName]: [TRIGGER] Сработал ключ переключения о/р: $addrId")
+    // Вычисляем код услуги сразу в типе Byte
+    val targetServiceCode: Byte = when (currentDetail) {
+      ContentDetail.WATER_SERVICE -> 1.toByte()
+      ContentDetail.WARM_SERVICE  -> 2.toByte()
+      ContentDetail.GARBAGE_SERVICE -> 3.toByte()
+      ContentDetail.OSBB            -> 4.toByte()
+      else -> 0.toByte()
+    }
+
+    println("[$tag.$methodName]: [TRIGGER] Смена фокуса подмодуля. ServiceCode: $targetServiceCode, Найдено о/р: $addrId")
 
     if (addrId > 0L) {
-      println("[$tag.$methodName]: [SEND_CHECK] Запрос баланса. UID: $uid, House: $houseId, OSBB: $osbbId")
+      println("[$tag.$methodName]: [SEND_CHECK] Запрос тарифов. UID: $uid, Service: $targetServiceCode, Total: 1")
       getTotalServiceDebt(
         LedgerParams(
           uid = uid,
           addressId = addrId,
           houseId = houseId,
-          service = 0,
-          total = 1,
-          year = "2026"
+          year = "2026",
+          service = targetServiceCode, // Теперь типы идеально совпадают!
+          total = 1.toByte(),
+
         )
       )
     }
   }
+
+
   Column(
     modifier = Modifier.fillMaxSize(),
     horizontalAlignment = Alignment.CenterHorizontally,
@@ -124,9 +145,6 @@ fun ServiceListScreen(
       canNavigateBack = false,
       actionButton = {
         IconButton(onClick = { setContentDetail(ContentDetail.PAYMENT_LIST) }) {
-          // ИСПРАВЛЕНО НАМЕРТВО: Забагованная иконка painterResource вырезана из финансового хаба!
-          // Подключен стабильный встроенный ImageVector Icons.Default.History.
-          // Исключение java.lang.NullPointerException: lookupPrefix(...) полностью уничтожено!
           Icon(
             imageVector = Icons.Default.History,
             contentDescription = "Історія платіжок",
@@ -158,7 +176,7 @@ fun ServiceListScreen(
                 it.contentDetail != ContentDetail.WARM_SERVICE &&
                 it.contentDetail != ContentDetail.GARBAGE_SERVICE
             }
-            else -> allItems // Рядовой жилец видит все квитанции ГИОЦ
+            else -> allItems
           }
         }
         val displayTotal = remember(filteredItems, baseUIState.userRole) {
@@ -182,7 +200,10 @@ fun ServiceListScreen(
               title = item.name,
               debt = item.debt,
               icon = item.icon,
-              onClick = { setContentDetail(item.contentDetail) }
+              onClick = {
+                // Клик нативно меняет контентное состояние, что триггерит наш LaunchedEffect
+                setContentDetail(item.contentDetail)
+              }
             )
           }
         )
@@ -190,5 +211,6 @@ fun ServiceListScreen(
     }
   }
 }
+
 
 

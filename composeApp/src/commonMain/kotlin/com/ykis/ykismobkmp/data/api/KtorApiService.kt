@@ -161,20 +161,7 @@ class KtorApiService(private val client: HttpClient) {
   suspend fun getFlatService(params: Map<String, String>): GetServiceResponse {
     return postFormUrlEncoded<GetServiceResponse>("getFlatServices.php", params)
   }
-
-  suspend fun getFlatPayment(params: Map<String, String>): GetPaymentResponse {
-    return postFormUrlEncoded<GetPaymentResponse>("getFlatPayments.php", params)
-  }
 }
-
-// ====================================================================
-// --- ГЛОБАЛЬНАЯ КМР ФУНКЦИЯ РАСШИРЕНИЯ ДЛЯ ДЕЛИКАТНОЙ КЛИЕНТСКОЙ СБОРКИ ---
-// ====================================================================
-/**
- * [postFormUrlEncoded] — Винесений глобальний інлайн-конвеєр відправки сирих HTML-форм КМР.
- * ИСПРАВЛЕНО НАМЕРТВО: Сборщик jsonWorker теперь берется с глобального уровня файла,
- * полностью уничтожая ошибку видимости ресивера!
- */
 
 
 

@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.Adjust
+import androidx.compose.material.icons.filled.ElectricMeter
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Opacity
 import androidx.compose.material.icons.filled.Payments
@@ -61,7 +62,7 @@ fun getNavDestinations(role: UserRole): List<TopLevelDestination> {
     TopLevelDestination(
       route = "MeterScreen",
       selectedIcon = Icons.Default.Opacity,
-      unselectedIcon = Icons.Default.WaterDrop,
+      unselectedIcon = Icons.Default.ElectricMeter,
       labelId = Res.string.meters,
       alwaysVisible = false
     ),

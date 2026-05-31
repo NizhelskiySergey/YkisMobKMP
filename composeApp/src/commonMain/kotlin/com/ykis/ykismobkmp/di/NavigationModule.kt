@@ -48,7 +48,6 @@ val navigationModule = module {
   single {
     LedgerService(
       getFlatServices = get(),
-      getPaymentList = get(),
       getTotalDebtServices = get()
     )
   }

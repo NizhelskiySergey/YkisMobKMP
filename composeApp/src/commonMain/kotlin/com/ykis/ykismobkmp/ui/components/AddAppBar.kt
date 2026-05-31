@@ -104,15 +104,3 @@ fun AddAppBar(
  * ИСПРАВЛЕНО: Аннотация Preview переведена на кроссплатформенный КМР-стандарт JetBrains Compose Runtime.
  * Панель будет корректно рендериться в UI-инспекторах на Mac Desktop.
  */
-@Preview
-@Composable
-private fun PreviewAddAppBar() {
-  AddAppBar(
-    subtitle = "За допомогою секретного коду",
-    title = "Додати квартиру",
-    onBackPressed = {},
-    canNavigateBack = false,
-    onDrawerClicked = {},
-    navigationType = NavigationType.BOTTOM_NAVIGATION
-  )
-}

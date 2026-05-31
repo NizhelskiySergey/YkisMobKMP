@@ -10,8 +10,6 @@ import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.screens.ledger.payment.ServiceDetailContentWrapper
-import com.ykis.ykismobkmp.ui.screens.ledger.payment.choice.PaymentChoiceStateful
-import com.ykis.ykismobkmp.ui.screens.ledger.payment.list.PaymentListStateful
 import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "ServiceDetailScreen"
@@ -51,29 +49,12 @@ fun ServiceDetailScreen(
       },
       subtitle = baseUIState.address
     )
-    when (contentDetail) {
-      ContentDetail.PAYMENT_LIST -> {
-        PaymentListStateful(
-          modifier = Modifier.weight(1f),
-          baseUIState = baseUIState
-        )
-      }
-      ContentDetail.PAYMENT_CHOICE -> {
-        PaymentChoiceStateful(
-          modifier = Modifier.weight(1f),
-          baseUIState = baseUIState,
-          totalDebtState = totalDebtState,
-          navigateToWebView = navigateToWebView
-        )
-      }
-      else -> {
+
         Box(modifier = Modifier.weight(1f)) {
           ServiceDetailContentWrapper(
             contentDetail = contentDetail,
             baseUIState = baseUIState
           )
         }
-      }
-    }
   }
 }

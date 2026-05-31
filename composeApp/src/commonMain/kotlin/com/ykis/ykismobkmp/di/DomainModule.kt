@@ -13,7 +13,6 @@ import com.ykis.ykismobkmp.domain.repository.apartment.useCase.SaveUserUid
 import com.ykis.ykismobkmp.domain.repository.apartment.useCase.UpdateBti
 import com.ykis.ykismobkmp.domain.repository.apartment.useCase.VerifyAdminCode
 import com.ykis.ykismobkmp.domain.repository.ledger.request.GetFlatServices
-import com.ykis.ykismobkmp.domain.repository.ledger.request.GetPaymentList
 import com.ykis.ykismobkmp.domain.repository.ledger.request.GetTotalDebtServices
 import com.ykis.ykismobkmp.domain.repository.meter.useCase.AddHeatReading
 import com.ykis.ykismobkmp.domain.repository.meter.useCase.AddWaterReading
@@ -72,7 +71,6 @@ val domainModule = module {
   // ====================================================================
   // --- 3. КАНOНИЧНЫЕ USE CASES БУХГАЛТЕРСКОГО БИЛЛИНГА (ПАКЕТ LEDGER) -
   // ====================================================================
-  factory { GetPaymentList(repository = get(), ledgerCache = get()) }
   factory { GetFlatServices(repository = get(), ledgerCache = get()) }
   factory { GetTotalDebtServices(repository = get(), ledgerCache = get()) }
 }

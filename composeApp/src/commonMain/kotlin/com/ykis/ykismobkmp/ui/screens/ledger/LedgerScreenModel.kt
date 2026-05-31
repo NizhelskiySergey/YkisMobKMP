@@ -8,18 +8,12 @@ import com.ykis.ykismobkmp.domain.repository.ledger.LedgerService
 import com.ykis.ykismobkmp.domain.services.LogService
 import com.ykis.ykismobkmp.ui.BaseScreenModel
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
-import com.ykis.ykismobkmp.ui.screens.ledger.payment.list.PaymentState
 import kotlinx.coroutines.flow.*
-
-
-
-// Заглушки доменных сущностей и КМР стейтов финансового учета
 
 data class ServiceState(
   val services: List<ServiceEntity> = emptyList(),
   val isLoading: Boolean = false
 )
-
 data class TotalDebtState(
   val totalDebt: ServiceEntity = ServiceEntity(),
   val isLoading: Boolean = false,
@@ -33,16 +27,13 @@ data class PaymentState(
   val isLoading: Boolean = false
 )
 
-
-/**
- * [LedgerScreenModel] — Кроссплатформенная модель управления долгами, начислениями БТИ и платежами Xpay ЮКИС.
- * Полностью типизирована под Long и готова к выполнению на Mac Desktop (JVM) и мобильных ОС.
- */
 class LedgerScreenModel(
   private val ledgerService: LedgerService,
   logService: LogService
 ) : BaseScreenModel(logService) {
+
   private val className = "GetFlatServices"
+
   private val _detailState = MutableStateFlow(ServiceState())
   val detailState: StateFlow<ServiceState> = _detailState.asStateFlow()
 
@@ -66,25 +57,30 @@ class LedgerScreenModel(
       it.copy(showDetail = false)
     }
   }
+
   fun getTotalServiceDebt(
     uid: String,
     addressId: Long,
+    houseId: Long,
     year: String,
     service: Byte,
     total: Byte
   ) {
     val methodName = "getTotalServiceDebt"
-
-    // ПРЕДОХРАНИТЕЛЬ: Если ID квартиры или UID невалидны — мгновенно выходим, не спамя сеть
     if (addressId <= 0L || uid.isBlank()) {
       println("[$className.$methodName]: [CANCEL] Невалідні параметри ЖКГ: ID=$addressId")
       return
     }
 
-    // Вызываем сценарий биллинга через наш запечатанный LedgerService на прямых параметрах
+      println("[$className.$methodName]: [REDIRECT] Перенаправлення детального пакета (Service: $service) на getDetailService")
+      getDetailService(uid = uid, addressId = addressId,houseId = houseId, year = year, service = service, total = 1.toByte())
+
+
+
     ledgerService.getTotalDebtServices(
       uid = uid,
       addressId = addressId,
+      houseId = houseId,
       year = year,
       service = service,
       total = total
@@ -98,7 +94,6 @@ class LedgerScreenModel(
               isLoading = false
             )
           }
-
           is Resource.Error -> {
             println("[$className.$methodName]: [ERROR] Сбой загрузки баланса: ${result.message}")
             currentState.copy(
@@ -106,7 +101,6 @@ class LedgerScreenModel(
               error = result.message ?: "Помилка завантаження"
             )
           }
-
           is Resource.Loading -> {
             println("[$className.$methodName]: [LOADING] Запит фінансового балансу ГІОЦ г. Южный...")
             currentState.copy(
@@ -115,36 +109,43 @@ class LedgerScreenModel(
           }
         }
       }
-    }.launchIn(screenModelScope) // Выполняем подписку внутри жизненного цикла ScreenModel скоупа Voyager
+    }.launchIn(screenModelScope)
   }
+
   fun getDetailService(
     uid: String,
     addressId: Long,
+    houseId: Long,
     year: String,
     service: Byte,
     total: Byte
   ) {
     val methodName = "getDetailService"
 
-    // Вызываем сценарий детализации биллинга через наш запечатанный LedgerService на прямых параметрах
+    // Взводим флаг загрузки в главном стейте, чтобы правая панель планшета красиво показывала лоадер
+    _totalDebtState.update { it.copy(isLoading = true) }
+
     ledgerService.getFlatServices(
       uid = uid,
       addressId = addressId,
+      houseId = houseId,
       year = year,
       service = service,
-      total = total
+      total = 0.toByte()
     ).onEach { result ->
       when (result) {
         is Resource.Success -> {
-          println("[$className.$methodName]: [SUCCESS] Отримано список послуг: ${result.data?.size}")
+          println("[$className.$methodName]: [SUCCESS] Отримано список послуг: ${result.data?.size} міс.")
+
           _detailState.update {
             it.copy(
               services = result.data ?: emptyList(),
               isLoading = false
             )
           }
+          // Гасим лоадер в основном контейнере после успешного прилета 5 месяцев истории
+          _totalDebtState.update { it.copy(isLoading = false) }
         }
-
         is Resource.Error -> {
           println("[$className.$methodName]: [ERROR] Сбой биллинга: ${result.message}")
           _detailState.update {
@@ -159,7 +160,6 @@ class LedgerScreenModel(
             )
           }
         }
-
         is Resource.Loading -> {
           println("[$className.$methodName]: [LOADING] Запит деталізації нарахувань ЮКИС...")
           _detailState.update {
@@ -169,59 +169,11 @@ class LedgerScreenModel(
           }
         }
       }
-    }.launchIn(screenModelScope) // Выполняем подписку внутри жизненного цикла ScreenModel скоупа Voyager
+    }.launchIn(screenModelScope)
   }
-  fun getPaymentList(addressId: Long, year: String, uid: String) {
-    val methodName = "getPaymentList"
 
-    // Вызываем сценарий получения архива оплат через наш запечатанный LedgerService
-    ledgerService.getPaymentList(
-      uid = uid,
-      addressId = addressId,
-      year = year
-    ).onEach { result ->
-      when (result) {
-        is Resource.Success -> {
-          println("[$className.$methodName]: [SUCCESS] Отримано архів платіжок за рік $year: ${result.data?.size}")
-          _paymentState.update {
-            it.copy(
-              paymentList = result.data ?: emptyList(),
-              isLoading = false
-            )
-          }
-        }
-
-        is Resource.Error -> {
-          println("[$className.$methodName]: [ERROR] Сбой загрузки архива оплат: ${result.message}")
-          _paymentState.update {
-            it.copy(
-              isLoading = false
-            )
-          }
-          _totalDebtState.update {
-            it.copy(
-              isLoading = false,
-              error = result.message ?: "Помилка мережі"
-            )
-          }
-        }
-
-        is Resource.Loading -> {
-          println("[$className.$methodName]: [LOADING] Архів оплат (Рік: $year) з розрахункового центру...")
-          _paymentState.update {
-            it.copy(
-              isLoading = true
-            )
-          }
-        }
-      }
-    }.launchIn(screenModelScope) // Выполняем подписку внутри жизненного цикла ScreenModel скоупа Voyager
-  }
 
 }
 
-  /**
-   * [insertPayment] — Генерация защищенной ссылки на инвойс Xpay для оплаты в браузере или WebView.
-   */
 
 

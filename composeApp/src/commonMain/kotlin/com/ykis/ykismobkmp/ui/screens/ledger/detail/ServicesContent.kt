@@ -54,6 +54,7 @@ fun ServiceDetailContent(
         screenModel.getDetailService(
             uid = currentUid,
             addressId = baseUIState.addressId,
+          houseId = baseUIState.houseId,
             service = when (contentDetail) {
               ContentDetail.OSBB -> 4.toByte()
               ContentDetail.WATER_SERVICE -> 1.toByte()

@@ -32,6 +32,7 @@ class GetTotalDebtServices(
   operator fun invoke(
     uid: String,
     addressId: Long,
+    houseId: Long,
     year: String,
     service: Byte,
     total: Byte
@@ -45,6 +46,7 @@ class GetTotalDebtServices(
       val response = repository.getTotalDebtService(
         uid = uid,
         addressId = addressId,
+        houseId = houseId,
         year = year,
         service = service,
         total = total
