@@ -30,11 +30,8 @@ import com.ykis.ykismobkmp.domain.entity.UserEntity
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
+import com.ykis.ykismobkmp.ui.screens.chat.UserListItem
 import org.koin.compose.koinInject
-
-// Временные КМР-заглушки элемента списка, пока не присланы сорцы его верстки
-@Composable fun UserListItem(user: UserEntity, onUserClick: (UserEntity) -> Unit, lastMessage: MessageEntity?, currentUid: String) { Button(onClick = { onUserClick(user) }) { Text(user.displayName ?: "") } }
-
 private const val className = "UserList"
 
 /**
@@ -48,34 +45,8 @@ data class UserWithLatestMessage(
 )
 
 /**
- * [UserListScreen] — Кроссплатформенный Voyager-экран списка активных диалогов и коммунальных заявок.
- * ИСПРАВЛЕНО: Полностью отвязан от ChatViewModel, логирование переведено в КМР-формат.
- */
-class UserListScreen(
-  private val baseUIState: BaseUIState,
-  private val userList: List<UserEntity>,
-  private val onUserClick: (UserEntity) -> Unit
-) : Screen {
-
-  @Composable
-  override fun Content() {
-    val navigator = LocalNavigator.currentOrThrow
-
-    // Нативная КМР инжекция ScreenModel вместо Android ViewModel
-    val chatScreenModel = koinInject<ChatScreenModel>()
-
-    UserList(
-      modifier = Modifier.fillMaxSize(),
-      baseUIState = baseUIState,
-      userList = userList,
-      onUserClick = onUserClick,
-      chatScreenModel = chatScreenModel
-    )
-  }
-}
-
-/**
- * [UserList] — Декларативная верстка и сортировка ленты диалогов Material 3.
+ * [UserList] — Декларативная верстка, маршалинг ключей Firebase и сортировка ленты диалогов Material 3.
+ * Исправлено: Дублирующий класс UserListScreen полностью вырезан, предотвращая ошибку Redeclaration!
  */
 @Composable
 fun UserList(
@@ -83,26 +54,27 @@ fun UserList(
   baseUIState: BaseUIState,
   userList: List<UserEntity>,
   onUserClick: (UserEntity) -> Unit,
-  chatScreenModel: ChatScreenModel // ИСПРАВЛЕНО: Заменен платформозависимый ChatViewModel
+  chatScreenModel: ChatScreenModel // Работаем на единой сквозной стейт-модели Хаба ЮКІС
 ) {
   // Подписки на мультиплатформенные StateFlow из ChatScreenModel
   val latestMessages by chatScreenModel.lastMessages.collectAsState()
   val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
   val selectedPrefix by chatScreenModel.selectedServicePrefix.collectAsState()
 
-  // Трансформация и сортировка списка (Твой оригинальный Золотой фонд логики ключей)
+  // Трансформация и высокоскоростная сортировка списка комнат на смартфонах
   val userWithMessages = remember(userList, latestMessages, unreadCounts, selectedPrefix) {
     val methodName = "Mapping"
-    // ИСПРАВЛЕНО: Вызов Log.d заменен на println в КМР-стандарте [Класс.Метод]
-    println("[$className.$methodName]: Start mapping. Role: ${baseUIState.userRole} | Prefix: $selectedPrefix")
+    println("[YkisLogKMP.$className.$methodName]: Початок маршалінгу кімнат. Роль користувача: ${baseUIState.userRole} | Активний префікс: $selectedPrefix")
 
     userList.map { user ->
-      // ГЕНЕРАЦИЯ КЛЮЧА ЧАТА (Синхронизировано с логикой PHP/Firebase и сквозным Long-типом данных)
+      // ГЕНЕРАЦИЯ КЛЮЧА ЧАТА (Синхронизировано на 100% с логикой СУБД, Firebase и ChatScreenModel!)
       val chatId = when (baseUIState.userRole) {
         UserRole.StandardUser -> {
           val prefix = selectedPrefix ?: "UNKNOWN"
-          "${prefix}_${user.osbbId ?: 0L}_${user.addressId}_${user.uid}"
+          "${prefix}_${user.osbbId}_${user.addressId}_${user.uid}"
         }
+        // Исправлено: Системные коды Long-идентификаторов коммунальных предприятий города Южного
+        // приведены к жесткому и единому стандарту вьюмодели (9999L / 9998L / 9997L)!
         UserRole.VodokanalUser -> "WATER_SERVICE_9999_${user.addressId}_${user.uid}"
         UserRole.YtkeUser      -> "WARM_SERVICE_9998_${user.addressId}_${user.uid}"
         UserRole.TboUser       -> "GARBAGE_SERVICE_9997_${user.addressId}_${user.uid}"
@@ -112,10 +84,9 @@ fun UserList(
 
       val lastMsg = latestMessages[chatId]
       val count = unreadCounts[chatId] ?: 0
-
       val safeMsg = lastMsg ?: MessageEntity(text = "", timestamp = 0L)
 
-      // Если адрес отправителя пустой, используем дефолтное имя
+      // Если адрес отправителя пустой, нативно подставляем легитимный адрес/ФИО из карточки абонента БТИ
       val stableDisplayName = if (!safeMsg.senderAddress.isNullOrBlank()) {
         safeMsg.senderAddress
       } else {
@@ -129,7 +100,7 @@ fun UserList(
         chatId = chatId
       )
     }.sortedWith(
-      // Сначала чаты с новыми сообщениями, затем по времени последнего сообщения
+      // Сначала чаты с новыми сообщениями (бейджами), затем по времени последнего сообщения (DESC)
       compareByDescending<UserWithLatestMessage> { it.unreadCount > 0 }
         .thenByDescending { it.latestMessage.timestamp }
     )
@@ -154,9 +125,10 @@ fun UserList(
       }
     }
 
+    // Рендерим отсортированную КМР-коллекцию чатов на дисплей смартфона
     items(
       items = userWithMessages,
-      key = { it.chatId } // Уникальный ключ строки на основе сгенерированного чат-токена
+      key = { it.chatId } // Уникальный составной токен в качестве КМР-ключа строки для Skiko
     ) { item ->
       Box(
         modifier = Modifier
@@ -166,14 +138,14 @@ fun UserList(
         UserListItem(
           user = item.user,
           onUserClick = {
-            println("[$className.onClick]: Клик по диалогу. Выбран ChatId: ${item.chatId}")
+            println("[YkisLogKMP.$className.onClick]: Обрано діалог для входу. Сформований ChatId: ${item.chatId}")
             onUserClick(it)
           },
           lastMessage = if (item.latestMessage.timestamp > 0L) item.latestMessage else null,
           currentUid = baseUIState.uid.toString()
         )
 
-        // Сферический бейдж непрочитанных сообщений коммунальных ведомостей
+        // Сферический бейдж непрочитанных сообщений коммунальных ведомостей ОСББ
         if (item.unreadCount > 0) {
           Surface(
             modifier = Modifier
@@ -196,4 +168,6 @@ fun UserList(
     }
   }
 }
+
+
 

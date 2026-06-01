@@ -1,7 +1,9 @@
 package com.ykis.ykismobkmp.ui.screens.chat
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -10,12 +12,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
+import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 import org.koin.compose.koinInject
@@ -24,19 +28,15 @@ import org.koin.compose.koinInject
 private const val tag = "SendImageScreen"
 
 /**
- * [SendImageScreen] — Кроссплатформенный Voyager-экран подтверждения отправки изображений или документов.
- * ИСПРАВЛЕНО: Платформозависимый ChatViewModel заменен на зафиксированный КМР-класс ChatScreenModel через koinInject.
+ * [SendImageScreen] — Кроссплатформенный Voyager-экран полноэкранного превью и отправки фото/документов.
  */
 class SendImageScreen(
   private val imagePath: String,
   private val address: String
 ) : Screen {
-
   @Composable
   override fun Content() {
     val navigator = LocalNavigator.currentOrThrow
-
-    // Нативная КМР инжекция ScreenModel вместо Android Lifecycle-зависимых вьюмоделей
     val chatScreenModel = koinInject<ChatScreenModel>()
 
     SendImageContent(
@@ -52,7 +52,7 @@ class SendImageScreen(
 }
 
 /**
- * [SendImageContent] — Декларативная Stateless-верстка превью-интерфейса перед отправкой медиа в ОСМД.
+ * [SendImageContent] — Stateless-компоновщик графического холста отправки медиафайлов коммунальных заявок.
  */
 @Composable
 fun SendImageContent(
@@ -62,27 +62,24 @@ fun SendImageContent(
   chatScreenModel: ChatScreenModel
 ) {
   val methodName = "SendImageContent"
-
-  // Реактивно подписываемся на фоновые потоки стейтов Gemini ИИ и текстового поля из ChatScreenModel
   val aiAssistantResponse by chatScreenModel.assistantResponse.collectAsState()
   val messageText by chatScreenModel.messageText.collectAsState()
   val isLoadingAfterSending by chatScreenModel.isLoadingAfterSending.collectAsState()
 
-  // Нативное КМР определение типа контента по расширению строкового файла ссылки
   val isImage = remember(imagePath) {
     val path = imagePath.lowercase()
     path.endsWith(".jpg") || path.endsWith(".jpeg") ||
       path.endsWith(".png") || path.contains("camera") || path.contains("image")
   }
 
-  println("[$tag.$methodName]: [TYPE_CHECK] Path: $imagePath | isImage: $isImage")
+  println("[$tag.$methodName]: [TYPE_CHECK] Шлях: $imagePath | Полотно є картинкою: $isImage")
 
   Column(
     modifier = Modifier
       .fillMaxSize()
       .statusBarsPadding()
       .navigationBarsPadding()
-      .imePadding() // Автоматический КМР-отступ экрана при поднятии нативной клавиатуры смартфона
+      .imePadding() // Мягко поднимает текстовый MessageBox над клавиатурой смартфона
   ) {
     Box(
       modifier = Modifier
@@ -91,15 +88,14 @@ fun SendImageContent(
       contentAlignment = Alignment.Center
     ) {
       if (isImage) {
-        println("[$tag.$methodName]: Rendering as IMAGE via Coil 3")
-        // ИСПРАВЛЕНО: ZoomableImage с Android Uri заменен на Coil 3 AsyncImage, стабильный на Mac/iOS
+        println("[$tag.$methodName]: Рендеринг зображення лічильника/акту через Coil 3")
         AsyncImage(
           model = imagePath,
-          contentDescription = "Превью фото поломки перед отправкой в ОСМД",
+          contentDescription = "Прев'ю фото поломки перед відправкою",
           modifier = Modifier.fillMaxSize()
         )
       } else {
-        println("[$tag.$methodName]: Rendering as DOCUMENT bubble")
+        println("[$tag.$methodName]: Рендеринг блоку прев'ю документа")
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
           Icon(
             imageVector = Icons.Default.Description,
@@ -118,23 +114,23 @@ fun SendImageContent(
       IconButton(
         modifier = Modifier
           .padding(8.dp)
-          .align(Alignment.TopStart),
+          .align(Alignment.TopStart)
+          .background(Color.Black.copy(alpha = 0.3f), CircleShape),
         onClick = {
-          println("[$tag.$methodName]: Нажата кнопка возврата назад")
+          println("[$tag.$methodName]: Натиснуто стрілку назад")
           navigateBack()
         }
       ) {
-        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
       }
     }
 
-    // Блок подсказок ИИ ассистента (Интеграция результатов анализа фотографии Gemini AI)
     AnimatedVisibility(visible = !aiAssistantResponse.isNullOrBlank()) {
       Surface(
         modifier = Modifier
           .padding(8.dp)
           .clickable {
-            chatScreenModel.onMessageTextChanged(aiAssistantResponse!!)
+            chatScreenModel.onMessageTextChanged(aiAssistantResponse !!)
             chatScreenModel.clearAiSuggestion()
           },
         color = MaterialTheme.colorScheme.primaryContainer,
@@ -147,68 +143,64 @@ fun SendImageContent(
         )
       }
     }
+
+    // Извлекаем BaseUIState напрямую из легитимного КМР-источника ApartmentScreenModel
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
-    val apartmentUiState by apartmentScreenModel.uiState.collectAsState()
-    val chatUiState by chatScreenModel.uiState.collectAsState() // Твой стейт чатов (токены, роли, uid)
+    val apartmentLiveUiState by apartmentScreenModel.apartmentUiState.collectAsState()
+
+    // Реактивно подписываемся на выбранного админом/жильцом оппонента чата
+    val targetUser by chatScreenModel.selectedUser.collectAsState()
 
     ComposeMessageBox(
       text = messageText,
       onTextChanged = { chatScreenModel.onMessageTextChanged(it) },
       onSent = {
-        println("[$tag.onSent]: Запуск атомарної завантаження файлу в хмару та відправки повідомлення")
+        println("[$tag.onSent]: Запуск атомарного завантаження медіафайлу в хмару та відправки повідомлення")
 
-        // РЕШЕНИЕ: Передаем все 10 обязательных параметров-контекстов, вычитанных из КМР-стейтов!
+        val myUid = apartmentLiveUiState.uid ?: ""
+        val targetUid = if (apartmentLiveUiState.userRole == UserRole.StandardUser) myUid else targetUser.uid
+
+        val curAddrId = if (apartmentLiveUiState.userRole == UserRole.StandardUser)
+          apartmentLiveUiState.addressId else targetUser.addressId
+
+        val curAddr = if (apartmentLiveUiState.userRole == UserRole.StandardUser)
+          (apartmentLiveUiState.address ?: "м. Южне") else (targetUser.displayName ?: "Абонент")
+
+        // Вызываем запечатанный метод вьюмодели с передачей сквозных Long-идентификаторов ЮКІС СУБД!
         chatScreenModel.uploadFileAndSendMessage(
-          chatUid = chatUiState.currentChatUid ?: "",
-          senderUid = chatUiState.uid ?: "",
-          senderDisplayedName = chatUiState.displayName?: "Абонент",
-          senderLogoUrl = chatUiState.opponentLogoUrl,
-          senderAddress = apartmentUiState.address,
-          addressId = apartmentUiState.addressId, // Сквозной Long-тип под требования SQLDelight
-          osbbId = apartmentUiState.osbbId,       // Сквозной Long-тип под требования SQLDelight
-          role = chatUiState.userRole,
-          recipientTokens = chatUiState.activeRecipientFcmTokens ?: emptyList(),
+          chatUid = targetUid,
+          senderUid = myUid,
+          senderDisplayedName = apartmentLiveUiState.displayName ?: "Користувач",
+          senderLogoUrl = apartmentLiveUiState.photoUrl,
+          senderAddress = curAddr,
+          addressId = curAddrId, // Сквозной Long тип
+          osbbId = apartmentLiveUiState.osmdId ?: apartmentLiveUiState.osbbId ?: 0L, // Сквозной Long тип
+          role = apartmentLiveUiState.userRole,
+          recipientTokens = targetUser.tokens ?: emptyList(),
           onComplete = {
-            println("[$tag.onSent]: Коллбэк завершения. Возврат в ленту чата.")
+            println("[$tag.onSent]: Завантаження завершено. Повернення в стрічку повідомлень чату.")
             navigateBack()
           }
         )
       },
       onImageSent = { clickedImagePath ->
-        println("[$tag.onImageSent]: Повторна відправка кадру: $clickedImagePath")
+        println("[$tag.onImageSent]: Повторна генерація кадру: $clickedImagePath")
       },
       onCameraClick = {},
       onAiClick = {
         if (isImage) {
-          println("[$tag.onAi]: Ініціалізація КМР Gemini AI аналізу фотографії ЖКХ фонду")
+          println("[$tag.onAi]: Запуск КМР Gemini комп'ютерного зору для розпізнавання фото лічильника Водоканалу.")
           chatScreenModel.analyzePhotoWithGemini(imagePath, address)
         } else {
-          println("[$tag.onAi]: Аналіз Gemini ІИ заблоковано. Працює тільки з фото.")
+          println("[$tag.onAi_WARN]: Аналіз Gemini заблоковано. Працює виключно з фотографіями.")
         }
       },
       showAttachIcon = false,
       isLoading = isLoadingAfterSending,
       canSend = messageText.isNotBlank() || isImage
     )
-
-
   }
 }
 
-/**
- * ИСПРАВЛЕНО: Из превью полностью удалены ложные Android-зависимости.
- * Переведено на КМР-совместимый Preview холст JetBrains.
- */
-@Preview
-@Composable
-private fun PreviewSendImageScreen() {
-  YkisPAMTheme {
-    SendImageContent(
-      imagePath = "demo.jpg",
-      address = "ул. Ленина 10, кв. 5",
-      navigateBack = {},
-      chatScreenModel = koinInject<ChatScreenModel>()
-    )
-  }
-}
+
 

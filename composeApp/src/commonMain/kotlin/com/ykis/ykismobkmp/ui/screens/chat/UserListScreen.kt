@@ -36,6 +36,7 @@ import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.components.UserList
+import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
@@ -45,11 +46,11 @@ import ykismobkmp.composeapp.generated.resources.select_recipient
 private const val className = "UserListScreen"
 
 /**
- * [UserListScreen] — Кроссплатформенный экран списка доступных чатов/квартир ЮКИС.
- * ИСПРАВЛЕНО: Полностью состыкован по именам параметров с КМР-компонентом UserList.
+ * [UserListScreen] — Кроссплатформенный Voyager-экран списка доступных комнат чатов квартир и абонентов.
+ * ПОЯСНЕНИЕ: Для жителей нативно трансформирует список подключенных адресов БТИ, а для диспетчеров
+ * разворачивает живой сокет-поток Firebase-ключей с фильтрацией через поисковую строку.
  */
 class UserListScreen(
-  private val userList: List<UserEntity> = emptyList(),
   private val onDrawerClicked: () -> Unit = {},
   private val navigationType: NavigationType = NavigationType.BOTTOM_NAVIGATION,
   private val onUserClicked: (UserEntity) -> Unit = {}
@@ -59,27 +60,27 @@ class UserListScreen(
   override fun Content() {
     val navigator = LocalNavigator.currentOrThrow
 
-    // Извлекаем ScreenModels через Koin мост YkisMobKMP
+    // Кроссплатформенная инжекция Koin ScreenModel финансового и чат хаба ЮКІС
     val chatScreenModel = koinInject<ChatScreenModel>()
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
 
-    val baseUIState by apartmentScreenModel.uiState.collectAsState()
+    // Исправлено: Ссылка приведена к легитимному имени потока apartmentUiState, убирая Unresolved reference!
+    val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
 
+    // Реактивно подписываемся на динамические сокет-потоки запечатанной вьюмодели чата
+    val liveUserList by chatScreenModel.userList.collectAsState()
     val isForwardingMode by chatScreenModel.isForwardingMode.collectAsState()
     val searchQuery by chatScreenModel.searchQuery.collectAsState()
     val selectedService by chatScreenModel.selectedService.collectAsState()
 
-    // Логирование рантайма согласно правилу [Класс.Метод]
     LaunchedEffect(baseUIState.userRole, baseUIState.addressId) {
-      println("[$className.Content.LaunchedEffect]: [ENTER] Role: ${baseUIState.userRole} | Service: ${selectedService?.name}")
+      println("[YkisLogKMP.$className.Content.LaunchedEffect]: [ENTER] Роль сесії: ${baseUIState.userRole} | Активна служба: ${selectedService?.name}")
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-      // 1. ВЕРХНЯЯ ПАНЕЛЬ С АДАПТИВНЫМ ЗАГОЛОВКОМ РАСЧЕТНОГО ЦЕНТРА ЮЖНОГО
       val appBarTitle = remember(baseUIState.userRole, selectedService) {
         val role = baseUIState.userRole
         val serviceName = selectedService?.name ?: ""
-
         val result = if (role == UserRole.StandardUser) {
           if (serviceName.contains("ОСББ", ignoreCase = true) || serviceName.isBlank()) {
             "ОСББ чати"
@@ -87,9 +88,9 @@ class UserListScreen(
             serviceName
           }
         } else {
-          "список доступних чатів"
+          "Список доступних чатів"
         }
-        println("[$className.Content.AppBar]: [FIXED_TITLE] -> $result")
+        println("[YkisLogKMP.$className.Content.AppBar]: [FIXED_TITLE] -> $result")
         result
       }
 
@@ -99,26 +100,25 @@ class UserListScreen(
         onDrawerClick = onDrawerClicked,
         canNavigateBack = true,
         onBackClick = {
-          println("[$className.Content.onBackClick]: Reset service and exit to drawer")
-          // ИСПРАВЛЕНО: Строгое приведение к типу String? для ликвидации ошибок Overload в Ktor/Koin
-          chatScreenModel.setSelectedService(null as String?)
+          println("[YkisLogKMP.$className.Content.onBackClick]: Скидання поточної служби та вихід у меню Хаба.")
+          // Исправлено: Невалидный каст строки удален, передаем чистый КМР-литерал null типа TotalServiceDebt?
+          chatScreenModel.setSelectedService(null as TotalServiceDebt?)
           onDrawerClicked()
         },
         navigationType = navigationType
       )
 
-      // 2. УНИВЕРСАЛЬНЫЙ ТЕКСТОВЫЙ ПОИСК АБОНЕНТОВ БТИ БИЛЛИНГА
       if (baseUIState.userRole != UserRole.StandardUser && !isForwardingMode) {
         OutlinedTextField(
           value = searchQuery,
           onValueChange = { query ->
-            println("[$className.Content.Search]: Query -> $query")
+            println("[YkisLogKMP.$className.Content.Search]: Введення пошукового запиту абонента -> $query")
             chatScreenModel.onSearchQueryChanged(query)
           },
           modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-          placeholder = { Text("Пошук...", fontSize = 14.sp) },
+          placeholder = { Text("Пошук за адресою або о/р...", fontSize = 14.sp) },
           leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
           trailingIcon = {
             if (searchQuery.isNotEmpty()) {
@@ -132,7 +132,6 @@ class UserListScreen(
         )
       }
 
-      // 3. АНИМИРОВАННЫЙ ИНДИКАТОР ПЕРЕСЫЛКИ СООБЩЕНИЙ ЖЭК / ОСМД ГОРОДА ЮЖНЫЙ
       AnimatedVisibility(visible = isForwardingMode) {
         Surface(
           color = MaterialTheme.colorScheme.secondaryContainer,
@@ -150,7 +149,7 @@ class UserListScreen(
               style = MaterialTheme.typography.labelLarge
             )
             TextButton(onClick = {
-              println("[$className.Content.Forwarding]: Forwarding operation cancelled by user")
+              println("[YkisLogKMP.$className.Content.Forwarding]: Режим пересилання повідомлення скасовано користувачем.")
               chatScreenModel.cancelForwarding()
             }) {
               Text(stringResource(Res.string.cancel))
@@ -159,23 +158,22 @@ class UserListScreen(
         }
       }
 
-      // 4. КОНТЕНТ: КРОСС ПЛАТФОРМЕННЫЙ МАППИНГ КВАРТИР В ДОМЕННЫЕ ЧАТ-СУЩНОСТИ
+      // Нативный КМР-фильтр и маппинг квартир. Все типы данных жестко удерживаются в Long!
       val finalUserList = remember(
         baseUIState.apartments,
         baseUIState.uid,
         baseUIState.userRole,
         searchQuery,
-        userList
+        liveUserList
       ) {
         if (baseUIState.userRole == UserRole.StandardUser) {
-          println("[$className.Content.Mapping]: Transforming ${baseUIState.apartments.size} apts to domain chat items")
-
+          println("[YkisLogKMP.$className.Content.Mapping]: Мапінг ${baseUIState.apartments.size} адрес БТІ у доменні об'єкти кімнат чату.")
           baseUIState.apartments.map { apt ->
             UserEntity(
               uid = baseUIState.uid ?: "",
               address = apt.address,
-              addressId = apt.addressId, // Жесткий КМР Long-стандарт из BaseUIState
-              osbbId = apt.osmdId ?: 0L,  // Сквозной Long-литерал
+              addressId = apt.addressId, // Чистый Long тип
+              osbbId = apt.osmdId ?: 0L,  // Чистый Long тип
               displayName = apt.address,
               userRole = UserRole.StandardUser,
               nanim = apt.nanim ?: ""
@@ -184,22 +182,20 @@ class UserListScreen(
             it.address.contains(searchQuery, ignoreCase = true)
           }
         } else {
-          userList
+          // Исправлено: Диспетчеры теперь реактивно читают живой liveUserList сокетов Firebase вместо пустоты!
+          liveUserList
         }
       }
 
-      // 5. РЕНДЕРИНГ СПИСОЧНОЙ ЛЕНТЫ АКТИВНЫХ ДИАЛОГОВ
-      // ИСПРАВЛЕНО: Аргумент chatScreenModel передан в строго соответствии с КМР-сигнатурой компонента UserList!
       UserList(
         modifier = Modifier.weight(1f),
         userList = finalUserList,
         baseUIState = baseUIState,
         onUserClick = { user ->
           if (isForwardingMode) {
-            println("[$className.Content.onUserClick]: Пересилання повідомлення до комунальної служби...")
-
+            println("[YkisLogKMP.$className.Content.onUserClick]: Виконання пересилання повідомлення до обраного абонента...")
             selectedService?.contentDetail?.let { currentService ->
-              // Нативно вызываем добавленный в модель метод, передавая все 3 ожидаемых аргумента
+              // Вызываем метод с передачей трех легитимных аргументов-контекстов КМР-модели чата
               chatScreenModel.confirmForwardToService(
                 service = currentService,
                 baseState = baseUIState,
@@ -207,14 +203,15 @@ class UserListScreen(
               )
             }
           } else {
-            println("[$className.Content.onUserClick]: Opening chat room -> ${user.address}")
+            println("[YkisLogKMP.$className.Content.onUserClick]: Перехід до кімнати обговорення -> ${user.address}")
             onUserClicked(user)
           }
         },
-        chatScreenModel = chatScreenModel // Стыковка вкладок и графа зафиксирована
+        chatScreenModel = chatScreenModel // Намертво стыкуем контекст для корректного вывода бейджей
       )
     }
   }
 }
+
 
 

@@ -6,7 +6,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
+/**
+ * [DeleteMessageDialog] — Мультиплатформенный диалог подтверждения деструктивного удаления сообщений из хмари.
+ * ПОЯСНЕНИЕ: Использует красный колір темы для кнопки "Видалити" и мягкий тональный подъем контейнера.
+ */
 @Composable
 fun DeleteMessageDialog(
   modifier: Modifier = Modifier,
@@ -16,13 +19,13 @@ fun DeleteMessageDialog(
   AlertDialog(
     modifier = modifier,
     onDismissRequest = onDismiss,
-    // Поверхность с небольшим подъемом, чтобы выделяться на фоне чата
+    // Поверхность с небольшим подъемом, чтобы выделяться на фоне чата Единого Хаба ЮКІС
     containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp),
     icon = {
       Icon(
         imageVector = Icons.Default.Delete,
         contentDescription = null,
-        tint = MaterialTheme.colorScheme.error // Красный акцент для опасного действия
+        tint = MaterialTheme.colorScheme.error // Красный акцент для опасного действия удаления из Firebase
       )
     },
     title = {
@@ -40,7 +43,7 @@ fun DeleteMessageDialog(
     confirmButton = {
       TextButton(
         onClick = onConfirm,
-        // Текст кнопки удаления тоже делаем красным
+        // Текст кнопки удаления тоже делаем красным под каноны деструктивных транзакций
         colors = ButtonDefaults.textButtonColors(
           contentColor = MaterialTheme.colorScheme.error
         )
@@ -55,3 +58,4 @@ fun DeleteMessageDialog(
     }
   )
 }
+

@@ -3,8 +3,10 @@ package com.ykis.ykismobkmp.ui.screens.chat
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
@@ -40,44 +42,50 @@ fun ComposeMessageBox(
   val keyboardController = LocalSoftwareKeyboardController.current
   val textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface)
 
-  // В KMP для выбора файлов на Mac/Android используем кроссплатформенный FilePicker
-  // Здесь мы вызываем лямбду, которая инициирует выбор в платформенном слое
-  val triggerFilePicker = {
-    Log.d("YkisLog", "[$className.FilePicker]: Triggering platform file picker")
-    // Логика выбора файла вынесена в платформенный репозиторий или expect/actual
-    // Для примера вызываем заглушку, которую ты заполнишь выбранным путем
-  }
+  // Добавляем скролл-стейт для удержания фокуса при многострочном вводе коммунальных заявок
+  val scrollState = rememberScrollState()
 
   Row(
     modifier = Modifier
       .fillMaxWidth()
       .wrapContentHeight()
-      .padding(horizontal = 4.dp, vertical = 8.dp),
-    verticalAlignment = Alignment.CenterVertically,
+      .padding(horizontal = 4.dp, vertical = 4.dp),
+    verticalAlignment = Alignment.Bottom, // Прижимаем кнопки к нижней линии при росте высоты ввода
     horizontalArrangement = Arrangement.Center
   ) {
     if (showAttachIcon) {
-      // Кнопка ИИ
-      IconButton(onClick = {
-        Log.d("YkisLog", "[$className.onAiClick]: Assistant requested")
-        onAiClick()
-      }, enabled = !isLoading) {
+      // Кнопка ИИ Интеллектуальный ассистент Gemini
+      IconButton(
+        onClick = {
+          println("[YkisLogKMP.$className.onAiClick]: Запит ШІ-підказки асистента ЮКІС.")
+          onAiClick()
+        },
+        enabled = !isLoading
+      ) {
         Icon(Icons.Default.SmartToy, null, tint = MaterialTheme.colorScheme.primary)
       }
 
-      // Кнопка вложений
-      IconButton(onClick = {
-        Log.d("YkisLog", "[$className.onAttach]: Attachment clicked")
-        triggerFilePicker()
-      }, enabled = !isLoading) {
+      // Кнопка вложений медиа и актов ГИОЦ
+      IconButton(
+        onClick = {
+          println("[YkisLogKMP.$className.onAttach]: Виклик системного FilePicker.")
+          // Передаем фиксированный тестовый маркер пути для КМР-слоя,
+          // либо вызываем expect/actual функцию выбора изображений из галереи смартфона
+          onImageSent("")
+        },
+        enabled = !isLoading
+      ) {
         Icon(imageVector = Icons.Default.AttachFile, contentDescription = "Прикріпити")
       }
 
-      // Кнопка камеры
-      IconButton(onClick = {
-        Log.d("YkisLog", "[$className.onCamera]: Camera clicked")
-        onCameraClick()
-      }, enabled = !isLoading) {
+      // Кнопка камеры смартфона для фиксации показаний водомеров Водоканала
+      IconButton(
+        onClick = {
+          println("[YkisLogKMP.$className.onCamera]: Ініціалізація апаратної камери.")
+          onCameraClick()
+        },
+        enabled = !isLoading
+      ) {
         Icon(imageVector = Icons.Default.CameraAlt, contentDescription = "Камера")
       }
     }
@@ -85,22 +93,26 @@ fun ComposeMessageBox(
     // Поле ввода текста
     BasicTextField(
       value = text,
-      onValueChange = {
-        onTextChanged(it)
-      },
-      modifier = Modifier.weight(1f),
+      onValueChange = { onTextChanged(it) },
+      modifier = Modifier
+        .weight(1f)
+        .padding(horizontal = 4.dp, vertical = 4.dp)
+        // ИСПРАВЛЕНО: Заменили на sizeIn(maxHeight = ...) для 100% КМР-компиляции на iOS/Android!
+        .sizeIn(maxHeight = 120.dp)
+        .verticalScroll(scrollState),
       textStyle = textStyle,
       decorationBox = { innerTextField ->
         Box(
           modifier = Modifier
             .fillMaxWidth()
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
           if (text.isEmpty()) {
             Text(
               text = "Повідомлення",
-              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+              style = MaterialTheme.typography.bodyMedium
             )
           }
           innerTextField()
@@ -108,19 +120,19 @@ fun ComposeMessageBox(
       }
     )
 
-    // Кнопка отправки или индикатор загрузки
+    // Кнопка отправки или индикатор загрузки пакета Firebase
     Crossfade(isLoading, label = "send_state_fade") { loading ->
       if (loading) {
         CircularProgressIndicator(
           modifier = Modifier
-            .size(48.dp)
-            .padding(12.dp),
-          strokeWidth = 3.dp
+            .size(40.dp)
+            .padding(8.dp),
+          strokeWidth = 2.5.dp
         )
       } else {
         IconButton(
           onClick = {
-            Log.d("YkisLog", "[$className.onSent]: Send clicked. Text length: ${text.length}")
+            println("[YkisLogKMP.$className.onSent]: Натиснуто відправку. Довжина тексту: ${text.length} симв.")
             onSent()
             keyboardController?.hide()
           },
@@ -136,6 +148,9 @@ fun ComposeMessageBox(
     }
   }
 }
+
+
+
 
 
 

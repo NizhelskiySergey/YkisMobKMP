@@ -40,6 +40,8 @@ import com.ykis.ykismobkmp.ui.components.UserImage
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.choose_raion
+import ykismobkmp.composeapp.generated.resources.edit
+import ykismobkmp.composeapp.generated.resources.forward
 import ykismobkmp.composeapp.generated.resources.verify_email_title
 
 private const val tag = "MessageListItem"
@@ -50,7 +52,6 @@ fun formatTime24H(timestamp: Long): String = "12:00" // Твой КМР-форм
 
 /**
  * [MessageListItem] — Кроссплатформенный элемент отображения сообщения чата ЖЭК / ОСМД.
- * ИСПРАВЛЕНО: Полностью удалены зависимости от LocalContext и Android ImageRequest. Builder.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -98,7 +99,6 @@ fun MessageListItem(
         .background(containerColor)
         .combinedClickable(
           onClick = {
-            // Логика клика: если картинка — полноэкранный зум, если файл — открытие по ссылке
             when {
               messageEntity.imageUrl != null -> onClick()
               messageEntity.fileUrl != null -> onFileClick(messageEntity.fileUrl)
@@ -118,7 +118,8 @@ fun MessageListItem(
             tint = contentColor.copy(alpha = 0.6f)
           )
           Text(
-            text = stringResource(Res.string.verify_email_title), // ИСПРАВЛЕНО: Заменено на КМР Res.string
+            // ИСПРАВЛЕНО: Убрана подмена на верификацию email, выводим нативный КМР-ресурс пересылки
+            text = stringResource(Res.string.forward),
             style = MaterialTheme.typography.labelSmall,
             color = contentColor.copy(alpha = 0.6f),
             modifier = Modifier.padding(start = 4.dp)
@@ -140,7 +141,6 @@ fun MessageListItem(
 
       // 3. ИЗОБРАЖЕНИЕ (ПРИКРЕПЛЕННОЕ ФОТО ПОЛОМКИ / ЗАЯВКИ ГИОЦ)
       if (messageEntity.imageUrl != null) {
-        // ИСПРАВЛЕНО: Android-зависимый ImageRequest стерт, Coil 3 AsyncImage нативно принимает String-модель
         AsyncImage(
           model = messageEntity.imageUrl,
           contentDescription = null,
@@ -151,7 +151,6 @@ fun MessageListItem(
 
       // 4. ОТОБРАЖЕНИЕ ДОКУМЕНТА (АКТЫ ВЫПОЛНЕНИЯ РАБОТ / СМЕТЫ ОСМД)
       if (messageEntity.fileUrl != null) {
-        // ИСПРАВЛЕНО: Вызов Log.d заменен на println в КМР стандарте [Класс.Метод]
         println("[$tag.MessageListItem]: Rendering FILE bubble: ${messageEntity.fileUrl}")
 
         Row(
@@ -195,7 +194,8 @@ fun MessageListItem(
       ) {
         if (messageEntity.edited) {
           Text(
-            text = stringResource(Res.string.choose_raion), // ИСПРАВЛЕНО: Заменено на КМР Res.string
+            // ИСПРАВЛЕНО: Убрана подмена на выбор района, выводим легитимный КМР-ресурс редактирования
+            text = stringResource(Res.string.edit),
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
             color = contentColor.copy(alpha = 0.5f),
             modifier = Modifier.padding(end = 4.dp)
@@ -218,6 +218,7 @@ fun MessageListItem(
     }
   }
 }
+
 
 
 

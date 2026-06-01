@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen
@@ -159,46 +160,8 @@ object MainMeterScreenDest : Screen {
   }
 }
 
-object AdminUserListScreenDest : cafe.adriel.voyager.core.screen.Screen {
-  @Composable
-  override fun Content() {
-    val classNameRegistry = "ScreensRegistry"
-    println("[YkisLogKMP.$classNameRegistry.AdminUserListScreenDest]: Маршрутизатор передає управління холсту списку абонентів")
 
-    val chatScreenModel = org.koin.compose.koinInject<ChatScreenModel>()
-    val apartmentScreenModel = org.koin.compose.koinInject<ApartmentScreenModel>()
 
-    val userList by chatScreenModel.userList.collectAsState()
-    val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
-    val navigator = cafe.adriel.voyager.navigator.LocalNavigator.currentOrThrow
-
-    // Вызываем оригинальный компонент (холст), передавая круглые скобки
-    UserListScreen(
-      userList = userList,
-      navigationType = LocalNavigationType.current,
-      onDrawerClicked = {
-        // Коллбек клика по бургер-кнопке для открытия Drawer
-      },
-      onUserClicked = { selectedItem ->
-        if (baseUIState.userRole == UserRole.StandardUser) {
-          println("[YkisLogKMP.$classNameRegistry]: Стандартний користувач обрав квартиру ID: ${selectedItem.addressId}L")
-          apartmentScreenModel.setAddressId(selectedItem.addressId)
-          navigator.replaceAll(InfoApartmentScreenDest(selectedItem.addressId))
-        } else {
-          val osbbId = when (baseUIState.userRole) {
-            UserRole.VodokanalUser -> 9999L
-            UserRole.YtkeUser -> 9998L
-            UserRole.TboUser -> 9997L
-            else -> baseUIState.osbbId
-          }
-          println("[YkisLogKMP.$classNameRegistry]: Адмін відкриває чат з UID: ${selectedItem.uid} для підприємства: $osbbId")
-          chatScreenModel.openChatWithUser(selectedItem, baseUIState.userRole, osbbId.toInt())
-          navigator.push(ChatScreenDest(chatId = selectedItem.uid))
-        }
-      }
-    )
-  }
-}
 data class MainServiceScreenDest(
   val addressId: Long = 0L
 ) : Screen {

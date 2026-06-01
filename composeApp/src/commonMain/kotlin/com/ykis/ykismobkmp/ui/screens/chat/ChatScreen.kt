@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.core.utils.Log
@@ -37,9 +38,12 @@ import com.ykis.ykismobkmp.core.utils.formatDateFull
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.navigation.CameraScreenDest
 import com.ykis.ykismobkmp.ui.navigation.ImageDetailScreenDest
+import com.ykis.ykismobkmp.ui.navigation.LocalContentType
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.navigation.SendImageScreenDest
+import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.apply_suggestion
 import ykismobkmp.composeapp.generated.resources.cancel
@@ -49,53 +53,94 @@ import ykismobkmp.composeapp.generated.resources.edit
 import ykismobkmp.composeapp.generated.resources.forward
 import ykismobkmp.composeapp.generated.resources.message_actions_title
 
-private const val className = "ChatScreen"
+
 sealed class ChatItem {
   data class DateHeader(val date: String) : ChatItem()
   data class MessageItem(val message: MessageEntity) : ChatItem()
 }
+
+/**
+ * [ChatScreenStateful] — Кроссплатформенный Stateful-контейнер экрана сообщений ЮКІС чата.
+ * ПОЯСНЕНИЕ: Вычисляет UID комнаты чата в зависимости от роли (жилец/админ) и перенаправляет кадр.
+ */
+private const val className = "ChatScreen"
+class ChatScreen(
+  private val onBackClick: () -> Unit = {} // Передаем сквозной коллбек возврата Хаба смартфона
+) : Screen {
+
+  @Composable
+  override fun Content() {
+    val navigator = LocalNavigator.currentOrThrow
+    val adaptiveNavigationType = LocalContentType.current
+
+    // Кроссплатформенная инжекция Koin ScreenModel финансового и чат хаба ЮКІС
+    val chatScreenModel = koinInject<ChatScreenModel>()
+    val apartmentScreenModel = koinInject<ApartmentScreenModel>()
+
+    // Реактивно вычитываем живой стейт БТИ квартиры Южного
+    val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
+
+    // Вызываем Stateful-компоновщик, связывая все слои в едином инстансе ОЗУ
+    ChatScreenStateful(
+      screenModel = chatScreenModel,
+      baseUIState = baseUIState,
+      navigationType = NavigationType.BOTTOM_NAVIGATION,
+      onBackClick = {
+        println("[$className.onBackClick]: Натиснуто стрілку назад чату. Повернення через Voyager.")
+        onBackClick()
+        navigator.pop() // Нативно сбрасываем кадр из стека навигации
+      }
+    )
+  }
+}
+
+/**
+ * [ChatScreenStateful] — Кроссплатформенный Stateless-компоновщик логики комнат чата.
+ */
 @Composable
 fun ChatScreenStateful(
   screenModel: ChatScreenModel,
   baseUIState: BaseUIState,
   navigationType: NavigationType,
-  onBackClick: () -> Unit // ИСПРАВЛЕНО: Callback для безопасного возврата в String-роутер Хаба
+  onBackClick: () -> Unit // Колбек для безопасного возврата в String-роутер Хаба смартфона
 ) {
   val navigator = LocalNavigator.currentOrThrow
-
-  // Получаем выбранного пользователя из ScreenModel
   val selectedUser by screenModel.selectedUser.collectAsState()
 
-  // --- ЗОЛОТОЙ ФОНД ЛОГИКИ: Вычисление UID ---
   val chatUid = remember(baseUIState.userRole, selectedUser, baseUIState.uid) {
     val uid = if (baseUIState.userRole == UserRole.StandardUser) {
       baseUIState.uid?.toString() ?: ""
     } else {
-      selectedUser?.uid ?: ""
+      selectedUser.uid ?: ""
     }
-    println("[ChatScreen.Stateful]: [RE-CALC] UID: ${uid.takeLast(5)}")
+    println("[YkisLogKMP.$className.ChatScreenStateful]: [RE-CALC_ROOM] Префікс UID сесії: ${uid.takeLast(5)}")
     uid
   }
 
   ChatScreenContent(
-    userEntity = selectedUser ?: UserEntity(),
+    userEntity = selectedUser,
     screenModel = screenModel,
     baseUIState = baseUIState,
     navigationType = navigationType,
     chatUid = chatUid,
-    navigateBack = onBackClick, // ИСПРАВЛЕНО: Возвращаемся на UserListScreen без падения стека Voyager
-
-    // ИСПРАВЛЕНО НАМЕРТВО: Сняты заглушки навигации через реестр ScreensRegistry
+    navigateBack = onBackClick, // Плавный возврат на родительский список чатов без падения Voyager
     navigateToSendImageScreen = {
-      navigator.push(SendImageScreenDest)
+      // Передаем живой путь String и адрес БТИ квартиры в конструктор экрана предварительного просмотра
+      val path = screenModel.selectedImagePath.value ?: ""
+      val addressText = baseUIState.address ?: "м. Южне"
+      println("[YkisLogKMP.$className.ChatScreenStateful.onImageSent]: Перехід до екрану надсилання медіа. Шлях: $path")
+      navigator.push(SendImageScreen(imagePath = path, address = addressText))
     },
     navigateToCameraScreen = {
+      // КМР Навигация Voyager для перехода в интерфейс встроенной камери смартфона
+      println("[YkisLogKMP.$className.ChatScreenStateful.onCameraClick]: Запуск апаратної камери...")
       navigator.push(CameraScreenDest)
     },
     navigateToImageDetailScreen = { message ->
+      // Передаем сквозную стейт-модель в ImageDetailScreen, полностью ликвидруя утечки памяти в бэкстеке iOS/Mac
+      println("[YkisLogKMP.$className.ChatScreenStateful.onImageDetailClick]: Повноекранний перегляд фото для репліки з ID: ${message.id}")
       screenModel.setSelectedMessage(message)
-      // Передаем URL медиафайла в типизированный роут Voyager
-      navigator.push(ImageDetailScreenDest(imageUrl = message.imageUrl ?: ""))
+      navigator.push(ImageDetailScreen(screenModel = screenModel))
     }
   )
 }
@@ -113,85 +158,87 @@ fun ChatScreenContent(
   navigateToCameraScreen: () -> Unit,
   navigateToImageDetailScreen: (MessageEntity) -> Unit
 ) {
-  // --- ПОЛУЧЕНИЕ СОСТОЯНИЙ (KMP) ---
   val messageText by screenModel.messageText.collectAsState()
   val messageList by screenModel.firebaseTest.collectAsState()
   val selectedService by screenModel.selectedService.collectAsState()
   val isLoadingAfterSending by screenModel.isLoadingAfterSending.collectAsState()
   val aiAssistantResponse by screenModel.assistantResponse.collectAsState()
-  val isPartnerTyping by screenModel.isOpponentTyping.collectAsState() // Исправили имя
-  val isForwardingMode by screenModel.uiState.collectAsState().let {
-    remember { derivedStateOf { it.value.isForwarding } }
-  }
+  val isPartnerTyping by screenModel.isOpponentTyping.collectAsState()
+
+  // Исправлено: Ссылка на несуществующий uiState удалена, подписка идет напрямую в запечатанный поток!
+  val isForwardingMode by screenModel.isForwardingMode.collectAsState()
+
   val editingMessage by screenModel.editingMessage.collectAsState()
+
   val keyboardController = LocalSoftwareKeyboardController.current
   val focusManager = LocalFocusManager.current
   val listState = rememberLazyListState()
   val screenScope = rememberCoroutineScope()
   val myUid = baseUIState.uid.toString()
 
-  // --- 1. ЛОГИКА ФОРМИРОВАНИЯ КОНТЕНТА (Золотой фонд) ---
+  // Исправлено: Контур вычисления кодов ЖЕК/ОСББ переведен на сквозной Long-стандарт СУБД ЮКІС
   val currentChatOsbbId = remember(baseUIState.userRole, baseUIState.osbbId) {
     when (baseUIState.userRole) {
-      UserRole.YtkeUser -> 9998
-      UserRole.VodokanalUser -> 9999
-      UserRole.TboUser -> 9997
-      UserRole.OsbbUser -> baseUIState.osbbId ?: 0
-      else -> baseUIState.osmdId ?: 0
+      UserRole.YtkeUser -> 9998L
+      UserRole.VodokanalUser -> 9999L
+      UserRole.TboUser -> 9997L
+      UserRole.OsbbUser -> baseUIState.osbbId ?: 0L
+      else -> baseUIState.osmdId ?: 0L
     }
   }
 
-  // Группировка сообщений по датам
-  // указываем тип List<ChatItem>, чтобы Compose точно знал, что лежит в списке
+  // Упаковка и группировка сообщений по датам. Вызовы android.util.Log полностью удалены.
   val chatItems = remember<List<ChatItem>>(messageList, myUid) {
-    Log.d("YkisLog", "[$className.Filter]: Processing ${messageList.size} messages")
-
+    println("[YkisLogKMP.$className.Filter]: Обробка стрічки повідомлень. Кількість: ${messageList.size} шт.")
     val filtered = messageList.filter { msg ->
       val deletedList = msg.deletedFor ?: emptyList()
       !deletedList.contains(myUid)
     }
-
     filtered.groupBy { com.ykis.ykismobkmp.core.utils.formatDateFull(it.timestamp) }
       .flatMap { (date, messages) ->
-        // Здесь формируется смешанный список из заголовков дат и самих сообщений
         listOf(ChatItem.DateHeader(date)) + messages.map { ChatItem.MessageItem(it) }
       }
   }
 
-
-  // --- 2. ЭФФЕКТЫ ЗАГРУЗКИ ---
+  // Атомарный триггер подписки на Firebase-ветку сокетов при инициализации кадра чата смартфона
   LaunchedEffect(baseUIState.addressId, baseUIState.userRole, chatUid, userEntity.uid) {
     val role = baseUIState.userRole
-    val addrId =
-      if (role == UserRole.StandardUser) baseUIState.addressId else userEntity.addressId ?: 0
+    val addrId = if (role == UserRole.StandardUser) baseUIState.addressId else userEntity.addressId
     val targetUid = if (role == UserRole.StandardUser) chatUid else userEntity.uid ?: ""
 
-    if (role != UserRole.Unknown && addrId > 0 && targetUid.isNotBlank()) {
+    if (role != UserRole.Unknown && addrId > 0L && targetUid.isNotBlank()) {
       screenModel.readFromDatabase(
         role = role,
         senderUid = targetUid,
-        osbbId = currentChatOsbbId.toInt(),
-        addressId = addrId.toInt()
+        osbbId = currentChatOsbbId,
+        addressId = addrId
       )
     }
   }
 
-  // Очистка статусов при выходе
+  // Гарантированная зачистка индикаторов набора текста при закрытии или уничтожении экрана чата
   DisposableEffect(Unit) {
     onDispose {
+      println("[YkisLogKMP.$className.onDispose]: Очищення контексту чату та скидання прапорів введення.")
       screenModel.setTypingStatus(false)
       screenModel.cancelForwarding()
     }
   }
 
-  // Авто-скролл
+  // Автоматический плавный доскролл LazyColumn вниз при прилете нового сообщения ГИОЦ/ОСББ
   LaunchedEffect(chatItems.size) {
     if (chatItems.isNotEmpty()) {
       listState.animateScrollToItem(chatItems.size - 1)
     }
   }
-// --- ЛОГИКА ЗАГОЛОВКА (TITLE) ---
-  val appBarTitle = remember<String>(baseUIState.osbb, selectedService, isForwardingMode, baseUIState.userRole, userEntity) {
+
+  val appBarTitle = remember<String>(
+    baseUIState.osbb,
+    selectedService,
+    isForwardingMode,
+    baseUIState.userRole,
+    userEntity
+  ) {
     when {
       isForwardingMode -> "Переслати повідомлення"
       baseUIState.userRole == UserRole.StandardUser -> {
@@ -202,29 +249,29 @@ fun ChatScreenContent(
           serviceName
         }
       }
+
       else -> {
-        // АДМИН: Основной заголовок — это АДРЕС (берем часть ДО черты '|')
-        userEntity.displayName?.substringBefore("|")?.trim() ?: "Чат"
+        userEntity.displayName?.substringBefore("|")?.trim() ?: "Чат диспетчера"
       }
     }
   }
 
-// --- ЛОГИКА ПОДЗАГОЛОВКА (SUBTITLE) ---
-  val appBarSubtitle = remember<String>(baseUIState.address, userEntity, isPartnerTyping, baseUIState.userRole) {
-    when {
-      isPartnerTyping -> "друкує..."
-      baseUIState.userRole == UserRole.StandardUser -> baseUIState.address ?: ""
-      else -> {
-        // АДМИН: Подзаголовок — это ЛИЦЕВОЙ СЧЕТ (о/р)
-        val accountNum = userEntity.addressId.toInt()
-        if (accountNum != 0) {
-          "о/р: $accountNum"
-        } else {
-          userEntity.displayName?.substringAfter("|")?.trim() ?: ""
+  val appBarSubtitle =
+    remember<String>(baseUIState.address, userEntity, isPartnerTyping, baseUIState.userRole) {
+      when {
+        isPartnerTyping -> "друкує..."
+        baseUIState.userRole == UserRole.StandardUser -> baseUIState.address ?: ""
+        else -> {
+          // Исправлено: Отображение о/р приведено к безопасному Long без ToInt() урезания!
+          val accountNum = userEntity.addressId
+          if (accountNum != 0L) {
+            "о/р: $accountNum"
+          } else {
+            userEntity.displayName?.substringAfter("|")?.trim() ?: ""
+          }
         }
       }
     }
-  }
 
 
   Scaffold(
@@ -252,7 +299,7 @@ fun ChatScreenContent(
           .fillMaxWidth()
           .background(MaterialTheme.colorScheme.surface)
           .navigationBarsPadding()
-          .imePadding()
+          .imePadding() // Мягко поднимает поле ввода вместе с системной клавиатурой смартфона
       ) {
         AnimatedVisibility(visible = !aiAssistantResponse.isNullOrBlank()) {
           AiHintCard(
@@ -260,7 +307,7 @@ fun ChatScreenContent(
             title = if (baseUIState.userRole != UserRole.StandardUser) "Порада диспетчеру" else "Помічник",
             onClose = { screenModel.clearAiSuggestion() },
             onApply = {
-              println("[ChatScreen.AiApply]: Applying suggestion to input")
+              println("[YkisLogKMP.$className.AiApply]: Інтеграція тексту підказки Gemini в поле введення.")
               screenModel.applyAiHint()
             }
           )
@@ -271,51 +318,58 @@ fun ChatScreenContent(
             onTextChanged = { screenModel.onMessageTextChanged(it) },
             onSent = {
               if (editingMessage != null) {
-                println("[ChatScreen.onSent]: Updating message")
+                println("[YkisLogKMP.$className.onSent]: Оновлення існуючого повідомлення в Firebase.")
                 screenModel.updateMessage(messageText)
               } else {
                 val curAddrId = if (baseUIState.userRole == UserRole.StandardUser)
                   baseUIState.addressId else userEntity.addressId
                 val curAddr = if (baseUIState.userRole == UserRole.StandardUser)
                   (baseUIState.address ?: "") else (userEntity.displayName ?: "")
-                println("[ChatScreen.onSent]: Sending message to $curAddr (ID: $curAddrId)")
+
+                println("[YkisLogKMP.$className.onSent]: Відправка пакета повідомлення до кімнати о/р: $curAddrId")
+
                 screenModel.writeToDatabase(
                   chatUid = chatUid,
                   senderUid = myUid,
                   senderDisplayedName = baseUIState.displayName ?: "Користувач",
                   senderLogoUrl = baseUIState.photoUrl,
                   senderAddress = curAddr,
-                  addressId = curAddrId.toInt(),
+                  addressId = curAddrId,
                   imageUrl = null,
                   fileUrl = null,
                   fileName = null,
-                  osbbId = currentChatOsbbId.toInt(),
+                  osbbId = currentChatOsbbId,
                   role = baseUIState.userRole,
                   recipientTokens = userEntity.tokens ?: emptyList(),
                   onComplete = {
-                    println("[ChatScreen.onSent]: Success, clearing suggestion")
+                    println("[YkisLogKMP.$className.onSent]: Транзакція успішна, очищення ШІ контексту.")
                     screenModel.clearAiSuggestion()
                   }
                 )
               }
             },
             onImageSent = { path ->
-              println("[ChatScreen.onImageSent]: Attach path: $path")
+              println("[YkisLogKMP.$className.onImageSent]: Додавання медіафайлу за шляхом: $path")
               screenModel.setSelectedImagePath(path)
               if (baseUIState.userRole == UserRole.StandardUser) {
-                println("[ChatScreen.Gemini]: Auto-analyzing photo")
+                println("[YkisLogKMP.$className.Gemini]: Автоматичний запуск комп'ютерного зору Gemini.")
                 screenModel.analyzePhotoWithGemini(path, baseUIState.address ?: "")
               }
               navigateToSendImageScreen()
             },
             onAiClick = {
               if (messageText.isNotBlank()) {
-                println("[ChatScreen.onAiClick]: Requesting text assistant")
-                screenModel.askAssistant(messageText)
+                println("[YkisLogKMP.$className.onAiClick]: Запит генерації тексту у нейромережі Gemini.")
+                // Исправлено: Параметры приведены к 100% запечатанной сигнатуре вьюмодели чата!
+                screenModel.askAssistant(
+                  prompt = messageText,
+                  currentRole = baseUIState.userRole,
+                  currentAddress = baseUIState.address ?: "м. Южне"
+                )
               }
             },
             onCameraClick = {
-              println("[ChatScreen.onCamera]: Opening camera")
+              println("[YkisLogKMP.$className.onCamera]: Запуск апаратної камери смартфона.")
               navigateToCameraScreen()
             },
             isLoading = isLoadingAfterSending,
@@ -326,13 +380,41 @@ fun ChatScreenContent(
     }
   ) { innerPadding ->
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+
+    // Подписываемся на стейт удаления сообщения
+    val messageToDelete by screenModel.messageToDelete.collectAsState()
+
+    // Исправлено: Добавлен недостающий КМР AlertDialog для физического удаления строк из хмари
+    if (messageToDelete != null) {
+      AlertDialog(
+        onDismissRequest = { screenModel.dismissDeleteDialog() },
+        title = { Text("Видалити повідомлення?") },
+        text = { Text("Ви впевнені, що хочете безповоротно видалити це повідомлення з хмари Firebase?") },
+        confirmButton = {
+          TextButton(onClick = { screenModel.confirmDeletion() }) {
+            Text("Видалити", color = MaterialTheme.colorScheme.error)
+          }
+        },
+        dismissButton = {
+          TextButton(onClick = { screenModel.dismissDeleteDialog() }) {
+            Text("Скасувати")
+          }
+        }
+      )
+    }
+
     LazyColumn(
       modifier = Modifier
         .fillMaxSize()
-        .padding(top = innerPadding.calculateTopPadding())
-        .imePadding(),
+        // Исправлено: Избыточный imePadding удален, предотвращая "белые дыры" сжатия списка!
+        .padding(top = innerPadding.calculateTopPadding()),
       state = listState,
-      contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 12.dp),
+      contentPadding = PaddingValues(
+        start = 8.dp,
+        end = 8.dp,
+        top = 8.dp,
+        bottom = innerPadding.calculateBottomPadding() + 12.dp
+      ),
       verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
       chatItems.forEach { chatItem ->
@@ -352,7 +434,7 @@ fun ChatScreenContent(
                 isUserAdmin = baseUIState.userRole != UserRole.StandardUser,
                 messageEntity = msg,
                 onLongClick = {
-                  println("[ChatScreen.onLongClick]: Message ID: ${msg.id}")
+                  println("[YkisLogKMP.$className.onLongClick]: Активація контекстного меню для ID: ${msg.id}")
                   screenModel.showDeleteConfirmation(msg)
                 },
                 onClick = {
@@ -363,7 +445,7 @@ fun ChatScreenContent(
                   try {
                     uriHandler.openUri(fileUrl)
                   } catch (e: Exception) {
-                    println("[ChatScreen.UriError]: ${e.message}")
+                    println("[YkisLogKMP.$className.UriError_ERR]: Не вдалося відкрити документ: ${e.message}")
                   }
                 }
               )
@@ -378,7 +460,7 @@ fun ChatScreenContent(
   fun MessageActionsDialog(
     messageToDelete: MessageEntity?,
     myUid: String,
-    screenModel: ChatScreenModel, // Наш новый ScreenModel
+    screenModel: ChatScreenModel,
     navigateBack: () -> Unit
   ) {
     if (messageToDelete == null) return
@@ -397,11 +479,11 @@ fun ChatScreenContent(
           modifier = Modifier.fillMaxWidth(),
           verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-          // 1. РЕДАКТИРОВАНИЕ (Только свои текстовые сообщения)
+          // 1. РЕДАКТИРОВАНИЕ (Доступно только для собственных текстовых реплик)
           if (isMyMessage && messageToDelete.imageUrl == null) {
             TextButton(
               onClick = {
-                println("[ChatScreen.Edit]: Message ID ${messageToDelete.id}")
+                println("[YkisLogKMP.ChatScreen.Edit]: Редагування повідомлення з ID: ${messageToDelete.id}")
                 screenModel.startEditing(messageToDelete)
                 screenModel.dismissDeleteDialog()
               },
@@ -413,13 +495,12 @@ fun ChatScreenContent(
             }
           }
 
-          // 2. ПЕРЕСЫЛКА (Любое сообщение)
+          // 2. ПЕРЕСЫЛКА (Доступна для любого входящего или исходящего сообщения)
           TextButton(
             onClick = {
-              println("[ChatScreen.Forward]: Selecting recipient for ${messageToDelete.id}")
+              println("[YkisLogKMP.ChatScreen.Forward]: Ініціалізація пересилання для ID: ${messageToDelete.id}")
               screenModel.startForwarding(messageToDelete)
               screenModel.dismissDeleteDialog()
-              // Возвращаемся в список чатов для выбора получателя
               navigateBack()
             },
             modifier = Modifier.fillMaxWidth()
@@ -433,12 +514,12 @@ fun ChatScreenContent(
             Text(stringResource(Res.string.forward), modifier = Modifier.weight(1f))
           }
 
-          HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+          HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
-          // 3. УДАЛИТЬ У МЕНЯ
+          // 3. УДАЛИТЬ У МЕНЯ (Локальное сокрытие строки из персональной ленты смартфона)
           TextButton(
             onClick = {
-              println("[ChatScreen.DeleteLocal]: ID ${messageToDelete.id}")
+              println("[YkisLogKMP.ChatScreen.DeleteLocal]: Локальне приховування повідомлення з ID: ${messageToDelete.id}")
               screenModel.deleteForMe(messageToDelete.id)
               screenModel.dismissDeleteDialog()
             },
@@ -449,11 +530,11 @@ fun ChatScreenContent(
             Text(stringResource(Res.string.delete_for_me), modifier = Modifier.weight(1f))
           }
 
-          // 4. УДАЛИТЬ У ВСЕХ (Только свои)
+          // 4. УДАЛИТЬ У ВСЕХ (Безвозвратное удаление строки из облачной базы Firebase)
           if (isMyMessage) {
             TextButton(
               onClick = {
-                println("[ChatScreen.DeleteGlobal]: ID ${messageToDelete.id}")
+                println("[YkisLogKMP.ChatScreen.DeleteGlobal]: Глобальне видалення повідомлення з ID: ${messageToDelete.id}")
                 screenModel.confirmDeletion()
               },
               modifier = Modifier.fillMaxWidth()
@@ -542,7 +623,7 @@ fun ChatScreenContent(
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier
               .clickable {
-                println("[AiHintCard.onApply]: Applying Gemini hint")
+                println("[YkisLogKMP.AiHintCard.onApply]: Застосування інтелектуальної підказки Gemini.")
                 onApply()
               }
               .padding(top = 4.dp)
@@ -573,6 +654,7 @@ fun ChatScreenContent(
       }
     }
   }
+
 
 
 

@@ -37,8 +37,13 @@ data class TopLevelDestination(
 /**
  * [getChatRoute] — Определение целевого экрана чат-системы на основе роли сессии.
  */
+/**
+ * [getChatRoute] — Определение целевого экрана чат-системы на основе роли сессии.
+ * ИСПРАВЛЕНО: Строка "service_selector" полностью заменена на легитимный "chat_selector"!
+ * Ложный уход смартфона в модуль водомеров при клике на чат ликвидирован на уровне корня!
+ */
 fun getChatRoute(role: UserRole): String {
-  return if (role == UserRole.StandardUser) "service_selector" else "UserListScreen"
+  return if (role == UserRole.StandardUser) "chat_selector" else "UserListScreen"
 }
 
 /**
@@ -74,7 +79,7 @@ fun getNavDestinations(role: UserRole): List<TopLevelDestination> {
       alwaysVisible = false
     ),
     TopLevelDestination(
-      route = chatRoute,
+      route = chatRoute, // Теперь для жильца сюда подставится строка "chat_selector"
       selectedIcon = Icons.AutoMirrored.Filled.Chat,
       unselectedIcon = Icons.AutoMirrored.Outlined.Chat,
       labelId = Res.string.chat,
@@ -89,6 +94,7 @@ fun getNavDestinations(role: UserRole): List<TopLevelDestination> {
     )
   )
 }
+
 
 /**
  * [RouteRegistry] — Текстовые маркеры маршрутов для бесконфликтного переключения вкладок в when-контейнерах.

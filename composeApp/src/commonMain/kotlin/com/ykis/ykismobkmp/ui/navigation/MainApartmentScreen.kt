@@ -36,8 +36,10 @@ import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.appartment.InfoApartmentScreen
+import com.ykis.ykismobkmp.ui.screens.chat.ChatScreen
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenStateful
+import com.ykis.ykismobkmp.ui.screens.chat.ServiceSelectorScreen
 import com.ykis.ykismobkmp.ui.screens.chat.UserListScreen
 import com.ykis.ykismobkmp.ui.screens.ledger.MainServiceScreen
 import com.ykis.ykismobkmp.ui.screens.meter.MainMeterScreen
@@ -111,7 +113,7 @@ class MainApartmentScreen(
           UserRole.TboUser -> 9997L
           else -> baseUIState.osbbId
         }
-        chatScreenModel.trackUserIdentifiersWithRole(role, effectiveOsbbId.toInt())
+        chatScreenModel.trackUserIdentifiersWithRole(role, effectiveOsbbId)
       }
     }
     val finalizeApartmentSelection: (Long) -> Unit = { id ->
@@ -135,13 +137,12 @@ class MainApartmentScreen(
               onDrawerClicked = { coroutineScope.launch { drawerState.open() } }
             ).Content()
           }
-
           "UserListScreen" -> {
             UserListScreen(
-              userList = userList,
               navigationType = navigationType,
               onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
               onUserClicked = { selectedItem ->
+                // Используем оригинальную логику переключения на анкету БТИ квартиры
                 apartmentScreenModel.setAddressId(selectedItem.addressId)
                 activeSubModule = "InfoApartmentScreen"
               }
@@ -161,7 +162,6 @@ class MainApartmentScreen(
               onDrawerClick = { coroutineScope.launch { drawerState.open() } }
             ).Content()
           }
-
           "finance_selector" -> {
             MainServiceScreen(
               baseUIState = baseUIState,
@@ -169,17 +169,42 @@ class MainApartmentScreen(
               onDrawerClick = { coroutineScope.launch { drawerState.open() } }
             ).Content()
           }
+          "chat_selector" -> {
+            println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Шар 1 — відображення селектора служб.")
+            ServiceSelectorScreen(
+              baseUIState = baseUIState,
+              onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
+              onServiceClick = { selectedServiceDebt ->
+                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Службу обрано: ${selectedServiceDebt.name}. Перехід на список кімнат.")
 
-
-//          "ChatScreenStateful" -> {
-//            ChatScreenStateful(
-//              screenModel = chatScreenModel,
-//              baseUIState = baseUIState,
-//              navigationType = navigationType,
-//              onBackClick = { activeSubModule = "UserListScreen" }
-//            ).Content()
-//          }
-
+                // Переключаем Crossfade смартфона на шаг 2, сохраняя целостность стейтов в ОЗУ!
+                activeSubModule = "chat_user_list"
+              }
+            ).Content()
+          }
+          "chat_user_list" -> {
+            println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Шар 2 — відображення списку абонентів.")
+            UserListScreen(
+              onDrawerClicked = {
+                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Повернення назад на вибір компаній.")
+                activeSubModule = "chat_selector"
+              },
+              navigationType = navigationType,
+              onUserClicked = { selectedUserEntity ->
+                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Квартиру обрано: ${selectedUserEntity.address}. Вхід в кімнату повідомлень.")
+                activeSubModule = "chat_room_active"
+              }
+            ).Content()
+          }
+          "chat_room_active" -> {
+            println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Шар 3 — відкриття активної кімнати повідомлень ChatScreen.")
+            ChatScreen(
+              onBackClick = {
+                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Вихід з кімнати назад до списку квартир.")
+                activeSubModule = "chat_user_list"
+              }
+            ).Content()
+          }
           "SettingsScreenDest" -> {
             rememberSaveable(globalNavigator.lastItem) {
               SettingsScreen(
@@ -187,7 +212,6 @@ class MainApartmentScreen(
               )
             }.Content()
           }
-
 
           else -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -198,39 +222,39 @@ class MainApartmentScreen(
       }
     }
 
-
-
     // --- АДАПТИВНАЯ МАТРИЦА СБОРКИ ИНТЕРФЕЙСА (Смартфон против Планшета) ---
     if (navigationType == NavigationType.BOTTOM_NAVIGATION) {
       ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-          // Внутри пресета смартфона в MainApartmentScreen.kt обновите вызов шторки:
           ModalNavigationDrawerContent(
             baseUIState = baseUIState,
             navigator = globalNavigator,
             activeSubModule = activeSubModule,
-            onSubModuleChange = { newModule -> activeSubModule = newModule },
+            onSubModuleChange = { newModule ->
+              println("[YkisLogKMP.MainApartmentScreen.Drawer]: Зміна підмодуля зі шторки на: $newModule")
+              activeSubModule = newModule
+            },
             onMenuClick = { coroutineScope.launch { drawerState.close() } },
             navigateToApartment = finalizeApartmentSelection,
             isApartmentsEmpty = baseUIState.addressId == 0L
           )
-
         }
       ) {
         Scaffold(
           bottomBar = {
             val showBottomBar = baseUIState.addressId != 0L || baseUIState.userRole != UserRole.StandardUser
             if (showBottomBar) {
-              // ИСПРАВЛЕНО НАМЕРТВО: Передаем нативный глобальный навигатор Voyager в нижний бар
-              // Внутри пресета телефона в MainApartmentScreen.kt обновите вызов:
               BottomNavigationBar(
                 navigator = globalNavigator,
                 baseUIState = baseUIState,
                 activeSubModule = activeSubModule,
-                onSubModuleChange = { newModule -> activeSubModule = newModule }
+                onSubModuleChange = { newModule ->
+                  // Прямая Stateless-запись прилетевшего строкового роута чата ("chat_selector") или счетчиков
+                  println("[YkisLogKMP.MainApartmentScreen.BottomNav]: Зміна підмодуля з нижньої панелі на: $newModule")
+                  activeSubModule = newModule
+                }
               )
-
             }
           }
         ) { paddingValues ->
@@ -244,28 +268,27 @@ class MainApartmentScreen(
         }
       }
     } else {
-      // 🖥️ ПРЕСЕТ ПЛАНШЕТА / DESKTOP: Стаціонарний бічний рельс Rail
       Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Row(modifier = Modifier.fillMaxSize()) {
           ApartmentNavigationRail(
             baseUIState = baseUIState,
             navigator = globalNavigator,
             activeSubModule = activeSubModule,
-            onSubModuleChange = { newModule -> activeSubModule = newModule },
-
+            onSubModuleChange = { newModule ->
+              // Прямая Stateless-запись прилетевшего строкового роута для широкоформатных дисплеев
+              println("[YkisLogKMP.MainApartmentScreen.NavRail]: Зміна підмодуля з бокового рельсу на: $newModule")
+              activeSubModule = newModule
+            },
             isRailExpanded = isRailExpanded,
             onMenuClick = onMenuClick,
             navigateToApartment = finalizeApartmentSelection,
             railWidth = railWidth,
             isApartmentsEmpty = baseUIState.addressId == 0L
           )
-
-
           VerticalDivider(
             thickness = 0.5.dp,
             color = MaterialTheme.colorScheme.outlineVariant
           )
-
           Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
             RenderSubContent()
           }
@@ -274,6 +297,4 @@ class MainApartmentScreen(
     }
   }
 }
-
-
 

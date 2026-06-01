@@ -19,15 +19,29 @@ import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.domain.entity.MessageEntity
 import com.ykis.ykismobkmp.domain.entity.UserEntity
 import com.ykis.ykismobkmp.ui.components.UserImage
-
-
-private fun formatTimestamp(timestamp: Long): String = "12:00" // Твой КМР форматировщик на базе kotlinx-datetime
+import kotlinx.datetime.toLocalDateTime
 
 private const val className = "UserListItem"
 
 /**
+ * [formatTimestamp] — Кроссплатформенный форматтер времени на базе библиотеки kotlinx-datetime.
+ * Исправлено: Заглушка "12:00" удалена. Метод нативно вычисляет часы и минуты для Android/iOS.
+ */
+private fun formatTimestamp(timestamp: Long): String {
+  if (timestamp <= 0L) return ""
+  return try {
+    val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(timestamp)
+    val localDateTime = instant.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+    val hourStr = localDateTime.hour.toString().padStart(2, '0')
+    val minuteStr = localDateTime.minute.toString().padStart(2, '0')
+    "$hourStr:$minuteStr"
+  } catch (e: Exception) {
+    "00:00"
+  }
+}
+
+/**
  * [UserListItem] — Кроссплатформенный элемент отображения строки активного диалога жильца / диспетчера ЮКИС.
- * ИСПРАВЛЕНО: Устранены Android SDK привязки Log и Preview, логика парсинга адреса и превью сохранена в первозданном виде.
  */
 @Composable
 fun UserListItem(
@@ -50,8 +64,7 @@ fun UserListItem(
     modifier = modifier
       .fillMaxWidth()
       .clickable {
-        // ИСПРАВЛЕНО: Платформенный Log.d заменен на println в формате [Класс.Метод]
-        println("[$className.onClick]: Клик по строке чата. Собеседник UID: ${user.uid}")
+        println("[YkisLogKMP.$className.onClick]: Клик по строке чата. Собеседник UID: ${user.uid}")
         onUserClick(user)
       }
   ) {
@@ -136,5 +149,6 @@ fun UserListItem(
     )
   }
 }
+
 
 

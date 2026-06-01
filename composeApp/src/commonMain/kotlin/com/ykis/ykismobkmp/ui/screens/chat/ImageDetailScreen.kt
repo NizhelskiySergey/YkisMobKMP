@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,25 +37,28 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
 import com.ykis.ykismobkmp.domain.entity.MessageEntity
-
 private const val className = "ImageDetailScreen"
 
 /**
  * [ImageDetailScreen] — Кроссплатформенный Voyager-экран полноэкранного просмотра фотографий заявок ЮКИС.
- * ИСПРАВЛЕНО: Полностью удалены зависимости от android.net.Uri, внедрен КМР Zoom-контейнер Skiko рендеринга.
+ * Исправлено: Тяжелый MessageEntity удален из конструктора для предотвращения утечек ОЗУ на iOS/Mac.
+ * Все данные реактивно вычитываются из сквозной ScreenModel финансового/чат хаба.
  */
 class ImageDetailScreen(
-  private val messageEntity: MessageEntity
+  private val screenModel: ChatScreenModel // Передаем сквозную модель управления чатом
 ) : Screen {
 
   @Composable
   override fun Content() {
     val navigator = LocalNavigator.currentOrThrow
 
+    // Реактивно подписываемся на выбранное сообщение из ОЗУ вьюмодели
+    val currentMessage by screenModel.selectedMessage.collectAsState()
+
     ImageDetailContent(
-      messageEntity = messageEntity,
+      messageEntity = currentMessage,
       navigateUp = {
-        println("[$className.Content]: Закрытие просмотра фото. Нативный Voyager pop.")
+        println("[YkisLogKMP.$className.Content]: Закриття перегляду фото. Нативний Voyager pop.")
         navigator.pop()
       }
     )
@@ -77,9 +81,10 @@ fun ImageDetailContent(
   ) {
     Column(modifier = Modifier.fillMaxSize()) {
 
-      // РЕШЕНИЕ: Кросплатформенный, аппаратно ускоренный контейнер масштабирования (Zoom) для Mac, iOS и Android
+      // Кросплатформенный, аппаратно ускоренный контейнер масштабирования (Zoom) для Mac, iOS и Android
       var scale by remember { mutableStateOf(1f) }
       var offset by remember { mutableStateOf(Offset.Zero) }
+
       val state = rememberTransformableState { zoomChange, offsetChange, _ ->
         scale = (scale * zoomChange).coerceIn(1f, 5f) // Ограничиваем зум от 1х до 5х
         offset += offsetChange
@@ -92,10 +97,10 @@ fun ImageDetailContent(
           .transformable(state = state),
         contentAlignment = Alignment.Center
       ) {
-        // ИСПРАВЛЕНО: Вместо Android Uri используется Coil 3 AsyncImage, принимающая обычную КМР-строку String
+        // Вместо Android Uri используется Coil 3 AsyncImage, принимающая обычную КМР-строку String
         AsyncImage(
           model = messageEntity.imageUrl ?: "",
-          contentDescription = "Полноэкранное изображение поломки ЖКХ",
+          contentDescription = "Повноекранне зображення лічильника або аварії ЖКГ",
           modifier = Modifier
             .fillMaxSize()
             .graphicsLayer(
@@ -107,20 +112,20 @@ fun ImageDetailContent(
         )
       }
 
-      // Подпись к фотографии (если диспетчер или житель ввел сопроводительный текст заявки)
+      // Подпись к фотографии (если диспетчер или житель ввел сопроводительный текст заявки в чат)
       if (!messageEntity.text.isNullOrBlank()) {
         Surface(
           modifier = Modifier.fillMaxWidth(),
-          color = Color.Black.copy(alpha = 0.6f) // Полупрозрачный глубокий фон для текста
+          color = Color.Black.copy(alpha = 0.6f) // Полупрозрачный глубокий фон для текста под бренд ЮКІС
         ) {
           Text(
             modifier = Modifier
-              .navigationBarsPadding() // КМР-отступ от нативных системных кнопок снизу дисплея
+              .navigationBarsPadding() // КМР-отступ от нативных системных кнопок снизу дисплея смартфона
               .padding(16.dp),
             text = messageEntity.text,
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White,
-            maxLines = 3, // 3 линии для подробного описания аварии сантехники или электрики
+            maxLines = 3, // Ограничение для длинных описаний аварий сантехники
             overflow = TextOverflow.Ellipsis
           )
         }
@@ -143,4 +148,5 @@ fun ImageDetailContent(
     }
   }
 }
+
 

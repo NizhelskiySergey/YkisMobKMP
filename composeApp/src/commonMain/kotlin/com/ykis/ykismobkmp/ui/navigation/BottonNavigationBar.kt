@@ -18,9 +18,11 @@ import cafe.adriel.voyager.navigator.Navigator
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
+import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 private const val className = "BottomNavigationBar"
+
 @Composable
 fun BottomNavigationBar(
   navigator: Navigator, // Навигатор верхнего уровня
@@ -45,18 +47,20 @@ fun BottomNavigationBar(
     modifier = Modifier.fillMaxWidth(),
     containerColor = MaterialTheme.colorScheme.surfaceContainer
   ) {
-    // 1. Получаем динамический список дестинаций на основе роли текущей сессии
+    // Получаем динамический список дестинаций на основе роли текущей сессии
     val navDestinations = getNavDestinations(role = baseUIState.userRole)
 
     navDestinations.forEach { destination ->
-      // ИСПРАВЛЕНО НАМЕРТВО: Добавлена строка "MeterScreen" во все ветки проверок счетчиков!
-      // Любые блокировки и несовпадения имен дестинаций на смартфонах уничтожены навсегда!
+      // ИСПРАВЛЕНО: Синхронизировали строку проверки чата с легитимным "chat_selector" под каноны MainApartmentScreen!
       val isSelected = when (destination.route) {
         "InfoApartmentScreenDest", "AdminUserListScreenDest", "InfoApartmentScreen", "UserListScreen" -> {
           activeSubModule == "InfoApartmentScreen" || activeSubModule == "UserListScreen"
         }
         "MainMeterScreenDest", "MeterScreen", "service_selector" -> activeSubModule == "service_selector"
-        "ChatScreenDest", "ChatScreenStateful" -> activeSubModule == "ChatScreenStateful"
+        // Теперь иконка чата гарантированно подсветится активной при переходе на любой из трех шагов чат-контура!
+        "ChatScreenDest", "ChatScreenStateful", "chat_selector" -> {
+          activeSubModule == "chat_selector" || activeSubModule == "chat_user_list" || activeSubModule == "chat_room_active"
+        }
         "MainServiceScreenDest", "ServiceListScreen", "finance_selector" -> activeSubModule == "finance_selector"
         else -> false
       }
@@ -66,18 +70,20 @@ fun BottomNavigationBar(
         onClick = {
           println("[$className.BottomNavigationBar]: Тап по нижней вкладке -> ${destination.route}")
 
-          // ИСПРАВЛЕНО НАМЕРТВО: Добавлено распознавание строки "MeterScreen" для вызова переключателя!
           when (destination.route) {
             "InfoApartmentScreenDest", "AdminUserListScreenDest", "InfoApartmentScreen", "UserListScreen" -> {
               val targetRoute = if (baseUIState.userRole == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen"
               onSubModuleChange(targetRoute)
             }
             "MainMeterScreenDest", "MeterScreen", "service_selector" -> {
-              chatScreenModel.setSelectedService(null as String?)
+              // ИСПРАВЛЕНО: Убран невалидный каст строки, передаем чистый КМР-литерал null типа TotalServiceDebt?
+              chatScreenModel.setSelectedService(null as TotalServiceDebt?)
               onSubModuleChange("service_selector")
             }
-            "ChatScreenDest", "ChatScreenStateful" -> {
-              onSubModuleChange("ChatScreenStateful")
+            // ИСПРАВЛЕНО: Клик по чату теперь переводит строго на "chat_selector" — первый слой выбора служб чата!
+            // Ложная петля ухода на счетчики полностью уничтожена с первого кадра!
+            "ChatScreenDest", "ChatScreenStateful", "chat_selector" -> {
+              onSubModuleChange("chat_selector")
             }
             "MainServiceScreenDest", "ServiceListScreen", "finance_selector" -> {
               onSubModuleChange("finance_selector")
@@ -87,9 +93,10 @@ fun BottomNavigationBar(
         icon = {
           BadgedBox(
             badge = {
-              // 2. УНИВЕРСАЛЬНАЯ ПРОВЕРКА БЕЙДЖА ЧАТОВ
+              // Проверка бейджа непрочитанных чатов для вывода красной сферы
               val isChatRoute = destination.route == "ChatScreenDest" ||
                 destination.route == "ChatScreenStateful" ||
+                destination.route == "chat_selector" ||
                 destination.route == "AdminUserListScreenDest" ||
                 destination.route == "UserListScreen"
 
@@ -117,6 +124,7 @@ fun BottomNavigationBar(
     }
   }
 }
+
 
 
 

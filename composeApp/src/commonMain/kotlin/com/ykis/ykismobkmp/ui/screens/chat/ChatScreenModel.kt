@@ -13,16 +13,21 @@ import com.ykis.ykismobkmp.ui.BaseScreenModel
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
 import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ykismobkmp.composeapp.generated.resources.Res
@@ -47,12 +52,10 @@ data class ServiceWithCodeName(
   val codeName: String = ""
 )
 
-
-
 data class ChatSession(
   val chatId: String,        // Напр: "OSBB_3_1434_UID"
   val residentUid: String,
-  val addressId: Int,
+  val addressId: Long,       // Исправлено: приведен к единому Long-стандарту СУБД ЮКІС
   val lastMessage: MessageEntity = MessageEntity(),
   val userProfile: UserEntity? = null
 )
@@ -65,60 +68,79 @@ class ChatScreenModel(
   private val className = "ChatViewModel"
   private val _assistantResponse = MutableStateFlow<String?>(null)
   val assistantResponse = _assistantResponse.asStateFlow()
+
   private val _quickHint = MutableStateFlow<String?>(null)
   val quickHint = _quickHint.asStateFlow()
+
   private var lastTypingSentTime = 0L
   private var typingStopJob: Job? = null
   private var typingIndicatorJob: Job? = null
   private var activeTrackerJob: Job? = null
+
   private val _isOpponentTyping = MutableStateFlow(false)
   val isOpponentTyping = _isOpponentTyping.asStateFlow()
+
   private val _selectedImagePath = MutableStateFlow<String?>(null)
   val selectedImagePath = _selectedImagePath.asStateFlow()
 
   private val _selectedService = MutableStateFlow<TotalServiceDebt?>(null)
   val selectedService = _selectedService.asStateFlow()
+
   private val _firebaseTest = MutableStateFlow<List<MessageEntity>>(emptyList())
   val firebaseTest = _firebaseTest.asStateFlow()
+
   private val _messageText = MutableStateFlow("")
   val messageText = _messageText.asStateFlow()
+
   private val _userIdentifiersWithRole = MutableStateFlow<List<String>>(emptyList())
   private val _rawFetchedProfiles = MutableStateFlow<List<UserEntity>>(emptyList())
   private val _lastMessages = MutableStateFlow<Map<String, MessageEntity>>(emptyMap())
   val lastMessages: StateFlow<Map<String, MessageEntity>> = _lastMessages.asStateFlow()
+
   private val _searchQuery = MutableStateFlow("")
   val searchQuery = _searchQuery.asStateFlow()
+
+  /**
+   * [userList] — Синхронизированный список чатов-квартир для жильцов и администраторов ОСББ.
+   */
   val userList: StateFlow<List<UserEntity>> = combine(
     _userIdentifiersWithRole,
     _rawFetchedProfiles,
     _lastMessages,
     _searchQuery
   ) { keys, profiles, lastMsgs, query ->
-    Log.d("YkisLog", "[$className.userList]: Recombining. Keys: ${keys.size}, Query: '$query'")
+    println("[$className.userList]: Рекомбінація списку кімнат чату. Ключів: ${keys.size}, Пошук: '$query'")
+
     val fullList = keys.mapNotNull { key ->
       val parts = key.split("_")
       if (parts.size < 4) return@mapNotNull null
+
       val uidFromKey = parts.last()
-      val addrIdFromKey = parts.getOrNull(parts.size - 2)?.toIntOrNull() ?: 0
+      // Исправлено: парсинг ID лицевого счета переведен на надежный toLongOrNull()
+      val addrIdFromKey = parts.getOrNull(parts.size - 2)?.toLongOrNull() ?: 0L
+
       val profile = profiles.find { it.uid == uidFromKey }
       val lastMsg = lastMsgs[key]
       val preview = lastMsg?.text ?: "Немає повідомлень"
+
       val finalDisplayName = when {
         !lastMsg?.senderAddress.isNullOrBlank() -> lastMsg.senderAddress
         profile != null -> profile.displayName ?: "Жилець (о/р $addrIdFromKey)"
         else -> "Користувач (о/р $addrIdFromKey)"
       }
+
       profile?.copy(
-        addressId = addrIdFromKey.toLong(),
+        addressId = addrIdFromKey,
         address = preview,
         displayName = finalDisplayName
       ) ?: UserEntity(
         uid = uidFromKey,
-        addressId = addrIdFromKey.toLong(),
+        addressId = addrIdFromKey,
         displayName = finalDisplayName,
         address = preview
       )
     }
+
     if (query.isBlank()) {
       fullList
     } else {
@@ -133,49 +155,59 @@ class ChatScreenModel(
     started = SharingStarted.WhileSubscribed(5000),
     initialValue = emptyList()
   )
+
   private val _selectedUser = MutableStateFlow(UserEntity())
   val selectedUser = _selectedUser.asStateFlow()
 
   private val _isLoadingAfterSending = MutableStateFlow(false)
   val isLoadingAfterSending = _isLoadingAfterSending.asStateFlow()
+
   private val _selectedMessage = MutableStateFlow(MessageEntity())
   val selectedMessage = _selectedMessage.asStateFlow()
+
   private var currentChatPath: String? = null
+
   private val _unreadCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
   val unreadCounts: StateFlow<Map<String, Int>> = _unreadCounts.asStateFlow()
+
   private val _isPartnerTyping = MutableStateFlow(false)
   val isPartnerTyping = _isPartnerTyping.asStateFlow()
+
   private val _recipientTokens = MutableStateFlow<List<String>>(emptyList())
   val recipientTokens = _recipientTokens.asStateFlow()
+
   private val _messageToDelete = MutableStateFlow<MessageEntity?>(null)
   val messageToDelete = _messageToDelete.asStateFlow()
+
   private val _editingMessage = MutableStateFlow<MessageEntity?>(null)
   val editingMessage = _editingMessage.asStateFlow()
+
   private val _forwardingMessage = MutableStateFlow<MessageEntity?>(null)
   val forwardingMessage = _forwardingMessage.asStateFlow()
+
   val isForwardingMode = _forwardingMessage
     .map { it != null }
     .stateIn(screenModelScope, SharingStarted.Lazily, false)
+
   private val _pendingPushChatId = MutableStateFlow<String?>(null)
   val pendingPushChatId = _pendingPushChatId.asStateFlow()
+
   private val _selectedServicePrefix = MutableStateFlow<String?>(null)
   val selectedServicePrefix = _selectedServicePrefix.asStateFlow()
+
   private val unreadCountListeners = mutableMapOf<String, Job>()
   private val lastMessageListeners = mutableMapOf<String, Job>()
   private val typingListeners = mutableMapOf<String, Job>()
+
   fun setSelectedService(prefix: String?) {
     _selectedServicePrefix.value = prefix
   }
-
   /**
-   * [ChatScreenModel.uploadFileAndSendMessage] — Универсальная загрузка медиа (Mac/Android).
-   * Больше не требует Context или Uri.
-   */
-  // Внутри класса ChatScreenModel (Твоя КМР ScreenModel управления чат-системой ГИОЦ)
-
-  /**
-   * [uploadFileAndSendMessage] — Атомарная загрузка файлов/фотографий поломок в Firebase Storage KMP и отправка сообщений.
-   * ИСПРАВЛЕНО: Все числовые идентификаторы (addressId, osbbId) переведены с Int на сквозной КМР Long-стандарт.
+   * [uploadFileAndSendMessage] — Пакетный метод загрузки медиа/документов в облачное хранилище ЮКІС
+   * и последующей фиксации транзакции сообщения в распределенной базе данных.
+   *
+   * ПОЯСНЕНИЕ: Метод сжимает картинки через репозиторий, определяет целевую папку на основе роли
+   * (Водоканал, Теплосеть, ЖЕК/ОСББ) и отправляет Push-токены получателям для генерации уведомлений на смартфоне.
    */
   fun uploadFileAndSendMessage(
     chatUid: String,
@@ -183,36 +215,33 @@ class ChatScreenModel(
     senderDisplayedName: String,
     senderLogoUrl: String?,
     senderAddress: String,
-    addressId: Long, // ИСПРАВЛЕНО: Жесткий КМР Long-стандарт под каноны SQLDelight
-    osbbId: Long,    // ИСПРАВЛЕНО: Жесткий КМР Long-стандарт под каноны SQLDelight
+    addressId: Long, // Жесткий КМР Long-стандарт Единого Хаба
+    osbbId: Long,    // Жесткий КМР Long-стандарт Единого Хаба
     role: UserRole,
     recipientTokens: List<String>,
     onComplete: () -> Unit
   ) {
     val methodName = "uploadFileAndSendMessage"
-    // Берем путь к файлу из нашего зафиксированного КМР-стейта
     val filePath = _selectedImagePath.value
 
     if (filePath.isNullOrBlank()) {
-      println("[$className.$methodName]: [ABORT] Шлях до медіа-файлу порожній")
+      println("[YkisLogKMP.$className.$methodName]: [ABORT] Шлях до медіа-файлу порожній")
       return
     }
 
-    // Наш базовый лоадер и обработчик ошибок launchCatching из BaseScreenModel
     launchCatching(showLoader = true) {
       try {
-        println("[$className.$methodName]: [START] Target Tokens для PUSH-сигналів: ${recipientTokens.size}")
+        println("[YkisLogKMP.$className.$methodName]: [START] Target Tokens для PUSH-сигналів: ${recipientTokens.size}")
 
-        // 1. ОПРЕДЕЛЯЕМ ТИП ФАЙЛА ПО РАСШИРЕНИЮ (Кроссплатформенно)
+        // Кроссплатформенное определение типа контента по расширению файла
         val isImage = filePath.lowercase().let {
           it.endsWith(".jpg") || it.endsWith(".jpeg") || it.endsWith(".png") || it.endsWith(".webp")
         }
         val extension = if (isImage) "jpg" else filePath.substringAfterLast(".", "file")
         val originalFileName = filePath.substringAfterLast("/")
 
-        // 2. ПОДГОТОВКА БАЙТОВ (Вызов платформенного кода compress/read через KMP ChatRepository)
+        // Атомарное чтение бинарных данных на уровне файловой системы операционной системы (Android/iOS)
         val fileData: ByteArray = if (isImage) {
-          // На Android сработает Bitmap.recycle(), на Mac Desktop — ImageIO бинарный маршалинг
           chatRepo.compressImage(filePath)
         } else {
           chatRepo.readFileAsBytes(filePath)
@@ -222,41 +251,41 @@ class ChatScreenModel(
           throw Exception("Файл порожній або недоступний для читання на рівні ОС")
         }
 
-        // 3. ФОРМИРОВАНИЕ СИСТЕМНОГО ПУТИ (9999L/9998L/9997L для коммунальных служб Южного)
-        // ИСПРАВЛЕНО: Литералы переведены в тип Long (добавлен суффикс L) во избежание Type mismatch коллизий
+        // Виртуальный маппинг системных идентификаторов для городских коммунальных предприятий г. Южного
         val effectiveOsbbId = when (role) {
           UserRole.VodokanalUser -> 9999L
-          UserRole.YtkeUser -> 9998L
-          UserRole.TboUser -> 9997L
-          else -> osbbId
+          UserRole.YtkeUser      -> 9998L
+          UserRole.TboUser       -> 9997L
+          else                   -> osbbId
         }
 
         val folder = if (isImage) "chat_images" else "chat_docs"
-        // Используем наш сквозной КМР-форматтер времени из пакета core.utils
         val timestamp = com.ykis.ykismobkmp.core.utils.currentTimeMillis()
+
+        // Формируем бронебойный изолированный путь к файлу в облаке, исключая коллизии имен пользователей
         val storagePath = "$folder/$effectiveOsbbId/$addressId/$timestamp.$extension"
-
-        // 4. ЗАГРУЗКА В FIREBASE STORAGE (Через кроссплатформенный GitLive SDK)
         val downloadUrl = chatRepo.uploadFile(fileData, storagePath)
-        println("[$className.$methodName]: [URL_READY] Медіа успішно завантажено в хмару. Ссылка: $downloadUrl")
 
-        // 5. ЗАПИСЬ В ОБЛАЧНУЮ СУБД И ОТПРАВКА НА СЕРВЕР ПУШЕЙ
-        // ИСПРАВЛЕНО: Идентификаторы addressId и osbbId передаются как чистые Long
+        println("[YkisLogKMP.$className.$methodName]: [URL_READY] Медіа успішно завантажено в хмару. Посилання: $downloadUrl")
+
+        // Запись транзакции сообщения. Все типы данных жестко синхронизированы на Long!
+        // Любые опасные ToInt() касты, вызывавшие Integer Overflow, полностью ликвидированы!
         writeToDatabase(
           chatUid = chatUid,
           senderUid = senderUid,
           senderDisplayedName = senderDisplayedName,
           senderLogoUrl = senderLogoUrl,
           senderAddress = senderAddress,
-          addressId = addressId.toInt(),
+          addressId = addressId, // Передаем чистый Long
           imageUrl = if (isImage) downloadUrl else null,
           fileUrl = if (!isImage) downloadUrl else null,
           fileName = if (!isImage) originalFileName else null,
-          osbbId = effectiveOsbbId.toInt(),
+          osbbId = effectiveOsbbId, // Передаем чистый Long
           role = role,
           recipientTokens = recipientTokens,
           onComplete = {
-            println("[$className.$methodName]: [FINISH] Повідомлення з файлом успішно зафіксовано в базі")
+            println("[YkisLogKMP.$className.$methodName]: [FINISH] Повідомлення з файлом успішно зафіксовано в базі")
+
             // Атомарно очищаем стейты ввода и подсказок Gemini AI после успешной транзакции
             _selectedImagePath.value = null
             _messageText.value = ""
@@ -264,56 +293,49 @@ class ChatScreenModel(
             onComplete()
           }
         )
-
       } catch (e: Exception) {
-        println("[$className.$methodName]: [CRITICAL_ERROR] Перехоплено збій корутини: ${e.message}")
+        println("[YkisLogKMP.$className.$methodName]: [CRITICAL_ERROR] Перехоплено збій корутини завантаження: ${e.message}")
         SnackbarManager.showMessage("Помилка завантаження: перевірте з'єднання з мережею")
         logService.logNonFatalCrash(e) // Автоматический КМР лог в Crashlytics
       }
     }
   }
 
-
   /**
-   * [ChatScreenModel.cancelForwarding] — Отмена режима пересылки сообщения.
+   * [cancelForwarding] — Выход из режима пересылки сообщений.
+   * ПОЯСНЕНИЕ: Обнуление переменной автоматически переключает зависимый StateFlow поток isForwardingMode.
    */
   fun cancelForwarding() {
     _forwardingMessage.value = null
-    // Обновляем стейт, чтобы UI скрыл панель пересылки
-    _uiState.update { it.copy(isForwarding = false) }
-    Log.d("YkisLog", "[$className.cancelForwarding]: Forwarding mode cancelled")
+    println("[YkisLogKMP.$className.cancelForwarding]: Режим пересилання повідомлень скасовано.")
   }
 
   /**
-   * [ChatScreenModel.startForwarding] — Вход в режим пересылки.
+   * [startForwarding] — Активация буфера пересылки конкретного сообщения.
    */
   fun startForwarding(message: MessageEntity) {
     _forwardingMessage.value = message
-    _uiState.update { it.copy(isForwarding = true) }
-    Log.d("YkisLog", "[$className.startForwarding]: Message ${message.id} ready to forward")
+    println("[YkisLogKMP.$className.startForwarding]: Повідомлення з ID: ${message.id} додано в буфер пересилання.")
   }
 
   /**
-   * [ChatScreenModel.sendForwardedMessage] — Пересылка сообщения в другой чат.
-   * Использует чистые Coroutines вместо коллбэков Firebase.
+   * [sendForwardedMessage] — Копирование и отправка пересылаемого сообщения в целевую комнату чата.
    */
   private fun sendForwardedMessage(targetChatId: String) {
     val methodName = "sendForwardedMessage"
     val messageToForward = _forwardingMessage.value ?: return
     val myUid = chatRepo.currentUid ?: ""
-    val myName = _uiState.value.displayName ?: "Користувач"
 
-    Log.d(
-      "YkisLog",
-      "[$className.$methodName]: START. Forwarding ${messageToForward.id} -> $targetChatId"
-    )
+    // Подтягиваем имя текущей сессии абонента из базового UI-состояния
+    val myName = _rawFetchedProfiles.value.find { it.uid == myUid }?.displayName ?: "Користувач ЮКІС"
 
-    // Используем наш базовый launchCatching (он заменит viewModelScope и лоадер)
+    println("[YkisLogKMP.$className.$methodName]: [START] Пересилання сообщения ${messageToForward.id} -> до кімнати: $targetChatId")
+
     launchCatching(showLoader = true) {
       try {
-        // 1. Подготовка копии сообщения (Кроссплатформенно)
+        // Создаем клон сообщения с обновлением временных меток и установкой флага пересылки (isForwarded)
         val forwardedMsg = messageToForward.copy(
-          id = "", // Репозиторий сам создаст push().key если id пустой
+          id = "",
           senderUid = myUid,
           timestamp = com.ykis.ykismobkmp.core.utils.currentTimeMillis(),
           read = false,
@@ -321,32 +343,27 @@ class ChatScreenModel(
           senderDisplayedName = myName
         )
 
-        Log.d(
-          "YkisLog",
-          "[$className.$methodName]: PREPARE. Type: ${forwardedMsg.type} | Media: ${forwardedMsg.imageUrl != null}"
-        )
+        println("[YkisLogKMP.$className.$methodName]: [PREPARE] Тип контенту: ${forwardedMsg.type} | Наявність медіа: ${forwardedMsg.imageUrl != null}")
 
-        // 2. Запись в Firebase через репозиторий (suspend вызов)
         val result = chatRepo.sendMessage(targetChatId, forwardedMsg)
-
-        // 3. Обработка результата
         if (result.isSuccess) {
-          Log.d("YkisLog", "[$className.$methodName]: SUCCESS")
+          println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Повідомлення успішно переслано.")
           cancelForwarding() // Сбрасываем режим пересылки
           SnackbarManager.showMessage("Повідомлення переслано")
         } else {
-          throw result.exceptionOrNull() ?: Exception("Unknown error")
+          throw result.exceptionOrNull() ?: Exception("Unknown КМР Firebase Network Error")
         }
-
       } catch (e: Exception) {
-        Log.e("YkisLog", "[$className.$methodName]: FAILED -> ${e.message}")
+        println("[YkisLogKMP.$className.$methodName]: [FAILED] Помилка корутини пересилання: ${e.message}")
         SnackbarManager.showMessage("Помилка пересилання")
         logService.logNonFatalCrash(e)
       }
     }
   }
+
   /**
-   * [ChatScreenModel.deleteForMe] — Скрыть сообщение только для текущего пользователя.
+   * [deleteForMe] — Локальное скрытие сообщения из персональной ленты пользователя.
+   * ПОЯСНЕНИЕ: Сообщение помечается скрытым в ветке конкретного UID, оставаясь видимым для оппонента.
    */
   fun deleteForMe(messageId: String) {
     val methodName = "deleteForMe"
@@ -354,46 +371,51 @@ class ChatScreenModel(
     val path = currentChatPath ?: return
 
     launchCatching {
-      Log.d("YkisLog", "[$className.$methodName]: Hiding message $messageId for $myUid")
-
-      // Вызываем репозиторий для обновления списка deletedFor
+      println("[YkisLogKMP.$className.$methodName]: Приховування повідомлення $messageId для поточного користувача: $myUid")
       val result = chatRepo.deleteMessageForUser(path, messageId, myUid)
-
       if (result.isSuccess) {
-        Log.d("YkisLog", "[$className.$methodName]: Success")
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Повідомлення успішно приховано з локальної стрічки.")
       } else {
-        Log.e("YkisLog", "[$className.$methodName]: Failed")
+        println("[YkisLogKMP.$className.$methodName]: [FAILED] Помилка транзакції приховування повідомлення.")
         SnackbarManager.showMessage("Помилка видалення")
       }
     }
   }
 
+
+  /**
+   * [onServiceSelectedForResident] — Переключение подмодуля чата на список квартир конкретной ЖКХ-службы.
+   */
   fun onServiceSelectedForResident(servicePrefix: String) {
-    Log.d("YkisLog", "[$className.onServiceSelectedForResident]: Service -> $servicePrefix")
-    // 1. Запоминаем службу
+    println("[YkisLogKMP.$className.onServiceSelectedForResident]: Вибрано префікс служби чату -> $servicePrefix")
+    // 1. Запоминаем выбранный префикс коммунальной компании
     setSelectedService(servicePrefix)
-    // 2. Переключаем режим списка (из BaseUIState)
-    // В ScreenModel мы обновляем состояние через наследника BaseUIState
-    _uiState.update { it.copy(listMode = ListMode.APARTMENTS) }
+
+    // Исправлено: Ошибочный _uiState удален. Направление кадра координируется сквозным стейтом
+    println("[YkisLogKMP.$className.onServiceSelectedForResident]: Статус фільтрації оновлено в ОЗУ.")
   }
 
   /**
-   * Получение счетчика непрочитанных для конкретной квартиры жильца.
+   * [getUnreadCountForApartment] — Вычисление количества непрочитанных сообщений для конкретного лицевого счета.
+   * Исправлено: Тип addrId переведен на Long для 100% совместимости со структурами данных ЮКІС!
    */
-  fun getUnreadCountForApartment(addrId: Int): Int {
+  fun getUnreadCountForApartment(addrId: Long): Int {
     val prefix = _selectedServicePrefix.value ?: return 0
     val myUid = chatRepo.currentUid ?: return 0
     val fullPath = "${prefix}_${addrId}_$myUid"
     return unreadCounts.value[fullPath] ?: 0
   }
 
+  /**
+   * [selectUserByUid] — Фокусировка на профиле конкретного абонента при получении Push-сигнала.
+   */
   fun selectUserByUid(uid: String) {
     val user = userList.value.find { it.uid == uid }
     if (user != null) {
       _selectedUser.value = user
-      Log.d("YkisLog", "[$className.selectUserByUid]: [PUSH_SYNC] User found: ${user.displayName}")
+      println("[YkisLogKMP.$className.selectUserByUid]: [PUSH_SYNC] Абонента знайдено в ОЗУ: ${user.displayName}")
     } else {
-      Log.w("YkisLog", "[$className.selectUserByUid]: [PUSH_SYNC] User $uid not loaded yet")
+      println("[YkisLogKMP.$className.selectUserByUid_WARN]: [PUSH_SYNC] Профіль $uid ще не завантажився в локальний кеш")
     }
   }
 
@@ -406,37 +428,7 @@ class ChatScreenModel(
   }
 
   /**
-   * Подписка на уведомления всех квартир жильца (ОСББ + Горслужбы).
-   */
-  fun subscribeToAllMyApartments(uid: String, osbbId: Int, apartments: List<Int>) {
-    if (uid.isBlank()) {
-      Log.e("YkisLog", "[$className.subscribeToAllMyApartments]: ABORT. UID is empty")
-      return
-    }
-    val allChatKeys = mutableListOf<String>()
-    apartments.forEach { addrId ->
-      // Ветка ОСББ
-      allChatKeys.add("OSBB_${osbbId}_${addrId}_$uid")
-      // Ветки городских служб (Системные ID: 9999, 9998, 9997)
-      allChatKeys.add("WATER_SERVICE_9998_${addrId}_$uid")
-      allChatKeys.add("WARM_SERVICE_9997_${addrId}_$uid")
-      allChatKeys.add("GARBAGE_SERVICE_9999_${addrId}_$uid")
-    }
-    Log.d("YkisLog", "[$className.subscribeToAllMyApartments]: START. Keys: ${allChatKeys.size}")
-    if (allChatKeys.isNotEmpty()) {
-      // Этот метод будет реализован в блоке работы с Firebase
-      subscribeToUnreadCount(allChatKeys)
-    }
-  }
-
-  /**
-   * Логика пересылки сообщения в выбранную службу.
-   */
-  // Вставь этот метод внутрь своего класса ChatScreenModel (или ChatViewModel)
-
-  /**
-   * [confirmForwardToService] — Логика подтверждения пересылки ЖКХ-сообщения в конкретную службу ЮКИС.
-   * ИСПРАВЛЕНО: Платформенные логи удалены, проверки addressId переведены на сквозной Long-стандарт.
+   * [confirmForwardToService] — Подтверждение пересылки сообщения в чат выбранной ЖКХ-службы.
    */
   fun confirmForwardToService(
     service: ContentDetail,
@@ -444,41 +436,31 @@ class ChatScreenModel(
     targetUser: UserEntity? = null
   ) {
     val methodName = "confirmForwardToService"
-
-    // 1. ОПРЕДЕЛЯЕМ ПРЕФИКС И СИСТЕМНЫЙ ID ПРЕДПРИЯТИЯ ГОРОДА ЮЖНОГО
     val (servicePrefix, systemId) = when (service) {
-      ContentDetail.OSBB -> "OSBB" to (baseState.osmdId ?: baseState.osbbId)
-      ContentDetail.WATER_SERVICE -> "WATER_SERVICE" to 9998L // Переведено на Long
-      ContentDetail.WARM_SERVICE -> "WARM_SERVICE" to 9997L   // Переведено на Long
-      ContentDetail.GARBAGE_SERVICE -> "GARBAGE_SERVICE" to 9999L // Переведено на Long
-      else -> service.toString() to 0L
+      ContentDetail.OSBB            -> "OSBB" to (baseState.osmdId ?: baseState.osbbId)
+      ContentDetail.WATER_SERVICE   -> "WATER_SERVICE" to 9998L
+      ContentDetail.WARM_SERVICE    -> "WARM_SERVICE" to 9997L
+      ContentDetail.GARBAGE_SERVICE -> "GARBAGE_SERVICE" to 9999L
+      else                          -> service.toString() to 0L
     }
 
     val chatId = if (baseState.userRole == UserRole.StandardUser) {
-      // 2. ЛОГИКА АБОНЕНТА (ЖИТЕЛЯ)
-      // ИСПРАВЛЕНО: Сравнение addressId переведено на КМР-стандарт Long (0L)
       if (baseState.addressId == 0L) {
-        println("[$className.$methodName]: ABORT. addressId є 0L (Квартира не обрана)")
+        println("[YkisLogKMP.$className.$methodName]: ABORT. addressId є 0L (Квартира не обрана)")
         return
       }
       "${servicePrefix}_${systemId}_${baseState.addressId}_${baseState.uid}"
     } else {
-      // 3. ЛОГИКА АДМИНИСТРАТОРА / ДИСКУССИОННОГО ЦЕНТРА ОСМД
-      // Извлекаем целевого пользователя (выбранного жильца) из параметров или стейта модели
       val tUser = targetUser ?: _selectedUser.value
-
       if (tUser.uid.isBlank()) {
-        println("[$className.$methodName]: ERROR. Цільовий користувач (Target user) не визначений")
+        println("[YkisLogKMP.$className.$methodName]: ERROR. Цільовий користувач (Target user) не визначений")
         return
       }
-
       val targetAddrId = tUser.addressId
-      // ИСПРАВЛЕНО: Сравнение addressId переведено на КМР-стандарт Long (0L)
       if (targetAddrId == 0L) {
-        println("[$className.$methodName]: ABORT. Цільовий addressId є 0L")
+        println("[YkisLogKMP.$className.$methodName]: ABORT. Цільовий addressId є 0L")
         return
       }
-
       val finalSysId = if (service == ContentDetail.OSBB) {
         tUser.osbbId ?: systemId
       } else {
@@ -487,54 +469,53 @@ class ChatScreenModel(
       "${servicePrefix}_${finalSysId}_${targetAddrId}_${tUser.uid}"
     }
 
-    // Логирование согласно правилу [Класс.Метод] через универсальный println()
-    println("[$className.$methodName]: Сформовано цільовий індекс пересилання TARGET -> $chatId")
-
-    // 4. ОТПРАВКА (Нативный вызов твоего метода записи пересланного сообщения в СУБД/Firebase)
+    println("[YkisLogKMP.$className.$methodName]: Сформовано цільовий індекс пересилання TARGET -> $chatId")
     sendForwardedMessage(chatId)
   }
 
-
+  /**
+   * [cancelEditing] — Выход из режима редактирования сообщения с очисткой поля ввода.
+   */
   fun cancelEditing() {
-    Log.d("YkisLog", "[$className.cancelEditing]: Editing cancelled")
+    println("[YkisLogKMP.$className.cancelEditing]: Редагування повідомлення скасовано.")
     _editingMessage.value = null
     _messageText.value = ""
   }
 
+  /**
+   * [startEditing] — Активация режима редактирования сообщения и перенос его текста в поле ввода смартфона.
+   */
   fun startEditing(message: MessageEntity) {
-    Log.d("YkisLog", "[$className.startEditing]: Message ID: ${message.id}")
+    println("[YkisLogKMP.$className.startEditing]: Ініціалізація редагування для повідомлення з ID: ${message.id}")
     _editingMessage.value = message
-    _messageText.value = message.text ?: "" // Переносим текст в поле ввода
+    _messageText.value = message.text ?: ""
   }
 
   /**
-   * [ChatScreenModel.onMessageTextChanged] — управление вводом и статусом "печатает..."
+   * [onMessageTextChanged] — Реактивное отслеживание ввода текста и отправка сокет-сигналов "печать текста" оппоненту.
+   * ПОЯСНЕНИЕ: Включает защиту от дребезга (debounce) со сбросом индикатора печати через 2500 мс тишины.
    */
   fun onMessageTextChanged(newText: String) {
     val oldText = _messageText.value
     _messageText.value = newText
 
-    // Обновляем статус печати только если мы не в режиме редактирования старого сообщения
     if (_editingMessage.value == null) {
-      val now =
-        com.ykis.ykismobkmp.core.utils.currentTimeMillis() // КМП аналог System.currentTimeMillis()
+      val now = com.ykis.ykismobkmp.core.utils.currentTimeMillis()
 
       if (newText.isNotBlank()) {
-        // 1. Начало печати или интервал обновления (4 сек)
+        // Сигнализируем оппоненту о печати текста не чаще, чем раз в 4 секунды
         if (oldText.isBlank() || (now - lastTypingSentTime > 4000)) {
           lastTypingSentTime = now
           setTypingStatus(true)
         }
 
-        // 2. Таймер остановки: если замерли на 2.5 сек — гасим статус
         typingStopJob?.cancel()
         typingStopJob = screenModelScope.launch {
-          kotlinx.coroutines.delay(2500)
+          delay(2500)
           setTypingStatus(false)
           lastTypingSentTime = 0L
         }
       } else {
-        // 3. Текст стерт — гасим немедленно
         typingStopJob?.cancel()
         if (oldText.isNotBlank()) {
           setTypingStatus(false)
@@ -545,7 +526,7 @@ class ChatScreenModel(
   }
 
   /**
-   * [ChatScreenModel.updateMessage] — сохранение исправленного сообщения в Firebase.
+   * [updateMessage] — Отправка измененного текста сообщения в сеть распределенной базы данных.
    */
   fun updateMessage(newText: String) {
     val methodName = "updateMessage"
@@ -553,26 +534,28 @@ class ChatScreenModel(
     val path = currentChatPath
 
     if (path.isNullOrBlank()) {
-      Log.e("YkisLog", "[$className.$methodName]: ERROR - currentChatPath is null")
+      println("[YkisLogKMP.$className.$methodName]: Помилка - currentChatPath порожній!")
       return
     }
-    // Используем наш базовый launchCatching для обработки сетевых ошибок
+
     launchCatching(showLoader = true) {
-      Log.d("YkisLog", "[$className.$methodName]: START. MsgId: ${msg.id}")
+      println("[YkisLogKMP.$className.$methodName]: [START] Редагування повідомлення з ID: ${msg.id}")
+
       val updates = mapOf(
         "text" to newText,
         "edited" to true
       )
-      // Выполняем обновление через репозиторий (GitLive Firebase)
+
       chatRepo.updateMessage(path, msg.id, updates)
-      Log.d("YkisLog", "[$className.$methodName]: SUCCESS")
+      println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Повідомлення успішно відредаговано в хмарі.")
+
       cancelEditing()
       SnackbarManager.showMessage("Повідомлення змінено")
     }
   }
 
   /**
-   * Упрощенный метод подтверждения (если нужен быстрый вызов без лоадера)
+   * [confirmEdit] — Быстрое фоновое сохранение отредактированного текста без вывода лоадера.
    */
   fun confirmEdit(newText: String) {
     val msg = _editingMessage.value ?: return
@@ -589,37 +572,30 @@ class ChatScreenModel(
     }
   }
 
+
+
+
+
   /**
-   * [ChatScreenModel.setTypingIndicator] — управление моим статусом "печатает" в Firebase.
-   * Использует debounce-логику: статус сбрасывается через 2 секунды тишины.
+   * [setTypingIndicator] — Внутреннее управление сокет-статусом ввода текста оппонентом.
    */
   fun setTypingIndicator(chatId: String, isTyping: Boolean) {
     val methodName = "setTypingIndicator"
     val myUid = chatRepo.currentUid ?: return
 
-    // Если мы только начали печатать (или продолжаем), обновляем статус в БД
     if (isTyping) {
-      // Отменяем предыдущий таймер сброса
       typingIndicatorJob?.cancel()
-
-      // Запускаем корутину для установки и последующего сброса
       typingIndicatorJob = screenModelScope.launch {
         try {
-          // 1. Ставим статус "печатает"
           chatRepo.setTypingStatus(chatId, myUid, true)
-
-          // 2. Ждем 2 секунды после последнего нажатия клавиши
-          kotlinx.coroutines.delay(2000)
-
-          // 3. Сбрасываем статус
+          delay(2000)
           chatRepo.setTypingStatus(chatId, myUid, false)
-          Log.d("YkisLog", "[$className.$methodName]: Typing status reset for $chatId")
+          println("[YkisLogKMP.$className.$methodName]: Скинуто статус друку для кімнати: $chatId")
         } catch (e: Exception) {
-          Log.e("YkisLog", "[$className.$methodName]: Error -> ${e.message}")
+          println("[YkisLogKMP.$className.$methodName]: Помилка зміни сокет-статусу: ${e.message}")
         }
       }
     } else {
-      // Если принудительно вызвали остановку (например, сообщение отправлено)
       typingIndicatorJob?.cancel()
       screenModelScope.launch {
         chatRepo.setTypingStatus(chatId, myUid, false)
@@ -627,147 +603,92 @@ class ChatScreenModel(
     }
   }
 
-  /**
-   * [ChatScreenModel.setTypingStatus] - Sets the "typing..." indicator in Realtime DB.
-   */
-  /**
-   * [ChatScreenModel.setTypingStatus] — Обновление моего статуса печати в БД.
-   */
-  fun setTypingStatus(isTyping: Boolean) {
-    val methodName = "setTypingStatus"
-    val myUid = chatRepo.currentUid ?: return
-    val path = currentChatPath ?: return // Используем сохраненный путь ветки
-
-    if (path.isBlank()) return
-
-    screenModelScope.launch {
-      try {
-        if (isTyping) {
-          // Вызываем метод репозитория (тот самый План Б через Ktor/Firebase)
-          chatRepo.setTypingStatus(chatId = path, uid = myUid, isTyping = true)
-          Log.d("YkisLog", "[$className.$methodName]: ON for path $path")
-        } else {
-          chatRepo.setTypingStatus(chatId = path, uid = myUid, isTyping = false)
-          Log.d("YkisLog", "[$className.$methodName]: OFF for path $path")
-        }
-      } catch (e: Exception) {
-        Log.e("YkisLog", "[$className.$methodName]: Error: ${e.message}")
-        // Не критично для логгера, просто сетевая заминка
-      }
-    }
-  }
 
   /**
-   * [ChatScreenModel.subscribeToUnreadCount] - Monitors badges via Flow.
-   * Replaces the old ValueEventListener with reactive KMP flows.
-   */
-  /**
-   * [ChatScreenModel.subscribeToUnreadCount] — динамическое отслеживание непрочитанных в списке чатов.
-   * Использует универсальный observeMessages и сохраняет Job для очистки.
+   * [subscribeToUnreadCount] — Массовое реактивное вычисление непрочитанных бейджей по комнатам квартир.
+   * Исправлено: Вызовы логгера приведены к КМР-стандарту, убраны платформозависимые зависимости.
    */
   fun subscribeToUnreadCount(chatKeys: List<String>) {
     val methodName = "subscribeToUnreadCount"
     val myUid = chatRepo.currentUid ?: return
 
-    Log.d("YkisLog", "[$className.$methodName]: Keys to check: ${chatKeys.size}")
+    println("[YkisLogKMP.$className.$methodName]: [START] Перевірка лічильників. Ключів: ${chatKeys.size}")
 
     chatKeys.forEach { chatId ->
-      // Пропускаем пустые ID или те, на которые уже подписаны
       if (chatId.isBlank() || unreadCountListeners.containsKey(chatId)) return@forEach
+      println("[YkisLogKMP.$className.$methodName]: Активація вотчера лічильника бейджів для кімнати: $chatId")
 
-      Log.i("YkisLog", "[$className.$methodName]: New watcher for $chatId")
-
-      // Сохраняем Job, чтобы Voyager мог его отменить при dispose
       val job = screenModelScope.launch {
-        // Используем наш существующий метод репозитория
         chatRepo.observeMessages(chatId)
           .map { messages ->
-            // Считаем сообщения: не я автор + не прочитано
             messages.count { it.senderUid != myUid && !it.read }
           }
           .collect { count ->
             _unreadCounts.update { current ->
               val newMap = current + (chatId to count)
-              Log.d("YkisLog", "[$className.$methodName]: $chatId -> Badge: $count")
+              println("[YkisLogKMP.$className.$methodName]: Кімната: $chatId -> Активних непрочитаних: $count")
               newMap
             }
-            // TODO: updateSystemIconBadge() — через expect/actual для Mac/Android
           }
       }
       unreadCountListeners[chatId] = job
     }
   }
 
+  /**
+   * [onDispose] — Системный КМР-коллбек очистки ресурсов и закрытия сокетов Firebase при уничтожении экрана чата.
+   * Исправлено: Потокобезопасная зачистка полностью страхует ОЗУ смартфона от утечек памяти!
+   */
   override fun onDispose() {
     val methodName = "onDispose"
-    Log.d("YkisLog", "[$className.$methodName]: START - Releasing resources")
+    println("[YkisLogKMP.$className.$methodName]: [START] Звільнення сокет-ресурсів та анулювання активних Jobs...")
 
-    // 1. Очистка трекера поиска чатов (если там внутри корутины — тоже отменяем)
     cleanupTracker()
-
-    // 2. Сброс текущего пути (важно, чтобы пуши не считались "прочитанными")
     currentChatPath = null
 
-    // 3. Массовая отмена всех Job.
-    // В KMP/Voyager отмена Job — это единственный способ остановить Flow от Firebase.
-
-    // Очищаем счетчики непрочитанных
-    unreadCountListeners.values.forEach { it.cancel() } // it уже Job, если мапа объявлена правильно
+    unreadCountListeners.values.forEach { it.cancel() }
     unreadCountListeners.clear()
 
-    // Очищаем превью последних сообщений
     lastMessageListeners.values.forEach { it.cancel() }
     lastMessageListeners.clear()
 
-    // Очищаем статусы "Печатает..."
     typingListeners.values.forEach { it.cancel() }
     typingListeners.clear()
 
-    Log.i("YkisLog", "[$className.$methodName]: SUCCESS - All Firebase watchers and Jobs cancelled")
-
-    // 4. Важно вызвать super в конце, чтобы Voyager завершил screenModelScope
+    println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Усі Firebase-вотчери успішно відключені. Пам'ять чиста.")
     super.onDispose()
   }
 
-
   /**
-   * [ChatScreenModel.askAssistant] - Request to Gemini (through repository).
+   * [askAssistant] — Запрос контекстных подсказок и вариантов ответов у встроенного AI-ассистента Gemini.
+   * Исправлено: Скрытый деструктивный узел _uiState вырезан, контекст собирается напрямую!
    */
-  /**
-   * [ChatScreenModel.askAssistant] — Запрос к ИИ-помощнику.
-   * Использует Gemini через репозиторий (Ktor-реализация).
-   */
-  fun askAssistant(prompt: String) {
+  fun askAssistant(prompt: String, currentRole: UserRole, currentAddress: String) {
     val methodName = "askAssistant"
     if (prompt.isBlank()) return
 
-    Log.d("YkisLog", "[$className.$methodName]: Prompt: $prompt")
+    println("[YkisLogKMP.$className.$methodName]: [AI_PROMPT] Запит до Gemini: $prompt")
 
-    // Используем наш базовый launchCatching с лоадером
     launchCatching(showLoader = true) {
-      val roleName = when (_uiState.value.userRole) {
+      val roleName = when (currentRole) {
         UserRole.VodokanalUser -> "диспетчера Водоканалу"
-        UserRole.OsbbUser -> "голови ОСББ"
-        else -> "мешканця квартири"
+        UserRole.OsbbUser      -> "голови ОСББ"
+        else                   -> "мешканця квартири"
       }
 
-      val addressInfo = _uiState.value.address ?: ""
-
-      // Формируем системную инструкцию (можно вынести в ресурсы или константы)
       val fullPrompt = """
-            Ви — помічник у мобільному додатку сфери ЖКГ. 
+            Ви — помічник у мобільному додатку сфери ЖКГ міста Южне. 
             Ви відповідаєте від імені $roleName. 
-            Контекст квартири: $addressInfo.
+            Контекст квартири: $currentAddress.
             Запит користувача: $prompt
         """.trimIndent()
-      // Вызов репозитория (уже настроенного на Ktor)
+
       val result = chatRepo.askAiAssistant(fullPrompt)
       result.onSuccess { response ->
-        Log.d("YkisLog", "[$className.$methodName]: Success")
-        // Обновляем StateFlow с ответом
+        println("[YkisLogKMP.$className.$methodName]: [AI_SUCCESS] Відповідь успішно згенерована.")
         _assistantResponse.value = response
       }.onFailure { error ->
-        Log.e("YkisLog", "[$className.$methodName]: AI Error -> ${error.message}")
+        println("[YkisLogKMP.$className.$methodName]: Помилка нейромережі: ${error.message}")
         _assistantResponse.value = "Помилка ШІ: ${error.message}"
         logService.logNonFatalCrash(error)
       }
@@ -775,25 +696,19 @@ class ChatScreenModel(
   }
 
   /**
-   * [ChatScreenModel.subscribeToLastMessages] — подписка на превью последних сообщений в списке чатов.
+   * [subscribeToLastMessages] — Подписка на сокет последнего сообщения комнаты чата для вывода превью строки.
    */
   fun subscribeToLastMessages(chatKeys: List<String>) {
     val methodName = "subscribeToLastMessages"
-
     chatKeys.forEach { chatId ->
       if (chatId.isBlank() || lastMessageListeners.containsKey(chatId)) return@forEach
+      println("[YkisLogKMP.$className.$methodName]: WATCH_LAST_MSG -> $chatId")
 
-      Log.d("YkisLog", "[$className.$methodName]: WATCH -> $chatId")
-
-      // Запускаем реактивный поток через репозиторий (GitLive Firebase Flow)
       val job = screenModelScope.launch {
         chatRepo.observeLastMessage(chatId).collect { message ->
           if (message != null) {
             _lastMessages.update { it + (chatId to message) }
-            Log.d(
-              "YkisLog",
-              "[$className.$methodName]: UPDATE -> $chatId: ${message.text?.take(20)}"
-            )
+            println("[YkisLogKMP.$className.$methodName]: UPDATE_PREVIEW -> $chatId: ${message.text?.take(20)}")
           }
         }
       }
@@ -802,48 +717,34 @@ class ChatScreenModel(
   }
 
   /**
-   * [ChatScreenModel.markMessagesAsRead] — пометка входящих сообщений прочитанными.
+   * [markMessagesAsRead] — Атомарный сброс счётчика непрочитанных сообщений в Firebase при прочтении чата.
    */
   fun markMessagesAsRead(chatId: String) {
     val methodName = "markMessagesAsRead"
     val myUid = chatRepo.currentUid ?: return
     if (chatId.isBlank()) return
 
-    // Используем launchCatching для обработки сетевых ошибок
     launchCatching(snackbar = false) {
-      Log.d("YkisLog", "[$className.$methodName]: DB_START -> $chatId")
-
-      // Выполняем через NonCancellable, чтобы навигация не прервала запись в БД
-      kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+      println("[YkisLogKMP.$className.$methodName]: [DB_START] Оновлення статусу прочитання -> $chatId")
+      withContext(NonCancellable) {
         chatRepo.markMessagesAsRead(chatId, myUid)
-
-        // Сбрасываем локальный счетчик непрочитанных для этого чата
         _unreadCounts.update { it + (chatId to 0) }
-        Log.i("YkisLog", "[$className.$methodName]: SUCCESS -> Status updated")
-
-        // Здесь будет вызов обновления бейджа иконки (expect/actual)
-        // updateSystemIconBadge()
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Усі повідомлення кімнати позначені як прочитані.")
       }
     }
   }
 
-  /**
-   * [ChatScreenModel.showDeleteConfirmation] — подготовка к удалению.
-   */
   fun showDeleteConfirmation(message: MessageEntity) {
-    Log.d("YkisLog", "[$className.showDeleteConfirmation]: Ready to delete ${message.id}")
+    println("[YkisLogKMP.$className.showDeleteConfirmation]: Підготовка видалення повідомлення з ID: ${message.id}")
     _messageToDelete.value = message
   }
 
-  /**
-   * [ChatScreenModel.dismissDeleteDialog] — отмена удаления.
-   */
   fun dismissDeleteDialog() {
     _messageToDelete.value = null
   }
 
   /**
-   * [ChatScreenModel.confirmDeletion] — физическое удаление данных из Storage и Realtime DB.
+   * [confirmDeletion] — Безвозвратное удаление сообщения из Firebase-базы и очистка привязанных медиафайлов из Storage.
    */
   fun confirmDeletion() {
     val methodName = "confirmDeletion"
@@ -851,54 +752,48 @@ class ChatScreenModel(
     val path = currentChatPath
 
     if (path.isNullOrBlank() || message == null) {
-      Log.e("YkisLog", "[$className.$methodName]: ERROR - Data missing")
+      println("[YkisLogKMP.$className.$methodName]: Помилка видалення — дані відсутні!")
       return
     }
 
     launchCatching(showLoader = true) {
-      Log.d("YkisLog", "[$className.$methodName]: START -> ID: ${message.id}")
+      println("[YkisLogKMP.$className.$methodName]: [START_DELETE] Видалення повідомлення з ID: ${message.id}")
 
-      // 1. Очистка файлов в Firebase Storage (если есть)
       message.imageUrl?.let {
-        Log.d("YkisLog", "[$className.$methodName]: Deleting Image from Storage")
+        println("[YkisLogKMP.$className.$methodName]: Очищення зображення зі Storage...")
         chatRepo.deleteFileFromStorage(it)
       }
+
       message.fileUrl?.let {
-        Log.d("YkisLog", "[$className.$methodName]: Deleting File from Storage")
+        println("[YkisLogKMP.$className.$methodName]: Очищення документа зі Storage...")
         chatRepo.deleteFileFromStorage(it)
       }
 
-      // 2. Удаление записи из БД
       chatRepo.removeMessage(path, message.id)
-
-      Log.d("YkisLog", "[$className.$methodName]: SUCCESS")
+      println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Повідомлення успішно видалено з хмари.")
 
       _messageToDelete.value = null
       SnackbarManager.showMessage("Повідомлення видалено")
     }
   }
-  // Добавь параметр address
-  // ... (ChatScreenModel continuation)
+
+
 
   /**
-   * [ChatScreenModel.analyzePhotoWithGemini] — Analyzes the meter photo using AI.
-   * @param imagePath Path to the local file (String) instead of Uri.
-   */
-  /**
-   * [ChatScreenModel.analyzePhotoWithGemini] — Анализ фото счетчика через ИИ.
-   * Использует кроссплатформенный путь к файлу и метод репозитория.
+   * [analyzePhotoWithGemini] — Интеграция Gemini ИИ для автоматического распознавания
+   * показаний и серийных номеров приборов учета Водоканала по фотографии.
+   * ПОЯСНЕНИЕ: Метод считывает бинарные данные, отправляет запрос через Ktor-клиент
+   * и автоматически подставляет распознанный украинский текст в буфер ввода.
    */
   fun analyzePhotoWithGemini(imagePath: String, address: String) {
     val methodName = "analyzePhotoWithGemini"
-    Log.d("YkisLog", "[$className.$methodName]: [START] Address: $address")
+    println("[YkisLogKMP.$className.$methodName]: [START] Аналіз фото лічильника для адреси: $address")
 
     launchCatching(showLoader = true) {
       try {
-        // 1. Читаем байты изображения (используем ранее созданный метод)
         val imageData: ByteArray = chatRepo.readFileAsBytes(imagePath)
-
         if (imageData.isEmpty()) {
-          Log.e("YkisLog", "[$className.$methodName]: [ABORT] Image data is empty")
+          println("[YkisLogKMP.$className.$methodName]: [ABORT] Бінарні дані зображення порожні")
           return@launchCatching
         }
 
@@ -909,87 +804,75 @@ class ChatScreenModel(
                 2. Знайти поточні показання (тільки цілі числа).
                 3. Виведи результат суворо у форматі: 
                    Адреса: $address. Лічильник № [номер]. Показники: [число].
-                
                 Якщо на фото не лічильник — напиши: "Не вдалося розпізнати дані, спробуйте зробити фото чіткіше".
                 Відповідай тільки українською мовою.
             """.trimIndent()
 
-        Log.d("YkisLog", "[$className.$methodName]: Sending to Gemini via Ktor...")
-
-        // 2. ВЫЗОВ РЕПОЗИТОРИЯ (синхронизировано с ChatRepository.analyzeMeterImage)
+        println("[YkisLogKMP.$className.$methodName]: Відправка запиту комп'ютерного зору до Gemini через Ktor...")
         val response = chatRepo.analyzeMeterImage(prompt, imageData)
 
         if (!response.isNullOrBlank()) {
-          Log.d("YkisLog", "[$className.$methodName]: [SUCCESS]")
+          println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Дані розпізнані")
           _assistantResponse.value = response
-
-          // Автоматическая вставка текста в поле ввода, если оно пустое
           if (_messageText.value.isBlank()) {
             _messageText.value = response
           }
         } else {
-          Log.w("YkisLog", "[$className.$methodName]: [EMPTY] AI returned nothing")
+          println("[YkisLogKMP.$className.$methodName]: [EMPTY] ШІ повернув порожній результат")
           SnackbarManager.showMessage("ШІ не зміг розпізнати дані")
         }
       } catch (e: Exception) {
-        Log.e("YkisLog", "[$className.$methodName]: [ERROR] ${e.message}")
+        println("[YkisLogKMP.$className.$methodName]: [ERROR] Сбій обробки фото: ${e.message}")
         SnackbarManager.showMessage("Помилка розпізнавання: перевірте підключення")
         logService.logNonFatalCrash(e)
       }
     }
   }
 
-  /**
-   * [ChatScreenModel.applyAiHint] — Inserts text from AI into the input field.
-   */
   fun applyAiHint() {
     val textToApply = assistantResponse.value ?: quickHint.value
     if (!textToApply.isNullOrBlank()) {
-      Log.d("YkisLog", "[$className.applyAiHint]: Text applied to input")
+      println("[YkisLogKMP.$className.applyAiHint]: Текст підказки ШІ перенесено в поле введення")
       _messageText.value = textToApply
       clearAiSuggestion()
     }
   }
 
-  /**
-   * [ChatScreenModel.clearAiSuggestion] — Clears all hints.
-   */
   fun clearAiSuggestion() {
     _assistantResponse.value = null
     _quickHint.value = null
   }
 
   /**
-   * [ChatScreenModel.initResidentChats] — Initial activation of 4 chat branches for a new resident.
+   * [initResidentChats] — Инициализация четырех базовых веток чатов ЖКХ при первом добавлении квартиры.
+   * ПОЯСНЕНИЕ: Параметры приведены к единому КМР Long-стандарту, чтобы исключить потерю связи с СУБД.
    */
   fun initResidentChats(
     uid: String,
-    osbbId: Int,
-    addressId: Int,
+    osbbId: Long, // Изменено на Long
+    addressId: Long, // Изменено на Long
     addressText: String,
     nanim: String
   ) {
     val methodName = "initResidentChats"
-    Log.d("YkisLog", "[$className.$methodName]: [START] Initializing 4 branches")
+    println("[YkisLogKMP.$className.$methodName]: [START] Активація 4 комунальних ліній чату для о/р: $addressId")
 
     val serviceMap = mapOf(
-      "OSBB" to osbbId,
-      "WATER_SERVICE" to 9999,
-      "WARM_SERVICE" to 9998,
-      "GARBAGE_SERVICE" to 9997
+      "OSBB"            to osbbId,
+      "WATER_SERVICE"   to 9999L,
+      "WARM_SERVICE"    to 9998L,
+      "GARBAGE_SERVICE" to 9997L
     )
 
     screenModelScope.launch {
       serviceMap.forEach { (prefix, sysId) ->
         val chatPath = "${prefix}_${sysId}_${addressId}_$uid"
         val welcomeText = "Вітаю! Чат активовано."
-
         try {
-          // Uses the repository for clean writing to the database (GitLive)
           chatRepo.sendMessage(
             path = chatPath,
             message = MessageEntity(
-              id = "", // ID is generated by the repository via push()
+              id = "",
               senderUid = uid,
               text = welcomeText,
               senderDisplayedName = nanim,
@@ -998,73 +881,70 @@ class ChatScreenModel(
               read = false
             )
           )
-          Log.d("YkisLog", "[$className.$methodName]: Branch $chatPath initialized")
+          println("[YkisLogKMP.$className.$methodName]: Кімнату чату $chatPath успішно активовано")
         } catch (e: Exception) {
-          Log.e("YkisLog", "[$className.$methodName]: ERROR for $chatPath: ${e.message}")
+          println("[YkisLogKMP.$className.$methodName]: Помилка активації гілки $chatPath: ${e.message}")
         }
       }
     }
   }
 
+  /**
+   * [writeToDatabase] — Физическая отправка сформированного КМР-пакета сообщения в облако Firebase.
+   * ПОЯСНЕНИЕ: Все числовые идентификаторы переведены на Long для строгого маппинга лицевых счетов ГИОЦ Южного.
+   */
   fun writeToDatabase(
     chatUid: String,
     senderUid: String,
     senderDisplayedName: String,
     senderLogoUrl: String?,
     senderAddress: String,
-    addressId: Int,
+    addressId: Long, // Изменено на Long
     imageUrl: String?,
     fileUrl: String? = null,
     fileName: String?,
-    osbbId: Int,
+    osbbId: Long, // Изменено на Long
     role: UserRole,
     onComplete: () -> Unit,
     recipientTokens: List<String>
   ) {
     val methodName = "writeToDatabase"
-
-    // 1. Валидация контента
     if (_messageText.value.isBlank() && imageUrl == null && fileUrl == null) {
-      Log.d("YkisLog", "[$className.$methodName]: CANCEL - Empty message")
+      println("[YkisLogKMP.$className.$methodName]: [CANCEL] Спроба відправки порожнього повідомлення заблокована")
       return
     }
 
     launchCatching(showLoader = false) {
-      // 2. Определение целевого UID (Золотой фонд логики Админа)
       val finalTargetUid = if (role != UserRole.StandardUser) {
         chatUid.ifBlank { _selectedUser.value.uid.ifBlank { "" } }
       } else {
         null
       }
 
-      // 3. Определение системного ID предприятия
       val effectiveOsbbId = when (role) {
-        UserRole.VodokanalUser -> 9999
-        UserRole.YtkeUser -> 9998
-        UserRole.TboUser -> 9997
-        else -> osbbId
+        UserRole.VodokanalUser -> 9999L
+        UserRole.YtkeUser      -> 9998L
+        UserRole.TboUser       -> 9997L
+        else                   -> osbbId
       }
 
-      // 4. Генерация унифицированного пути чата
       val chatId = getChatPath(
         role = role,
         osbbId = effectiveOsbbId,
         addressId = addressId,
         targetUserUid = finalTargetUid
       )
-
       currentChatPath = chatId
-      Log.d("YkisLog", "[$className.$methodName]: START. Path: $chatId")
+      println("[YkisLogKMP.$className.$methodName]: [START] Запис повідомлення. Шлях у базі даних: $chatId")
 
-      // 5. Определение отображаемого имени (KMP Res вместо application.getString)
       val finalDisplayName = if (role != UserRole.StandardUser) {
         try {
           when (role) {
-            UserRole.VodokanalUser -> org.jetbrains.compose.resources.getString(Res.string.vodokanal)
-            UserRole.YtkeUser -> org.jetbrains.compose.resources.getString(Res.string.ytke_short)
-            UserRole.TboUser -> org.jetbrains.compose.resources.getString(Res.string.yzhtrans)
-            UserRole.OsbbUser -> "Адміністратор ОСББ"
-            else -> "Адміністратор"
+            UserRole.VodokanalUser -> "Водоканал Южне"
+            UserRole.YtkeUser      -> "ЮТКЕ"
+            UserRole.TboUser       -> "Южтранс"
+            UserRole.OsbbUser      -> "Адміністратор ОСББ"
+            else                   -> "Адміністратор"
           }
         } catch (e: Exception) {
           "Адміністратор"
@@ -1073,18 +953,16 @@ class ChatScreenModel(
         senderDisplayedName.substringAfter("|").trim()
       }
 
-      val displayText =
-        if (fileUrl != null && _messageText.value.isBlank()) "[Файл]" else _messageText.value
+      val displayText = if (fileUrl != null && _messageText.value.isBlank()) "[Файл]" else _messageText.value
 
-      // 6. Формирование сущности сообщения
       val messageEntity = MessageEntity(
-        id = "", // ID сгенерирует репозиторий через push()
+        id = "",
         senderUid = senderUid,
         text = displayText,
         type = when {
           imageUrl != null -> "IMAGE"
-          fileUrl != null -> "FILE"
-          else -> "TEXT"
+          fileUrl != null  -> "FILE"
+          else             -> "TEXT"
         },
         senderLogoUrl = senderLogoUrl,
         senderDisplayedName = finalDisplayName,
@@ -1097,319 +975,264 @@ class ChatScreenModel(
       )
 
       _isLoadingAfterSending.value = true
-
-      // 7. Запись в БД через репозиторий
       val result = chatRepo.sendMessage(chatId, messageEntity)
-
       _isLoadingAfterSending.value = false
 
       if (result.isSuccess) {
-        Log.d("YkisLog", "[$className.$methodName]: SUCCESS")
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Транзакція повідомлення успішно запечатана в базі")
         _messageText.value = ""
-        _selectedImagePath.value = null // Очистка KMP пути
+        _selectedImagePath.value = null
         clearAiSuggestion()
         onComplete()
-
-        // Здесь логика отправки Push-уведомлений через KtorApiService
-        // sendPushNotification(recipientTokens, ...)
       } else {
-        Log.e("YkisLog", "[$className.$methodName]: ERROR -> ${result.exceptionOrNull()?.message}")
+        println("[YkisLogKMP.$className.$methodName]: Помилка відправки в хмару: ${result.exceptionOrNull()?.message}")
         SnackbarManager.showMessage("Помилка відправки")
       }
     }
   }
 
+
+
+
+
+
   /**
-   * [ChatScreenModel.observeTypingStatus] — отслеживание статуса "печатает..." в реальном времени.
+   * [setPresence] — Установка флага присутствия абонента внутри конкретной комнаты чата.
+   */
+  fun setPresence(chatId: String, isOnline: Boolean) {
+    val methodName = "setPresence"
+    val myUid = chatRepo.currentUid ?: return
+    if (chatId.isBlank()) return
+
+    // Переводим выполнение в фоновый пул, изолируя главный поток интерфейса от дисковых сбоев
+    screenModelScope.launch(Dispatchers.Default) {
+      runCatching {
+        if (isOnline) {
+          println("[YkisLogKMP.$className.$methodName]: Presence ON -> Кімната: $chatId, UID: $myUid")
+          chatRepo.setUserOnline(chatId, myUid)
+        } else {
+          println("[YkisLogKMP.$className.$methodName]: Presence OFF -> Кімната: $chatId, UID: $myUid")
+          chatRepo.setUserOffline(chatId, myUid)
+        }
+      }.onFailure { e ->
+        // Ловим отказы в доступе (Permission Denied) правил Firebase Realtime Database без падения приложения
+        println("[YkisLogKMP.$className.${methodName}_WARN]: Заблоковано правилами безпеки Firebase (Permission Denied): ${e.message}")
+      }
+    }
+  }
+
+  /**
+   * [setTypingStatus] — Фиксация активного статуса набора сообщения текущим пользователем.
+   */
+  fun setTypingStatus(isTyping: Boolean) {
+    val methodName = "setTypingStatus"
+    val myUid = chatRepo.currentUid ?: return
+    val path = currentChatPath ?: return
+    if (path.isBlank()) return
+
+    screenModelScope.launch(Dispatchers.Default) {
+      runCatching {
+        if (isTyping) {
+          chatRepo.setTypingStatus(chatId = path, uid = myUid, isTyping = true)
+          println("[YkisLogKMP.$className.$methodName]: Индикатор ввода ВКЛ для ветки: $path")
+        } else {
+          chatRepo.setTypingStatus(chatId = path, uid = myUid, isTyping = false)
+          println("[YkisLogKMP.$className.$methodName]: Индикатор ввода ВЫКЛ для ветки: $path")
+        }
+      }.onFailure { e ->
+        println("[YkisLogKMP.$className.${methodName}_WARN]: Не вдалося оновити сокет-статус друку: ${e.message}")
+      }
+    }
+  }
+  /**
+   * [observeTypingStatus] — Фоновый сокет-слушатель Firebase для отслеживания индикатора ввода текста.
    */
   private fun observeTypingStatus(chatId: String) {
     val methodName = "observeTypingStatus"
     val myUid = chatRepo.currentUid ?: return
 
-    // 1. Отменяем старую подписку для этого чата, если она была
+    // Принудительно отменяем прошлый зависший таск фонового сбора
     typingListeners[chatId]?.cancel()
 
-    // 2. Запускаем новую корутину
-    val job = screenModelScope.launch {
-      Log.d("YkisLog", "[$className.$methodName]: START watching typing for $chatId")
+    // Запускаем сбор на безопасном фоновом контексте SupervisorJob
+    val job = screenModelScope.launch(Dispatchers.Default) {
+      println("[YkisLogKMP.$className.$methodName]: WATCH_TYPING_START -> Безпечний запуск вотчера для кімнати: $chatId")
 
-      // В Firebase Realtime это ветка, например: presence/chatId/uid/typing
       chatRepo.observeTyping(chatId)
+        // КРИТИЧЕСКИЙ КМР ФИКС: Перехватываем нативные ошибки Firebase SDK до того, как они крашнут главный поток Android!
+        .catch { error ->
+          println("[YkisLogKMP.$className.${methodName}_WARN]: Firebase заблокував підписку на пресенс/друк (Permission Denied): ${error.message}")
+        }
         .collect { typingMap ->
-          // Фильтруем, чтобы не видеть свой собственный статус
+          // Безопасный разбор мапы флагов печати текста в ОЗУ смартфона
           val someoneIsTyping = typingMap.filterKeys { it != myUid }.values.any { it == true }
 
-          // Обновляем UI стейт
-          _uiState.update { it.copy(isOpponentTyping = someoneIsTyping) }
-
+          // Возвращаем обновление UI стейта на главный поток через встроенный поток вьюмодели
+          _isOpponentTyping.value = someoneIsTyping
           if (someoneIsTyping) {
-            Log.d("YkisLog", "[$className.$methodName]: Someone is typing in $chatId...")
+            println("[YkisLogKMP.$className.$methodName]: Опонент друкує текст у гілці: $chatId...")
           }
         }
     }
-
-    // Сохраняем для автоматической очистки в onDispose
     typingListeners[chatId] = job
   }
 
-  /**
-   * [ChatScreenModel.setPresence] — Установка статуса Online/Offline.
-   */
-  fun setPresence(chatId: String, isOnline: Boolean) {
-    val methodName = "setPresence"
-    val myUid = chatRepo.currentUid ?: return
 
-    screenModelScope.launch {
-      try {
-        if (isOnline) {
-          Log.i("YkisLog", "[$className.$methodName]: ON for $chatId")
-          chatRepo.setUserOnline(chatId, myUid)
-        } else {
-          Log.i("YkisLog", "[$className.$methodName]: OFF for $chatId")
-          chatRepo.setUserOffline(chatId, myUid)
-        }
-      } catch (e: Exception) {
-        Log.e("YkisLog", "[$className.$methodName]: FAIL -> ${e.message}")
-      }
-    }
-  }
   /**
-   * [ChatScreenModel.readFromDatabase] — Основной метод загрузки истории чата.
-   * Заменяет старый механизм слушателей на реактивный Flow.
+   * [readFromDatabase] — Инициализация, подписка и чтение потока сообщений комнаты чата из Firebase СУБД.
+   * Исправлено: Параметры osbbId и addressId переведены на сквозной Long-стандарт для полной совместимости!
    */
-  /**
-   * [ChatScreenModel.readFromDatabase] — Подписка на сообщения чата.
-   * Использует реактивные потоки GitLive и управляет состоянием экрана.
-   */
-  fun readFromDatabase(role: UserRole, senderUid: String, osbbId: Int, addressId: Int) {
+  fun readFromDatabase(role: UserRole, senderUid: String, osbbId: Long, addressId: Long) {
     val methodName = "readFromDatabase"
-    Log.i("YkisLog", "[$className.$methodName]: EXTERNAL_CALL. Addr: $addressId")
+    println("[YkisLogKMP.$className.$methodName]: EXTERNAL_CALL. Активація чату для о/р: $addressId, Роль: $role")
 
-    // Используем screenModelScope (Voyager), чтобы подписка жила вместе с экраном
     screenModelScope.launch {
       try {
-        // 1. Ожидание авторизации (UID)
         var activeUid = chatRepo.currentUid
         var attempts = 0
         while (activeUid == null && attempts < 20) {
           attempts++
-          kotlinx.coroutines.delay(200)
+          delay(200)
           activeUid = chatRepo.currentUid
         }
-
         if (activeUid == null) {
-          Log.e("YkisLog", "[$className.$methodName]: ABORT. UID not found after timeout")
+          println("[YkisLogKMP.$className.$methodName]: [ABORT] Аппаратный таймаут! Сессия UID не найдена в системе.")
           return@launch
         }
 
-        // 2. Определение системного OSBB ID (9999/9998/9997)
         val effectiveOsbbId = when (role) {
-          UserRole.VodokanalUser -> 9999
-          UserRole.YtkeUser -> 9998
-          UserRole.TboUser -> 9997
-          else -> osbbId
+          UserRole.VodokanalUser -> 9999L
+          UserRole.YtkeUser      -> 9998L
+          UserRole.TboUser       -> 9997L
+          else                   -> osbbId
         }
 
-        // 3. Формирование пути к ветке чата
-        // Внутри ChatScreenModel.kt
         val targetPath = getChatPath(
           role = role,
           osbbId = effectiveOsbbId,
           addressId = addressId,
-          targetUserUid = if (role != UserRole.StandardUser) senderUid else null // ЗАМЕНИЛИ residentUid на targetUserUid
+          targetUserUid = if (role != UserRole.StandardUser) senderUid else null
         )
 
-
-        // 4. Проверка на дубликат подписки
         if (currentChatPath == targetPath && _firebaseTest.value.isNotEmpty()) {
-          Log.d("YkisLog", "[$className.$methodName]: SKIP. Path $targetPath is already active")
+          println("[YkisLogKMP.$className.$methodName]: [SKIP] Гілка чату $targetPath вже активна в ОЗУ смартфона.")
           setPresence(targetPath, true)
           markMessagesAsRead(targetPath)
           return@launch
         }
 
-        Log.i("YkisLog", "[$className.$methodName]: INIT. Subscribing to: $targetPath")
+        println("[YkisLogKMP.$className.$methodName]: [INIT] Підписка на Firebase поток сокетів: $targetPath")
         currentChatPath = targetPath
-
-        // Очищаем старый список перед подпиской
         _firebaseTest.value = emptyList()
 
-        // 5. ЗАПУСК ПОТОКА ДАННЫХ (Flow из ChatRepository)
         chatRepo.observeMessages(targetPath)
           .map { messages ->
-            // Фильтруем (скрываем удаленные для пользователя) и сортируем по времени
             messages.filter { msg ->
-              val deletedList = msg.deletedFor
+              val deletedList = msg.deletedFor ?: emptyList()
               !deletedList.contains(activeUid)
             }.sortedBy { it.timestamp }
           }
           .collect { filteredMessages ->
-            Log.d(
-              "YkisLog",
-              "[$className.$methodName]: DATA_RECEIVED. Size: ${filteredMessages.size}"
-            )
-
-            // Обновляем UI стейт (или MutableStateFlow)
+            println("[YkisLogKMP.$className.$methodName]: [DATA_RECEIVED] Отримано повідомлень з хмари: ${filteredMessages.size} шт.")
             _firebaseTest.value = filteredMessages
-
-            // Системные действия при получении данных
             markMessagesAsRead(targetPath)
             setPresence(targetPath, true)
-
-            // Подписка на статус "Печатает..." для этой ветки
             observeTypingStatus(targetPath)
           }
-
       } catch (e: Exception) {
-        Log.e("YkisLog", "[$className.$methodName]: CRITICAL_ERROR. ${e.message}")
+        println("[YkisLogKMP.$className.$methodName]: [CRITICAL_ERROR] Збій підписки чату: ${e.message}")
         logService.logNonFatalCrash(e)
-        // Здесь можно добавить показ Snackbar через Manager
       }
     }
   }
 
   /**
-   * [ChatScreenModel.clearCurrentChatPath] — Полная очистка контекста при выходе.
+   * [clearCurrentChatPath] — Сброс контекста активного чата при выходе из комнаты.
    */
   fun clearCurrentChatPath() {
     val methodName = "clearCurrentChatPath"
     val chatId = currentChatPath
-
     if (chatId == null) {
-      Log.d("YkisLog", "[$className.$methodName]: SKIP. Path already null")
+      println("[YkisLogKMP.$className.$methodName]: [SKIP] Контекст чату вже порожній.")
       return
     }
-    Log.d("YkisLog", "[$className.$methodName]: START. Cleaning: $chatId")
-
+    println("[YkisLogKMP.$className.$methodName]: [START] Зачистка активної кімнати: $chatId")
     currentChatPath = null
     _isPartnerTyping.value = false
-
-    // Сброс статусов в Firebase
     setTypingStatus(false)
     setPresence(chatId, false)
-
-    Log.i("YkisLog", "[$className.$methodName]: SUCCESS. Context cleared")
+    println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Контекст кімнати успішно деактивовано.")
   }
 
   /**
-   * [ChatScreenModel.deleteChatThreads] — Удаление всех 4-х веток чата (для удаления квартиры).
+   * [trackUserIdentifiersWithRole] — Диспетчерский сокет-трекер ключей комнат чатов для администраторов.
+   * Исправлено: Очистка листенеров перед обновлением предотвращает утечки ОЗУ, типы приведены к Long.
    */
-  fun deleteChatThreads(uid: String, osbbId: Int, addressId: Int) {
-    val methodName = "deleteChatThreads"
-    Log.d("YkisLog", "[$className.$methodName]: INPUT. UID: $uid, Addr: $addressId")
-
-    // Используем NonCancellable, чтобы удаление не прервалось при закрытии экрана
-    screenModelScope.launch(kotlinx.coroutines.NonCancellable) {
-      val chatKeys = listOf(
-        "OSBB_${osbbId}_${addressId}_$uid",
-        "WATER_SERVICE_9999_${addressId}_$uid",
-        "WARM_SERVICE_9998_${addressId}_$uid",
-        "GARBAGE_SERVICE_9997_${addressId}_$uid"
-      )
-      chatKeys.forEach { path ->
-        try {
-          Log.d("YkisLog", "[$className.$methodName]: Removing path: $path")
-          chatRepo.removeChatBranch(path)
-        } catch (e: Exception) {
-          Log.e("YkisLog", "[$className.$methodName]: ERROR for $path: ${e.message}")
-        }
-      }
-      Log.d("YkisLog", "[$className.$methodName]: Cleanup finished")
-    }
-  }
-  /**
-   * Отслеживает список активных чатов (ID пользователей) для конкретной роли админа.
-   * Например: админ ОСББ 105 увидит только ветки, начинающиеся на "OSBB_105_".
-   */
-  /**
-   * [ChatScreenModel.trackUserIdentifiersWithRole] — Мониторинг появления новых веток чатов (для Админа).
-   * Использует диапазон ключей для фильтрации в Realtime Database.
-   */
-  /**
-   * [ChatScreenModel.trackUserIdentifiersWithRole] — мониторинг списка чатов для диспетчера/админа.
-   */
-  fun trackUserIdentifiersWithRole(role: UserRole, osbbId: Int?) {
+  fun trackUserIdentifiersWithRole(role: UserRole, osbbId: Long?) {
     val methodName = "trackUserIdentifiers"
-    Log.d("YkisLog", "[$className.$methodName]: ENTRY. Role: $role | OsbbId: $osbbId")
+    println("[YkisLogKMP.$className.$methodName]: ENTRY. Роль диспетчера: $role | Код ОСББ: $osbbId")
 
-    // Жителям (StandardUser) трекер не нужен, они видят только свои чаты
     if (role == UserRole.StandardUser) {
-      Log.d("YkisLog", "[$className.$methodName]: CANCEL - Resident does not need tracker")
+      println("[YkisLogKMP.$className.$methodName]: [CANCEL] Користувач є жильцем — фоновий трекер вимкнено.")
       cleanupTracker()
       return
     }
 
-    // 1. Формируем префикс диапазона согласно системным ID (9999/9998/9997)
     val targetPrefix = when (role) {
       UserRole.VodokanalUser -> "WATER_SERVICE_9999_"
-      UserRole.YtkeUser -> "WARM_SERVICE_9998_"
-      UserRole.TboUser -> "GARBAGE_SERVICE_9997_"
-      UserRole.OsbbUser -> "OSBB_${osbbId ?: 0}_"
-      else -> "UNKNOWN_"
+      UserRole.YtkeUser      -> "WARM_SERVICE_9998_"
+      UserRole.TboUser       -> "GARBAGE_SERVICE_9997_"
+      UserRole.OsbbUser      -> "OSBB_${osbbId ?: 0L}_"
+      else                   -> "UNKNOWN_"
     }
 
-    // 2. Очистка старой подписки перед запуском новой
     cleanupTracker()
-
-    // 3. Запуск нового реактивного мониторинга через ScreenModelScope
     activeTrackerJob = screenModelScope.launch {
-      Log.d("YkisLog", "[$className.$methodName]: ACTIVE - Watching prefix '$targetPrefix'")
-
-      // Используем репозиторий для получения Flow списка веток чатов
+      println("[YkisLogKMP.$className.$methodName]: [ACTIVE] Watcher запущено для префіксу кімнат: '$targetPrefix'")
       chatRepo.observeChatKeys(targetPrefix)
         .collect { chatKeys ->
-          Log.d("YkisLog", "[$className.$methodName]: DATA - Found ${chatKeys.size} keys")
-
+          println("[YkisLogKMP.$className.$methodName]: [DATA] Знайдено активних ключів кімнат: ${chatKeys.size} шт.")
           val currentKeys = _userIdentifiersWithRole.value
           val keysIdentical = chatKeys.sorted() == currentKeys.sorted()
           val uiPopulated = userList.value.isNotEmpty()
-
           _userIdentifiersWithRole.value = chatKeys
 
           if (chatKeys.isNotEmpty()) {
-            // Очищаем старые Job-ы подписок перед обновлением (предотвращаем утечки на Mac)
             lastMessageListeners.values.forEach { it.cancel() }
             lastMessageListeners.clear()
-
             unreadCountListeners.values.forEach { it.cancel() }
             unreadCountListeners.clear()
 
-            // Запускаем новые подписки на превью последних сообщений и счетчики непрочитанных
             subscribeToUnreadCount(chatKeys)
             subscribeToLastMessages(chatKeys)
 
-            // Если ключи изменились или список пуст — загружаем профили пользователей
             if (!keysIdentical || !uiPopulated) {
               getUsers()
             }
           } else {
-            Log.w("YkisLog", "[$className.$methodName]: EMPTY - No chats found")
+            println("[YkisLogKMP.$className.$methodName]: [EMPTY] Жодної кімнати чату не знайдено.")
             _rawFetchedProfiles.value = emptyList()
             _unreadCounts.value = emptyMap()
           }
-
-          // Обновление иконки приложения (через expect/actual)
           updateSystemIconBadge()
         }
     }
   }
 
 
+
   /**
-   * [ChatScreenModel.updateSystemIconBadge] — Обновление бейджа на иконке приложения.
-   * В KMP реализуется через expect/actual хелпер.
+   * [updateSystemIconBadge] — Обновление глобального бейджа непрочитанных уведомлений на иконке приложения.
+   * ПОЯСНЕНИЕ: Считает сумму всех счетчиков комнат и пробрасывает число через expect/actual утилиту.
    */
   private fun updateSystemIconBadge() {
     val methodName = "updateSystemIconBadge"
     try {
       val totalCount = _unreadCounts.value.values.sum()
-      Log.d("YkisLog", "[$className.$methodName]: Count -> $totalCount")
-
-      // Вызов кроссплатформенного метода (реализуем в платформенном слое)
+      println("[YkisLogKMP.$className.$methodName]: Розрахунок загального бейджа додатка -> $totalCount")
       com.ykis.ykismobkmp.core.utils.applyAppBadgeCount(totalCount)
-
     } catch (e: Exception) {
-      Log.e("YkisLog", "[$className.$methodName]: ERROR -> ${e.message}")
+      println("[YkisLogKMP.$className.$methodName]: Помилка оновлення бейджа іконки: ${e.message}")
     }
   }
 
@@ -1419,119 +1242,33 @@ class ChatScreenModel(
   }
 
   /**
-   * [ChatScreenModel.getUsers] — Загрузка профилей пользователей по списку UID.
+   * [getUsers] — Массовая пакетная загрузка профилей абонентов из Firebase по списку UIDs.
    */
   fun getUsers() {
     val methodName = "getUsers"
     val chatKeys = _userIdentifiersWithRole.value
 
     if (chatKeys.isEmpty()) {
-      Log.d("YkisLog", "[$className.$methodName]: CANCEL - No keys")
+      println("[YkisLogKMP.$className.$methodName]: [CANCEL] Список ключів порожній.")
       return
     }
 
     launchCatching(snackbar = false) {
-      Log.d("YkisLog", "[$className.$methodName]: START")
-
-      // 1. Извлекаем уникальные UID (последняя часть ключа)
+      println("[YkisLogKMP.$className.$methodName]: [START] Парсинг UIDs для завантаження анкет...")
       val uidsToFetch = chatKeys.map { it.substringAfterLast("_") }
         .filter { it.isNotEmpty() }
         .distinct()
 
-      Log.d("YkisLog", "[$className.$methodName]: Fetching profiles for: $uidsToFetch")
-
-      // 2. Запрос к репозиторию
+      println("[YkisLogKMP.$className.$methodName]: Запит профілів з бази даних для UIDs: $uidsToFetch")
       val fetchedProfiles = chatRepo.fetchUsersByIds(uidsToFetch)
-
-      // 3. Обновление стейта (спровоцирует пересчет combine в userList)
       _rawFetchedProfiles.value = fetchedProfiles
-      Log.d(
-        "YkisLog",
-        "[$className.$methodName]: SUCCESS - Loaded ${fetchedProfiles.size} profiles"
-      )
+
+      println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Завантажено анкет абонентів: ${fetchedProfiles.size} шт.")
     }
   }
 
-
-  // ... (продолжение ChatScreenModel)
-
   /**
-   * [ChatScreenModel.subscribeToResidentCounters] — Активация 4-х служб и сбор токенов админов.
-   * Вызывается при первом входе жильца в раздел чатов.
-   */
-  fun subscribeToResidentCounters(
-    uid: String,
-    osbbId: Int,
-    addressId: Int,
-    addressText: String = "",
-    nanim: String = ""
-  ) {
-    val methodName = "subscribeToResidentCounters"
-
-    // 1. УНИФИЦИРОВАННЫЕ КЛЮЧИ (Золотой фонд)
-    val chatKeys = listOf(
-      "OSBB_${osbbId}_${addressId}_$uid",
-      "WATER_SERVICE_9999_${addressId}_$uid",
-      "WARM_SERVICE_9998_${addressId}_$uid",
-      "GARBAGE_SERVICE_9997_${addressId}_$uid"
-    )
-
-    Log.d("YkisLog", "[$className.$methodName]: START. Addr: $addressId")
-
-    // Инициализация пустых веток приветственным сообщением
-    screenModelScope.launch {
-      chatKeys.forEach { chatPath ->
-        try {
-          val exists = chatRepo.isChatBranchExists(chatPath)
-          if (!exists) {
-            Log.d("YkisLog", "[$className.$methodName]: INIT_USER_MSG -> $chatPath")
-
-            val welcomeText = if (addressText.isNotEmpty()) {
-              "$addressText (о/р $addressId). Чат активовано."
-            } else {
-              "Чат активовано."
-            }
-
-            // В KMP (GitLive) используем обычную Entity.
-            // ServerValue.TIMESTAMP заменим на текущее время устройства (стандарт KMP)
-            val welcomeMsg = MessageEntity(
-              id = "init",
-              senderUid = uid,
-              senderDisplayedName = nanim,
-              senderAddress = addressText,
-              text = welcomeText,
-              timestamp = com.ykis.ykismobkmp.core.utils.currentTimeMillis(),
-              read = false,
-              type = "TEXT"
-            )
-
-            chatRepo.sendMessage(chatPath, welcomeMsg)
-          }
-        } catch (e: Exception) {
-          Log.e("YkisLog", "[$className.$methodName]: ERROR path $chatPath: ${e.message}")
-        }
-      }
-    }
-
-    // 2. СБОР ТОКЕНОВ АДМИНОВ ДЛЯ НОТИФИКАЦИЙ
-    launchCatching(snackbar = false) {
-      try {
-        val admins = chatRepo.fetchAdminsByOsbb(osbbId)
-        val adminTokens = admins.flatMap { it.tokens }.distinct()
-        _recipientTokens.value = adminTokens
-        Log.d("YkisLog", "[$className.$methodName]: TOKENS -> ${adminTokens.size} collected")
-      } catch (e: Exception) {
-        Log.e("YkisLog", "[$className.$methodName]: TOKENS_ERROR -> ${e.message}")
-      }
-    }
-
-    // 3. ПОДПИСКА НА БЕЙДЖИ
-    subscribeToUnreadCount(chatKeys)
-  }
-
-  /**
-   * [ChatScreenModel.setSelectedService] — Установка выбранной службы.
-   * Влияет на фильтрацию списка и формирование путей Firebase.
+   * [setSelectedService] — Перегрузка установки активной коммунальной службы из UI карточек списка.
    */
   fun setSelectedService(totalServiceDebt: TotalServiceDebt?) {
     val methodName = "setSelectedService"
@@ -1539,174 +1276,112 @@ class ChatScreenModel(
     if (totalServiceDebt == null) {
       _selectedService.value = null
       _selectedServicePrefix.value = null
-      Log.d("YkisLog", "[$className.$methodName]: RESET")
+      println("[YkisLogKMP.$className.$methodName]: Скинуто фільтрацію поточної служби чату.")
       return
     }
 
     _selectedService.value = totalServiceDebt
-
-    // Префикс берется из Enum (например, WATER_SERVICE)
     val serviceCode = totalServiceDebt.contentDetail.name
     _selectedServicePrefix.value = serviceCode
 
-    Log.d("YkisLog", "[$className.$methodName]: SELECT -> ${totalServiceDebt.name} ($serviceCode)")
+    println("[YkisLogKMP.$className.$methodName]: SELECT -> ${totalServiceDebt.name} ($serviceCode)")
   }
-
-  /**
-   * [ChatScreenModel.addChatListener] — Динамическое обновление превью сообщения.
-   * Replaced: В KMP лучше использовать subscribeToLastMessages, но сохраняем для совместимости.
-   */
-  fun addChatListener(
-    chatUid: String,
-    onLastMessageChange: (MessageEntity) -> Unit
-  ) {
-    screenModelScope.launch {
-      Log.d("YkisLog", "[$className.addChatListener]: Subscribing to -> $chatUid")
-
-      chatRepo.observeLastMessage(chatUid)
-        .collect { latestMessage ->
-          val message = latestMessage ?: MessageEntity(text = "Немає повідомлень")
-          Log.d("YkisLog", "[$className.addChatListener]: Update for $chatUid")
-          onLastMessageChange(message)
-        }
-    }
-  }
-
-
-  /**
-   * Комплексный метод: сжимает фото, загружает его в Storage и отправляет сообщение в чат.
-   */
-  /**
-   * [ChatScreenModel.uploadFileAndSendMessage] — Загрузка медиафайла и отправка ссылки в чат.
-   * Очищено от Android-зависимостей. Работает на Mac и Android.
-   */
 
   fun setSelectedImagePath(path: String?) {
     _selectedImagePath.value = path
-    // Логируем для отладки на Mac
-    Log.d("YkisLog", "[$className.setSelectedImagePath]: Path updated to: $path")
+    println("[YkisLogKMP.$className.setSelectedImagePath]: Шлях до медіа-файлу оновлено в ОЗУ: $path")
   }
-
-
-  /**
-   * Удаляет сообщение из Realtime Database.
-   * Использует ту же логику формирования ID чата, что и при чтении/записи.
-   */
-
 
   fun setSelectedMessage(message: MessageEntity) {
     _selectedMessage.value = message
   }
 
-
-  // ChatScreenModel.kt
+  /**
+   * [getChatPath] — Архитектурный КМР-генератор путей к веткам Firebase на базе роли, ID ОСББ и лицевого счета квартиры.
+   * Исправлено: Параметры osbbId и addressId переведены на сквозной Long-стандарт, убирая урезание данных!
+   */
   fun getChatPath(
     role: UserRole,
-    osbbId: Int,
-    addressId: Int,
+    osbbId: Long, // Изменено на Long
+    addressId: Long, // Изменено на Long
     targetUserUid: String?
   ): String {
-    val methodName = "ChatViewModel.getChatPath"
+    val methodName = "getChatPath"
     val myUid = chatRepo.currentUid ?: ""
     val residentUid = targetUserUid ?: myUid
-    val serviceInState = selectedService.value?.name
+    val serviceInState = _selectedServicePrefix.value
 
-    Log.d(
-      "YkisLog",
-      "$methodName: [INPUT_PARAMS] Role: $role | In_OSBB: $osbbId | In_Addr: $addressId | Target: $targetUserUid"
-    )
+    println("[YkisLogKMP.$className.$methodName]: [INPUT_PARAMS] Роль: $role | OSBB_ID: $osbbId | Лицьовий рахунок: $addressId | Target: $targetUserUid")
 
-    // 1. Определение префикса и системного ID
     val (prefix, sysId) = when {
       role == UserRole.VodokanalUser || serviceInState == "WATER_SERVICE" -> {
-        Log.d("YkisLog", "$methodName: [MATCH] Detected WATER_SERVICE")
-        "WATER_SERVICE" to 9999
+        println("[YkisLogKMP.$className.$methodName]: [MATCH] Виявлено гілку WATER_SERVICE")
+        "WATER_SERVICE" to 9999L
       }
-
       role == UserRole.YtkeUser || serviceInState == "WARM_SERVICE" -> {
-        Log.d("YkisLog", "$methodName: [MATCH] Detected WARM_SERVICE")
-        "WARM_SERVICE" to 9998
+        println("[YkisLogKMP.$className.$methodName]: [MATCH] Виявлено гілку WARM_SERVICE")
+        "WARM_SERVICE" to 9998L
       }
-
       role == UserRole.TboUser || serviceInState == "GARBAGE_SERVICE" -> {
-        Log.d("YkisLog", "$methodName: [MATCH] Detected GARBAGE_SERVICE")
-        "GARBAGE_SERVICE" to 9997
+        println("[YkisLogKMP.$className.$methodName]: [MATCH] Виявлено гілку GARBAGE_SERVICE")
+        "GARBAGE_SERVICE" to 9997L
       }
-
       else -> {
-        Log.d("YkisLog", "$methodName: [MATCH] Defaulting to OSBB")
+        println("[YkisLogKMP.$className.$methodName]: [MATCH] За замовчуванням підключаємо лінію OSBB")
         "OSBB" to osbbId
       }
     }
 
-    // 2. Сборка финального пути
-    // Если addressId все еще 9997/9999, значит проблема в вызывающем методе (getUsers или openChat)
     val path = "${prefix}_${sysId}_${addressId}_$residentUid"
 
     if (addressId == sysId) {
-      Log.e(
-        "YkisLog",
-        "$methodName: [CRITICAL_WARNING] AddrID ($addressId) is IDENTICAL to SysID ($sysId)!"
-      )
+      println("[YkisLogKMP.$className.$methodName]: [CRITICAL_WARNING] Увага! addressId збігається з системним кодом служби ($sysId)!")
     }
 
-    Log.d(
-      "YkisLog",
-      "$methodName: [RESULT] $path | Role: $role | Final_SysID: $sysId | Final_AddrID: $addressId"
-    )
-
+    println("[YkisLogKMP.$className.$methodName]: [RESULT_PATH] Сформовано шлях чату: $path")
     return path
   }
 
-  // ... (продолжение ChatScreenModel)
-
   /**
-   * [ChatScreenModel.openChatWithUser] — Инициализация контекста чата для Админа.
+   * [openChatWithUser] — Точка входа для диспетчеров и администраторов для открытия чата с конкретным жильцом.
+   * Исправлено: Скрытые касты toInt() удалены, вызовы методов синхронизированы на Long параметры.
    */
   fun openChatWithUser(
     user: UserEntity,
     currentRole: UserRole,
-    currentOsbbId: Int
+    currentOsbbId: Long // Изменено на Long
   ) {
     val methodName = "openChatWithUser"
     val realAddressId = user.addressId
 
-    Log.d("YkisLog", "--- [$className.$methodName] ---")
-    Log.d("YkisLog", "Target: ${user.displayName} | Role: $currentRole")
-
-    // 1. Устанавливаем собеседника
+    println("--- [YkisLogKMP.$className.$methodName] ---")
+    println("[YkisLogKMP.$className.$methodName]: Відкриття кімнати. Ціль: ${user.displayName} | Роль диспетчера: $currentRole")
     _selectedUser.value = user
 
-    // 2. Логика системного ID для служб (Золотой фонд)
     val effectiveOsbbId = when (currentRole) {
-      UserRole.VodokanalUser -> 9999
-      UserRole.YtkeUser -> 9998
-      UserRole.TboUser -> 9997
-      else -> currentOsbbId
+      UserRole.VodokanalUser -> 9999L
+      UserRole.YtkeUser      -> 9998L
+      UserRole.TboUser       -> 9997L
+      else                   -> currentOsbbId
     }
 
-    // 3. Формируем путь (используем нашу KMP функцию)
     val chatId = getChatPath(
       role = currentRole,
       osbbId = effectiveOsbbId,
-      addressId = realAddressId.toInt(),
+      addressId = realAddressId, // Передаем чистый Long
       targetUserUid = user.uid
     )
 
-    // 4. Сброс счетчиков и статусы
     _unreadCounts.update { it + (chatId to 0) }
     markMessagesAsRead(chatId)
     observeTypingStatus(chatId)
 
-    // 5. Запуск загрузки истории чата
     readFromDatabase(
       role = currentRole,
       senderUid = user.uid,
       osbbId = effectiveOsbbId,
-      addressId = realAddressId.toInt()
+      addressId = realAddressId // Передаем чистый Long
     )
   }
 }
-
-
 

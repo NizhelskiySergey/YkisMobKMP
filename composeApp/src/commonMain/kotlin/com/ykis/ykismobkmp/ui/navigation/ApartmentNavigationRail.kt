@@ -72,6 +72,7 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
+import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
@@ -330,18 +331,19 @@ fun ApartmentNavigationRail(
           .padding(bottom = 16.dp)
       ) {
         HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
-        val isHomeSelected =
-          activeSubModule == "InfoApartmentScreen" || activeSubModule == "UserListScreen"
+
+        val isHomeSelected = activeSubModule == "InfoApartmentScreen" || activeSubModule == "UserListScreen"
         val isFinanceSelected = activeSubModule == "finance_selector"
         val isMetersSelected = activeSubModule == "service_selector"
-        val isChatSelected = activeSubModule == "ChatScreenStateful"
 
-        // 1. Кнопка Главная (БТИ / Список абонентов)
+        // Подсветка иконки чата активна на любом из 3 пошаговых этапов контура чат-системы
+        val isChatSelected = activeSubModule == "chat_selector" || activeSubModule == "chat_user_list" || activeSubModule == "chat_room_active"
+
+        // 1. Кнопка Главная (БТИ / Список абонентов диспетчера)
         NavigationRailItem(
           selected = isHomeSelected,
           onClick = {
-            val targetRoute =
-              if (baseUIState.userRole == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen"
+            val targetRoute = if (baseUIState.userRole == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen"
             onSubModuleChange(targetRoute)
           },
           icon = { Icon(Icons.Default.Home, null) },
@@ -350,8 +352,7 @@ fun ApartmentNavigationRail(
           } else null
         )
 
-        // 2. Кнопка Финансы ЮКІС
-
+        // 2. Кнопка Финансы ЮКІС (Сводные балансы ГИОЦ)
         NavigationRailItem(
           selected = isFinanceSelected,
           onClick = {
@@ -362,13 +363,12 @@ fun ApartmentNavigationRail(
           label = if (isRailExpanded) { { Text("Фінанси", fontSize = 11.sp) } } else null
         )
 
-
-        // 3. Кнопка Приборы учета ЮКІС
+        // 3. Кнопка Приборы учета ЮКІС (Ввод показаний водомеров)
         NavigationRailItem(
           selected = isMetersSelected,
           onClick = {
-            chatViewModel.setSelectedService(null as String?)
-            // ИСПРАВЛЕНО НАМЕРТВО: Переключаем внутренний подмодуль Хаба без уничтожения каркаса рельса!
+            // Исправлено: Связано с легитимным именем переменной chatScreenModel в ОЗУ!
+            chatViewModel.setSelectedService(null as TotalServiceDebt?)
             onSubModuleChange("service_selector")
           },
           icon = {
@@ -389,35 +389,50 @@ fun ApartmentNavigationRail(
           } else null
         )
 
-        // 4. Кнопка Чат обговорення
+        // 4. Кнопка Чат обсуждения ОСББ
         NavigationRailItem(
           selected = isChatSelected,
           onClick = {
-            onSubModuleChange("ChatScreenStateful")
+            // Исправлено: Клик переводит на "chat_selector" — первый слой выбора служб чата!
+            println("[$className.ApartmentNavigationRail]: Перехід до модуля обговорень ЮКІС.")
+            onSubModuleChange("chat_selector")
           },
-          icon = { Icon(Icons.Default.Chat, null) },
+          icon = {
+            BadgedBox(
+              badge = {
+                if (totalUnread > 0) {
+                  Badge(containerColor = MaterialTheme.colorScheme.error) {
+                    Text(text = if (totalUnread > 9) "9+" else totalUnread.toString())
+                  }
+                }
+              }
+            ) {
+              Icon(Icons.Default.Chat, null)
+            }
+          },
           label = if (isRailExpanded) {
             { Text("Чат", fontSize = 11.sp) }
           } else null
         )
 
-        // 5. Кнопка Системні Налаштування (Voyager накат поверх Хаба)
+        // 5. Кнопка Системные Настройки профиля абонента
         NavigationRailItem(
           selected = activeSubModule == "SettingsScreenDest",
           onClick = {
-            println("[$className.ApartmentNavigationRail]: Перехід на модуль системних налаштувань профиля.")
+            println("[$className.ApartmentNavigationRail]: Перехід на модуль системних налаштувань профілю.")
             onSubModuleChange("SettingsScreenDest")
           },
           icon = { Icon(Icons.Default.Settings, null) },
           label = if (isRailExpanded) { { Text("Налаштування", fontSize = 11.sp) } } else null
         )
-
       }
     }
-    }
+  }
 }
 
-      @Composable
+
+
+@Composable
     fun RailItemContent(
       title: String,
       subtitle: String? = null,
