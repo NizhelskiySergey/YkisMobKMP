@@ -145,11 +145,13 @@ fun SinglePanelService(
   ) { isDetailVisible ->
     if (isDetailVisible) {
       // Перехватчик аппаратной кнопки "Назад" смартфона
+      // Внутри SinglePanelService в файле MainServiceScreen.kt обновите BackHandler:
       BackHandler(enabled = true) {
-        println("[$tag.Mobile.BackHandler]: Системне перехоплення кнопки Назад.")
+        // ИСПРАВЛЕНО: Синхронизировали системный бэк-стек с логикой счетчиков
+        println("[$tag.Mobile.BackHandler]: Системне перехоплення кнопки Назад ЖКГ.")
         screenModel.closeContentDetail()
-        screenModel.setContentDetail(ContentDetail.UNKNOWN)
       }
+
 
       ServiceDetailScreen(
         modifier = Modifier

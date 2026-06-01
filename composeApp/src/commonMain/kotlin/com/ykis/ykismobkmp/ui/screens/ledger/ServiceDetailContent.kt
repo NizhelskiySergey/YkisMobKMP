@@ -64,20 +64,23 @@ fun ServiceDetailScreen(
       navigationType = adaptiveNavigationType,
       canNavigateBack = true,
       onBackClick = {
-        // Исправлено: Команда сброса уходит в единую общую ScreenModel
-        println("[YkisLogKMP.$className.onBackClick.Mobile]: Натиснуто стрілку назад. Повернення на список служб.")
+        // ИСПРАВЛЕНО: Копируем успешную логику модуля счетчиков!
+        // Вызываем только closeContentDetail(), что переведет showDetail в false.
+        // Единый родительский Crossfade смартфона мгновенно закроет экран деталей!
+        println("[$className.onBackClick]: Нажата стрелка назад. Текущий подмодуль финансов: $contentDetail")
         screenModel.closeContentDetail()
-        screenModel.setContentDetail(ContentDetail.UNKNOWN)
       },
       title = when (contentDetail) {
         ContentDetail.OSBB -> baseUIState.osbb.takeIf { it.isNotEmpty() } ?: "Мій ОСББ"
         ContentDetail.WATER_SERVICE -> stringResource(Res.string.vodokanal)
         ContentDetail.WARM_SERVICE -> stringResource(Res.string.ytke)
         ContentDetail.GARBAGE_SERVICE -> stringResource(Res.string.yzhtrans)
-        else -> stringResource(Res.string.payment_list)
+        // ИСПРАВЛЕНО: Если состояние сбросилось, тулбар не зависнет на "истории платежей"
+        else -> "Комунальні послуги"
       },
       subtitle = baseUIState.address
     )
+
 
     Box(modifier = Modifier.weight(1f)) {
       // Исправлено: Вызываем переименованный контейнер, убирая конфликт перегрузок КМР
