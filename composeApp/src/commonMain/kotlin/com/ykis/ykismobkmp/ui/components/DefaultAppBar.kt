@@ -18,6 +18,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,7 +56,6 @@ fun DefaultAppBar(
           verticalAlignment = Alignment.Bottom, // Прижимаем адрес к базовой линии заголовка
           horizontalArrangement = Arrangement.Center
         ) {
-          // Основной заголовок окна биллинга или чата (Жирный)
           Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
@@ -64,14 +64,13 @@ fun DefaultAppBar(
             overflow = TextOverflow.Ellipsis
           )
 
-          // Адрес абонента или Subtitle — меньшим шрифтом сразу за названием
           if (!subtitle.isNullOrBlank()) {
             Text(
               text = " | $subtitle",
-              style = MaterialTheme.typography.labelSmall, // Шрифт как у ФИО жильца
+              style = MaterialTheme.typography.labelSmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
               fontWeight = FontWeight.Bold,
-              modifier = Modifier.padding(start = 4.dp, bottom = 2.dp), // Смещение для визуального баланса
+              modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
               maxLines = 1,
               overflow = TextOverflow.Ellipsis
             )
@@ -79,30 +78,33 @@ fun DefaultAppBar(
         }
       },
       navigationIcon = {
-        // Логика отображения кнопки бургер-меню или стрелки назад на основе конфигурации экрана
-        if (!canNavigateBack && navigationType == NavigationType.BOTTOM_NAVIGATION) {
+        if (canNavigateBack) {
           IconButton(onClick = {
-            println("[$className.DefaultAppBar]: Клик по бургер-меню (Открыть Drawer)")
-            onDrawerClick()
-          }) {
-            Icon(Icons.Default.Menu, contentDescription = null)
-          }
-        } else if (canNavigateBack) {
-          IconButton(onClick = {
-            println("[$className.DefaultAppBar]: Клик назад (Нативная КМР-навигация Voyager pop)")
+            println("[YkisLogKMP.DefaultAppBar]: Клик назад — триггер сквозного Stateless-возврата.")
             onBackClick()
           }) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+          }
+        } else if (navigationType == NavigationType.BOTTOM_NAVIGATION) {
+          IconButton(onClick = {
+            println("[YkisLogKMP.DefaultAppBar]: Клик по бургер-меню (Открыть Drawer)")
+            onDrawerClick()
+          }) {
+            Icon(Icons.Default.Menu, contentDescription = "Меню")
           }
         }
       },
       actions = {
-        // Проброс кастомных кнопок действий (например, Gemini AI или отправка показаний водомеров)
         if (actionButton != null) actionButton()
       },
-      colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-        containerColor = MaterialTheme.colorScheme.surface
+      colors = TopAppBarDefaults.topAppBarColors(
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrolledContainerColor = Color.Unspecified,
+        navigationIconContentColor = Color.Unspecified,
+        titleContentColor = Color.Unspecified,
+        actionIconContentColor = Color.Unspecified
       )
     )
   }
 }
+

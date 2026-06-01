@@ -9,22 +9,18 @@ import com.ykis.ykismobkmp.domain.services.LogService
 import com.ykis.ykismobkmp.ui.BaseScreenModel
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import kotlinx.coroutines.flow.*
-
+import kotlinx.coroutines.launch
 data class ServiceState(
   val services: List<ServiceEntity> = emptyList(),
   val isLoading: Boolean = false
 )
+
 data class TotalDebtState(
   val totalDebt: ServiceEntity = ServiceEntity(),
   val isLoading: Boolean = false,
   val showDetail: Boolean = false,
   val serviceDetail: ContentDetail = ContentDetail.UNKNOWN,
   val error: String = ""
-)
-
-data class PaymentState(
-  val paymentList: List<PaymentEntity> = emptyList(),
-  val isLoading: Boolean = false
 )
 
 class LedgerScreenModel(
@@ -40,11 +36,8 @@ class LedgerScreenModel(
   private val _totalDebtState = MutableStateFlow(TotalDebtState())
   val totalDebtState: StateFlow<TotalDebtState> = _totalDebtState.asStateFlow()
 
-  private val _paymentState = MutableStateFlow(PaymentState())
-  val paymentState: StateFlow<PaymentState> = _paymentState.asStateFlow()
-
-  private val _insertPaymentLoading = MutableStateFlow(false)
-  val insertPaymentLoading: StateFlow<Boolean> = _insertPaymentLoading.asStateFlow()
+  private var detailJob: kotlinx.coroutines.Job? = null
+  private var totalDebtJob: kotlinx.coroutines.Job? = null
 
   fun setContentDetail(contentDetail: ContentDetail) {
     _totalDebtState.update {
@@ -57,7 +50,6 @@ class LedgerScreenModel(
       it.copy(showDetail = false)
     }
   }
-
   fun getTotalServiceDebt(
     uid: String,
     addressId: Long,
@@ -72,12 +64,9 @@ class LedgerScreenModel(
       return
     }
 
-      println("[$className.$methodName]: [REDIRECT] Перенаправлення детального пакета (Service: $service) на getDetailService")
-      getDetailService(uid = uid, addressId = addressId,houseId = houseId, year = year, service = service, total = 1.toByte())
+    totalDebtJob?.cancel()
 
-
-
-    ledgerService.getTotalDebtServices(
+    totalDebtJob = ledgerService.getTotalDebtServices(
       uid = uid,
       addressId = addressId,
       houseId = houseId,
@@ -88,7 +77,7 @@ class LedgerScreenModel(
       _totalDebtState.update { currentState ->
         when (result) {
           is Resource.Success -> {
-            println("[$className.$methodName]: [SUCCESS] Финансовый баланс успешно обновлен")
+            println("[$className.$methodName]: [SUCCESS] Фінансовий зведений баланс успішно оновлено")
             currentState.copy(
               totalDebt = result.data ?: ServiceEntity(),
               isLoading = false
@@ -112,6 +101,9 @@ class LedgerScreenModel(
     }.launchIn(screenModelScope)
   }
 
+  /**
+   * [getDetailService] — Атомарный метод загрузки ИСТОРИИ начислений по конкретной службе (total = 0).
+   */
   fun getDetailService(
     uid: String,
     addressId: Long,
@@ -122,58 +114,60 @@ class LedgerScreenModel(
   ) {
     val methodName = "getDetailService"
 
-    // Взводим флаг загрузки в главном стейте, чтобы правая панель планшета красиво показывала лоадер
+    detailJob?.cancel()
+
     _totalDebtState.update { it.copy(isLoading = true) }
 
-    ledgerService.getFlatServices(
-      uid = uid,
-      addressId = addressId,
-      houseId = houseId,
-      year = year,
-      service = service,
-      total = 0.toByte()
-    ).onEach { result ->
-      when (result) {
-        is Resource.Success -> {
-          println("[$className.$methodName]: [SUCCESS] Отримано список послуг: ${result.data?.size} міс.")
+    detailJob = screenModelScope.launch {
+      ledgerService.getFlatServices(
+        uid = uid,
+        addressId = addressId,
+        houseId = houseId,
+        year = year,
+        service = service,
+        total = 0.toByte()
+      ).collect { result ->
+        when (result) {
+          is Resource.Success -> {
+            println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Отримано список послуг: ${result.data?.size} міс.")
 
-          _detailState.update {
-            it.copy(
-              services = result.data ?: emptyList(),
-              isLoading = false
-            )
+            _detailState.update {
+              it.copy(
+                services = result.data ?: emptyList(),
+                isLoading = false
+              )
+            }
+            _totalDebtState.update { it.copy(isLoading = false, error = "") }
           }
-          // Гасим лоадер в основном контейнере после успешного прилета 5 месяцев истории
-          _totalDebtState.update { it.copy(isLoading = false) }
-        }
-        is Resource.Error -> {
-          println("[$className.$methodName]: [ERROR] Сбой биллинга: ${result.message}")
-          _detailState.update {
-            it.copy(
-              isLoading = false
-            )
+          is Resource.Error -> {
+            val errorMessage = result.message ?: "Помилка білінгу"
+            if (errorMessage.contains("Success", ignoreCase = true) || errorMessage.contains("Успешно", ignoreCase = true)) {
+              println("[YkisLogKMP.$className.$methodName]: [FIXED_GATE] Перехват ложной ошибки. Восстановление кадра из SQLite.")
+
+              _detailState.update {
+                it.copy(
+                  services = result.data ?: it.services,
+                  isLoading = false
+                )
+              }
+              _totalDebtState.update { it.copy(isLoading = false, error = "") }
+            } else {
+              println("[YkisLogKMP.$className.$methodName]: [REAL_ERROR] Сбой білінгу: $errorMessage")
+              _detailState.update { it.copy(isLoading = false) }
+              _totalDebtState.update {
+                it.copy(
+                  isLoading = false,
+                  error = errorMessage
+                )
+              }
+            }
           }
-          _totalDebtState.update {
-            it.copy(
-              isLoading = false,
-              error = result.message ?: "Помилка білінгу"
-            )
-          }
-        }
-        is Resource.Loading -> {
-          println("[$className.$methodName]: [LOADING] Запит деталізації нарахувань ЮКИС...")
-          _detailState.update {
-            it.copy(
-              isLoading = true
-            )
+          is Resource.Loading -> {
+            println("[YkisLogKMP.$className.$methodName]: [LOADING] Запит деталізації нарахувань ЮКИС...")
+            _detailState.update { it.copy(isLoading = true) }
           }
         }
       }
-    }.launchIn(screenModelScope)
+    }
   }
-
-
 }
-
-
-

@@ -22,7 +22,7 @@ interface LedgerRemoteRepository {
   ): GetServiceResponse
 
   /**
-   * Получение суммарной задолженности/баланса ГИОЦ для лицевого счета.
+   * Получение суммарной задолженности/баланса для лицевого счета.
    */
   suspend fun getTotalDebtService(
     uid: String,

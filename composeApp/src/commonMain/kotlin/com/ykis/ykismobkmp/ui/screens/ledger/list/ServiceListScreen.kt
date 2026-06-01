@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.CorporateFare
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.HotTub
 import androidx.compose.material.icons.filled.Water
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,7 +25,6 @@ import com.ykis.ykismobkmp.ui.screens.ledger.TotalDebtState
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.*
-
 private const val tag = "ServiceListScreen"
 
 data class TotalServiceDebt(
@@ -59,7 +59,9 @@ fun assembleServiceList(
         name = stringResource(Res.string.vodokanal),
         color = Color(0xFF2196F3),
         debt = totalDebtState.totalDebt.dolg1 ?: 0.0,
-        icon = Icons.Default.Water,
+        // ИСПРАВЛЕНО НАМЕРТВО: Заменено на Icons.Default.WaterDrop для нативной КМР-компиляции
+        // без использования внешних библиотек расширенных иконок!
+        icon = Icons.Default.WaterDrop,
         contentDetail = ContentDetail.WATER_SERVICE
       ),
       TotalServiceDebt(
@@ -91,47 +93,28 @@ fun ServiceListScreen(
 ) {
   val methodName = "ServiceListScreen"
 
-  // Извлекаем текущий выбранный подмодуль из общего стейта задолженностей
-  val currentDetail = totalDebtState.serviceDetail
-
-  // ИСПРАВЛЕНО НАМЕРТВО: Добавлен второй триггерный ключ currentDetail!
-  // Теперь при клике мышкой по любой ЖКХ-службе Южного LaunchedEffect мгновенно перезапустится,
-  // высчитает правильный код service и отправит точечный запрос в Ktor-сеть без зависаний!
-  // ИСПРАВЛЕНО НАМЕРТВО: Все числовые коды приведены к типу Byte через .toByte()!
-  // Ошибка 'Argument type mismatch: actual type is Int, but Byte was expected' полностью уничтожена.
-  LaunchedEffect(key1 = baseUIState.addressId, key2 = currentDetail) {
+  // ИСПРАВЛЕНО НАМЕРТВО: Фиксация на один стартовый запрос сводного тотала!
+  // При последующих кликах по строкам служб этот блок спит, убирая тройной спам сети.
+  LaunchedEffect(key1 = baseUIState.addressId) {
     val addrId = baseUIState.addressId
     val houseId = baseUIState.houseId
-    val osbbId = baseUIState.osmdId
     val uid = baseUIState.uid ?: ""
 
-    // Вычисляем код услуги сразу в типе Byte
-    val targetServiceCode: Byte = when (currentDetail) {
-      ContentDetail.WATER_SERVICE -> 1.toByte()
-      ContentDetail.WARM_SERVICE  -> 2.toByte()
-      ContentDetail.GARBAGE_SERVICE -> 3.toByte()
-      ContentDetail.OSBB            -> 4.toByte()
-      else -> 0.toByte()
-    }
-
-    println("[$tag.$methodName]: [TRIGGER] Смена фокуса подмодуля. ServiceCode: $targetServiceCode, Найдено о/р: $addrId")
+    println("[$tag.$methodName.Mobile]: [SAFE_STATIC_TRIGGER] Одноразова фіксація базового балансу ГІОЦ для о/р: $addrId")
 
     if (addrId > 0L) {
-      println("[$tag.$methodName]: [SEND_CHECK] Запрос тарифов. UID: $uid, Service: $targetServiceCode, Total: 1")
       getTotalServiceDebt(
         LedgerParams(
           uid = uid,
           addressId = addrId,
           houseId = houseId,
-          year = "2026",
-          service = targetServiceCode, // Теперь типы идеально совпадают!
-          total = 1.toByte(),
-
+          service = 0.toByte(), // 0 означает сводный запрос баланса по всем службам
+          total = 1.toByte(),   // Фиксируем тотал в 1 для наполнения круговой диаграммы
+          year = "2026"
         )
       )
     }
   }
-
 
   Column(
     modifier = Modifier.fillMaxSize(),
@@ -186,7 +169,7 @@ fun ServiceListScreen(
             filteredItems.sumOf { it.debt }
           }
         }
-        println("[$tag.$methodName]: [DISPLAY] Роль аккаунта: ${baseUIState.userRole}. Видимых служб в хабе: ${filteredItems.size}")
+        println("[$tag.$methodName.Mobile]: [DISPLAY] Роль: ${baseUIState.userRole}. Видимих служб: ${filteredItems.size}")
         ServiceListStateless(
           modifier = Modifier.fillMaxSize(),
           items = filteredItems,
@@ -201,7 +184,7 @@ fun ServiceListScreen(
               debt = item.debt,
               icon = item.icon,
               onClick = {
-                // Клик нативно меняет контентное состояние, что триггерит наш LaunchedEffect
+                // Клик плавно переключает подмодуль и уводит смартфон на детальную ведомость
                 setContentDetail(item.contentDetail)
               }
             )
@@ -211,6 +194,8 @@ fun ServiceListScreen(
     }
   }
 }
+
+
 
 
 

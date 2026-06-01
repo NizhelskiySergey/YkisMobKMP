@@ -25,13 +25,10 @@ import com.ykis.ykismobkmp.ui.screens.ledger.list.ServiceListScreen
 import org.koin.compose.koinInject
 private const val tag = "MainServiceScreen"
 
-/**
- * [MainServiceScreen] — Главный КМР-экран финансового хаба начислений и оплат ЮКИС г. Южный.
- * ИСПРАВЛЕНО НАМЕРТВО: Сигнатура конструктора приведена к сквозному стандарту адаптивного Хаба!
- */
+
 class MainServiceScreen(
-  private val baseUIState: BaseUIState, // ДОБАВЛЕНО: Принимаем снимок состояния БТИ
-  private val navigationType: NavigationType, // ДОБАВЛЕНО: Принимаем тип навигации для DefaultAppBar
+  private val baseUIState: BaseUIState, // Принимаем снимок состояния БТИ
+  private val navigationType: NavigationType, // Принимаем тип навигации для DefaultAppBar
   private val onDrawerClick: () -> Unit = {},
   private val navigateToWebView: (String) -> Unit = {}
 ) : Screen {
@@ -47,32 +44,28 @@ class MainServiceScreen(
     // Извлекаем BaseUIState напрямую из его легитимного КМР-источника — ApartmentScreenModel
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
 
-    // ИСПРАВЛЕНО НАМЕРТВО: Поле приведено к правильному имени apartmentUiState,
-    // полностью уничтожая ошибку Unresolved reference!
+    // Вычитываем живой стейт БТИ квартиры Южного
     val currentLiveState by apartmentScreenModel.apartmentUiState.collectAsState()
 
-    // 2. Подписываемся на финансовое состояние задолженностей и тарифов ЮКИС
+    // 2. Подписываемся на единый финансовый стейт задолженностей и тарифов ЮКИС
     val totalDebtState by ledgerScreenModel.totalDebtState.collectAsState()
     val contentDetail: ContentDetail = totalDebtState.serviceDetail
 
+    // Строго разделяем геометрию экранов на уровне корня верстки Хаба!
     if (adaptiveContentType == ContentType.DUAL_PANE) {
-      // Трассировка рантайма по правилу [Класс.Метод] через КМР-команду println()
-      println("[$tag.Tablet]: [RECOMPOSE] CurrentDetail: $contentDetail | ShowDetail: ${totalDebtState.showDetail}")
+      println("[$tag.Tablet]: [RECOMPOSE] Двопанельний режим. Служба: $contentDetail")
 
-      // Широкоформатная двухпанельная верстка для Mac Desktop (Хаб слева, детализация справа)
+      // Широкоформатная двухпанельная верстка для Mac Desktop / Планшетов
       Row(modifier = Modifier.fillMaxSize()) {
-        // Левая панель: Сводный баланс и список служб биллинга (45% ширины дисплея)
         Box(modifier = Modifier.weight(0.45f).fillMaxHeight()) {
           ServiceListScreen(
-            baseUIState = currentLiveState, // Передаем живой стейт БТИ квартиры
+            baseUIState = currentLiveState,
             onDrawerClick = onDrawerClick,
             totalDebtState = totalDebtState,
             getTotalServiceDebt = { params ->
-              println("[$tag.Tablet]: [GET_DEBT] Trigger запроса баланса ГИОЦ для о/р Long: ${params.addressId}")
-              ledgerScreenModel.getTotalServiceDebt(params.uid, params.addressId,params.houseId, params.year, params.service, params.total)
+              ledgerScreenModel.getTotalServiceDebt(params.uid, params.addressId, params.houseId, params.year, params.service, params.total)
             },
             setContentDetail = { content ->
-              println("[$tag.Tablet]: [CLICK_EVENT] Переключение финансовой вкладки: $content")
               ledgerScreenModel.setContentDetail(content)
             }
           )
@@ -80,7 +73,6 @@ class MainServiceScreen(
 
         VerticalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
 
-        // Правая панель: Инвойсы Xpay или детальные ведомости ГИОЦ (55% ширины)
         Box(modifier = Modifier.weight(0.55f).fillMaxHeight()) {
           if (contentDetail != ContentDetail.UNKNOWN) {
             ServiceDetailScreen(
@@ -88,10 +80,10 @@ class MainServiceScreen(
               contentDetail = contentDetail,
               baseUIState = currentLiveState,
               totalDebtState = totalDebtState,
+              screenModel = ledgerScreenModel,
               navigateToWebView = navigateToWebView
             )
           } else {
-            // КМР-заглушка правого холста Material 3, если ни одна ЖКХ-служба еще не выбрана мышкой на Mac
             Column(
               modifier = Modifier.fillMaxSize().padding(16.dp),
               horizontalAlignment = Alignment.CenterHorizontally,
@@ -114,8 +106,8 @@ class MainServiceScreen(
         }
       }
     } else {
-      // Мобильный режим смартфона (Одноэкранное каскадное переключение через Crossfade)
       SinglePanelService(
+        modifier = Modifier.fillMaxSize(),
         contentDetail = contentDetail,
         baseUIState = currentLiveState,
         onDrawerClick = onDrawerClick,
@@ -127,6 +119,8 @@ class MainServiceScreen(
   }
 }
 
+
+
 /**
  * [SinglePanelService] — Stateless-верстка финансового хаба для мобильных дисплеев жителей г. Южный.
  */
@@ -137,39 +131,53 @@ fun SinglePanelService(
   contentDetail: ContentDetail,
   baseUIState: BaseUIState,
   onDrawerClick: () -> Unit,
-  totalDebtState: TotalDebtState,
+  totalDebtState: TotalDebtState, // Оставляем для совместимости сигнатуры
   screenModel: LedgerScreenModel,
   navigateToWebView: (String) -> Unit
 ) {
+  // ИСПРАВЛЕНО НАМЕРТВО: Вычитываем живой, реактивный стейт прямо из сквозной модели!
+  // Полностью уничтожен клин Snapshot-копий в ОЗУ смартфона!
+  val liveDebtState by screenModel.totalDebtState.collectAsState()
+
   Crossfade(
-    targetState = totalDebtState.showDetail,
+    targetState = liveDebtState.showDetail, // Отслеживаем живой Stateless-флаг
     label = "SinglePanelServiceCrossfade"
-  ) { showDetail ->
-    if (showDetail) {
-      // ИСПРАВЛЕНО: Перехватчик аппаратной кнопки "Назад" КМР-движка Voyager (без лишних let-вложений)
+  ) { isDetailVisible ->
+    if (isDetailVisible) {
+      // Перехватчик аппаратной кнопки "Назад" смартфона
       BackHandler(enabled = true) {
-        println("[$tag.Mobile.BackHandler]: Системне перехоплення кнопки Назад. Закриття детального інвойсу.")
+        println("[$tag.Mobile.BackHandler]: Системне перехоплення кнопки Назад.")
         screenModel.closeContentDetail()
+        screenModel.setContentDetail(ContentDetail.UNKNOWN)
       }
 
       ServiceDetailScreen(
-        modifier = modifier.background(MaterialTheme.colorScheme.background),
-        contentDetail = contentDetail,
+        modifier = Modifier
+          .fillMaxSize()
+          .background(MaterialTheme.colorScheme.background),
+        contentDetail = liveDebtState.serviceDetail, // Передаем живую службу
         baseUIState = baseUIState,
-        totalDebtState = totalDebtState,
+        totalDebtState = liveDebtState, // Передаем живой стейт
+        screenModel = screenModel,
         navigateToWebView = navigateToWebView
       )
     } else {
       ServiceListScreen(
         baseUIState = baseUIState,
         onDrawerClick = onDrawerClick,
-        totalDebtState = totalDebtState,
-        getTotalServiceDebt = { params -> screenModel.getTotalServiceDebt(params.uid, params.addressId, params.houseId,params.year, params.service, params.total) },
-        setContentDetail = { content -> screenModel.setContentDetail(content) }
+        totalDebtState = liveDebtState, // Передаем живой стейт для круговой диаграммы
+        getTotalServiceDebt = { params ->
+          screenModel.getTotalServiceDebt(params.uid, params.addressId, params.houseId, params.year, params.service, params.total)
+        },
+        setContentDetail = { content ->
+          screenModel.setContentDetail(content)
+        }
       )
     }
   }
 }
+
+
 
 
 

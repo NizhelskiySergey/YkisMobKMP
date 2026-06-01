@@ -2,8 +2,6 @@ package com.ykis.ykismobkmp.domain.mapper
 
 import com.ykis.ykismobkmp.domain.entity.ServiceEntity as DomainService
 import com.ykis.ykismobkmp.db.ServiceEntity as DbService // Имя сгенерированного SQLDelight класса строки
-
-
 private const val className = "ServiceMapper"
 
 /**
@@ -13,14 +11,14 @@ fun DbService.toDomainService(): DomainService {
   println("[$className.toDomainService]: Конвертація локальних кЕш-даних СУБД для Л/С ID: ${this.addressId}")
 
   return DomainService(
-    id = this.addressId, // Связываем сквозной Long идентификатор
     addressId = this.addressId,
     service = this.service,
     service1 = this.service1,
     service2 = this.service2,
     service3 = this.service3,
     service4 = this.service4,
-    data = this.data_,
+    // ИСПРАВЛЕНО НАМЕРТВО: Вычитываем дату из новой чистой колонки dateNach вместо старой data_
+    data = this.dateNach,
     zadol = this.zadol,
     zadol1 = this.zadol1,
     zadol2 = this.zadol2,
@@ -51,14 +49,15 @@ fun DomainService.toDbService(): DbService {
   println("[$className.toDbService]: Пакування мережевого JSON пакета в SQLite рядок для Л/С ID: ${this.addressId}")
 
   return DbService(
-    internalId = 0L, // Для AUTOINCREMENT полей в SQLDelight передается 0L или null (БД сама перезапишет инкремент)
     addressId = this.addressId,
     service = this.service,
     service1 = this.service1 ?: "Unknown",
     service2 = this.service2 ?: "Unknown",
     service3 = this.service3 ?: "Unknown",
     service4 = this.service4 ?: "Unknown",
-    data_ = this.data,
+    // ИСПРАВЛЕНО НАМЕРТВО: Перекладываем доменную дату из Ktor-сети в целевое поле dateNach на диске,
+    // полностью ликвидируя схлопывание истории и мертвые клины компилятора!
+    dateNach = this.data,
     zadol = this.zadol ?: 0.0,
     zadol1 = this.zadol1 ?: 0.0,
     zadol2 = this.zadol2 ?: 0.0,
@@ -81,3 +80,4 @@ fun DomainService.toDbService(): DbService {
     dolg4 = this.dolg4 ?: 0.0
   )
 }
+

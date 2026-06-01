@@ -205,8 +205,6 @@ val databaseModule = module {
  */
 /**
  * Главная точка старта и инициализации Koin-контекста для всех платформ.
- * ИСПРАВЛЕНО: Добавлен жесткий защитный предохранитель от повторного запуска Koin
- * при переворотах экрана планшета (устраняет KoinApplicationAlreadyStartedException).
  */
 fun initKoin(
   platformModule: Module = module {},

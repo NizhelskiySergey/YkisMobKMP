@@ -1,4 +1,4 @@
-package com.ykis.ykismobkmp.ui.screens.ledger.detail
+package com.ykis.ykismobkmp.ui.screens.ledger
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

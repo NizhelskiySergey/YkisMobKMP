@@ -989,6 +989,7 @@ class ApartmentScreenModel(
             currentState.copy(
               apartment = data,
               addressId = data.addressId,
+              houseId = data.houseId,
               address = data.address,
               osbbId = if (currentState.osbbId > 9000L) currentState.osbbId else data.osmdId,
               osmdId = if (currentState.osmdId > 9000L) currentState.osmdId else data.osmdId,
@@ -1046,6 +1047,7 @@ class ApartmentScreenModel(
                 apartments = newList,
                 apartmentLoading = true,
                 addressId = first.addressId,
+                houseId = first.houseId,
                 address = first.address,
                 osbb = first.osbb.toString(),
                 osbbId = first.osmdId,

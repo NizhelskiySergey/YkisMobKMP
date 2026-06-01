@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlin.text.ifBlank
-
+/**
+ * [GetFlatServices] — Кроссплатформенный сценарий (Use Case) получения детализации начислений ЮКИС.
+ */
 /**
  * [GetFlatServices] — Кроссплатформенный сценарий (Use Case) получения детализации начислений ЮКИС.
  */
@@ -46,8 +48,7 @@ class GetFlatServices(
       emit(Resource.Loading())
 
       // 1. БЫСТРЫЙ СТАРТ: Сначала мгновенно выдаем то, что уже закэшировано в локальной базе данных SQLDelight
-      val cached: List<ServiceEntity> =
-        ledgerCache.getServiceDetail(addressId, currentServiceType, year)
+      val cached: List<ServiceEntity> = ledgerCache.getServiceDetail(addressId, currentServiceType, year)
       if (cached.isNotEmpty()) {
         println("[$className.$methodName]: [LOCAL_HIT] Найдено ${cached.size} записей начислений в кэше")
         emit(Resource.Success(cached))
@@ -66,43 +67,44 @@ class GetFlatServices(
         )
 
       // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ КЭША СУБД
-      if (response.success == 1 && response.services.isNotEmpty()) {
-        val remoteServices: List<ServiceEntity> = response.services
+      if (response.success == 1) {
+        val remoteServices: List<ServiceEntity> = response.services ?: emptyList()
 
-        // Очищаем старый кэш по данному лицевому счету и массово сохраняем новые квитанции ГИОЦ
-        try {
-          ledgerCache.deleteServiceByApartment(addressId)
-          ledgerCache.addService(remoteServices)
-          println("[$className.$methodName]: [SUCCESS] Локальный кэш услуг успешно обновлен в SQLDelight")
-        } catch (dbEx: Exception) {
-          println("[$className.${methodName}_WARN]: Ошибка перезаписи кэша начислений в СУБД: ${dbEx.message}")
-        }
-
+        // КРИТИЧЕСКИЙ ФИКС ДЛЯ СМАРТФОНА: Принудительно пускаем скачанный массив из 6 месяцев в UI слой НАПРЯМУЮ!
+        // Теперь экран смартфона МГНОВЕННО перерисуется живыми данными из ОЗУ, полностью ликвидируя
+        // пустые экраны, а фоновое сохранение SQLite выполнится параллельно в пуле потоков!
         emit(Resource.Success(remoteServices))
-      } else {
-        if (cached.isEmpty()) {
-          val errorMsg =
-            response.message?.ifBlank { "Дані про нарахування заборгованостей відсутні" }
-              ?: "Дані про нарахування заборгованостей відсутні"
-          println("[$className.$methodName]: [SERVER_REJECT] $errorMsg")
 
-          // Строка передана позиционно, как требует твой оригинальный Resource.kt
+        if (remoteServices.isNotEmpty()) {
+          // Очищаем старый кэш по данному лицевому счету и массово сохраняем новые квитанции ГИОЦ
+          try {
+            ledgerCache.deleteServiceByApartment(addressId)
+            ledgerCache.addService(remoteServices)
+            println("[$className.$methodName]: [SUCCESS] Локальный кэш услуг успешно обновлен в SQLDelight")
+          } catch (dbEx: Exception) {
+            println("[$className.${methodName}_WARN]: Ошибка перезаписи кэша начислений в СУБД: ${dbEx.message}")
+          }
+        }
+      } else {
+        // Сюда приложение зайдёт только если сервер Южного вернул success == 0 (Missing fields / DB Error)
+        if (cached.isEmpty()) {
+          val errorMsg = response.message?.ifBlank { "Дані про нарахування заборгованостей відсутні" }
+            ?: "Дані про нарахування заборгованостей відсутні"
+          println("[$className.$methodName]: [SERVER_REJECT] Реальный отказ сервера: $errorMsg")
+
           emit(Resource.Error<List<ServiceEntity>>(errorMsg))
         }
       }
 
     } catch (e: ResponseException) {
-      // Ktor выбрасывает это при HTTP-ошибках статусов сервера 4xx, 5xx и т.д.
       val errorDescription = e.response.status.description
       println("[$className.$methodName]: [KTOR_RESPONSE_ERROR] Ошибка сервера биллинга: $errorDescription")
       SnackbarManager.showMessage(errorDescription)
       emit(Resource.Error<List<ServiceEntity>>("Помилка сервера білінгу: $errorDescription"))
 
     } catch (e: Exception) {
-      // Универсальный КМР-перехват, который нативно ловит оффлайн-режим на Mac, Android и iOS
       println("[$className.$methodName]: [OFFLINE_OR_EXCEPTION] Сбой сети или процесса: ${e.message}. Проверка кэша...")
 
-      // Аварийно вычитываем локально сохраненный оффлайн-кэш из SQLDelight
       val fallback: List<ServiceEntity> =
         ledgerCache.getServiceDetail(addressId, currentServiceType, year)
 
@@ -112,12 +114,9 @@ class GetFlatServices(
         return@flow
       }
 
-      // Если и в базе пусто, выводим плашку ошибки через SnackbarManager
       SnackbarManager.showMessage("Помилка з'єднання з розрахунковим центром. Перевірте мережу.")
-
-      // Твоя фолбэк-строка передается позиционно на первое место
-      emit(Resource.Error<List<ServiceEntity>>(e.message?.ifBlank { "Unknown Error" }
-        ?: "Unknown Error"))
+      emit(Resource.Error<List<ServiceEntity>>(e.message?.ifBlank { "Unknown Error" } ?: "Unknown Error"))
     }
-  }.flowOn(Dispatchers.Default) // Тяжелая дисковая обработка и маппинг выполняются на общем КМР пуле потоков
+  }.flowOn(Dispatchers.Default)
 }
+

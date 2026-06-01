@@ -1,4 +1,4 @@
-package com.ykis.ykismobkmp.ui.components
+package com.ykis.ykismobkmp.ui.screens.ledger
 
 // КРОСС ПЛАТФОРМЕННЫЕ ИМПОРТЫ ТИПОВ РЕСУРСОВ JETBRAINS:
 import androidx.compose.foundation.Image

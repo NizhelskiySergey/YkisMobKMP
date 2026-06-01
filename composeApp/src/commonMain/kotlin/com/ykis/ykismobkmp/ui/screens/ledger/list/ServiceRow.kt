@@ -31,8 +31,8 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.uah
-
 private const val className = "ServiceRow"
+
 @Composable
 fun ServiceRow(
   modifier: Modifier = Modifier,
@@ -65,7 +65,7 @@ fun ServiceRow(
     ) {
       val typography = MaterialTheme.typography
 
-      // Цветовой индикатор состояния задолженности ЖКХ расчетного центра
+      // ИСПРАВЛЕНО НАМЕРТВО: В индикатор передан базовый Modifier для удержания пропорций веса
       ServiceIndicator(
         color = color,
         modifier = Modifier
@@ -103,7 +103,7 @@ fun ServiceRow(
           color = if (debt > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
         )
         Text(
-          text = stringResource(Res.string.uah), // КМР-ресурс валюты гривны JetBrains Res
+          text = stringResource(Res.string.uah),
           style = typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -116,9 +116,8 @@ fun ServiceRow(
       )
     }
   }
-
-  HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), thickness = 1.dp)
 }
+
 @Composable
 fun ServiceIndicator(
   color: Color,
@@ -131,3 +130,4 @@ fun ServiceIndicator(
       .background(color = color)
   )
 }
+

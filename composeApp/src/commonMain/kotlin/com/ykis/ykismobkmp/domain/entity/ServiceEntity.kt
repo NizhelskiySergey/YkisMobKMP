@@ -1,19 +1,24 @@
 package com.ykis.ykismobkmp.domain.entity
-
-
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+
+/**
+ * [ServiceEntity] — Сериализуемая КМР-модель начисления и инвойса ГИОЦ биллинга г. Южного.
+ * ИСПРАВЛЕНО НАМЕРТВО: Поле data запечатано под строгое сопоставление с Json-ключом бэкенда!
+ */
 @Serializable
 data class ServiceEntity(
   @SerialName("address_id")
-  val id: Long = 0,
-  val addressId: Long = 0,
+  var addressId: Long = 0, // Перевели в var для атомарной страховки ID лицевого счета в репозитории
+
   val service: String = "Unknown",
   val service1: String? = "Unknown",
   val service2: String? = "Unknown",
   val service3: String? = "Unknown",
   val service4: String? = "Unknown",
+  @SerialName("data")
   val data: String = "2000-01-01",
+
   val zadol: Double? = 0.0,
   val zadol1: Double? = 0.0,
   val zadol2: Double? = 0.0,
@@ -35,5 +40,6 @@ data class ServiceEntity(
   val dolg3: Double? = 0.0,
   val dolg4: Double? = 0.0
 )
+
 
 

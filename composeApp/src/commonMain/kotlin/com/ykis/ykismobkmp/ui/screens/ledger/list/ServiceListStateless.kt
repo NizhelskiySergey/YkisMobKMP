@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,8 +26,8 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.uah
-
 private const val className = "ServiceListStateless"
+
 @Composable
 fun KmpAnimatedCircle(
   proportions: List<Float>,
@@ -51,6 +52,7 @@ fun KmpAnimatedCircle(
     }
   }
 }
+
 @Composable
 fun <T> ServiceListStateless(
   modifier: Modifier = Modifier,
@@ -102,7 +104,7 @@ fun <T> ServiceListStateless(
           Spacer(modifier = Modifier.height(4.dp))
 
           Text(
-            // ИСПРАВЛЕНО: Заменен Android R.string.uah на КМР Res.string.uah, форматирование копеек выровнено
+            // Вызовы ресурсов строк переведены под управление JetBrains Res.string для кроссплатформы
             text = "${formatDebtKmp(total)} ${stringResource(Res.string.uah)}",
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Black,
@@ -123,10 +125,18 @@ fun <T> ServiceListStateless(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
         ) {
-          items.forEach { item ->
-            // rows(item) больше не получает неявных ссылок на деструктивный внешний modifier
+          // Внутри Card -> Column файла ServiceListStateless.kt обновите цикл:
+          items.forEachIndexed { index, item ->
             rows(item)
+            if (index < items.lastIndex) {
+              HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                thickness = 1.dp,
+                modifier = Modifier.padding(horizontal = 12.dp)
+              )
+            }
           }
+          items
         }
       }
       Spacer(modifier = Modifier.height(16.dp))
@@ -149,7 +159,8 @@ private fun formatDebtKmp(debt: Double): String {
  * [extractProportionsKmp] — КМР-расширение для безопасного вычисления пропорций секторов диаграммы оплат.
  */
 private fun <T> List<T>.extractProportionsKmp(selector: (T) -> Double): List<Float> {
-  val total = this.sumOf { selector(it) }
+  val total = this.fold(0.0) { acc, item -> acc + selector(item) }
   if (total <= 0.0) return this.map { 1f / this.size }
   return this.map { (selector(it) / total).toFloat() }
 }
+
