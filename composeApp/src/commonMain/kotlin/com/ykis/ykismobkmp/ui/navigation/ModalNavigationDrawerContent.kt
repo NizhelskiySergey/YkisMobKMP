@@ -1,11 +1,14 @@
 package com.ykis.ykismobkmp.ui.navigation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -13,8 +16,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusTarget
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +37,7 @@ import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import ykismobkmp.composeapp.generated.resources.*
 private const val className = "ModalNavigationDrawerContent"
+
 @Composable
 fun ModalNavigationDrawerContent(
   modifier: Modifier = Modifier,
@@ -42,6 +51,11 @@ fun ModalNavigationDrawerContent(
 ) {
   val methodName = "DrawerContent"
   val keyboardController = LocalSoftwareKeyboardController.current
+  val focusManager = LocalFocusManager.current
+
+  // Сквозные КМР-координаторы фокуса для принудительного сброса курсора в Android/iOS
+  val selectedDrawerApartmentFocusRequester = remember { FocusRequester() }
+  val searchFocusRequester = remember { FocusRequester() }
 
   val apartmentScreenModel = koinInject<ApartmentScreenModel>()
   val chatScreenModel = koinInject<ChatScreenModel>()
@@ -56,6 +70,24 @@ fun ModalNavigationDrawerContent(
   val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
   val listMode = baseUIState.listMode
 
+  // ИСПРАВЛЕНО НАМЕРТВО: Атомарный глушитель авто-фокуса при ПЕРВОМ выдвижении шторки смартфона!
+  // Как только шторка инициализируется в памяти, мы принудительно переносим фокус на вибраную квартиру,
+  // полностью блокируя автоматический перехват курсора строкой поиска и исключая ложный вылет клавиатуры!
+  LaunchedEffect(Unit) {
+    println("[YkisLogKMP.$className.$methodName]: Шторка висунута. Блокування автоматичного фокусу пошуку.")
+    focusManager.clearFocus()
+    // Мягко уводим фокус на выбранную карточку квартиры БТИ
+    selectedDrawerApartmentFocusRequester.requestFocus()
+  }
+
+  // Упреждающее снятие фокуса при переключении подмодулей шторки смартфона
+  DisposableEffect(activeSubModule) {
+    onDispose {
+      println("[YkisLogKMP.$className.$methodName]: Зміна екрану смартфона. Примусове анулювання фокусу.")
+      focusManager.clearFocus()
+    }
+  }
+
   val apartmentBadges = remember(unreadCounts) {
     unreadCounts.map { (fullKey, count) ->
       val parts = fullKey.split("_")
@@ -66,6 +98,7 @@ fun ModalNavigationDrawerContent(
       .mapValues { it.value.sum() }
   }
 
+
   ModalDrawerSheet(
     modifier = modifier.width(320.dp),
     drawerContainerColor = MaterialTheme.colorScheme.surface
@@ -75,25 +108,74 @@ fun ModalNavigationDrawerContent(
       // --- ШАПКА: ПОИСК АДМИНА ИЛИ КНОПКА ДОБАВЛЕНИЯ КВАРТИРЫ ---
       Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
         if (isUserAdmin) {
-          OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { query ->
-              println("[$className.$methodName]: [SEARCH_INPUT] Поисковый ввод админа: $query")
-              apartmentScreenModel.onSearchQueryChanged(query)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Пошук адреси чи о/р", fontSize = 14.sp) },
-            leadingIcon = { Icon(Icons.Default.Search, null) },
-            trailingIcon = {
-              if (searchQuery.isNotEmpty()) {
-                IconButton(onClick = { apartmentScreenModel.onSearchQueryChanged("") }) {
+          // Флаг того, что админ РЕАЛЬНО нажал пальцем на строку для ввода текста
+          var isSearchEditingActive by remember { mutableStateOf(false) }
+
+          if (!isSearchEditingActive && searchQuery.isEmpty()) {
+            // ЭТАП А: Статичное зеркало поля поиска.
+            // Оно физически НЕ МОЖЕТ перехватить фокус и никогда не вызовет клавиатуру при открытии шторки!
+            Box(
+              modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp) // Жесткая высота Material 3 поля ввода
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                .clickable {
+                  println("[$className.$methodName]: Користувач свідомо активував режим пошуку.")
+                  isSearchEditingActive = true
+                }
+                .padding(horizontal = 16.dp),
+              contentAlignment = Alignment.CenterStart
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                  imageVector = Icons.Default.Search,
+                  contentDescription = null,
+                  tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                  text = "Пошук адреси чи о/р",
+                  color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                  style = MaterialTheme.typography.bodyLarge
+                )
+              }
+            }
+          } else {
+            // ЭТАП Б: Настоящее поле ввода. Включается только по ручному клику!
+            OutlinedTextField(
+              value = searchQuery,
+              onValueChange = { query ->
+                apartmentScreenModel.onSearchQueryChanged(query)
+              },
+              modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
+              placeholder = { Text("Пошук адреси чи о/р", fontSize = 14.sp) },
+              leadingIcon = { Icon(Icons.Default.Search, null) },
+              trailingIcon = {
+                IconButton(onClick = {
+                  println("[$className.$methodName]: Скидання тексту пошуку та закриття режиму редагування.")
+                  apartmentScreenModel.onSearchQueryChanged("")
+                  isSearchEditingActive = false // Выходим из режима поиска, пряча TextField
+                  focusManager.clearFocus()
+                  selectedDrawerApartmentFocusRequester.requestFocus()
+                }) {
                   Icon(Icons.Default.Close, null)
                 }
-              }
-            },
-            singleLine = true,
-            shape = RoundedCornerShape(12.dp)
-          )
+              },
+              singleLine = true,
+              shape = RoundedCornerShape(12.dp),
+              keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+              keyboardActions = KeyboardActions(onDone = {
+                isSearchEditingActive = false // Закрываем режим ввода при тапе на Done
+                focusManager.clearFocus()
+                selectedDrawerApartmentFocusRequester.requestFocus()
+              })
+            )
+
+            // Как только текстовое поле появилось на экране, принудительно зажигаем курсор в нем
+            LaunchedEffect(Unit) {
+              searchFocusRequester.requestFocus()
+            }
+          }
         } else {
           Text(
             text = stringResource(Res.string.list_apartment),
@@ -106,8 +188,8 @@ fun ModalNavigationDrawerContent(
             onClick = {
               println("[$className.$methodName]: [ADD_CLICK] Переход на привязку БТИ квартиры")
               keyboardController?.hide()
-
-              // Плавный Stateless переход: Закрываем шторку меню
+              focusManager.clearFocus()
+              selectedDrawerApartmentFocusRequester.requestFocus()
               onMenuClick()
               onSubModuleChange("AddApartmentScreen")
             },
@@ -132,13 +214,14 @@ fun ModalNavigationDrawerContent(
             icon = { Icon(Icons.Default.ArrowBackIosNew, null, Modifier.size(18.dp)) },
             onClick = {
               println("[$className.$methodName]: [BACK_LEVEL] Запрос возврата. Текущий слой: $listMode")
+              focusManager.clearFocus()
+              selectedDrawerApartmentFocusRequester.requestFocus()
               apartmentScreenModel.goBackLevel()
             },
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
           )
           HorizontalDivider()
         }
-
 
 
         // --- ЛЕНТА КВАРТИР И ДОМОВ ---
@@ -148,69 +231,145 @@ fun ModalNavigationDrawerContent(
         ) {
           if (searchQuery.isNotEmpty()) {
             items(filteredResults, key = { "search_${it.addressId}" }) { item ->
-              DrawerItemContent(
-                apartment = item,
-                isSelected = baseUIState.addressId == item.addressId,
-                listMode = listMode,
-                badgeCount = 0,
-                onClick = {
-                  keyboardController?.hide()
-                  if (listMode == ListMode.HOUSES) {
-                    println("[$className.$methodName]: [SEARCH_SELECT_HOUSE] Выбран дом ID: ${item.addressId}")
-                    apartmentScreenModel.onHouseSelected(item.addressId)
-                  } else {
-                    println("[$className.$methodName]: [SEARCH_SELECT_APT] Фиксация о/р квартиры ID: ${item.addressId}")
-                    navigateToApartment(item.addressId)
-                    onMenuClick()
+              val isSelected = baseUIState.addressId == item.addressId
+
+              Box(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .then(
+                    if (isSelected) {
+                      Modifier
+                        .focusRequester(selectedDrawerApartmentFocusRequester)
+                        .focusTarget()
+                    } else {
+                      Modifier
+                    }
+                  )
+              ) {
+                DrawerItemContent(
+                  apartment = item,
+                  isSelected = isSelected,
+                  listMode = listMode,
+                  badgeCount = 0,
+                  onClick = {
+                    println("[$className.$methodName]: Клік по елементу пошуку шторки. Анулювання курсору.")
+                    focusManager.clearFocus()
+                    selectedDrawerApartmentFocusRequester.requestFocus()
+                    keyboardController?.hide()
+
+                    if (listMode == ListMode.HOUSES) {
+                      println("[$className.$methodName]: [SEARCH_SELECT_HOUSE] Выбран дом ID: ${item.addressId}")
+                      apartmentScreenModel.onHouseSelected(item.addressId)
+                    } else {
+                      println("[$className.$methodName]: [SEARCH_SELECT_APT] Фиксация о/р квартиры ID: ${item.addressId}")
+                      navigateToApartment(item.addressId)
+                      onMenuClick()
+                    }
                   }
-                }
-              )
+                )
+              }
             }
           } else {
             when (listMode) {
               ListMode.RAIONS -> {
                 items(baseUIState.raions, key = { "r_${it.raionId}" }) { raion ->
-                  NavigationDrawerItem(
-                    label = { Text(raion.raion ?: "") },
-                    selected = baseUIState.selectedRaionId == raion.raionId,
-                    icon = { Icon(Icons.Default.Map, null) },
-                    onClick = {
-                      println("[$className.$methodName]: [SELECT_RAION] Клик по району: ${raion.raion}")
-                      apartmentScreenModel.onRaionSelected(raion)
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                  )
+                  val isSelected = baseUIState.selectedRaionId == raion.raionId
+
+                  Box(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .then(
+                        if (isSelected) {
+                          Modifier
+                            .focusRequester(selectedDrawerApartmentFocusRequester)
+                            .focusTarget()
+                        } else {
+                          Modifier
+                        }
+                      )
+                  ) {
+                    NavigationDrawerItem(
+                      label = { Text(raion.raion ?: "") },
+                      selected = isSelected,
+                      icon = { Icon(Icons.Default.Map, null) },
+                      onClick = {
+                        println("[$className.$methodName]: [SELECT_RAION] Клик по району: ${raion.raion}")
+                        focusManager.clearFocus()
+                        selectedDrawerApartmentFocusRequester.requestFocus()
+                        apartmentScreenModel.onRaionSelected(raion)
+                      },
+                      modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
+                  }
                 }
               }
               ListMode.HOUSES -> {
                 items(houses, key = { "h_${it.houseId}" }) { house ->
-                  NavigationDrawerItem(
-                    label = { Text(house.house ?: "") },
-                    selected = baseUIState.selectedHouseId == house.houseId,
-                    icon = { Icon(Icons.Default.Domain, null) },
-                    onClick = {
-                      println("[$className.$methodName]: [SELECT_HOUSE] Клик по дому ID: ${house.houseId}")
-                      apartmentScreenModel.onHouseSelected(house.houseId)
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                  )
+                  val isSelected = baseUIState.selectedHouseId == house.houseId
+
+                  Box(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .then(
+                        if (isSelected) {
+                          Modifier
+                            .focusRequester(selectedDrawerApartmentFocusRequester)
+                            .focusTarget()
+                        } else {
+                          Modifier
+                        }
+                      )
+                  ) {
+                    NavigationDrawerItem(
+                      label = { Text(house.house ?: "") },
+                      selected = isSelected,
+                      icon = { Icon(Icons.Default.Domain, null) },
+                      onClick = {
+                        println("[$className.$methodName]: [SELECT_HOUSE] Клик по дому ID: ${house.houseId}")
+                        focusManager.clearFocus()
+                        selectedDrawerApartmentFocusRequester.requestFocus()
+                        apartmentScreenModel.onHouseSelected(house.houseId)
+                      },
+                      modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
+                  }
                 }
               }
               ListMode.APARTMENTS -> {
                 val aptList = if (isOrgAdmin) drawerApartments else baseUIState.apartments
                 items(aptList, key = { "a_${it.addressId}" }) { apt ->
-                  DrawerItemContent(
-                    apartment = apt,
-                    isSelected = baseUIState.addressId == apt.addressId,
-                    listMode = ListMode.APARTMENTS,
-                    badgeCount = apartmentBadges[apt.addressId.toString()] ?: 0,
-                    onClick = {
-                      println("[$className.$methodName]: [SELECT_APT] Клик по квартире о/р Long: ${apt.addressId}")
-                      keyboardController?.hide()
-                      navigateToApartment(apt.addressId)
-                      onMenuClick()
-                    }
-                  )
+                  val isSelected = baseUIState.addressId == apt.addressId
+                  val badgeCount = apartmentBadges[apt.addressId.toString()] ?: 0
+
+                  Box(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      // Прошиваем выбранную админ-карточку БТИ фокус-маркером во избежание залипания клавиатуры
+                      .then(
+                        if (isSelected) {
+                          Modifier
+                            .focusRequester(selectedDrawerApartmentFocusRequester)
+                            .focusTarget()
+                        } else {
+                          Modifier
+                        }
+                      )
+                  ) {
+                    DrawerItemContent(
+                      apartment = apt,
+                      isSelected = isSelected,
+                      listMode = ListMode.APARTMENTS,
+                      badgeCount = badgeCount,
+                      onClick = {
+                        println("[$className.$methodName]: [SELECT_APT] Клик по квартире о/р Long: ${apt.addressId}")
+                        focusManager.clearFocus()
+                        selectedDrawerApartmentFocusRequester.requestFocus()
+                        keyboardController?.hide()
+                        navigateToApartment(apt.addressId)
+                        onMenuClick()
+                      }
+                    )
+                  }
                 }
               }
             }
@@ -218,7 +377,8 @@ fun ModalNavigationDrawerContent(
         }
       }
 
-      // --- ПОДВАЛ МЕНЮ: СИСТЕМНЫЕ НАСТРОЙКИ ЮКІС ---
+
+      // --- ПОДВАЛ МЕНЮ: СИСТЕМНІ НАЛАШТУВАННЯ ЮКІС ---
       Column(
         modifier = Modifier
           .fillMaxWidth()
@@ -227,22 +387,32 @@ fun ModalNavigationDrawerContent(
       ) {
         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
 
-        // ИСПРАВЛЕНО НАМЕРТВО: Опрашиваем сквозной стейт activeSubModule Хаба!
+        // Опитування сквозного стейту activeSubModule Хаба ЮКІС
         val isSettingsSelected = activeSubModule == "SettingsScreenDest"
 
         NavigationDrawerItem(
-          label = { Text("Налаштування", fontWeight = FontWeight.SemiBold) },
+          label = {
+            // ІСПРАВЛЕНО: maxLines = 1 та softWrap = false намертво усувають переноси у підвалі шторки
+            Text(
+              text = "Налаштування",
+              fontWeight = FontWeight.SemiBold,
+              maxLines = 1,
+              softWrap = false
+            )
+          },
           selected = isSettingsSelected,
           icon = { Icon(Icons.Default.Settings, contentDescription = "Настройки") },
           onClick = {
-            println("[$className.$methodName]: [SETTINGS_CLICK] Клик по системным настройкам профиля.")
+            println("[$className.$methodName]: [SETTINGS_CLICK] Клік по системним налаштуванням профілю. Скидання фокусу.")
+
+            // ІСПРАВЛЕНО: Гасимо фокус введення пошукової строки при переході у налаштування профілю смартфона
+            focusManager.clearFocus()
             keyboardController?.hide()
 
-            // Плавное Stateless закрытие шторки на смартфоне
+            // Плавне Stateless закриття шторки на смартфоні
             onMenuClick()
 
-            // ИСПРАВЛЕНО НАМЕРТВО: Вырезан деструктивный накат navigator.push!
-            // Переключаем внутренний подмодуль Хаба без разрыва контекста ОЗУ
+            // Перемикаємо внутрішній підмодуль Хаба без розриву контексту ОЗУ
             onSubModuleChange("SettingsScreenDest")
           },
           modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -258,7 +428,7 @@ fun ModalNavigationDrawerContent(
 }
 
 /**
- * Внутренний компонент отрисовки ячейки дома или квартиры ЮКІС на базе NavigationDrawerItem
+ * [DrawerItemContent] — Внутрішній компонент отрисовки ячейки будинку або квартири ЮКІС на базі NavigationDrawerItem
  */
 @Composable
 fun DrawerItemContent(
@@ -269,6 +439,8 @@ fun DrawerItemContent(
   badgeCount: Int,
   onClick: () -> Unit
 ) {
+  val focusManager = LocalFocusManager.current
+
   NavigationDrawerItem(
     label = {
       Row(
@@ -290,7 +462,9 @@ fun DrawerItemContent(
             Text(
               text = "| о/р ${apartment.addressId}",
               style = MaterialTheme.typography.labelSmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              maxLines = 1,
+              softWrap = false
             )
           }
 
@@ -318,7 +492,12 @@ fun DrawerItemContent(
       }
     },
     selected = isSelected,
-    onClick = onClick,
+    onClick = {
+      println("[YkisLogKMP.DrawerItemContent]: Клік по адресі у шторці смартфона. Скидання фокусу пошуку.")
+      // ІСПРАВЛЕНО: Примусово знімаємо фокус введення в OutlinedTextField при тапі на будь-яку квартиру шторки
+      focusManager.clearFocus()
+      onClick()
+    },
     icon = {
       Icon(
         imageVector = if (listMode == ListMode.HOUSES) Icons.Default.Domain else Icons.Default.Home,
@@ -328,6 +507,7 @@ fun DrawerItemContent(
     modifier = modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
   )
 }
+
 
 
 

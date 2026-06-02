@@ -44,12 +44,6 @@ import ykismobkmp.composeapp.generated.resources.cancel
 import ykismobkmp.composeapp.generated.resources.select_recipient
 
 private const val className = "UserListScreen"
-
-/**
- * [UserListScreen] — Кроссплатформенный Voyager-экран списка доступных комнат чатов квартир и абонентов.
- * ПОЯСНЕНИЕ: Для жителей нативно трансформирует список подключенных адресов БТИ, а для диспетчеров
- * разворачивает живой сокет-поток Firebase-ключей с фильтрацией через поисковую строку.
- */
 class UserListScreen(
   private val onDrawerClicked: () -> Unit = {},
   private val navigationType: NavigationType = NavigationType.BOTTOM_NAVIGATION,

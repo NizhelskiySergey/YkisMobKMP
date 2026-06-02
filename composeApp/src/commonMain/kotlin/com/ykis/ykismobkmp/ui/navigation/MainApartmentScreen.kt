@@ -28,6 +28,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
@@ -94,32 +96,53 @@ class MainApartmentScreen(
     }
 
     // Реактивный переключатель подмодуля, когда СУБД завершила холодный старт
+    // 1. Единый реактивный КМР-триггер переключения стартовых экранов Хаба ЮКІС
     LaunchedEffect(baseUIState.mainLoading, baseUIState.addressId) {
       if (!baseUIState.mainLoading && baseUIState.addressId != 0L) {
         activeSubModule = when {
+          // Для жильца открываем экран Info со сводными балансами и анкетой БТИ
           baseUIState.userRole == UserRole.StandardUser -> "InfoApartmentScreen"
+
+          // Исправлено: Для председателя ОСББ стартовым экраном также выставляем "InfoApartmentScreen"!
+          // Система автоматически подтянет БТИ первой квартиры дома, полностью исключая зависания!
+          baseUIState.userRole == UserRole.OsbbUser -> "InfoApartmentScreen"
+
+          // Для диспетчеров других городских служб оставляем список чатов абонентов
           else -> "UserListScreen"
         }
+        println("[YkisLogKMP.$className.NavigationTrigger]: Стан навантаження завершено. Маршрут activeSubModule переведено на: $activeSubModule")
       }
     }
 
-    // Слушатель роли для администраторов коммунальных служб Южного
+    // 2. Слушатель роли для администраторов коммунальных служб Южного
     LaunchedEffect(baseUIState.userRole, baseUIState.osbbId) {
       val role = baseUIState.userRole
       if (role != UserRole.StandardUser && role != UserRole.Unknown) {
         val effectiveOsbbId = when (role) {
           UserRole.VodokanalUser -> 9999L
-          UserRole.YtkeUser -> 9998L
-          UserRole.TboUser -> 9997L
-          else -> baseUIState.osbbId
+          UserRole.YtkeUser      -> 9998L
+          UserRole.TboUser       -> 9997L
+          else                   -> baseUIState.osbbId ?: 0L
         }
+
+        // Настраиваем префикс для сокет-контура админ-панели чата
+        if (role == UserRole.OsbbUser) {
+          chatScreenModel.onServiceSelectedForResident("OSBB")
+        }
+
+        // Атомарный запуск фонового трекера ключей Firebase для админ-уведомлений
         chatScreenModel.trackUserIdentifiersWithRole(role, effectiveOsbbId)
       }
     }
+
+    // 3. Функция финального выбора квартиры (Переключение локального контекста БТИ жильца/админа)
     val finalizeApartmentSelection: (Long) -> Unit = { id ->
       println("[YkisLogKMP.$className.finalizeApartmentSelection]: Зміна о/р квартири на Long ID: ${id}L")
+
+      // Переключаем активный подмодуль на анкету БТИ выбранного лицевого счета
       activeSubModule = "InfoApartmentScreen"
       apartmentScreenModel.setAddressId(id)
+
       coroutineScope.launch {
         if (drawerState.isOpen) {
           println("[YkisLogKMP.$className.finalizeApartmentSelection]: Закриття бокової шторки Drawer...")
@@ -128,6 +151,7 @@ class MainApartmentScreen(
         println("[YkisLogKMP.$className.finalizeApartmentSelection]: Кадр успішно синхронізовано з о/р: ${id}L")
       }
     }
+
     @Composable
     fun RenderSubContent() {
       Crossfade(targetState = activeSubModule, label = "SubModuleVoyagerFade") { route ->
@@ -137,6 +161,7 @@ class MainApartmentScreen(
               onDrawerClicked = { coroutineScope.launch { drawerState.open() } }
             ).Content()
           }
+
           "UserListScreen" -> {
             UserListScreen(
               navigationType = navigationType,
@@ -148,6 +173,7 @@ class MainApartmentScreen(
               }
             ).Content()
           }
+
           "AddApartmentScreen" -> {
             AddApartmentScreen(
               onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
@@ -157,11 +183,13 @@ class MainApartmentScreen(
               }
             ).Content()
           }
+
           "service_selector" -> {
             MainMeterScreen(
               onDrawerClick = { coroutineScope.launch { drawerState.open() } }
             ).Content()
           }
+
           "finance_selector" -> {
             MainServiceScreen(
               baseUIState = baseUIState,
@@ -169,6 +197,7 @@ class MainApartmentScreen(
               onDrawerClick = { coroutineScope.launch { drawerState.open() } }
             ).Content()
           }
+
           "chat_selector" -> {
             println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Шар 1 — відображення селектора служб.")
             ServiceSelectorScreen(
@@ -176,12 +205,12 @@ class MainApartmentScreen(
               onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
               onServiceClick = { selectedServiceDebt ->
                 println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Службу обрано: ${selectedServiceDebt.name}. Перехід на список кімнат.")
-
                 // Переключаем Crossfade смартфона на шаг 2, сохраняя целостность стейтов в ОЗУ!
                 activeSubModule = "chat_user_list"
               }
             ).Content()
           }
+
           "chat_user_list" -> {
             println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Шар 2 — відображення списку абонентів.")
             UserListScreen(
@@ -196,6 +225,7 @@ class MainApartmentScreen(
               }
             ).Content()
           }
+
           "chat_room_active" -> {
             println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Шар 3 — відкриття активної кімнати повідомлень ChatScreen.")
             ChatScreen(
@@ -205,6 +235,7 @@ class MainApartmentScreen(
               }
             ).Content()
           }
+
           "SettingsScreenDest" -> {
             rememberSaveable(globalNavigator.lastItem) {
               SettingsScreen(
@@ -222,6 +253,10 @@ class MainApartmentScreen(
       }
     }
 
+    // Вычитываем контроллеры фокуса и ввода на уровне корня адаптивной матрицы сборки
+    val localFocusManager = LocalFocusManager.current
+    val localKeyboardController = LocalSoftwareKeyboardController.current
+
     // --- АДАПТИВНАЯ МАТРИЦА СБОРКИ ИНТЕРФЕЙСА (Смартфон против Планшета) ---
     if (navigationType == NavigationType.BOTTOM_NAVIGATION) {
       ModalNavigationDrawer(
@@ -235,7 +270,12 @@ class MainApartmentScreen(
               println("[YkisLogKMP.MainApartmentScreen.Drawer]: Зміна підмодуля зі шторки на: $newModule")
               activeSubModule = newModule
             },
-            onMenuClick = { coroutineScope.launch { drawerState.close() } },
+            onMenuClick = {
+              // Прячем клавиатуру и сбрасываем фокус при закрытии шторки смартфона
+              localKeyboardController?.hide()
+              localFocusManager.clearFocus()
+              coroutineScope.launch { drawerState.close() }
+            },
             navigateToApartment = finalizeApartmentSelection,
             isApartmentsEmpty = baseUIState.addressId == 0L
           )
@@ -269,32 +309,41 @@ class MainApartmentScreen(
       }
     } else {
       Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        // Настройка вызова боковой панели внутри MainApartmentScreen.kt
         Row(modifier = Modifier.fillMaxSize()) {
           ApartmentNavigationRail(
             baseUIState = baseUIState,
             navigator = globalNavigator,
             activeSubModule = activeSubModule,
-            onSubModuleChange = { newModule ->
-              // Прямая Stateless-запись прилетевшего строкового роута для широкоформатных дисплеев
-              println("[YkisLogKMP.MainApartmentScreen.NavRail]: Зміна підмодуля з бокового рельсу на: $newModule")
-              activeSubModule = newModule
-            },
+            onSubModuleChange = { newModule -> activeSubModule = newModule },
             isRailExpanded = isRailExpanded,
-            onMenuClick = onMenuClick,
+
+            // ИСПРАВЛЕНО: Сброс текста поисковой строки при скрытии/раскрытии рельса!
+            // Это автоматически аннулирует фокус ввода TextField и мягко скроет клавиатуру.
+            onMenuClick = {
+              println("[YkisLogKMP.MainApartmentScreen.Rail]: Клік по бургер-кнопці. Анулювання фокусу пошуку.")
+              apartmentScreenModel.onSearchQueryChanged("") // Сбрасываем текст и фокус ввода
+              onMenuClick() // Вызываем оригинальный коллбек изменения ширины рельса
+            },
+
             navigateToApartment = finalizeApartmentSelection,
             railWidth = railWidth,
             isApartmentsEmpty = baseUIState.addressId == 0L
           )
+
           VerticalDivider(
             thickness = 0.5.dp,
             color = MaterialTheme.colorScheme.outlineVariant
           )
+
           Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
             RenderSubContent()
           }
         }
+
       }
     }
   }
 }
+
 

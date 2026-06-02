@@ -18,6 +18,8 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
@@ -90,6 +92,17 @@ class FirebaseServiceImpl(
     Resource.Error(message = e.message ?: "Google Auth Failed")
   }
 
+  /**
+   * [getSaveUserUidResult] — Вспомогательный suspend-метод синхронизации учетной записи с MySQL базой данных.
+   */
+  private suspend fun getSaveUserUidResult(uid: String, email: String) =
+    apartmentService.saveUserUid(uid, email).filter { it !is Resource.Loading }.first()
+
+  /**
+   * [addUserFirestore] — Системный КМР-метод инициализации профиля пользователя в Firestore и MySQL биллинга.
+   * ПОЯСНЕНИЕ: Метод атомарно создает документ пользователя слиянием (merge = true), а затем
+   * пробрасывает транзакцию синхронизации UID в удаленную базу данных г. Южного.
+   */
   override suspend fun addUserFirestore(): addUserFirestoreResponse {
     val methodName = "addUserFirestore"
     try {
@@ -102,44 +115,58 @@ class FirebaseServiceImpl(
       val rawPhone = currentUser?.phoneNumber
       val userEmail = if (!rawEmail.isNullOrBlank()) rawEmail else (rawPhone ?: "")
 
-      if (currentUid.isNullOrEmpty()) {
-        println("[YkisLogKMP.$className.$methodName]: [ERROR] UID is null")
+      if (currentUid.isNullOrBlank()) {
+        println("[YkisLogKMP.$className.$methodName]: [ERROR] UID порожній, скасування реєстрації.")
         return Resource.Error(message = "UID is empty")
       }
-      println("[YkisLogKMP.$className.$methodName]: [START] UID: $currentUid")
+      println("[YkisLogKMP.$className.$methodName]: [START] Ініціалізація профілю для UID: $currentUid")
 
       val userDocRef = db.collection("users").document(currentUid)
       val currentTimestamp = Clock.System.now().epochSeconds
 
-      // Мы собираем карту полей по умолчанию. Благодаря merge = true, Firebase создаст их только если документа НЕТ.
+      // Собираем карту полей по умолчанию для бесконфликтного слияния данных
       val userMap = mutableMapOf<String, Any?>(
         "uid" to currentUid,
         "email" to userEmail,
         "phoneNumber" to (rawPhone ?: ""),
-        "displayName" to (currentUser?.displayName ?: "Meшканець"),
+        "displayName" to (currentUser?.displayName ?: "Мешканець"),
         "userRole" to "STANDARD_USER",
         "osbbId" to 0L,
 
-        // ДОБАВЛЕНО: Гарантируем нулевой ID адреса БТИ для новых абонентов
+        // Гарантируем нулевой ID адреса БТИ для новых абонентов
         "addressId" to 0L,
-
         "lastLogin" to currentTimestamp
       )
-      println("[YkisLogKMP.$className.$methodName]: [PROCESS] Запуск безопасной записи set(merge = true)...")
-      // Запись слияния (merge = true) нативно создаст или обновит профиль без предварительного чтения сети!
+
+      println("[YkisLogKMP.$className.$methodName]: [PROCESS] Запуск безпечного запису set(merge = true) у Firestore...")
       userDocRef.set(data = userMap, merge = true)
-      println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Firestore успешно обновлен")
-      try {
-        println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_SUCCESS] Запуск синхронизации с MySQL")
-      } catch (e: Exception) {
-        println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_EXCEPTION] ${e.message}")
+      println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Профіль успішно зафіксовано у Firestore.")
+
+      // ИСПРАВЛЕНО НАМЕРТВО: Интегрирован вызов внешней suspend-функции синхронизации с MySQL биллинга!
+      // Блок изолирован через runCatching, чтобы сбои Ktor-сети Южного не ломали локальную сессию Firebase!
+      runCatching {
+        println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_SYNC] Запуск Ktor-синхронізації saveUserUid з MySQL...")
+
+        val mysqlResult = getSaveUserUidResult(uid = currentUid, email = userEmail)
+
+        when (mysqlResult) {
+          is Resource.Success -> {
+            println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_SUCCESS] Успішна синхронізація з MySQL базою даних ЮКІС.")
+          }
+          is Resource.Error -> {
+            println("[YkisLogKMP.$className.$methodName]: MySQL повернув помилку синхронізації: ${mysqlResult.message}")
+          }
+          else -> { /* Роли лоадеров отсечены фильтром */ }
+        }
+      }.onFailure { e ->
+        println("[YkisLogKMP.$className.$methodName]: Критичний збій мережевого шлюзу MySQL saveUserUid: ${e.message}")
       }
 
-      println("[YkisLogKMP.$className.$methodName]: [FINISH] Профиль готов")
+      println("[YkisLogKMP.$className.$methodName]: [FINISH] Контур створення профілю успішно завершено.")
       return Resource.Success(true)
 
     } catch (e: Exception) {
-      println("[YkisLogKMP.$className.$methodName]: [FATAL_ERROR] ${e.message}")
+      println("[YkisLogKMP.$className.$methodName]: [FATAL_ERROR] Непередбачена помилка рантайму: ${e.message}")
       return Resource.Error(message = e.message ?: "Process error")
     }
   }

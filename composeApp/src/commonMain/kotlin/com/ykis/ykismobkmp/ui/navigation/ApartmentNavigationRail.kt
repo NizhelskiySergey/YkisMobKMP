@@ -51,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,8 +59,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusTarget
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -123,7 +128,6 @@ fun ApartmentNavigationRail(
   navigator: Navigator, // Единственный легитимный навигатор верхнего уровня
   activeSubModule: String,
   onSubModuleChange: (String) -> Unit,
-
   isRailExpanded: Boolean,
   onMenuClick: () -> Unit,
   navigateToApartment: (Long) -> Unit = {},
@@ -131,6 +135,11 @@ fun ApartmentNavigationRail(
   isApartmentsEmpty: Boolean
 ) {
   val keyboardController = LocalSoftwareKeyboardController.current
+  val focusManager = LocalFocusManager.current
+
+  // ИСПРАВЛЕНО: Объявляем сквозной координатор фокуса на самом верхнем уровне ОЗУ функции!
+  // Теперь и строка поиска в шапке, и LazyColumn ниже увидят этот инстанс без ошибок компиляции.
+  val selectedApartmentFocusRequester = remember { FocusRequester() }
 
   val chatViewModel = koinInject<ChatScreenModel>()
   val apartmentViewModel = koinInject<ApartmentScreenModel>()
@@ -140,8 +149,7 @@ fun ApartmentNavigationRail(
   val isUserAdmin = baseUIState.userRole != UserRole.StandardUser
   val unreadCounts by chatViewModel.unreadCounts.collectAsState()
   val listMode = baseUIState.listMode
-  val isOrgAdmin =
-    baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
+  val isOrgAdmin = baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
   val raions = baseUIState.raions
 
   val houses by apartmentViewModel.drawerHouses.collectAsState()
@@ -172,6 +180,20 @@ fun ApartmentNavigationRail(
           Icon(Icons.Default.Menu, contentDescription = "Menu")
         }
       }
+
+      // Создаем КМР-координатор фокуса для строки поиска админа ОСББ
+      val searchFocusRequester = remember { FocusRequester() }
+
+      // Автоматический перенос фокуса на выбранный элемент списка ПЕРЕД тем, как рельс свернется
+      DisposableEffect(isRailExpanded) {
+        if (!isRailExpanded) {
+          println("[$className.ApartmentNavigationRail]: Рельс згортається. Перенос фокусу на вибрану квартиру будинку.")
+          focusManager.clearFocus()
+          selectedApartmentFocusRequester.requestFocus()
+        }
+        onDispose { }
+      }
+
       if (isRailExpanded) {
         Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
           if (isUserAdmin) {
@@ -179,15 +201,23 @@ fun ApartmentNavigationRail(
               OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { query ->
-                  println("[$className.ApartmentNavigationRail]: [SEARCH_INPUT] Ввод поискового запроса: $query")
+                  println("[$className.ApartmentNavigationRail]: [SEARCH_INPUT] Ввід пошукового запиту: $query")
                   apartmentViewModel.onSearchQueryChanged(query)
                 },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .height(48.dp)
+                  .focusRequester(searchFocusRequester),
                 placeholder = { Text("Пошук...", fontSize = 11.sp) },
                 leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(16.dp)) },
                 trailingIcon = {
                   if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { apartmentViewModel.onSearchQueryChanged("") }) {
+                    IconButton(onClick = {
+                      println("[$className.ApartmentNavigationRail]: Очищення тексту та примусовий перенос фокусу на вибрану квартиру.")
+                      apartmentViewModel.onSearchQueryChanged("")
+                      focusManager.clearFocus()
+                      selectedApartmentFocusRequester.requestFocus()
+                    }) {
                       Icon(Icons.Default.Close, null, Modifier.size(14.dp))
                     }
                   }
@@ -201,7 +231,8 @@ fun ApartmentNavigationRail(
             FloatingActionButton(
               onClick = {
                 keyboardController?.hide()
-
+                focusManager.clearFocus()
+                selectedApartmentFocusRequester.requestFocus()
                 onSubModuleChange("AddApartmentScreen")
               },
               modifier = Modifier.fillMaxWidth().height(40.dp),
@@ -223,6 +254,7 @@ fun ApartmentNavigationRail(
       }
     }
   ) {
+
     Column(modifier = Modifier.fillMaxSize()) {
       // --- 1. ВЕРХНЯЯ ЧАСТЬ (СПИСКИ БТИ + ПОИСК) ---
       Column(
@@ -235,6 +267,8 @@ fun ApartmentNavigationRail(
             TextButton(
               onClick = {
                 println("[$className.ApartmentNavigationRail]: Клик назад на предыдущий уровень БТИ")
+                focusManager.clearFocus()
+                selectedApartmentFocusRequester.requestFocus()
                 apartmentViewModel.goBackLevel()
               },
               modifier = Modifier.padding(start = 8.dp, top = 8.dp)
@@ -244,55 +278,111 @@ fun ApartmentNavigationRail(
               Text("Назад")
             }
           }
+
           LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(vertical = 8.dp)
           ) {
             if (searchQuery.isNotEmpty()) {
               items(apartments, key = { "search_${it.addressId}" }) { item ->
-                RailItemContent(
-                  title = item.address ?: "",
-                  subtitle = item.nanim,
-                  extraInfo = "о/р ${item.addressId}",
-                  icon = if (listMode == ListMode.HOUSES) Icons.Default.Domain else Icons.Default.Home,
-                  isSelected = baseUIState.addressId == item.addressId,
-                  onClick = {
-                    keyboardController?.hide()
-                    if (listMode == ListMode.HOUSES) {
-                      apartmentViewModel.onHouseSelected(item.addressId)
-                    } else {
-                      navigateToApartment(item.addressId)
+                val isSelected = baseUIState.addressId == item.addressId
+
+                Box(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                      if (isSelected) {
+                        Modifier
+                          .focusRequester(selectedApartmentFocusRequester)
+                          .focusTarget()
+                      } else {
+                        Modifier
+                      }
+                    )
+                ) {
+                  RailItemContent(
+                    title = item.address ?: "",
+                    subtitle = item.nanim,
+                    extraInfo = "о/р ${item.addressId}",
+                    icon = if (listMode == ListMode.HOUSES) Icons.Default.Domain else Icons.Default.Home,
+                    isSelected = isSelected,
+                    onClick = {
+                      println("[$className.ApartmentNavigationRail.SearchItem]: Клик по элементу поиска. Сброс фокуса.")
+                      focusManager.clearFocus()
+                      selectedApartmentFocusRequester.requestFocus()
+                      keyboardController?.hide()
+                      if (listMode == ListMode.HOUSES) {
+                        apartmentViewModel.onHouseSelected(item.addressId)
+                      } else {
+                        navigateToApartment(item.addressId)
+                      }
                     }
-                  }
-                )
+                  )
+                }
               }
             } else {
               when (listMode) {
                 ListMode.RAIONS -> {
                   items(raions, key = { "r_${it.raionId}" }) { raion ->
-                    RailItemContent(
-                      title = raion.raion ?: "",
-                      icon = Icons.Default.Map,
-                      isSelected = baseUIState.selectedRaionId == raion.raionId,
-                      onClick = {
-                        println("[$className.ApartmentNavigationRail]: Выбран район ID: ${raion.raionId}")
-                        apartmentViewModel.onRaionSelected(raion)
-                      }
-                    )
+                    val isSelected = baseUIState.selectedRaionId == raion.raionId
+
+                    Box(
+                      modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                          if (isSelected) {
+                            Modifier
+                              .focusRequester(selectedApartmentFocusRequester)
+                              .focusTarget()
+                          } else {
+                            Modifier
+                          }
+                        )
+                    ) {
+                      RailItemContent(
+                        title = raion.raion ?: "",
+                        icon = Icons.Default.Map,
+                        isSelected = isSelected,
+                        onClick = {
+                          println("[$className.ApartmentNavigationRail]: Выбран район ID: ${raion.raionId}. Перенос фокуса.")
+                          focusManager.clearFocus()
+                          selectedApartmentFocusRequester.requestFocus()
+                          apartmentViewModel.onRaionSelected(raion)
+                        }
+                      )
+                    }
                   }
                 }
 
                 ListMode.HOUSES -> {
                   items(houses, key = { "h_${it.houseId}" }) { house ->
-                    RailItemContent(
-                      title = house.house ?: "",
-                      icon = Icons.Default.Domain,
-                      isSelected = baseUIState.selectedHouseId == house.houseId,
-                      onClick = {
-                        println("[$className.ApartmentNavigationRail]: Выбран дом ID: ${house.houseId}")
-                        apartmentViewModel.onHouseSelected(house.houseId)
-                      }
-                    )
+                    val isSelected = baseUIState.selectedHouseId == house.houseId
+
+                    Box(
+                      modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                          if (isSelected) {
+                            Modifier
+                              .focusRequester(selectedApartmentFocusRequester)
+                              .focusTarget()
+                          } else {
+                            Modifier
+                          }
+                        )
+                    ) {
+                      RailItemContent(
+                        title = house.house ?: "",
+                        icon = Icons.Default.Domain,
+                        isSelected = isSelected,
+                        onClick = {
+                          println("[$className.ApartmentNavigationRail]: Выбран дом ID: ${house.houseId}. Перенос фокуса.")
+                          focusManager.clearFocus()
+                          selectedApartmentFocusRequester.requestFocus()
+                          apartmentViewModel.onHouseSelected(house.houseId)
+                        }
+                      )
+                    }
                   }
                 }
 
@@ -302,19 +392,37 @@ fun ApartmentNavigationRail(
                     val isSelected = baseUIState.addressId == apartment.addressId
                     val badgeCount = apartmentBadges[apartment.addressId.toString()] ?: 0
 
-                    RailItemContent(
-                      title = "кв. ${apartment.address ?: ""}",
-                      subtitle = apartment.nanim,
-                      extraInfo = "о/р ${apartment.addressId}",
-                      icon = Icons.Default.Home,
-                      isSelected = isSelected,
-                      badgeCount = badgeCount,
-                      onClick = {
-                        keyboardController?.hide()
-                        println("[$className.ApartmentNavigationRail]: Вибрана квартира о/р Long: ${apartment.addressId}")
-                        navigateToApartment(apartment.addressId)
-                      }
-                    )
+                    Box(
+                      modifier = Modifier
+                        .fillMaxWidth()
+                        // ИСПРАВЛЕНО НАМЕРТВО: Прошиваем выбранную админ-карточку БТИ фокус-маркером!
+                        // При переносе фокуса из OutlinedTextField клавиатура мгновенно спрячется!
+                        .then(
+                          if (isSelected) {
+                            Modifier
+                              .focusRequester(selectedApartmentFocusRequester)
+                              .focusTarget()
+                          } else {
+                            Modifier
+                          }
+                        )
+                    ) {
+                      RailItemContent(
+                        title = "кв. ${apartment.address ?: ""}",
+                        subtitle = apartment.nanim,
+                        extraInfo = "о/р ${apartment.addressId}",
+                        icon = Icons.Default.Home,
+                        isSelected = isSelected,
+                        badgeCount = badgeCount,
+                        onClick = {
+                          println("[$className.ApartmentNavigationRail]: Вибрана квартира о/р Long: ${apartment.addressId}L. Аннулирование фокуса ввода.")
+                          focusManager.clearFocus()
+                          selectedApartmentFocusRequester.requestFocus()
+                          keyboardController?.hide()
+                          navigateToApartment(apartment.addressId)
+                        }
+                      )
+                    }
                   }
                 }
               }
@@ -322,6 +430,7 @@ fun ApartmentNavigationRail(
           }
         }
       }
+
 
       // --- 2. НИЖНЯЯ СИСТЕМНАЯ ЧАСТЬ (МЕНЮ БЕЗ ДЕСТРУКТИВНЫХ REPLACEALL) ---
       Column(
@@ -343,12 +452,17 @@ fun ApartmentNavigationRail(
         NavigationRailItem(
           selected = isHomeSelected,
           onClick = {
+            println("[$className.ApartmentNavigationRail]: Перехід на головну панель БТІ/Абонентів. Скидання фокусу.")
+            focusManager.clearFocus()
+            selectedApartmentFocusRequester.requestFocus()
+
             val targetRoute = if (baseUIState.userRole == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen"
             onSubModuleChange(targetRoute)
           },
           icon = { Icon(Icons.Default.Home, null) },
           label = if (isRailExpanded) {
-            { Text("Головна", fontSize = 11.sp) }
+            // ИСПРАВЛЕНО: maxLines = 1 и softWrap = false исключают уродливые 2 строчки на дисплее планшета!
+            { Text("Головна", fontSize = 11.sp, maxLines = 1, softWrap = false) }
           } else null
         )
 
@@ -356,18 +470,24 @@ fun ApartmentNavigationRail(
         NavigationRailItem(
           selected = isFinanceSelected,
           onClick = {
-            println("[$className.ApartmentNavigationRail]: Перехід на модуль комунальних нарахувань та заборгованостей.")
+            println("[$className.ApartmentNavigationRail]: Перехід на модуль комунальних нарахувань. Скидання фокусу.")
+            focusManager.clearFocus()
+            selectedApartmentFocusRequester.requestFocus()
             onSubModuleChange("finance_selector")
           },
           icon = { Icon(Icons.Default.CreditCard, null) },
-          label = if (isRailExpanded) { { Text("Фінанси", fontSize = 11.sp) } } else null
+          label = if (isRailExpanded) {
+            { Text("Фінанси", fontSize = 11.sp, maxLines = 1, softWrap = false) }
+          } else null
         )
 
         // 3. Кнопка Приборы учета ЮКІС (Ввод показаний водомеров)
         NavigationRailItem(
           selected = isMetersSelected,
           onClick = {
-            // Исправлено: Связано с легитимным именем переменной chatScreenModel в ОЗУ!
+            println("[$className.ApartmentNavigationRail]: Перехід на модуль лічильників. Скидання фокусу.")
+            focusManager.clearFocus()
+            selectedApartmentFocusRequester.requestFocus()
             chatViewModel.setSelectedService(null as TotalServiceDebt?)
             onSubModuleChange("service_selector")
           },
@@ -385,7 +505,7 @@ fun ApartmentNavigationRail(
             }
           },
           label = if (isRailExpanded) {
-            { Text("Лічильники", fontSize = 11.sp) }
+            { Text("Лічильники", fontSize = 11.sp, maxLines = 1, softWrap = false) }
           } else null
         )
 
@@ -393,8 +513,9 @@ fun ApartmentNavigationRail(
         NavigationRailItem(
           selected = isChatSelected,
           onClick = {
-            // Исправлено: Клик переводит на "chat_selector" — первый слой выбора служб чата!
-            println("[$className.ApartmentNavigationRail]: Перехід до модуля обговорень ЮКІС.")
+            println("[$className.ApartmentNavigationRail]: Перехід до модуля обговорень ЮКІС. Скидання фокусу.")
+            focusManager.clearFocus()
+            selectedApartmentFocusRequester.requestFocus()
             onSubModuleChange("chat_selector")
           },
           icon = {
@@ -411,7 +532,7 @@ fun ApartmentNavigationRail(
             }
           },
           label = if (isRailExpanded) {
-            { Text("Чат", fontSize = 11.sp) }
+            { Text("Чат", fontSize = 11.sp, maxLines = 1, softWrap = false) }
           } else null
         )
 
@@ -419,79 +540,93 @@ fun ApartmentNavigationRail(
         NavigationRailItem(
           selected = activeSubModule == "SettingsScreenDest",
           onClick = {
-            println("[$className.ApartmentNavigationRail]: Перехід на модуль системних налаштувань профілю.")
+            println("[$className.ApartmentNavigationRail]: Перехід на модуль системних налаштувань профілю. Скидання фокусу.")
+            focusManager.clearFocus()
+            selectedApartmentFocusRequester.requestFocus()
             onSubModuleChange("SettingsScreenDest")
           },
           icon = { Icon(Icons.Default.Settings, null) },
-          label = if (isRailExpanded) { { Text("Налаштування", fontSize = 11.sp) } } else null
+          label = if (isRailExpanded) {
+            { Text("Налаштування", fontSize = 11.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip) }
+          } else null
         )
       }
     }
   }
 }
 
-
-
+/**
+ * [RailItemContent] — Декларативная плашка строки квартиры в административном реестре ЮКІС.
+ */
 @Composable
-    fun RailItemContent(
-      title: String,
-      subtitle: String? = null,
-      extraInfo: String? = null,
-      icon: ImageVector,
-      isSelected: Boolean,
-      badgeCount: Int = 0,
-      onClick: () -> Unit
-    ) {
-      Box(
-        modifier = Modifier
-          .padding(horizontal = 8.dp, vertical = 2.dp)
-          .fillMaxWidth()
-          .clip(RoundedCornerShape(8.dp))
-          .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f) else Color.Transparent)
-          .clickable { onClick() }
-          .padding(8.dp)
-      ) {
+fun RailItemContent(
+  title: String,
+  subtitle: String? = null,
+  extraInfo: String? = null,
+  icon: ImageVector,
+  isSelected: Boolean,
+  badgeCount: Int = 0,
+  onClick: () -> Unit
+) {
+  val focusManager = LocalFocusManager.current
+
+  Box(
+    modifier = Modifier
+      .padding(horizontal = 8.dp, vertical = 2.dp)
+      .fillMaxWidth()
+      .clip(RoundedCornerShape(8.dp))
+      .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f) else Color.Transparent)
+      .clickable {
+        println("[YkisLogKMP.ApartmentNavigationRail.Item]: Клік по квартирі будинку. Скидання фокусу пошукової строки.")
+        // Принудительно гасим фокус в OutlinedTextField на уровне родительского вызова items
+        focusManager.clearFocus()
+        onClick()
+      }
+      .padding(8.dp)
+  ) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+      Icon(
+        imageVector = icon,
+        contentDescription = null,
+        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+        modifier = Modifier.size(20.dp)
+      )
+      Spacer(Modifier.width(12.dp))
+      Column(modifier = Modifier.weight(1f)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-            modifier = Modifier.size(20.dp)
+          Text(
+            title,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
           )
-          Spacer(Modifier.width(12.dp))
-          Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-              Text(
-                title,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-              )
-              if (extraInfo != null) {
-                Text(
-                  " $extraInfo",
-                  style = MaterialTheme.typography.labelSmall,
-                  color = MaterialTheme.colorScheme.outline
-                )
-              }
-            }
-            subtitle?.let {
-              Text(
-                it,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-              )
-            }
-          }
-          if (badgeCount > 0) {
-            Badge { Text(badgeCount.toString()) }
+          if (extraInfo != null) {
+            Text(
+              " $extraInfo",
+              style = MaterialTheme.typography.labelSmall,
+              color = MaterialTheme.colorScheme.outline
+            )
           }
         }
+        subtitle?.let {
+          Text(
+            it,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
+      }
+      if (badgeCount > 0) {
+        Badge { Text(badgeCount.toString()) }
       }
     }
+  }
+}
+
+
 
 
 

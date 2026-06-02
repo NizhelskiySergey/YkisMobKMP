@@ -92,28 +92,11 @@ class AuthScreenModel(
   private fun isValidPasswordKmp(target: String): Boolean {
     return target.isNotBlank() && target.length >= 6
   }
-
-  // ====================================================================
-  // --- БЛОК ЛОГИКИ СЦЕНАРИЯ СТАНДАРТНОЙ АВТОРnetworkИЗАЦИИ (SIGN IN) ---
-  // ====================================================================
-
-  /**
-   * [onSignInClick] — Атомарна процедура авторизації абонента білінгу м. Южне за Email.
-   * ИСПРАВЛЕНО НАМЕРТВО: Интегрирован вызов appScreenModel.evaluateStartDestination() для мгновенного
-   * пробития навигационного тупика, а также добавлен взвод лоадера с жестким сбросом в finally блоке!
-   */
-  /**
-   * [onSignInClick] — Атомарна процедура авторизації абонента білінгу м. Южне за Email.
-   * ИСПРАВЛЕНО НАМЕРТВО: Ошибка Unresolved reference '_isSmsLoading' ликвидирована!
-   * Защита от дребезга кликов и лоадер переведены на твой родной поток _signInResponse.
-   * Интегрирован вызов appScreenModel.evaluateStartDestination() для мгновенного пробития навигации.
-   */
   fun onSignInClick(onSuccessNavigate: () -> Unit) {
     val methodName = "onSignInClick"
     val currentEmail = email
     val currentPassword = password
 
-    // ЗАЩИТА ОТ ДРЕБЕЗГА: Если транзакция уже запущена в сеть — сбрасываем любые повторные тапы по кнопке
     if (_signInResponse.value is Resource.Loading) return
 
     if (!isValidEmailKmp(currentEmail)) {
@@ -146,17 +129,7 @@ class AuthScreenModel(
 
         // Переключаем доменный стейт в Успех
         _signInResponse.value = Resource.Success(true)
-
-        // ====================================================================
-        // --- КРИТИЧЕСКИЙ НАВИГАЦИОННЫЙ ФИКС: ПРОБУЖДАЕМ СТЕЙТ-МАШИНУ ЯДРА ---
-        // ====================================================================
-        // Принудительно заставляем AppScreenModel заново опросить Firebase Auth
-        // и запустить Use Case чтения профиля БТИ из Firestore.
-        // Модель увидит, что квартир 0, и мгновенно переведет поток в AppStartState.AddApartment!
         appScreenModel.evaluateStartDestination()
-        // ====================================================================
-
-        // Нативная КМР лямбда Voyager для бесшовной отрисовки хаба MainApartmentScreen
         onSuccessNavigate()
 
       } catch (e: Exception) {
@@ -166,10 +139,6 @@ class AuthScreenModel(
       }
     }
   }
-
-
-
-
   // --- ВОССТАНОВЛЕНИЕ ПАРОЛЯ ---
   fun onForgotPasswordClick() {
     val methodName = "onForgotPasswordClick"
@@ -232,7 +201,6 @@ class AuthScreenModel(
       }
     }
   }
-
   // --- ПОВТОРНАЯ ОТПРАВКА ССЫЛКИ ВЕРИФИКАЦИИ ---
   fun repeatEmailVerified() {
     val methodName = "repeatEmailVerified"
@@ -304,15 +272,6 @@ class AuthScreenModel(
       currentUser.linkWithCredential(firebaseCredential)
     }
   }
-
-  /**
-   * [onSignUpWithGoogle] — Синхронізація профілю та авторизація через Google ID Token.
-   */
-  /**
-   * [onSignUpWithGoogle] — Каскадна процедура авторизації та лінкування профілю мешканця через Google.
-   * ИСПРАВЛЕНО НАМЕРТВО: Интегрирован независимый булевый флаг _isGoogleLoading с защитой от дребезга кликов!
-   * Лоадер гарантированно гаснет в блоке finally при любых сетевых таймаутах Google Credential Manager.
-   */
   fun onSignUpWithGoogle(idToken: String, onFinishedNavigate: () -> Unit) {
     val methodName = "onSignUpWithGoogle"
 

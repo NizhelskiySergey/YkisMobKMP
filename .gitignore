@@ -19,5 +19,6 @@ captures
 node_modules/
 composeApp/src/commonMain/kotlin/com/ykis/ykismobkmp/di/Secrets.kt
 composeApp/src/commonMain/google-services.json
+composeApp/google-services.json
 iosApp/iosApp/GoogleService-Info.plist
 README.md
