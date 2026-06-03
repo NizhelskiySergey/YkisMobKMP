@@ -6,7 +6,9 @@ import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.ykis.ykismobkmp.core.utils.Resource
+import com.google.firebase.messaging.FirebaseMessaging
 import dev.gitlive.firebase.auth.android
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
@@ -82,4 +84,12 @@ actual suspend fun performPlatformSignInWithSms(
     println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_AUTH_CRITICAL] ${e.message}")
     continuation.resume(Resource.Error(e.message ?: "Сбой рантайма"))
   }
+}
+
+actual suspend fun getPlatformFcmToken(): String? = try {
+  println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_FCM] Запрос нативного токена...")
+  FirebaseMessaging.getInstance().token.await()
+} catch (e: Exception) {
+  println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: Не удалось получить FCM токен: ${e.message}")
+  null
 }

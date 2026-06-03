@@ -71,12 +71,15 @@ class AppScreenModel(
         return@launch
       }
 
+      // ГАРАНТИЯ ПУШЕЙ: Пробуем зарегистрировать токен при каждом входе
+      firebaseService.addFcmToken()
+
       // 3. ШАГ №3: ПОЛЬЗОВАТЕЛЬ АВТОРИЗОВАН — Безопасное чтение профиля БТИ без зацикливания памяти
       println("[YkisLogKMP.$className.evaluateStartDestination]: [SESSION_OK] Запуск одноразового моніторингу профілю...")
 
       apartmentScreenModel.observeUserProfile()
 
-      val finalUIState = apartmentScreenModel.apartmentUiState.first { state ->
+      val finalUIState = apartmentScreenModel.uiState.first { state ->
         state.userRole != UserRole.Unknown && !state.mainLoading
       }
 

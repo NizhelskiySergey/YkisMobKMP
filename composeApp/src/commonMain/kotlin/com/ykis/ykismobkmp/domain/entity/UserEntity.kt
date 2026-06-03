@@ -45,7 +45,10 @@ fun mapToUserEntity(uid: String, map: Map<String, Any?>): UserEntity {
       osbbId = map["osbbId"]?.toSafeLong(),
       addressId = map["addressId"]?.toSafeLong() ?: 0L,
       address = (map["address"] as? String) ?: (map["name"] as? String) ?: "",
-      tokens = (map["fcmTokens"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+      // ИСПРАВЛЕНО: Проверяем оба варианта ключей для обратной совместимости
+      tokens = (map["fcmTokens"] as? List<*>)?.filterIsInstance<String>()
+        ?: (map["tokens"] as? List<*>)?.filterIsInstance<String>()
+        ?: emptyList()
     )
   } catch (e: Exception) {
     // ИСПРАВЛЕНО: Нативный Android Log.e заменен на кроссплатформенный метод println()

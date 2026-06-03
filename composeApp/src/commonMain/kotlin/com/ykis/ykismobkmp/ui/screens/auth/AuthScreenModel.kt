@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.StringResource
+import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "AuthScreenModel"
 
@@ -27,7 +29,7 @@ private const val className = "AuthScreenModel"
 class AuthScreenModel(
   private val firebaseService: FirebaseService,
   private val appScreenModel: AppScreenModel,
-  logService: LogService
+  logService: LogService,
 ) : BaseScreenModel(logService) {
 
   // Единое реактивное состояние полей ввода (Email, Пароль, Повторный пароль)
@@ -45,7 +47,6 @@ class AuthScreenModel(
   val signUpResponse: StateFlow<Resource<Boolean>?> = _signUpResponse.asStateFlow()
 
   private val _sendEmailVerificationResponse = MutableStateFlow<Resource<Boolean>>(Resource.Success(false))
-  val sendEmailVerificationResponse: StateFlow<Resource<Boolean>> = _sendEmailVerificationResponse.asStateFlow()
 
   private val _reloadUserResponse = MutableStateFlow<Resource<Boolean>>(Resource.Success(false))
   val reloadUserResponse: StateFlow<Resource<Boolean>> = _reloadUserResponse.asStateFlow()
@@ -53,6 +54,10 @@ class AuthScreenModel(
   val smsSendResponse = _smsSendResponse.asStateFlow()
   private val _isGoogleLoading = MutableStateFlow(false)
   val isGoogleLoading: StateFlow<Boolean> = _isGoogleLoading.asStateFlow()
+
+  fun setGoogleLoading(isLoading: Boolean) {
+    _isGoogleLoading.value = isLoading
+  }
 
 
   private var currentVerificationId: String? = null
@@ -69,7 +74,7 @@ class AuthScreenModel(
     get() = Firebase.auth.currentUser?.isEmailVerified ?: false
 
   init {
-    println("[YkisLogKMP.$className.init]:  менеджер AuthScreenModel успешно инициализирован в KMP слое")
+    println("[YkisLogKMP.$className.init]: менеджер AuthScreenModel успешно инициализирован в KMP слое")
   }
 
   fun onEmailChange(newValue: String) {
@@ -90,24 +95,41 @@ class AuthScreenModel(
   }
 
   private fun isValidPasswordKmp(target: String): Boolean {
-    return target.isNotBlank() && target.length >= 6
+    // Минимум 6 символов, хотя бы одна цифра и одна буква
+    val passwordRegex = "^(?=.*[0-9])(?=.*[a-zA-Z]).{6,}$".toRegex()
+    return target.isNotBlank() && passwordRegex.matches(target)
   }
+
+  private fun mapFirebaseError(message: String?): StringResource {
+    if (message == null) return Res.string.error_unknown
+    return when {
+      message.contains("user-not-found", true) -> Res.string.error_user_not_found
+      message.contains("wrong-password", true) -> Res.string.error_wrong_password
+      message.contains("email-already-in-use", true) -> Res.string.error_email_already_in_use
+      message.contains("invalid-email", true) -> Res.string.error_invalid_email
+      message.contains("network-request-failed", true) -> Res.string.error_network_request_failed
+      message.contains("too-many-requests", true) -> Res.string.error_too_many_requests
+      else -> Res.string.error_unknown
+    }
+  }
+
   fun onSignInClick(onSuccessNavigate: () -> Unit) {
     val methodName = "onSignInClick"
     val currentEmail = email
     val currentPassword = password
 
+    // ЗАЩИТА ОТ ДРЕБЕЗГА: Если запрос уже в процессе — игнорируем
     if (_signInResponse.value is Resource.Loading) return
 
     if (!isValidEmailKmp(currentEmail)) {
       println("[YkisLogKMP.$className.$methodName]: [VALIDATION_ERROR] Некорректный email")
-      SnackbarManager.showMessage("Некоректний format email")
+      SnackbarManager.showMessage(Res.string.email_error)
       return
     }
 
     if (currentPassword.isBlank()) {
       println("[YkisLogKMP.$className.$methodName]: [VALIDATION_ERROR] Пустой пароль")
-      SnackbarManager.showMessage("Пароль не може бути порожнім")
+      SnackbarManager.showMessage(Res.string.error_empty_password)
       return
     }
 
@@ -122,7 +144,7 @@ class AuthScreenModel(
         Firebase.auth.signInWithEmailAndPassword(currentEmail, currentPassword)
 
         // Шаг 2. Регистрируем FCM-токен устройства в облаке Google Cloud для пуш-сообщений
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Крок 2: Реєстрація FCM токена сповіщень...")
+        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Шаг 2: Регистрация FCM токена уведомлений...")
         firebaseService.addFcmToken()
 
         println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Авторизация успешна. Verified: $isEmailVerified")
@@ -133,9 +155,10 @@ class AuthScreenModel(
         onSuccessNavigate()
 
       } catch (e: Exception) {
-        println("[YkisLogKMP.$className.$methodName]: Фатальний збій авторизації за Email: ${e.message}")
-        _signInResponse.value = Resource.Error(message = e.message ?: "Невідома помилка")
-        SnackbarManager.showMessage("Помилка входу: ${e.message}")
+        println("[YkisLogKMP.$className.$methodName]: Фатальный сбой авторизации по Email: ${e.message}")
+        val friendlyErrorRes = mapFirebaseError(e.message)
+        _signInResponse.value = Resource.Error(messageRes = friendlyErrorRes)
+        SnackbarManager.showMessage(friendlyErrorRes)
       }
     }
   }
@@ -144,14 +167,14 @@ class AuthScreenModel(
     val methodName = "onForgotPasswordClick"
     val currentEmail = email
     if (!isValidEmailKmp(currentEmail)) {
-      SnackbarManager.showMessage("Некоректний формат email")
+      SnackbarManager.showMessage(Res.string.email_error)
       return
     }
 
     launchCatching {
       println("[YkisLogKMP.$className.$methodName]: [RECOVERY] Запрос восстановления на почту $currentEmail")
       firebaseService.sendRecoveryEmail(currentEmail)
-      SnackbarManager.showMessage("Лист для відновлення паролю надіслано")
+      SnackbarManager.showMessage(Res.string.recovery_email_sent)
     }
   }
 
@@ -162,18 +185,18 @@ class AuthScreenModel(
   private fun isInputValid(): Boolean {
     val methodName = "validate"
     if (!isValidEmailKmp(email)) {
-      println("[YkisLogKMP.$className.$methodName]: Некоректний email: $email")
-      SnackbarManager.showMessage("Некоректний формат email")
+      println("[YkisLogKMP.$className.$methodName]: Некорректный email: $email")
+      SnackbarManager.showMessage(Res.string.email_error)
       return false
     }
     if (!isValidPasswordKmp(password)) {
-      println("[YkisLogKMP.$className.$methodName]: Пароль не пройшов перевірку складності")
-      SnackbarManager.showMessage("Пароль занадто простий")
+      println("[YkisLogKMP.$className.$methodName]: Пароль не прошел проверку сложности")
+      SnackbarManager.showMessage(Res.string.error_invalid_password_format)
       return false
     }
     if (password != repeatPassword) {
-      println("[YkisLogKMP.$className.$methodName]: Паролі не збігаються")
-      SnackbarManager.showMessage("Введені паролі не збігаються")
+      println("[YkisLogKMP.$className.$methodName]: Пароли не совпадают")
+      SnackbarManager.showMessage(Res.string.error_passwords_mismatch)
       return false
     }
     return true
@@ -182,22 +205,29 @@ class AuthScreenModel(
   fun signUpWithEmailAndPassword(onSuccess: () -> Unit) {
     val methodName = "signUpWithEmailAndPassword"
     if (!isInputValid()) return
+    
+    // Защита от дребезга
+    if (_signUpResponse.value is Resource.Loading) return
+    
     _signUpResponse.value = null
 
     launchCatching {
-      println("[YkisLogKMP.$className.$methodName]: [START] Реєстрація аккаунту для: $email")
+      println("[YkisLogKMP.$className.$methodName]: [START] Регистрация аккаунта для: $email")
       _signUpResponse.value = Resource.Loading()
 
       val result = firebaseService.firebaseSignUpWithEmailAndPassword(email, password)
-      _signUpResponse.value = result
-
+      
       if (result is Resource.Success) {
-        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Користувача створено. Надсилання email верифікації...")
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Пользователь создан. Отправка email верификации...")
         firebaseService.sendEmailVerification()
         firebaseService.addFcmToken()
+        _signUpResponse.value = Resource.Success(true)
         onSuccess()
       } else if (result is Resource.Error) {
-        println("[YkisLogKMP.$className.$methodName]: [ERROR] Реєстрація відхилена: ${result.message}")
+        val friendlyErrorRes = mapFirebaseError(result.message)
+        println("[YkisLogKMP.$className.$methodName]: [ERROR] Регистрация отклонена: ${result.message}")
+        _signUpResponse.value = Resource.Error(messageRes = friendlyErrorRes)
+        SnackbarManager.showMessage(friendlyErrorRes)
       }
     }
   }
@@ -208,23 +238,23 @@ class AuthScreenModel(
 
     screenModelScope.launch {
       try {
-        println("[YkisLogKMP.$className.$methodName]: [REQUEST] Надсилання листа на $userEmail")
+        println("[YkisLogKMP.$className.$methodName]: [REQUEST] Отправка письма на $userEmail")
         _sendEmailVerificationResponse.value = Resource.Loading()
 
         val result = firebaseService.sendEmailVerification()
         _sendEmailVerificationResponse.value = result
 
         if (result is Resource.Success) {
-          println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Лист успішно надіслано")
-          SnackbarManager.showMessage("Лист для підтвердження надіслано на вашу пошту")
+          println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Письмо успешно отправлено")
+          SnackbarManager.showMessage(Res.string.verify_email_message)
         } else if (result is Resource.Error) {
-          val errorMsg = result.message ?: "Не вдалося відпустити лист"
-          println("[YkisLogKMP.$className.$methodName]: [ERROR] Причина відмови Firebase: $errorMsg")
-          SnackbarManager.showMessage(errorMsg)
+          val errorMsg = result.message ?: "Не удалось отправить письмо"
+          println("[YkisLogKMP.$className.$methodName]: [ERROR] Причина отказа Firebase: $errorMsg")
+          SnackbarManager.showMessage(Res.string.generic_error)
         }
       } catch (e: Exception) {
         println("[YkisLogKMP.$className.$methodName]: [CRITICAL_ERROR] ${e.message}")
-        _sendEmailVerificationResponse.value = Resource.Error(message = e.message ?: "Помилка")
+        _sendEmailVerificationResponse.value = Resource.Error(messageRes = Res.string.error_unknown)
       }
     }
   }
@@ -233,28 +263,27 @@ class AuthScreenModel(
   fun reloadUser(onSuccess: () -> Unit) {
     val methodName = "reloadUser"
     launchCatching {
-      println("[YkisLogKMP.$className.$methodName]: [START] Перевірка підтвердження пошти користувачем...")
+      println("[YkisLogKMP.$className.$methodName]: [START] Проверка подтверждения почты пользователем...")
       _reloadUserResponse.value = Resource.Loading()
 
       val result = firebaseService.reloadFirebaseUser()
       _reloadUserResponse.value = result
-      _reloadUserResponse.value = result
 
       if (result is Resource.Success) {
         val verified = Firebase.auth.currentUser?.isEmailVerified == true
-        println("[YkisLogKMP.$className.$methodName]: [RESULT] Статус верифікації пошти в облаці: $verified")
+        println("[YkisLogKMP.$className.$methodName]: [RESULT] Статус верификации почты в облаке: $verified")
         if (verified) {
           firebaseService.addFcmToken()
           onSuccess()
         } else {
-          SnackbarManager.showMessage("Пошта ще не підтверджена. Перевірте вашу скриньку.")
+          SnackbarManager.showMessage(Res.string.email_not_verified_message)
         }
       }
     }
   }
 
   // ====================================================================
-  // --- БЛОК КРОСС-ПЛАТФОРМЕННОЙ GOOGLE АВТОРnetworkИЗАЦИИ --------------
+  // --- БЛОК КРОСС-ПЛАТФОРМЕННОЙ GOOGLE АВТОРИЗАЦИИ --------------------
   // ====================================================================
 
   private val auth get() = Firebase.auth
@@ -265,7 +294,7 @@ class AuthScreenModel(
     val currentUser = auth.currentUser
 
     if (currentUser == null) {
-      println("[YkisLogKMP.$className.$methodName]: [NEW_USER] Обычная авторизация in Firebase")
+      println("[YkisLogKMP.$className.$methodName]: [NEW_USER] Обычная авторизация в Firebase")
       auth.signInWithCredential(firebaseCredential)
     } else {
       println("[YkisLogKMP.$className.$methodName]: [LINK] Привязка провайдера Google к текущему аккаунту")
@@ -275,36 +304,35 @@ class AuthScreenModel(
   fun onSignUpWithGoogle(idToken: String, onFinishedNavigate: () -> Unit) {
     val methodName = "onSignUpWithGoogle"
 
-    // ЗАЩИТА ОТ ДРЕБЕЗГА: Если транзакция уже запущена в ОЗУ — игнорируем повторные тапы по кнопке!
-    if (_isGoogleLoading.value) return
-    _isGoogleLoading.value = true
-
     screenModelScope.launch {
       try {
+        // Устанавливаем статус загрузки (если он еще не был установлен кнопкой)
+        _isGoogleLoading.value = true
+
         // Выставляем доменный статус загрузки для внешних систем экрана
         _signInWithGoogleResponse.value = Resource.Loading()
-        println("[YkisLogKMP.$className.$methodName]: [START] Фоновий лоадер Google запущено. Блокування інтерфейсу активовано.")
+        println("[YkisLogKMP.$className.$methodName]: [START] Фоновый лоадер Google запущен. Блокировка интерфейса активирована.")
 
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Крок 1: Авторизація Firebase Auth...")
+        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Шаг 1: Авторизация Firebase Auth...")
         signInAndLinkWithGoogle(idToken)
 
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Крок 2: Синхронізація СУБД та створення профілю Firestore...")
+        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Шаг 2: Синхронизация СУБД и создание профиля Firestore...")
         val dbResult = firebaseService.addUserFirestore()
 
         // Принудительно передаем финальный статус ответа БД в стейт ответа интерфейса
         _signInWithGoogleResponse.value = dbResult
 
         if (dbResult is Resource.Error) {
-          println("[YkisLogKMP.$className.$methodName]: [ERROR] Помилка при збереженні профілю в Firestore: ${dbResult.message}")
-          SnackbarManager.showMessage("Помилка синхронізації профілю: ${dbResult.message}")
+          println("[YkisLogKMP.$className.$methodName]: [ERROR] Ошибка при сохранении профиля в Firestore: ${dbResult.message}")
+          SnackbarManager.showMessage(Res.string.error_db_sync)
           return@launch // Легитимный выход из корутины scope при ошибке Firestore
         }
 
         // Шаг 3. Регистрируем FCM-токен устройства в облаке Google Cloud для пуш-сообщений биллинга
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Крок 3: Реєстрація FCM токена сповіщень...")
+        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Шаг 3: Регистрация FCM токена уведомлений...")
         firebaseService.addFcmToken()
 
-        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Всі шлюзи безпеки пройдено. Запуск перерахунку стартової траєкторії.")
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Все шлюзы безопасности пройдены. Запуск пересчета стартовой траектории.")
         _signInWithGoogleResponse.value = Resource.Success(true)
 
         // Пересчитываем стейт-машину, чтобы КМР-рантайм бесшовно зафиксировал вход жильца
@@ -314,13 +342,13 @@ class AuthScreenModel(
         onFinishedNavigate()
 
       } catch (e: Exception) {
-        println("[YkisLogKMP.$className.$methodName]: Помилка рантайма Google Credential Manager: ${e.message}")
-        _signInWithGoogleResponse.value = Resource.Error(message = e.message ?: "Невідома помилка")
-        SnackbarManager.showMessage("Помилка входу Google: ${e.message}")
+        println("[YkisLogKMP.$className.$methodName]: Ошибка рантайма Google Credential Manager: ${e.message}")
+        _signInWithGoogleResponse.value = Resource.Error(messageRes = Res.string.error_unknown)
+        SnackbarManager.showMessage(Res.string.error_unknown)
       } finally {
         // ИСПРАВЛЕНО НАМЕРТВО: Блок finally сработает ВСЕГДА, пробивая любые сетевые лаги Google Cloud!
         // Кнопка в интерфейсе гарантированно разблокируется, а крутилка погаснет.
-        println("[YkisLogKMP.$className.$methodName]: [FINISH] Транзакція завершена. Зняття блокування кнопки.")
+        println("[YkisLogKMP.$className.$methodName]: [FINISH] Транзакция завершена. Снятие блокировки кнопки.")
         _isGoogleLoading.value = false
       }
     }
@@ -350,13 +378,17 @@ class AuthScreenModel(
   fun triggerSmsCode(activityContext: Any?, onSuccess: () -> Unit) {
     val methodName = "triggerSmsCode"
     val phone = _authUiState.value.phoneNumber
+
+    // ЗАЩИТА ОТ ДРЕБЕЗГА
+    if (_smsSendResponse.value is Resource.Loading) return
+
     if (phone.isBlank()) {
-      SnackbarManager.showMessage("Введіть номер телефону")
+      SnackbarManager.showMessage(Res.string.empty_phone)
       return
     }
 
     launchCatching {
-      println("[YkisLogKMP.$className.$methodName]: [START] Запит SMS на номер: $phone")
+      println("[YkisLogKMP.$className.$methodName]: [START] Запрос SMS на номер: $phone")
       _smsSendResponse.value = Resource.Loading()
 
       // Вызываем наш expect/actual мост, который мы настроили на нативном уровне
@@ -366,11 +398,11 @@ class AuthScreenModel(
         currentVerificationId = result.data
         _authUiState.update { it.copy(isSmsSent = true) }
         _smsSendResponse.value = null // Очищаем статус лоадера отправки SMS
-        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Сесія SMS зафіксована. Очікування коду.")
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Сессия SMS зафиксирована. Ожидание кода.")
         onSuccess()
       } else if (result is Resource.Error) {
-        _smsSendResponse.value = Resource.Error(result.message ?: "Помилка")
-        SnackbarManager.showMessage(result.message ?: "Не вдалося надіслати SMS")
+        _smsSendResponse.value = Resource.Error(messageRes = Res.string.error_sms_failed)
+        SnackbarManager.showMessage(Res.string.error_sms_failed)
       }
     }
   }
@@ -383,53 +415,58 @@ class AuthScreenModel(
     val state = _authUiState.value
     val verificationId = currentVerificationId
 
-    if (verificationId == null || state.smsCode.isBlank()) {
-      SnackbarManager.showMessage("Введіть 6-значний код із SMS")
+    // Защита от дребезга
+    if (_signInResponse.value is Resource.Loading) return
+
+    if ((verificationId == null) || state.smsCode.isBlank()) {
+      SnackbarManager.showMessage(Res.string.error_invalid_sms_code)
       return
     }
 
     launchCatching {
-      println("[YkisLogKMP.$className.$methodName]: [START] Перевірка коду: ${state.smsCode}")
+      println("[YkisLogKMP.$className.$methodName]: [START] Проверка кода: ${state.smsCode}")
       _signInResponse.value = Resource.Loading()
 
       val result = firebaseService.signInWithSmsCode(verificationId, state.smsCode)
 
       if (result is Resource.Success) {
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Вхід схвалено. Синхронізація Firestore...")
+        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Вход одобрен. Синхронизация Firestore...")
 
         // Создаем запись пользователя в Firestore
         val dbResult = firebaseService.addUserFirestore()
 
         if (dbResult is Resource.Error) {
-          println("[YkisLogKMP.$className.$methodName]: [ERROR] Помилка Firestore: ${dbResult.message}")
-          _signInResponse.value = dbResult
-          SnackbarManager.showMessage("Помилка синхронізації бази даних")
+          println("[YkisLogKMP.$className.$methodName]: [ERROR] Ошибка Firestore: ${dbResult.message}")
+          _signInResponse.value = Resource.Error(messageRes = Res.string.error_db_sync)
+          SnackbarManager.showMessage(Res.string.error_db_sync)
           return@launchCatching
         }
 
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Профіль створено. Примусове оновлення ID-токену сесії...")
+        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Профиль создан. Принудительное обновление ID-токена сессии...")
 
         // КРИТИЧЕСКИЙ ФИКС: Заставляем нативное ядро Firebase обновить защищенные токены в памяти смартфона!
         try {
           // Прямой вызов обновления токена GitLive Auth, который нативно зафиксирует права пользователя в ОС
-          dev.gitlive.firebase.Firebase.auth.currentUser?.getIdToken(forceRefresh = true)
-          println("[YkisLogKMP.$className.$methodName]: [TOKEN_SUCCESS] Локальний токен оновлено успішно")
+          Firebase.auth.currentUser?.getIdToken(forceRefresh = true)
+          println("[YkisLogKMP.$className.$methodName]: [TOKEN_SUCCESS] Локальный токен обновлен успешно")
         } catch (e: Exception) {
-          println("[YkisLogKMP.$className.$methodName]: [TOKEN_WARN] Помилка оновлення токену: ${e.message}")
+          println("[YkisLogKMP.$className.$methodName]: [TOKEN_WARN] Ошибка обновления токена: ${e.message}")
         }
 
         // Принудительно гасим лоадер в UI-слое перед вызовом навигации!
         _signInResponse.value = Resource.Success(true)
 
-        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Все готово. Запуск колбеку onSuccess().")
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Все готово. Запуск колбека onSuccess().")
         firebaseService.addFcmToken()
         appScreenModel.evaluateStartDestination()
         onSuccess() // Бесшовно перенаправляет на MainApartmentScreen через replaceAll
 
       } else if (result is Resource.Error) {
-        println("[YkisLogKMP.$className.$methodName]: [ERROR] Помилка Firebase Auth")
-        _signInResponse.value = Resource.Error(result.message ?: "Помилка")
-        SnackbarManager.showMessage(result.message ?: "Невірний код підтвердження")
+        println("[YkisLogKMP.$className.$methodName]: [ERROR] Ошибка Firebase Auth")
+        val friendlyErrorRes = if (result.message?.contains("invalid-verification-code", true) == true) 
+          Res.string.error_invalid_sms_code else Res.string.error_unknown
+        _signInResponse.value = Resource.Error(messageRes = friendlyErrorRes)
+        SnackbarManager.showMessage(friendlyErrorRes)
       }
     }
   }
@@ -439,13 +476,4 @@ class AuthScreenModel(
 
 
 
-}
-
-// Кроссплатформенные изолированные хелперы валидации строк
-private fun String.isValidEmailKmp(): Boolean {
-  val emailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$".toRegex()
-  return this.isNotBlank() && emailRegex.matches(this)
-}
-
-private fun String.isValidPasswordKmp(): Boolean = this.isNotBlank() && this.length >= 6
-
+} // Конец AuthScreenModel

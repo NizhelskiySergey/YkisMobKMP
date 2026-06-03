@@ -25,12 +25,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.ykis.ykismobkmp.ui.components.className
 
 // ИМПОРТЫ НАШИХ УТВЕРЖДЕННЫХ КМР СТАНДАРТОВ YkisMobKMP
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
 
-private const val className = "DefaultAppBar"
+private const val appBarClassName = "DefaultAppBar"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,24 +85,24 @@ fun DefaultAppBar(
       navigationIcon = {
         if (canNavigateBack) {
           IconButton(onClick = {
-            println("[YkisLogKMP.DefaultAppBar]: Клик назад — триггер сквозного Stateless-возврата.")
+            println("[YkisLogKMP.$appBarClassName]: Клик назад — возврат из подмодуля.")
             onBackClick()
           }) {
             Icon(
               imageVector = Icons.AutoMirrored.Filled.ArrowBack,
               contentDescription = "Назад",
-              modifier = Modifier.size(24.dp) // Сохраняем крупный читаемый размер стрелки
+              modifier = Modifier.size(24.dp)
             )
           }
         } else if (navigationType == NavigationType.BOTTOM_NAVIGATION) {
           IconButton(onClick = {
-            println("[YkisLogKMP.DefaultAppBar]: Клик по бургер-меню (Открыть Drawer)")
+            println("[YkisLogKMP.$appBarClassName]: Клик по бургер-меню (Drawer)")
             onDrawerClick()
           }) {
             Icon(
               imageVector = Icons.Default.Menu,
               contentDescription = "Меню",
-              modifier = Modifier.size(24.dp) // Сохраняем крупный читаемый размер бургера
+              modifier = Modifier.size(24.dp)
             )
           }
         }

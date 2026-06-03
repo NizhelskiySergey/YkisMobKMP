@@ -24,6 +24,7 @@ import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import com.ykis.ykismobkmp.domain.entity.HeatReadingEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
+import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 
 private const val className = "HeatReadings"
@@ -42,31 +43,36 @@ private fun CenteredProgressIndicator(modifier: Modifier = Modifier) {
 fun HeatReadings(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,       // Обязательный сквозной КМР-параметр
-  heatMeterState: HeatMeterState,
+  meterUIState: BaseUIState,
   getHeatReadings: () -> Unit     // Обязательный сквозной КМР-параметр
 ) {
-  LaunchedEffect(baseUIState.addressId, heatMeterState.selectedHeatMeter.teplomerId) {
-    if (baseUIState.addressId != 0L && heatMeterState.selectedHeatMeter.teplomerId != 0L) {
+  LaunchedEffect(baseUIState.addressId, meterUIState.selectedHeatMeter.teplomerId) {
+    if (baseUIState.addressId != 0L && meterUIState.selectedHeatMeter.teplomerId != 0L) {
       println("[$className.LaunchedEffect]: Оновлення історії опалення для рахунку Long: ${baseUIState.addressId}")
       getHeatReadings()
     }
   }
 
   Crossfade(
-    targetState = heatMeterState.isReadingsLoading,
+    targetState = meterUIState.isReadingsLoading,
     label = "HeatReadingsLoadingFade",
     animationSpec = tween(durationMillis = 300, delayMillis = 100)
   ) { isLoading ->
     if (isLoading) {
       CenteredProgressIndicator()
+    } else if (meterUIState.heatReadings.isEmpty()) {
+      EmptyListState(
+        title = "Історія тепла порожня",
+        subtitle = "Дані про споживання Гкал за даним приладом відсутні в біллінгу ЮТКЕ"
+      )
     } else {
       LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
       ) {
         items(
-          items = heatMeterState.heatReadings,
-          key = { it.pokId } // Наш сквозной Long ID первичного ключа таблицы heatReadingEntity
+          items = meterUIState.heatReadings,
+          key = { it.pokId }
         ) { heatReading ->
           HeatReadingItem(reading = heatReading)
         }

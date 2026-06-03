@@ -5,6 +5,7 @@ import com.ykis.ykismobkmp.core.utils.Log
 import com.ykis.ykismobkmp.core.utils.wrapForFirebase
 import com.ykis.ykismobkmp.domain.ai.GeminiAiManager
 import com.ykis.ykismobkmp.domain.entity.*
+import com.ykis.ykismobkmp.domain.services.UserRole
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import dev.gitlive.firebase.firestore.*
@@ -61,22 +62,30 @@ class ChatRepository(
     return realtime.reference("presence/$chatId")
       .valueEvents
       .map { snapshot ->
-        // associate превращает список детей в Map<UID, Boolean>
         snapshot.children.associate { child ->
           val uid = child.key ?: ""
-          // Достаем поле typing из вложенного объекта
-          val isTyping = child.child("typing").value<Boolean?>() ?: false
+          // Достаем поле typing максимально надежным способом
+          val isTyping = try {
+             // Использование .child().exists для проверки наличия поля в GitLive SDK
+             val typingChild = child.child("typing")
+             if (typingChild.exists) {
+                 typingChild.value<Boolean?>() ?: false
+             } else {
+                 false
+             }
+          } catch (e: Exception) {
+             false
+          }
           uid to isTyping
         }
       }
   }
-  /**
-   * [ChatRepository.setTypingStatus] — Обновление флага "печатает" в Firebase.
-   */
+
   suspend fun setTypingStatus(chatId: String, uid: String, isTyping: Boolean) {
     try {
-      // Записываем логическое значение в ветку presence
-      realtime.reference("presence/$chatId/$uid/typing").setValue(isTyping)
+      // Используем updateChildren, чтобы не затереть поле "online"
+      val updates = mapOf("typing" to isTyping)
+      realtime.reference("presence/$chatId/$uid").updateChildren(updates)
     } catch (e: Exception) {
       Log.e("YkisLog", "[$className.setTypingStatus]: ${e.message}")
     }
@@ -97,13 +106,19 @@ class ChatRepository(
       }
   }
 
-  suspend fun fetchAdminsByOsbb(osbbId: Int): List<UserEntity> {
-    val adminRoles = listOf("OsbbUser", "VodokanalUser", "YtkeUser", "TboUser")
+  suspend fun fetchAdminsByOsbb(osbbId: Long): List<UserEntity> {
+    // ИСПРАВЛЕНО: Используем стабильный SerialName для точного совпадения с полем в Firestore
+    val adminRoles = listOf(
+      UserRole.VodokanalUser.getSerialName(),
+      UserRole.YtkeUser.getSerialName(),
+      UserRole.TboUser.getSerialName(),
+      UserRole.OsbbUser.getSerialName()
+    )
 
     return try {
       val snapshot = firestore.collection("users")
         .where {
-          "osbbId" equalTo osbbId.toLong()
+          "osbbId" equalTo osbbId
           "userRole" contains adminRoles
         }
         .get()
@@ -114,6 +129,15 @@ class ChatRepository(
     } catch (e: Exception) {
       Log.e("YkisLog", "[$className.fetchAdminsByOsbb]: Error -> ${e.message}")
       emptyList()
+    }
+  }
+
+  suspend fun sendChatNotification(data: Map<String, Any?>) {
+    try {
+      println("[$className.sendChatNotification]: Вызов Cloud Function 'sendChatNotification'...")
+      functions.httpsCallable("sendChatNotification").invoke(data)
+    } catch (e: Exception) {
+      Log.e("YkisLog", "[$className.sendChatNotification]: Error -> ${e.message}")
     }
   }
 
@@ -226,7 +250,8 @@ class ChatRepository(
 
   suspend fun setUserOnline(chatId: String, uid: String) {
     val ref = realtime.reference("presence/$chatId/$uid")
-    ref.setValue(true)
+    // Устанавливаем объект целиком при входе
+    ref.setValue(mapOf("online" to true, "typing" to false))
     ref.onDisconnect().removeValue()
   }
 

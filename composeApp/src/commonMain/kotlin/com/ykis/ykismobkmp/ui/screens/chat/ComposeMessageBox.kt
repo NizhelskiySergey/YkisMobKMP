@@ -48,9 +48,8 @@ fun ComposeMessageBox(
   Row(
     modifier = Modifier
       .fillMaxWidth()
-      .wrapContentHeight()
-      .padding(horizontal = 4.dp, vertical = 4.dp),
-    verticalAlignment = Alignment.Bottom, // Прижимаем кнопки к нижней линии при росте высоты ввода
+      .padding(horizontal = 4.dp, vertical = 2.dp),
+    verticalAlignment = Alignment.Bottom,
     horizontalArrangement = Arrangement.Center
   ) {
     if (showAttachIcon) {

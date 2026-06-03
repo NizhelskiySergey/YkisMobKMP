@@ -59,7 +59,7 @@ fun WaterMeterDetail(
   val enabledButton by remember(newWaterReading, safeLastReading.current) {
     derivedStateOf {
       val newValue = newWaterReading.toLongOrNull() ?: -1L
-      val isValid = newValue > safeLastReading.current
+      val isValid = newValue >= safeLastReading.current // ИСПРАВЛЕНО: Разрешено равенство (нулевое потребление)
       if (newWaterReading.isNotEmpty() && !isValid) {
         println("[$tag.Validation]: Значення $newValue менше за попередній якір ${safeLastReading.current}")
       }

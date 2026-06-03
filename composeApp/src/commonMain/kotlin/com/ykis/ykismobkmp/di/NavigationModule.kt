@@ -20,19 +20,20 @@ val navigationModule = module {
   println("[$KOIN_TAG]: Реєстрація життєвих циклів ScreenModels для Voyager Framework")
   single { AppScreenModel(firebaseService = get(), get(), get()) }
 
-  // Остальные локальные модели экранов остаются в режиме factory для очистки памяти при закрытии окон
-  factory { AuthScreenModel(get(), get(), get()) }
-  factory { ChatScreenModel(get(), get()) }
   single { ApartmentScreenModel(get(), get(), get()) }
-  single { FamilyListScreenModel(get(), get()) }
-  factory { MeterScreenModel(get(), get()) }
+  single { FamilyListScreenModel(getFamilyListUseCase = get(), logService = get()) }
+  single { LedgerScreenModel(ledgerService = get(), logService = get()) }
+  single { ChatScreenModel(get(), get()) }
+  single { MeterScreenModel(get(), get()) }
+  factory { AuthScreenModel(get(), get(), get()) }
   factory { ClearDatabase() }
   single {
     ApartmentService(
       getApartmentList = get(), getOsbbApartmentsList = get(), getRaionList = get(),
       getHouseList = get(), getApartment = get(), addApartment = get(),
       verifyAdminCode = get(), deleteApartment = get(), updateBti = get(),
-      saveUserUid = get(), deleteUserAccount = get()
+      saveUserUid = get(), deleteUserAccount = get(), 
+      initResidentChats = get(), deleteResidentChats = get()
     )
   }
 
@@ -52,17 +53,8 @@ val navigationModule = module {
     )
   }
 
-  // Фабрика ScreenModel финансово-расчетного учета коммунальных услуг стала кристально чистой!
-  factory {
-    LedgerScreenModel(
-      ledgerService = get(), // Koin автоматически прокинет комбайн со всеми 3 Use Cases
-      logService = get()
-    )
-  }
-
   // Внутри твоего Koin-модуля:
   // ИСПРАВЛЕНО НАМЕРТВО: Чистый проброс без лямбд и оберток. Спецификации типов теперь совпадают идеально!
-  factory { FamilyListScreenModel(getFamilyListUseCase = get(), logService = get()) }
 
 
 

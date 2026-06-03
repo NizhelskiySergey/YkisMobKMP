@@ -13,9 +13,7 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterList
-import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterState
 import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterList
-import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterState
 
 private const val className = "MeterListScreen"
 
@@ -32,8 +30,7 @@ fun MeterListScreen(
   viewModel: MeterScreenModel,
   onWaterMeterClick: (WaterMeterEntity) -> Unit,
   onHeatMeterClick: (HeatMeterEntity) -> Unit,
-  waterMeterState: WaterMeterState,
-  heatMeterState: HeatMeterState,
+  meterUIState: BaseUIState,
   selectedTab: Int,
   onTabClick: (Int) -> Unit
 ) {
@@ -88,11 +85,11 @@ fun MeterListScreen(
           when (targetState) {
             0 -> WaterMeterList(
               onWaterMeterClick = onWaterMeterClick,
-              waterMeterState = waterMeterState
+              meterUIState = meterUIState
             )
             else -> HeatMeterList(
               onHeatMeterClick = onHeatMeterClick,
-              heatMeterState = heatMeterState
+              meterUIState = meterUIState
             )
           }
         }

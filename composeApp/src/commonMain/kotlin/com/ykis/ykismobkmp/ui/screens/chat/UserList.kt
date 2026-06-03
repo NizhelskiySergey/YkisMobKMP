@@ -1,6 +1,4 @@
-package com.ykis.ykismobkmp.ui.screens.chat.components
-
-// ИМПОРТЫ НАШИХ УТВЕРЖДЕННЫХ КМР СТАНДАРТОВ YkisMobPAM / YkisMobKMP
+import com.ykis.ykismobkmp.core.Constants
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -59,10 +57,11 @@ fun UserList(
   // Подписки на мультиплатформенные StateFlow из ChatScreenModel
   val latestMessages by chatScreenModel.lastMessages.collectAsState()
   val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
+  val typingStatuses by chatScreenModel.globalTypingStatuses.collectAsState()
   val selectedPrefix by chatScreenModel.selectedServicePrefix.collectAsState()
 
   // Трансформация и высокоскоростная сортировка списка комнат на смартфонах
-  val userWithMessages = remember(userList, latestMessages, unreadCounts, selectedPrefix) {
+  val userWithMessages = remember(userList, latestMessages, unreadCounts, typingStatuses, selectedPrefix) {
     val methodName = "Mapping"
     println("[YkisLogKMP.$className.$methodName]: Початок маршалінгу кімнат. Роль користувача: ${baseUIState.userRole} | Активний префікс: $selectedPrefix")
 
@@ -71,20 +70,31 @@ fun UserList(
       val chatId = when (baseUIState.userRole) {
         UserRole.StandardUser -> {
           val prefix = selectedPrefix ?: "UNKNOWN"
-          "${prefix}_${user.osbbId}_${user.addressId}_${user.uid}"
+          // ИСПРАВЛЕНО: Для жильца используем системные ID служб, чтобы ключи совпадали с БД
+          val sysId = when(prefix) {
+            "WATER_SERVICE" -> Constants.WATER_SERVICE_ID
+            "WARM_SERVICE" -> Constants.WARM_SERVICE_ID
+            "GARBAGE_SERVICE" -> Constants.GARBAGE_SERVICE_ID
+            else -> user.osbbId ?: 0L
+          }
+          "${prefix}_${sysId}_${user.addressId}_${user.uid}"
         }
         // Исправлено: Системные коды Long-идентификаторов коммунальных предприятий города Южного
         // приведены к жесткому и единому стандарту вьюмодели (9999L / 9998L / 9997L)!
-        UserRole.VodokanalUser -> "WATER_SERVICE_9999_${user.addressId}_${user.uid}"
-        UserRole.YtkeUser      -> "WARM_SERVICE_9998_${user.addressId}_${user.uid}"
-        UserRole.TboUser       -> "GARBAGE_SERVICE_9997_${user.addressId}_${user.uid}"
+        UserRole.VodokanalUser -> "WATER_SERVICE_${Constants.WATER_SERVICE_ID}_${user.addressId}_${user.uid}"
+        UserRole.YtkeUser      -> "WARM_SERVICE_${Constants.WARM_SERVICE_ID}_${user.addressId}_${user.uid}"
+        UserRole.TboUser       -> "GARBAGE_SERVICE_${Constants.GARBAGE_SERVICE_ID}_${user.addressId}_${user.uid}"
         UserRole.OsbbUser      -> "OSBB_${baseUIState.osbbId}_${user.addressId}_${user.uid}"
         else                   -> "UNKNOWN_${user.addressId}_${user.uid}"
       }
 
       val lastMsg = latestMessages[chatId]
       val count = unreadCounts[chatId] ?: 0
+      val isTyping = typingStatuses[chatId] ?: false
       val safeMsg = lastMsg ?: MessageEntity(text = "", timestamp = 0L)
+
+      // Если собеседник печатает — выводим статус вместо текста сообщения
+      val previewText = if (isTyping) "друкує..." else safeMsg.text ?: ""
 
       // Если адрес отправителя пустой, нативно подставляем легитимный адрес/ФИО из карточки абонента БТИ
       val stableDisplayName = if (!safeMsg.senderAddress.isNullOrBlank()) {
@@ -95,7 +105,7 @@ fun UserList(
 
       UserWithLatestMessage(
         user = user.copy(displayName = stableDisplayName),
-        latestMessage = safeMsg,
+        latestMessage = safeMsg.copy(text = previewText),
         unreadCount = count,
         chatId = chatId
       )
@@ -142,7 +152,8 @@ fun UserList(
             onUserClick(it)
           },
           lastMessage = if (item.latestMessage.timestamp > 0L) item.latestMessage else null,
-          currentUid = baseUIState.uid.toString()
+          currentUid = baseUIState.uid.toString(),
+          isTyping = typingStatuses[item.chatId] == true // ИСПРАВЛЕНО: Убрано ошибочное условие < 0
         )
 
         // Сферический бейдж непрочитанных сообщений коммунальных ведомостей ОСББ

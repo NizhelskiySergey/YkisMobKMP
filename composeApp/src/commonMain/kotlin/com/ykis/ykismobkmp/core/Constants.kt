@@ -35,7 +35,13 @@ object Constants {
   const val BODY = "body"
   const val CHATID = "chatId"
   const val TOKENS = "tokens"
-    //Messages
+
+  // Service System IDs
+  const val WATER_SERVICE_ID = 9999L
+  const val WARM_SERVICE_ID = 9998L
+  const val GARBAGE_SERVICE_ID = 9997L
+
+  //Messages
     const val VERIFY_DELETE_FLAT = "Appartment deleted"
 
     const val REVOKE_ACCESS_MESSAGE = "Вам потрібно повторно автентифікуватися, перш ніж скасувати доступ."

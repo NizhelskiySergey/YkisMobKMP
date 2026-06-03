@@ -62,14 +62,20 @@ actual fun CameraView(
     ActivityResultContracts.RequestPermission()
   ) { isGranted ->
     if (!isGranted) {
-      println("[$className]: Користувач відхилив доступ до камери. Повернення.")
+      println("[$className.PERMISSION]: Користувач відхилив доступ до камери.")
       onBack()
+    } else {
+      println("[$className.PERMISSION]: Доступ до камери надано.")
     }
   }
 
   // Триггер мгновенной проверки манифеста безопасности при входе на экран фотофиксации
   LaunchedEffect(Unit) {
-    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+    val permissionStatus = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+    println("[$className.INIT]: Поточний статус дозволу на камеру: $permissionStatus")
+    
+    if (permissionStatus != PackageManager.PERMISSION_GRANTED) {
+      println("[$className.INIT]: Запит дозволу...")
       cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
     }
   }

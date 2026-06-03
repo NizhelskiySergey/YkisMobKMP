@@ -11,6 +11,8 @@ import com.ykis.ykismobkmp.domain.repository.apartment.useCase.GetRaionList
 import com.ykis.ykismobkmp.domain.repository.apartment.useCase.SaveUserUid
 import com.ykis.ykismobkmp.domain.repository.apartment.useCase.UpdateBti
 import com.ykis.ykismobkmp.domain.repository.apartment.useCase.VerifyAdminCode
+import com.ykis.ykismobkmp.domain.repository.chat.useCase.InitResidentChats
+import com.ykis.ykismobkmp.domain.repository.chat.useCase.DeleteResidentChats
 
 class ApartmentService(
     val getApartmentList: GetApartmentList,     // Для жильца (с БД)
@@ -23,5 +25,7 @@ class ApartmentService(
     val deleteApartment: DeleteApartment,
     val updateBti: UpdateBti,
     val saveUserUid: SaveUserUid,
-    val deleteUserAccount: DeleteUserAccount
+    val deleteUserAccount: DeleteUserAccount,
+    val initResidentChats: InitResidentChats,
+    val deleteResidentChats: DeleteResidentChats
 )

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,8 +62,8 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.cancel
-import ykismobkmp.composeapp.generated.resources.delete_account_title
-import ykismobkmp.composeapp.generated.resources.delete_my_account
+import ykismobkmp.composeapp.generated.resources.delete
+import ykismobkmp.composeapp.generated.resources.title_delete_appartment
 import ykismobkmp.composeapp.generated.resources.desc_delete_appartment
 import ykismobkmp.composeapp.generated.resources.info
 private const val className = "InfoApartmentScreen"
@@ -78,7 +79,7 @@ class InfoApartmentScreen(
     val adaptiveContentType = LocalContentType.current
     val adaptiveNavigationType = LocalNavigationType.current
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
-    val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
+    val baseUIState by apartmentScreenModel.uiState.collectAsState()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var showWarningDialog by remember { mutableStateOf(false) }
 
@@ -86,7 +87,7 @@ class InfoApartmentScreen(
       AlertDialog(
         onDismissRequest = { showWarningDialog = false },
         icon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-        title = { Text(stringResource(Res.string.delete_account_title), fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(Res.string.title_delete_appartment), fontWeight = FontWeight.Bold) },
         text = { Text(stringResource(Res.string.desc_delete_appartment))},
         dismissButton = {
           TextButton(onClick = { showWarningDialog = false }) {
@@ -95,17 +96,17 @@ class InfoApartmentScreen(
         },
         confirmButton = {
           TextButton(onClick = {
-            println("[YkisLogKMP.$className.Content]: [ACTION] Підтверджено видалення особового рахунку для addressId: ${baseUIState.addressId}")
+            println("[YkisLogKMP.$className.Content]: [ACTION] Подтверждено удаление лицевого счета для addressId: ${baseUIState.addressId}")
             apartmentScreenModel.deleteApartmentFromProfile(
               addressId = baseUIState.addressId,
               onNavigateToAddScreen = {
-                println("[YkisLogKMP.$className.Content]: Заміна кореня стеку Voyager на екран прив'язки квартири БТІ")
+                println("[YkisLogKMP.$className.Content]: Замена корня стека Voyager на экран привязки квартиры БТИ")
                 navigator.replaceAll(com.ykis.ykismobkmp.ui.navigation.AddApartmentScreen)
               }
             )
             showWarningDialog = false
           }) {
-            Text(text = stringResource(Res.string.delete_my_account), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+            Text(text = stringResource(Res.string.delete), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
           }
         }
 
@@ -154,8 +155,8 @@ class InfoApartmentScreen(
             }
           }
         )
-      }
-
+      },
+      contentWindowInsets = WindowInsets(0, 0, 0, 0) // ИСПРАВЛЕНО: Убираем дублирующие отступы системных баров
     ) { innerPadding ->
       Column(
         modifier = Modifier

@@ -262,6 +262,8 @@ fun ModalNavigationDrawerContent(
                       apartmentScreenModel.onHouseSelected(item.addressId)
                     } else {
                       println("[$className.$methodName]: [SEARCH_SELECT_APT] Фиксация о/р квартиры ID: ${item.addressId}")
+                      // ИСПРАВЛЕНО: Принудительный переход на экран Инфо при выборе квартиры из поиска
+                      onSubModuleChange("InfoApartmentScreen")
                       navigateToApartment(item.addressId)
                       onMenuClick()
                     }
@@ -378,51 +380,6 @@ fun ModalNavigationDrawerContent(
       }
 
 
-      // --- ПОДВАЛ МЕНЮ: СИСТЕМНІ НАЛАШТУВАННЯ ЮКІС ---
-      Column(
-        modifier = Modifier
-          .fillMaxWidth()
-          .wrapContentHeight()
-          .padding(bottom = 16.dp)
-      ) {
-        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-
-        // Опитування сквозного стейту activeSubModule Хаба ЮКІС
-        val isSettingsSelected = activeSubModule == "SettingsScreenDest"
-
-        NavigationDrawerItem(
-          label = {
-            // ІСПРАВЛЕНО: maxLines = 1 та softWrap = false намертво усувають переноси у підвалі шторки
-            Text(
-              text = "Налаштування",
-              fontWeight = FontWeight.SemiBold,
-              maxLines = 1,
-              softWrap = false
-            )
-          },
-          selected = isSettingsSelected,
-          icon = { Icon(Icons.Default.Settings, contentDescription = "Настройки") },
-          onClick = {
-            println("[$className.$methodName]: [SETTINGS_CLICK] Клік по системним налаштуванням профілю. Скидання фокусу.")
-
-            // ІСПРАВЛЕНО: Гасимо фокус введення пошукової строки при переході у налаштування профілю смартфона
-            focusManager.clearFocus()
-            keyboardController?.hide()
-
-            // Плавне Stateless закриття шторки на смартфоні
-            onMenuClick()
-
-            // Перемикаємо внутрішній підмодуль Хаба без розриву контексту ОЗУ
-            onSubModuleChange("SettingsScreenDest")
-          },
-          modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-          colors = NavigationDrawerItemDefaults.colors(
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedIconColor = MaterialTheme.colorScheme.primary,
-            selectedTextColor = MaterialTheme.colorScheme.primary
-          )
-        )
-      }
     }
   }
 }

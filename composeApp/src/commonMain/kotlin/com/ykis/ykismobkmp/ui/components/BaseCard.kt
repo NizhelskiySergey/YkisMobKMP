@@ -46,8 +46,8 @@ fun BaseCard(
     modifier = modifier.fillMaxWidth(),
     shape = RoundedCornerShape(16.dp), // Скругление приведено к стандартному Material 3 Medium/Large
     colors = CardDefaults.outlinedCardColors(
-      containerColor = MaterialTheme.colorScheme.surface,
-      contentColor = MaterialTheme.colorScheme.onSurface
+      containerColor = MaterialTheme.colorScheme.secondaryContainer,
+      contentColor = MaterialTheme.colorScheme.onSecondaryContainer
     ),
     border = BorderStroke(
       width = 1.dp,

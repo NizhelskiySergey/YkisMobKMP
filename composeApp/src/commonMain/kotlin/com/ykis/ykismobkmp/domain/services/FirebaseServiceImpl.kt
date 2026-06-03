@@ -43,8 +43,17 @@ class FirebaseServiceImpl(
   override val hasUser: Boolean get() = auth.currentUser != null
   override val isEmailVerified: Boolean? get() = auth.currentUser?.isEmailVerified
   override val currentUser: FirebaseUser? get() = auth.currentUser
-  override val displayName: String get() = auth.currentUser?.displayName ?: ""
-  override val email: String get() = auth.currentUser?.email ?: ""
+  override val displayName: String get() = auth.currentUser?.displayName ?: "Користувач ЮКІС"
+  
+  // ИСПРАВЛЕНО: Если почта пустая (вход по телефону), возвращаем номер телефона как идентификатор
+  override val email: String get() {
+    val user = auth.currentUser
+    return when {
+      !user?.email.isNullOrBlank() -> user?.email ?: ""
+      !user?.phoneNumber.isNullOrBlank() -> user?.phoneNumber ?: ""
+      else -> ""
+    }
+  }
   override val photoUrl: String get() = auth.currentUser?.photoURL ?: ""
   override val providerId: String get() = auth.currentUser?.providerId ?: ""
   override val isWiFiCheckConfig: Boolean get() = remoteConfig.getValue("loading_from_wifi").asBoolean()
@@ -116,57 +125,74 @@ class FirebaseServiceImpl(
       val userEmail = if (!rawEmail.isNullOrBlank()) rawEmail else (rawPhone ?: "")
 
       if (currentUid.isNullOrBlank()) {
-        println("[YkisLogKMP.$className.$methodName]: [ERROR] UID порожній, скасування реєстрації.")
+        println("[YkisLogKMP.$className.$methodName]: [ERROR] UID пустой, отмена регистрации.")
         return Resource.Error(message = "UID is empty")
       }
-      println("[YkisLogKMP.$className.$methodName]: [START] Ініціалізація профілю для UID: $currentUid")
+      println("[YkisLogKMP.$className.$methodName]: [START] Инициализация профиля для UID: $currentUid")
 
       val userDocRef = db.collection("users").document(currentUid)
       val currentTimestamp = Clock.System.now().epochSeconds
+
+      // ОПТИМИЗАЦИЯ: Сначала проверяем, существует ли профиль, чтобы не перезаписать роль админа
+      val existingDoc = try {
+        userDocRef.get()
+      } catch (e: Exception) {
+        null
+      }
+
+      val existingRole = existingDoc?.get("userRole") as? String
 
       // Собираем карту полей по умолчанию для бесконфликтного слияния данных
       val userMap = mutableMapOf<String, Any?>(
         "uid" to currentUid,
         "email" to userEmail,
         "phoneNumber" to (rawPhone ?: ""),
-        "displayName" to (currentUser?.displayName ?: "Мешканець"),
-        "userRole" to "STANDARD_USER",
-        "osbbId" to 0L,
-
-        // Гарантируем нулевой ID адреса БТИ для новых абонентов
-        "addressId" to 0L,
         "lastLogin" to currentTimestamp
       )
 
-      println("[YkisLogKMP.$className.$methodName]: [PROCESS] Запуск безпечного запису set(merge = true) у Firestore...")
+      // Если роли нет (новый юзер) — ставим стандартную. Если есть — НЕ ТРОГАЕМ!
+      if (existingRole.isNullOrBlank()) {
+        userMap["userRole"] = "STANDARD_USER"
+        userMap["osbbId"] = 0L
+        userMap["addressId"] = 0L
+        userMap["displayName"] = currentUser?.displayName ?: "Мешканець"
+      }
+
+      println("[YkisLogKMP.$className.$methodName]: [PROCESS] Запуск безопасной записи set(merge = true) в Firestore...")
       userDocRef.set(data = userMap, merge = true)
-      println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Профіль успішно зафіксовано у Firestore.")
+      println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Профиль успешно зафиксирован в Firestore.")
 
       // ИСПРАВЛЕНО НАМЕРТВО: Интегрирован вызов внешней suspend-функции синхронизации с MySQL биллинга!
       // Блок изолирован через runCatching, чтобы сбои Ktor-сети Южного не ломали локальную сессию Firebase!
       runCatching {
-        println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_SYNC] Запуск Ktor-синхронізації saveUserUid з MySQL...")
+        println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_SYNC] Запуск Ktor-синхронизации saveUserUid с MySQL...")
 
         val mysqlResult = getSaveUserUidResult(uid = currentUid, email = userEmail)
 
         when (mysqlResult) {
           is Resource.Success -> {
-            println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_SUCCESS] Успішна синхронізація з MySQL базою даних ЮКІС.")
+            println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_SUCCESS] Успешная синхронизация с MySQL базой данных ЮКИС.")
           }
           is Resource.Error -> {
-            println("[YkisLogKMP.$className.$methodName]: MySQL повернув помилку синхронізації: ${mysqlResult.message}")
+             if (mysqlResult.message == "UserUIdExist") {
+                println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_HIT] UID уже привязан в MySQL. Продолжаем вход.")
+             } else {
+                println("[YkisLogKMP.$className.$methodName]: [EXTERNAL_DB_ERROR] MySQL отклонил UID: ${mysqlResult.message}")
+                throw Exception(mysqlResult.message)
+             }
           }
           else -> { /* Роли лоадеров отсечены фильтром */ }
         }
       }.onFailure { e ->
-        println("[YkisLogKMP.$className.$methodName]: Критичний збій мережевого шлюзу MySQL saveUserUid: ${e.message}")
+        println("[YkisLogKMP.$className.$methodName]: Критический сбой сетевого шлюза MySQL saveUserUid: ${e.message}")
+        return Resource.Error(message = "Ошибка синхронизации с городским сервером. Попробуйте войти повторно.")
       }
 
-      println("[YkisLogKMP.$className.$methodName]: [FINISH] Контур створення профілю успішно завершено.")
+      println("[YkisLogKMP.$className.$methodName]: [FINISH] Контур создания профиля успешно завершен.")
       return Resource.Success(true)
 
     } catch (e: Exception) {
-      println("[YkisLogKMP.$className.$methodName]: [FATAL_ERROR] Непередбачена помилка рантайму: ${e.message}")
+      println("[YkisLogKMP.$className.$methodName]: [FATAL_ERROR] Непредвиденная ошибка рантайма: ${e.message}")
       return Resource.Error(message = e.message ?: "Process error")
     }
   }
@@ -183,7 +209,7 @@ class FirebaseServiceImpl(
     try {
       println("[YkisLogKMP.$className.$methodName]: [START] UID: $uid, Role: $userRole, osbbId: $osbbId")
       val updates = mutableMapOf<String, Any>(
-        "userRole" to userRole.name,
+        "userRole" to userRole.getSerialName(), // Используем стабильный строковый идентификатор
         "osbbId" to (osbbId ?: 0L)
       )
       displayName?.let { updates["displayName"] = it }
@@ -442,9 +468,25 @@ class FirebaseServiceImpl(
 
 
   override suspend fun addFcmToken() {
-    println("[YkisLogKMP.$className.addFcmToken]: Ініціалізація реєстрації токена сповіщень...")
+    val methodName = "addFcmToken"
+    try {
+      val token = getPlatformFcmToken() ?: return
+      val currentUid = auth.currentUser?.uid ?: return
+      
+      val userDocRef = db.collection("users").document(currentUid)
+      
+      // ИСПРАВЛЕНО: Ключ изменен на 'fcmTokens' для синхронизации с маппером UserEntity
+      val updates = mapOf("fcmTokens" to dev.gitlive.firebase.firestore.FieldValue.arrayUnion(token))
+      userDocRef.update(updates)
+      
+      println("[YkisLogKMP.$className.$methodName]: [SUCCESS] FCM токен успешно добавлен: ${token.take(10)}...")
+    } catch (e: Exception) {
+      println("[YkisLogKMP.$className.$methodName]: [ERROR] Ошибка регистрации токена: ${e.message}")
+    }
   }
 }
+
+expect suspend fun getPlatformFcmToken(): String?
 
 private fun String?.isNullOfBlank(): Boolean = this == null || this.trim().isEmpty()
 // Ожидаемая КМР-функция отправки SMS для реализации на платформах

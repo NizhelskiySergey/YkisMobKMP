@@ -21,7 +21,6 @@ import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
-import com.ykis.ykismobkmp.ui.screens.ledger.TotalDebtState
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.*
@@ -37,17 +36,19 @@ data class TotalServiceDebt(
 
 @Composable
 fun assembleServiceList(
-  totalDebtState: TotalDebtState,
-  baseUIState: BaseUIState
+  baseUIState: BaseUIState,
+  ledgerUIState: BaseUIState
 ): List<TotalServiceDebt> {
   val serviceList = mutableListOf<TotalServiceDebt>()
 
+  // ИСПРАВЛЕНО: Проверяем наличие ОСББ по базовому стейту квартиры (baseUIState), 
+  // а долги берем из финансового стейта (ledgerUIState)
   if (baseUIState.osmdId != 0L) {
     serviceList.add(
       TotalServiceDebt(
         name = baseUIState.osbb.takeIf { it.isNotEmpty() } ?: stringResource(Res.string.my_osbb),
         color = MaterialTheme.colorScheme.primary,
-        debt = totalDebtState.totalDebt.dolg4 ?: 0.0,
+        debt = ledgerUIState.totalDebt.dolg4 ?: 0.0,
         icon = Icons.Default.CorporateFare,
         contentDetail = ContentDetail.OSBB
       )
@@ -58,23 +59,21 @@ fun assembleServiceList(
       TotalServiceDebt(
         name = stringResource(Res.string.vodokanal),
         color = Color(0xFF2196F3),
-        debt = totalDebtState.totalDebt.dolg1 ?: 0.0,
-        // ИСПРАВЛЕНО НАМЕРТВО: Заменено на Icons.Default.WaterDrop для нативной КМР-компиляции
-        // без использования внешних библиотек расширенных иконок!
+        debt = ledgerUIState.totalDebt.dolg1 ?: 0.0,
         icon = Icons.Default.WaterDrop,
         contentDetail = ContentDetail.WATER_SERVICE
       ),
       TotalServiceDebt(
         name = stringResource(Res.string.ytke_short),
         color = Color(0xFFFF5722),
-        debt = totalDebtState.totalDebt.dolg2 ?: 0.0,
+        debt = ledgerUIState.totalDebt.dolg2 ?: 0.0,
         icon = Icons.Default.HotTub,
         contentDetail = ContentDetail.WARM_SERVICE
       ),
       TotalServiceDebt(
         name = stringResource(Res.string.yzhtrans),
         color = Color(0xFF4CAF50),
-        debt = totalDebtState.totalDebt.dolg3 ?: 0.0,
+        debt = ledgerUIState.totalDebt.dolg3 ?: 0.0,
         icon = Icons.Default.Commute,
         contentDetail = ContentDetail.GARBAGE_SERVICE
       )
@@ -87,20 +86,19 @@ fun assembleServiceList(
 fun ServiceListScreen(
   baseUIState: BaseUIState,
   onDrawerClick: () -> Unit,
-  totalDebtState: TotalDebtState,
+  ledgerUIState: BaseUIState,
   getTotalServiceDebt: (LedgerParams) -> Unit,
   setContentDetail: (ContentDetail) -> Unit
 ) {
   val methodName = "ServiceListScreen"
 
   // ИСПРАВЛЕНО НАМЕРТВО: Фиксация на один стартовый запрос сводного тотала!
-  // При последующих кликах по строкам служб этот блок спит, убирая тройной спам сети.
   LaunchedEffect(key1 = baseUIState.addressId) {
     val addrId = baseUIState.addressId
     val houseId = baseUIState.houseId
     val uid = baseUIState.uid ?: ""
 
-    println("[$tag.$methodName.Mobile]: [SAFE_STATIC_TRIGGER] Одноразова фіксація базового балансу ГІОЦ для о/р: $addrId")
+    println("[YkisLogKMP.$tag.$methodName]: Запрос баланса для о/р: $addrId")
 
     if (addrId > 0L) {
       getTotalServiceDebt(
@@ -108,8 +106,8 @@ fun ServiceListScreen(
           uid = uid,
           addressId = addrId,
           houseId = houseId,
-          service = 0.toByte(), // 0 означает сводный запрос баланса по всем службам
-          total = 1.toByte(),   // Фиксируем тотал в 1 для наполнения круговой диаграммы
+          service = 0.toByte(),
+          total = 1.toByte(),
           year = "2026"
         )
       )
@@ -130,7 +128,7 @@ fun ServiceListScreen(
         IconButton(onClick = { setContentDetail(ContentDetail.PAYMENT_LIST) }) {
           Icon(
             imageVector = Icons.Default.History,
-            contentDescription = "Історія платіжок",
+            contentDescription = "История платежей",
             tint = MaterialTheme.colorScheme.onSurface
           )
         }
@@ -140,7 +138,7 @@ fun ServiceListScreen(
     Crossfade(
       modifier = Modifier.fillMaxSize(),
       animationSpec = tween(durationMillis = 300),
-      targetState = totalDebtState.isLoading,
+      targetState = ledgerUIState.isLoading,
       label = "finance_loading"
     ) { isLoading ->
       if (isLoading) {
@@ -148,7 +146,7 @@ fun ServiceListScreen(
           CircularProgressIndicator()
         }
       } else {
-        val allItems = assembleServiceList(totalDebtState = totalDebtState, baseUIState = baseUIState)
+        val allItems = assembleServiceList(baseUIState = baseUIState, ledgerUIState = ledgerUIState)
         val filteredItems = remember(allItems, baseUIState.userRole) {
           when (baseUIState.userRole) {
             UserRole.VodokanalUser -> allItems.filter { it.contentDetail == ContentDetail.WATER_SERVICE }
@@ -164,12 +162,12 @@ fun ServiceListScreen(
         }
         val displayTotal = remember(filteredItems, baseUIState.userRole) {
           if (baseUIState.userRole == UserRole.StandardUser) {
-            totalDebtState.totalDebt.dolg ?: 0.0
+            ledgerUIState.totalDebt.dolg ?: 0.0
           } else {
             filteredItems.sumOf { it.debt }
           }
         }
-        println("[$tag.$methodName.Mobile]: [DISPLAY] Роль: ${baseUIState.userRole}. Видимих служб: ${filteredItems.size}")
+        println("[YkisLogKMP.$tag.$methodName]: Роль: ${baseUIState.userRole}. Видимых служб: ${filteredItems.size}")
         ServiceListStateless(
           modifier = Modifier.fillMaxSize(),
           items = filteredItems,
@@ -184,7 +182,6 @@ fun ServiceListScreen(
               debt = item.debt,
               icon = item.icon,
               onClick = {
-                // Клик плавно переключает подмодуль и уводит смартфон на детальную ведомость
                 setContentDetail(item.contentDetail)
               }
             )

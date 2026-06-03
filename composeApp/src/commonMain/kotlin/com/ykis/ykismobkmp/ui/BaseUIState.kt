@@ -1,7 +1,13 @@
 package com.ykis.ykismobkmp.ui
 
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
+import com.ykis.ykismobkmp.domain.entity.FamilyEntity
+import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
+import com.ykis.ykismobkmp.domain.entity.HeatReadingEntity
 import com.ykis.ykismobkmp.domain.entity.RaionEntity
+import com.ykis.ykismobkmp.domain.entity.ServiceEntity
+import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
+import com.ykis.ykismobkmp.domain.entity.WaterReadingEntity
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
@@ -34,6 +40,7 @@ data class BaseUIState(
   @SerialName("kod") val kod: String = "",
   @SerialName("addressNumber") val addressNumber: String? = null,
   @SerialName("isApartmentsLoaded") val isApartmentsLoaded: Boolean = false,
+  @SerialName("familyList") val familyList: List<FamilyEntity> = emptyList(),
 
   // --- ИСПРАВЛЕНО НАМЕРТВО: ДОБАВЛЕНЫ ДЕТАЛЬНЫЕ АНКЕТНЫЕ ПОЛЯ БТИ ГИОЦ ---
   @SerialName("nanim") val nanim: String? = null,           // ФИО владельца/ответственного нанимателя
@@ -67,7 +74,30 @@ data class BaseUIState(
   @SerialName("assistantResponse") val assistantResponse: String? = null,
   @SerialName("isLoadingAfterSending") val isLoadingAfterSending: Boolean = false,
 
-  // --- 5. СОСТОЯНИЕ ИНТЕРФЕЙСА (Voyager / Adaptive UI) ---
+  // --- 5. ФИНАНСОВЫЙ УЧЕТ (Ledger / Billing) ---
+  @SerialName("totalDebt") val totalDebt: ServiceEntity = ServiceEntity(),
+  @SerialName("monthlyServices") val monthlyServices: List<ServiceEntity> = emptyList(),
+  @SerialName("serviceDetail") val serviceDetail: ContentDetail = ContentDetail.UNKNOWN,
+
+  // --- 6. УЧЕТ ПОКАЗАНИЙ (Meters / Readings) ---
+  @SerialName("waterMeterList") val waterMeterList: List<WaterMeterEntity> = emptyList(),
+  @SerialName("waterReadings") val waterReadings: List<WaterReadingEntity> = emptyList(),
+  @SerialName("selectedWaterMeter") val selectedWaterMeter: WaterMeterEntity = WaterMeterEntity(),
+  @SerialName("lastWaterReading") val lastWaterReading: WaterReadingEntity? = null,
+  @SerialName("newWaterReading") val newWaterReading: String = "",
+
+  @SerialName("heatMeterList") val heatMeterList: List<HeatMeterEntity> = emptyList(),
+  @SerialName("heatReadings") val heatReadings: List<HeatReadingEntity> = emptyList(),
+  @SerialName("selectedHeatMeter") val selectedHeatMeter: HeatMeterEntity = HeatMeterEntity(),
+  @SerialName("lastHeatReading") val lastHeatReading: HeatReadingEntity? = null,
+  @SerialName("newHeatReading") val newHeatReading: String = "",
+
+  @SerialName("isMetersLoading") val isMetersLoading: Boolean = false,
+  @SerialName("isReadingsLoading") val isReadingsLoading: Boolean = false,
+  @SerialName("isLastReadingLoading") val isLastReadingLoading: Boolean = false,
+  @SerialName("selectedTab") val selectedTab: Int = 0,
+
+  // --- 7. СОСТОЯНИЕ ИНТЕРФЕЙСА (Voyager / Adaptive UI) ---
   @SerialName("selectedContentDetail") val selectedContentDetail: ContentDetail = ContentDetail.BTI,
   @SerialName("isDetailOnlyOpen") val isDetailOnlyOpen: Boolean = false,
   @SerialName("showDetail") val showDetail: Boolean = false,

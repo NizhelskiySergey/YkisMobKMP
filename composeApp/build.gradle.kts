@@ -145,6 +145,7 @@ kotlin {
       implementation(libs.androidx.credentials.play.services.auth)
       implementation(libs.androidx.datastore.preferences.core)
       implementation(libs.androidx.datastore.core)
+      implementation(libs.play.services.auth.api.phone)
     }
 
     // Исправлено: iosMain должен быть внутри sourceSets

@@ -31,7 +31,7 @@ private const val className = "FamilyContent"
 private fun FlatCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
   Card(
     modifier = modifier.fillMaxWidth(),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
   ) {
     Column(modifier = Modifier.padding(12.dp)) { content() }
   }
@@ -45,7 +45,7 @@ fun FamilyContent(
 ) {
   // Внедряем нашу чистую кроссплатформенную модель экрана семьи
   val familyScreenModel = koinInject<FamilyListScreenModel>()
-  val state by familyScreenModel.state.collectAsState()
+  val familyUIState by familyScreenModel.uiState.collectAsState()
 
   LaunchedEffect(baseUIState.addressId) {
     // Первичный Long-идентификатор ГИОЦ передается напрямую в КМР-метод без кастинга типов
@@ -62,16 +62,16 @@ fun FamilyContent(
   ) {
     // Контент списочной ленты
     AnimatedVisibility(
-      visible = !state.isLoading,
+      visible = !familyUIState.mainLoading,
       enter = fadeIn(tween(300)),
       exit = fadeOut(tween(300))
     ) {
       FamilyList(
-        familyList = state.familyList,
+        familyList = familyUIState.familyList,
         modifier = Modifier.fillMaxSize()
       )
     }
-    if (state.isLoading) {
+    if (familyUIState.mainLoading) {
       CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
     }
   }

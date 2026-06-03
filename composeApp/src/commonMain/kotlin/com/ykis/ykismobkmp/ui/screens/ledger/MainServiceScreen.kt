@@ -45,11 +45,11 @@ class MainServiceScreen(
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
 
     // Вычитываем живой стейт БТИ квартиры Южного
-    val currentLiveState by apartmentScreenModel.apartmentUiState.collectAsState()
+    val currentLiveState by apartmentScreenModel.uiState.collectAsState()
 
     // 2. Подписываемся на единый финансовый стейт задолженностей и тарифов ЮКИС
-    val totalDebtState by ledgerScreenModel.totalDebtState.collectAsState()
-    val contentDetail: ContentDetail = totalDebtState.serviceDetail
+    val ledgerUIState by ledgerScreenModel.uiState.collectAsState()
+    val contentDetail: ContentDetail = ledgerUIState.serviceDetail
 
     // Строго разделяем геометрию экранов на уровне корня верстки Хаба!
     if (adaptiveContentType == ContentType.DUAL_PANE) {
@@ -61,7 +61,7 @@ class MainServiceScreen(
           ServiceListScreen(
             baseUIState = currentLiveState,
             onDrawerClick = onDrawerClick,
-            totalDebtState = totalDebtState,
+            ledgerUIState = ledgerUIState,
             getTotalServiceDebt = { params ->
               ledgerScreenModel.getTotalServiceDebt(params.uid, params.addressId, params.houseId, params.year, params.service, params.total)
             },
@@ -79,7 +79,7 @@ class MainServiceScreen(
               modifier = Modifier.background(Color.Transparent),
               contentDetail = contentDetail,
               baseUIState = currentLiveState,
-              totalDebtState = totalDebtState,
+              ledgerUIState = ledgerUIState,
               screenModel = ledgerScreenModel,
               navigateToWebView = navigateToWebView
             )
@@ -111,7 +111,7 @@ class MainServiceScreen(
         contentDetail = contentDetail,
         baseUIState = currentLiveState,
         onDrawerClick = onDrawerClick,
-        totalDebtState = totalDebtState,
+        ledgerUIState = ledgerUIState,
         screenModel = ledgerScreenModel,
         navigateToWebView = navigateToWebView
       )
@@ -131,13 +131,13 @@ fun SinglePanelService(
   contentDetail: ContentDetail,
   baseUIState: BaseUIState,
   onDrawerClick: () -> Unit,
-  totalDebtState: TotalDebtState, // Оставляем для совместимости сигнатуры
+  ledgerUIState: BaseUIState,
   screenModel: LedgerScreenModel,
   navigateToWebView: (String) -> Unit
 ) {
   // ИСПРАВЛЕНО НАМЕРТВО: Вычитываем живой, реактивный стейт прямо из сквозной модели!
   // Полностью уничтожен клин Snapshot-копий в ОЗУ смартфона!
-  val liveDebtState by screenModel.totalDebtState.collectAsState()
+  val liveDebtState by screenModel.uiState.collectAsState()
 
   Crossfade(
     targetState = liveDebtState.showDetail, // Отслеживаем живой Stateless-флаг
@@ -145,9 +145,7 @@ fun SinglePanelService(
   ) { isDetailVisible ->
     if (isDetailVisible) {
       // Перехватчик аппаратной кнопки "Назад" смартфона
-      // Внутри SinglePanelService в файле MainServiceScreen.kt обновите BackHandler:
       BackHandler(enabled = true) {
-        // ИСПРАВЛЕНО: Синхронизировали системный бэк-стек с логикой счетчиков
         println("[$tag.Mobile.BackHandler]: Системне перехоплення кнопки Назад ЖКГ.")
         screenModel.closeContentDetail()
       }
@@ -157,9 +155,9 @@ fun SinglePanelService(
         modifier = Modifier
           .fillMaxSize()
           .background(MaterialTheme.colorScheme.background),
-        contentDetail = liveDebtState.serviceDetail, // Передаем живую службу
+        contentDetail = liveDebtState.serviceDetail,
         baseUIState = baseUIState,
-        totalDebtState = liveDebtState, // Передаем живой стейт
+        ledgerUIState = liveDebtState,
         screenModel = screenModel,
         navigateToWebView = navigateToWebView
       )
@@ -167,7 +165,7 @@ fun SinglePanelService(
       ServiceListScreen(
         baseUIState = baseUIState,
         onDrawerClick = onDrawerClick,
-        totalDebtState = liveDebtState, // Передаем живой стейт для круговой диаграммы
+        ledgerUIState = liveDebtState,
         getTotalServiceDebt = { params ->
           screenModel.getTotalServiceDebt(params.uid, params.addressId, params.houseId, params.year, params.service, params.total)
         },

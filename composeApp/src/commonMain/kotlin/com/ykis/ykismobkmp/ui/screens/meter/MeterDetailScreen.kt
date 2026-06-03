@@ -16,14 +16,11 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterDetail
-import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterState
 import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatReadings
 import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterDetail
-import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterState
 import com.ykis.ykismobkmp.ui.screens.meter.water.WaterReadings
 import org.jetbrains.compose.resources.painterResource
 import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.ic_history
 
 private const val className = "MeterDetailScreen"
 
@@ -31,10 +28,9 @@ private const val className = "MeterDetailScreen"
 fun MeterDetailScreen(
   modifier: Modifier = Modifier,
   contentDetail: ContentDetail,
-  waterMeterState: WaterMeterState,
-  heatMeterState: HeatMeterState,
+  meterUIState: BaseUIState,
   viewModel: MeterScreenModel,
-  baseUIState: BaseUIState
+  baseUIState: BaseUIState // Возвращаем базовый стейт (с UID и адресом)
 ) {
   LaunchedEffect(contentDetail) {
     println("[$className.Content]: Отрисовка формы ввода или истории ГИОЦ. Активный контент: $contentDetail")
@@ -44,8 +40,8 @@ fun MeterDetailScreen(
     // 1. НАСТРОЙКА КРОСС ПЛАТФОРМЕННОГО ТУЛБАРА DefaultAppBar
     DefaultAppBar(
       title = when (contentDetail) {
-        ContentDetail.WATER_METER -> "Водомір: ${waterMeterState.selectedWaterMeter.model}"
-        ContentDetail.HEAT_METER -> "Лічильник тепла: ${heatMeterState.selectedHeatMeter.model}"
+        ContentDetail.WATER_METER -> "Водомір: ${meterUIState.selectedWaterMeter.model}"
+        ContentDetail.HEAT_METER -> "Лічильник тепла: ${meterUIState.selectedHeatMeter.model}"
         ContentDetail.WATER_READINGS -> "Історія водопостачання"
         ContentDetail.HEAT_READINGS -> "Історія опалення"
         else -> "Прилади обліку ЮКІС"
@@ -59,33 +55,31 @@ fun MeterDetailScreen(
         }
       },
       actionButton = {
-        if (contentDetail == ContentDetail.HEAT_METER || contentDetail == ContentDetail.WATER_METER) {
+        val isMeterDetail = contentDetail == ContentDetail.HEAT_METER || contentDetail == ContentDetail.WATER_METER
+        if (isMeterDetail) {
           IconButton(
             onClick = {
               val nextDetail = if (contentDetail == ContentDetail.WATER_METER)
                 ContentDetail.WATER_READINGS else ContentDetail.HEAT_READINGS
-              println("[$className.Action]: Инициализация открытия истории показаний -> $nextDetail")
+              println("[YkisLogKMP.$className.Action]: Переход в историю -> $nextDetail")
               viewModel.setContentDetail(nextDetail)
             },
           ) {
             Icon(
-
               imageVector = Icons.Default.History,
-              contentDescription = "Історія показань",
+              contentDescription = "История",
               tint = MaterialTheme.colorScheme.onSurface
             )
           }
-
         }
       }
     )
 
-    // Передаем viewModel вниз, избавляясь от скрытых koinInject
+    // Передаем оба стейта: базовый (для UID) и модульный (для данных счетчиков)
     MeterDetailContent(
       baseUIState = baseUIState,
       contentDetail = contentDetail,
-      waterMeterState = waterMeterState,
-      heatMeterState = heatMeterState,
+      meterUIState = meterUIState,
       viewModel = viewModel
     )
   }
@@ -95,8 +89,7 @@ fun MeterDetailScreen(
 fun MeterDetailContent(
   baseUIState: BaseUIState,
   contentDetail: ContentDetail,
-  waterMeterState: WaterMeterState,
-  heatMeterState: HeatMeterState,
+  meterUIState: BaseUIState,
   viewModel: MeterScreenModel
 ) {
   val currentClassName = "MeterDetailContent"
@@ -109,30 +102,30 @@ fun MeterDetailContent(
     when (targetState) {
       ContentDetail.WATER_METER -> {
         WaterMeterDetail(
-          waterMeterEntity = waterMeterState.selectedWaterMeter,
+          waterMeterEntity = meterUIState.selectedWaterMeter,
           baseUIState = baseUIState,
           getLastReading = {
             println("[$currentClassName.Water]: Request last reading from Ktor API")
             viewModel.getLastWaterReading(
-              vodomerId = waterMeterState.selectedWaterMeter.vodomerId,
+              vodomerId = meterUIState.selectedWaterMeter.vodomerId,
               uid = baseUIState.uid ?: ""
             )
           },
-          lastReading = waterMeterState.lastWaterReading,
-          isWorking = waterMeterState.selectedWaterMeter.spisan != 1L &&
-            waterMeterState.selectedWaterMeter.isOut != 1L,
-          isLastReadingLoading = waterMeterState.isLastReadingLoading,
-          newWaterReading = waterMeterState.newWaterReading,
+          lastReading = meterUIState.lastWaterReading,
+          isWorking = meterUIState.selectedWaterMeter.spisan != 1L &&
+            meterUIState.selectedWaterMeter.isOut != 1L,
+          isLastReadingLoading = meterUIState.isLastReadingLoading,
+          newWaterReading = meterUIState.newWaterReading,
           onNewReadingChange = { newValue ->
             viewModel.onNewWaterReadingChange(newValue.filter { it.isDigit() })
           },
           addReading = {
-            println("[$currentClassName.Water]: Adding new digital reading to СУБД: ${waterMeterState.newWaterReading}")
+            println("[$currentClassName.Water]: Adding new digital reading to СУБД: ${meterUIState.newWaterReading}")
             viewModel.addWaterReading(
               uid = baseUIState.uid.toString(),
-              currentValue = waterMeterState.lastWaterReading?.current ?: 0L,
-              newValue = waterMeterState.newWaterReading.toLongOrNull() ?: 0L,
-              vodomerId = waterMeterState.selectedWaterMeter.vodomerId
+              currentValue = meterUIState.lastWaterReading?.current ?: 0L,
+              newValue = meterUIState.newWaterReading.toLongOrNull() ?: 0L,
+              vodomerId = meterUIState.selectedWaterMeter.vodomerId
             )
           },
           navigateToReadings = {
@@ -142,44 +135,44 @@ fun MeterDetailContent(
             println("[$currentClassName.Water]: Request atomical deletion of last water reading")
             viewModel.deleteLastWaterReading(
               uid = baseUIState.uid.toString(),
-              vodomerId = waterMeterState.lastWaterReading?.vodomerId ?: 0L,
-              readingId = waterMeterState.lastWaterReading?.pokId ?: 0L
+              vodomerId = meterUIState.lastWaterReading?.vodomerId ?: 0L,
+              readingId = meterUIState.lastWaterReading?.pokId ?: 0L
             )
           }
         )
       }
       ContentDetail.HEAT_METER -> {
         HeatMeterDetail(
-          heatMeterEntity = heatMeterState.selectedHeatMeter,
+          heatMeterEntity = meterUIState.selectedHeatMeter,
           baseUIState = baseUIState,
           getLastHeatReading = {
             viewModel.getLastHeatReading(
               uid = baseUIState.uid ?: "",
-              teplomerId = heatMeterState.selectedHeatMeter.teplomerId
+              teplomerId = meterUIState.selectedHeatMeter.teplomerId
             )
           },
-          lastHeatReading = heatMeterState.lastHeatReading,
-          isWorking = heatMeterState.selectedHeatMeter.spisan != 1L &&
-            heatMeterState.selectedHeatMeter.isOut != 1L,
+          lastHeatReading = meterUIState.lastHeatReading,
+          isWorking = meterUIState.selectedHeatMeter.spisan != 1L &&
+            meterUIState.selectedHeatMeter.isOut != 1L,
           navigateToReadings = {
             viewModel.setContentDetail(ContentDetail.HEAT_READINGS)
           },
-          newHeatReading = heatMeterState.newHeatReading,
+          newHeatReading = meterUIState.newHeatReading,
           onNewReadingChange = { newValue ->
             viewModel.onNewHeatReadingChange(newValue.filter { it.isDigit() || it == '.' || it == ',' })
           },
           addReading = {
             viewModel.addHeatReading(
               uid = baseUIState.uid.toString(),
-              teplomerId = heatMeterState.selectedHeatMeter.teplomerId,
-              currentValue = heatMeterState.lastHeatReading?.current ?: 0.0,
-              newValue = heatMeterState.newHeatReading.toDoubleOrNull() ?: 0.0
+              teplomerId = meterUIState.selectedHeatMeter.teplomerId,
+              currentValue = meterUIState.lastHeatReading?.current ?: 0.0,
+              newValue = meterUIState.newHeatReading.toDoubleOrNull() ?: 0.0
             )
           },
           deleteReading = {
             viewModel.deleteLastHeatReading(
-              readingId = heatMeterState.lastHeatReading?.pokId ?: 0L,
-              teplomerId = heatMeterState.selectedHeatMeter.teplomerId,
+              readingId = meterUIState.lastHeatReading?.pokId ?: 0L,
+              teplomerId = meterUIState.selectedHeatMeter.teplomerId,
               uid = baseUIState.uid.toString()
             )
           }
@@ -188,11 +181,11 @@ fun MeterDetailContent(
       ContentDetail.WATER_READINGS -> {
         WaterReadings(
           baseUIState = baseUIState,
-          waterMeterState = waterMeterState,
+          meterUIState = meterUIState,
           getWaterReadings = {
             viewModel.getWaterReadings(
               uid = baseUIState.uid ?: "",
-              vodomerId = waterMeterState.selectedWaterMeter.vodomerId
+              vodomerId = meterUIState.selectedWaterMeter.vodomerId
             )
           }
         )
@@ -200,11 +193,11 @@ fun MeterDetailContent(
       ContentDetail.HEAT_READINGS -> {
         HeatReadings(
           baseUIState = baseUIState,
-          heatMeterState = heatMeterState,
+          meterUIState = meterUIState,
           getHeatReadings = {
             viewModel.getHeatReadings(
               uid = baseUIState.uid.toString(),
-              teplomerId = heatMeterState.selectedHeatMeter.teplomerId
+              teplomerId = meterUIState.selectedHeatMeter.teplomerId
             )
           }
         )

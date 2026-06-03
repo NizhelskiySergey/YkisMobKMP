@@ -47,7 +47,7 @@ fun SettingsSwitch(
       .padding(vertical = 4.dp, horizontal = 12.dp) // Выровнены отступы по гайдлайнам Material 3
       .clickable { onToggle() },
     colors = CardDefaults.cardColors(
-      containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+      containerColor = MaterialTheme.colorScheme.secondaryContainer
     )
   ) {
     Row(

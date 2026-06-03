@@ -34,11 +34,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
-import com.ykis.ykismobkmp.ui.components.EmptyListState
+import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
-import org.jetbrains.compose.resources.painterResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.ic_heat_meter5_24px
 private const val className = "HeatMeterList"
 
 @Composable
@@ -76,17 +73,17 @@ private fun EmptyListState(title: String, subtitle: String) {
 @Composable
 fun HeatMeterList(
   modifier: Modifier = Modifier,
-  heatMeterState: HeatMeterState,
+  meterUIState: BaseUIState,
   onHeatMeterClick: (HeatMeterEntity) -> Unit
 ) {
   Crossfade(
-    targetState = heatMeterState.isMetersLoading,
+    targetState = meterUIState.isMetersLoading,
     animationSpec = tween(durationMillis = 300, delayMillis = 100),
     label = "HeatMeterListFade"
   ) { isLoading ->
     if (isLoading) {
       CenteredProgressIndicator()
-    } else if (heatMeterState.heatMeterList.isEmpty()) {
+    } else if (meterUIState.heatMeterList.isEmpty()) {
       EmptyListState(
         title = "Лічильники не знайдені",
         subtitle = "За вашою адресою у місті Южне не зафіксовано приладів обліку тепла"
@@ -97,7 +94,7 @@ fun HeatMeterList(
         contentPadding = PaddingValues(vertical = 8.dp)
       ) {
         items(
-          items = heatMeterState.heatMeterList,
+          items = meterUIState.heatMeterList,
           key = { it.teplomerId }
         ) { heatMeter ->
           HeatMeterItem(
@@ -142,7 +139,7 @@ fun HeatMeterItem(
   OutlinedCard(
     modifier = modifier.graphicsLayer { alpha = componentAlpha },
     colors = CardDefaults.cardColors(
-      containerColor = MaterialTheme.colorScheme.surfaceContainer
+      containerColor = MaterialTheme.colorScheme.secondaryContainer
     )
   ) {
     Row(

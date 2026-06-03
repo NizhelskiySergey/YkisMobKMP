@@ -42,6 +42,7 @@ import com.ykis.ykismobkmp.ui.navigation.LocalContentType
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.navigation.SendImageScreenDest
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
+import com.ykis.ykismobkmp.core.utils.rememberFilePicker
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
@@ -78,7 +79,7 @@ class ChatScreen(
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
 
     // Реактивно вычитываем живой стейт БТИ квартиры Южного
-    val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
+    val baseUIState by apartmentScreenModel.uiState.collectAsState()
 
     // Вызываем Stateful-компоновщик, связывая все слои в едином инстансе ОЗУ
     ChatScreenStateful(
@@ -163,7 +164,7 @@ fun ChatScreenContent(
   val selectedService by screenModel.selectedService.collectAsState()
   val isLoadingAfterSending by screenModel.isLoadingAfterSending.collectAsState()
   val aiAssistantResponse by screenModel.assistantResponse.collectAsState()
-  val isPartnerTyping by screenModel.isOpponentTyping.collectAsState()
+  val isOpponentTyping by screenModel.isOpponentTyping.collectAsState()
 
   // Исправлено: Ссылка на несуществующий uiState удалена, подписка идет напрямую в запечатанный поток!
   val isForwardingMode by screenModel.isForwardingMode.collectAsState()
@@ -175,6 +176,9 @@ fun ChatScreenContent(
   val listState = rememberLazyListState()
   val screenScope = rememberCoroutineScope()
   val myUid = baseUIState.uid.toString()
+
+  // АВТОМАТИЗАЦИЯ ВЫБОРА ФАЙЛОВ: Инициализируем платформенный пикер
+  val filePicker = rememberFilePicker()
 
   // Исправлено: Контур вычисления кодов ЖЕК/ОСББ переведен на сквозной Long-стандарт СУБД ЮКІС
   val currentChatOsbbId = remember(baseUIState.userRole, baseUIState.osbbId) {
@@ -200,6 +204,15 @@ fun ChatScreenContent(
       }
   }
 
+  // ИСПРАВЛЕНО: Автоматический доскролл вниз при открытии клавиатуры (IME)
+  val imeHeight = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+  LaunchedEffect(imeHeight) {
+    if (imeHeight > 0.dp && chatItems.isNotEmpty()) {
+      println("[YkisLogKMP.$className.Scroll]: Клавіатура відкрита, виконуємо доскрол.")
+      listState.animateScrollToItem(chatItems.size - 1)
+    }
+  }
+
   // Атомарный триггер подписки на Firebase-ветку сокетов при инициализации кадра чата смартфона
   LaunchedEffect(baseUIState.addressId, baseUIState.userRole, chatUid, userEntity.uid) {
     val role = baseUIState.userRole
@@ -219,8 +232,8 @@ fun ChatScreenContent(
   // Гарантированная зачистка индикаторов набора текста при закрытии или уничтожении экрана чата
   DisposableEffect(Unit) {
     onDispose {
-      println("[YkisLogKMP.$className.onDispose]: Очищення контексту чату та скидання прапорів введення.")
-      screenModel.setTypingStatus(false)
+      println("[YkisLogKMP.$className.onDispose]: Очищение контекста чата и сброс флагов ввода.")
+      screenModel.clearCurrentChatPath() // ИСПРАВЛЕНО: Вызываем полную очистку контекста (Job + Path)
       screenModel.cancelForwarding()
     }
   }
@@ -257,9 +270,9 @@ fun ChatScreenContent(
   }
 
   val appBarSubtitle =
-    remember<String>(baseUIState.address, userEntity, isPartnerTyping, baseUIState.userRole) {
+    remember<String>(baseUIState.address, userEntity, isOpponentTyping, baseUIState.userRole) {
       when {
-        isPartnerTyping -> "друкує..."
+        isOpponentTyping -> "друкує..."
         baseUIState.userRole == UserRole.StandardUser -> baseUIState.address ?: ""
         else -> {
           // Исправлено: Отображение о/р приведено к безопасному Long без ToInt() урезания!
@@ -277,6 +290,7 @@ fun ChatScreenContent(
   Scaffold(
     modifier = modifier.fillMaxSize(),
     containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    contentWindowInsets = WindowInsets(0, 0, 0, 0), // ИСПРАВЛЕНО: Отключаем дублирование системных отступов
     topBar = {
       Column {
         DefaultAppBar(
@@ -294,25 +308,27 @@ fun ChatScreenContent(
       }
     },
     bottomBar = {
-      Column(
-        modifier = Modifier
-          .fillMaxWidth()
-          .background(MaterialTheme.colorScheme.surface)
-          .navigationBarsPadding()
-          .imePadding() // Мягко поднимает поле ввода вместе с системной клавиатурой смартфона
+      Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp,
+        modifier = Modifier.fillMaxWidth()
       ) {
-        AnimatedVisibility(visible = !aiAssistantResponse.isNullOrBlank()) {
-          AiHintCard(
-            text = aiAssistantResponse ?: "",
-            title = if (baseUIState.userRole != UserRole.StandardUser) "Порада диспетчеру" else "Помічник",
-            onClose = { screenModel.clearAiSuggestion() },
-            onApply = {
-              println("[YkisLogKMP.$className.AiApply]: Інтеграція тексту підказки Gemini в поле введення.")
-              screenModel.applyAiHint()
-            }
-          )
-        }
-        Surface(tonalElevation = 6.dp) {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .imePadding() // ГАРАНТИЯ: Поле ввода будет подниматься над клавиатурой
+        ) {
+          AnimatedVisibility(visible = !aiAssistantResponse.isNullOrBlank()) {
+            AiHintCard(
+              text = aiAssistantResponse ?: "",
+              title = if (baseUIState.userRole != UserRole.StandardUser) "Порада диспетчеру" else "Помічник",
+              onClose = { screenModel.clearAiSuggestion() },
+              onApply = {
+                println("[YkisLogKMP.$className.AiApply]: Інтеграція тексту підказки Gemini в поле введення.")
+                screenModel.applyAiHint()
+              }
+            )
+          }
           ComposeMessageBox(
             text = messageText,
             onTextChanged = { screenModel.onMessageTextChanged(it) },
@@ -349,13 +365,23 @@ fun ChatScreenContent(
               }
             },
             onImageSent = { path ->
-              println("[YkisLogKMP.$className.onImageSent]: Додавання медіафайлу за шляхом: $path")
-              screenModel.setSelectedImagePath(path)
-              if (baseUIState.userRole == UserRole.StandardUser) {
-                println("[YkisLogKMP.$className.Gemini]: Автоматичний запуск комп'ютерного зору Gemini.")
-                screenModel.analyzePhotoWithGemini(path, baseUIState.address ?: "")
+              // ИСПРАВЛЕНО: Если путь пустой, значит нажали на иконку вложений — открываем пикер
+              if (path.isBlank()) {
+                println("[YkisLogKMP.$className.onAttach]: Открытие системного окна выбора документов.")
+                filePicker.pickFile { pickedPath ->
+                  println("[YkisLogKMP.$className.onAttach]: Файл выбран: $pickedPath")
+                  screenModel.setSelectedImagePath(pickedPath)
+                  navigateToSendImageScreen()
+                }
+              } else {
+                println("[YkisLogKMP.$className.onImageSent]: Добавление медиафайла за путем: $path")
+                screenModel.setSelectedImagePath(path)
+                if (baseUIState.userRole == UserRole.StandardUser) {
+                  println("[YkisLogKMP.$className.Gemini]: Автоматический запуск компьютерного зрения Gemini.")
+                  screenModel.analyzePhotoWithGemini(path, baseUIState.address)
+                }
+                navigateToSendImageScreen()
               }
-              navigateToSendImageScreen()
             },
             onAiClick = {
               if (messageText.isNotBlank()) {
@@ -381,23 +407,19 @@ fun ChatScreenContent(
   ) { innerPadding ->
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
 
-    // Подписываемся на стейт удаления сообщения
+    // Подписываемся на стейт выбора сообщения для действий
     val messageToDelete by screenModel.messageToDelete.collectAsState()
 
-    // Исправлено: Добавлен недостающий КМР AlertDialog для физического удаления строк из хмари
+    // ВЫЗОВ КОНТЕКСТНОГО МЕНЮ (Удаление, Редактирование, Пересылка)
     if (messageToDelete != null) {
-      AlertDialog(
-        onDismissRequest = { screenModel.dismissDeleteDialog() },
-        title = { Text("Видалити повідомлення?") },
-        text = { Text("Ви впевнені, що хочете безповоротно видалити це повідомлення з хмари Firebase?") },
-        confirmButton = {
-          TextButton(onClick = { screenModel.confirmDeletion() }) {
-            Text("Видалити", color = MaterialTheme.colorScheme.error)
-          }
-        },
-        dismissButton = {
-          TextButton(onClick = { screenModel.dismissDeleteDialog() }) {
-            Text("Скасувати")
+      MessageActionsDialog(
+        messageToDelete = messageToDelete,
+        myUid = myUid,
+        screenModel = screenModel,
+        navigateBack = {
+          // Если мы в режиме пересылки, нужно вернуться к списку чатов
+          if (screenModel.forwardingMessage.value != null) {
+            navigateBack()
           }
         }
       )
@@ -406,14 +428,14 @@ fun ChatScreenContent(
     LazyColumn(
       modifier = Modifier
         .fillMaxSize()
-        // Исправлено: Избыточный imePadding удален, предотвращая "белые дыры" сжатия списка!
         .padding(top = innerPadding.calculateTopPadding()),
       state = listState,
       contentPadding = PaddingValues(
         start = 8.dp,
         end = 8.dp,
         top = 8.dp,
-        bottom = innerPadding.calculateBottomPadding() + 12.dp
+        // ИСПРАВЛЕНО: Увеличиваем нижний паддинг, чтобы сообщения не "залипали" под полем ввода
+        bottom = innerPadding.calculateBottomPadding() + 16.dp
       ),
       verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -573,7 +595,7 @@ fun ChatScreenContent(
       modifier = Modifier
         .fillMaxWidth()
         .padding(horizontal = 12.dp, vertical = 6.dp),
-      color = MaterialTheme.colorScheme.primaryContainer,
+      color = MaterialTheme.colorScheme.secondaryContainer,
       shape = RoundedCornerShape(16.dp),
       tonalElevation = 4.dp,
       shadowElevation = 2.dp

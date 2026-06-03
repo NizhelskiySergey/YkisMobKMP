@@ -25,7 +25,11 @@ import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import com.ykis.ykismobkmp.domain.entity.WaterReadingEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
+import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.no_payment
 
 @Composable
 private fun CenteredProgressIndicator(modifier: Modifier = Modifier) {
@@ -41,31 +45,36 @@ private fun CenteredProgressIndicator(modifier: Modifier = Modifier) {
 fun WaterReadings(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
-  waterMeterState: WaterMeterState,
+  meterUIState: BaseUIState,
   getWaterReadings: () -> Unit
 ) {
-  LaunchedEffect(key1 = baseUIState.addressId, key2 = waterMeterState.selectedWaterMeter) {
-    if (baseUIState.addressId != 0L && waterMeterState.selectedWaterMeter.vodomerId != 0L) {
+  LaunchedEffect(key1 = baseUIState.addressId, key2 = meterUIState.selectedWaterMeter) {
+    if (baseUIState.addressId != 0L && meterUIState.selectedWaterMeter.vodomerId != 0L) {
       println("[WaterReadings.LaunchedEffect]: Запит історії водопостачання для о/р Long: ${baseUIState.addressId}")
       getWaterReadings()
     }
   }
 
   Crossfade(
-    targetState = waterMeterState.isReadingsLoading,
+    targetState = meterUIState.isReadingsLoading,
     label = "WaterReadingsLoadingFade",
     animationSpec = tween(durationMillis = 300, delayMillis = 100)
   ) { isLoading ->
     if (isLoading) {
       CenteredProgressIndicator()
+    } else if (meterUIState.waterReadings.isEmpty()) {
+      EmptyListState(
+        title = "Історія порожня",
+        subtitle = "За даним водоміром ще не зафіксовано жодних показань у біллінгу ЮКІС"
+      )
     } else {
       LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
       ) {
         items(
-          items = waterMeterState.waterReadings,
-          key = { it.pokId } // Наш сквозной Long ID первичного ключа таблицы waterReadingEntity
+          items = meterUIState.waterReadings,
+          key = { it.pokId }
         ) { waterReading ->
           WaterReadingItem(reading = waterReading)
         }

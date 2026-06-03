@@ -59,7 +59,7 @@ fun HeatMeterDetail(
   val enabledButton by remember(newHeatReading, safeLastReading.current) {
     derivedStateOf {
       val newValue = newHeatReading.replace(',', '.').toDoubleOrNull() ?: -1.0
-      val isValid = newValue > safeLastReading.current
+      val isValid = newValue >= safeLastReading.current // ИСПРАВЛЕНО: Разрешено равенство
       if (newHeatReading.isNotEmpty() && !isValid) {
         println("[$tag.Validation]: Значення $newValue менше або дорівнює попередньому якорю ${safeLastReading.current}")
       }

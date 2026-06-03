@@ -49,6 +49,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.alredy_user
+import ykismobkmp.composeapp.generated.resources.email_sent_to
 import ykismobkmp.composeapp.generated.resources.repeat_email_not_verified_message
 import ykismobkmp.composeapp.generated.resources.terms_condition_down
 import ykismobkmp.composeapp.generated.resources.verify_email
@@ -170,7 +171,7 @@ fun VerifyEmailScreenStateless(
       )
       Spacer(modifier = Modifier.height(24.dp))
       Text(
-        text = "Лист надіслано на:",
+        text = stringResource(Res.string.email_sent_to),
         style = MaterialTheme.typography.bodyLarge
       )
       Text(

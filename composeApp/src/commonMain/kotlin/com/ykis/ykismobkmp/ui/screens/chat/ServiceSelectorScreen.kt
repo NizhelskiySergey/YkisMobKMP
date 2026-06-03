@@ -43,9 +43,7 @@ import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.navigation.LocalContentType
 import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
-import com.ykis.ykismobkmp.ui.screens.ledger.TotalDebtState
 import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
-import com.ykis.ykismobkmp.ui.screens.ledger.list.assembleServiceList
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res

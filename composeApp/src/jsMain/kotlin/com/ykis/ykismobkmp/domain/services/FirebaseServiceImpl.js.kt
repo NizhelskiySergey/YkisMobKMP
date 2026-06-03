@@ -19,3 +19,5 @@ actual suspend fun performPlatformSignInWithSms(
   println("[YkisLogKMP.FirebaseServiceImpl]: [JS_WEB] Сценарій входу за SMS ізольований для браузера")
   return Resource.Error("Функція авторизації за номером телефону недоступна у Веб-версії.")
 }
+
+actual suspend fun getPlatformFcmToken(): String? = null

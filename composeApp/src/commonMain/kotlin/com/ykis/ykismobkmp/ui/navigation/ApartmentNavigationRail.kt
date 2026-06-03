@@ -314,6 +314,8 @@ fun ApartmentNavigationRail(
                       if (listMode == ListMode.HOUSES) {
                         apartmentViewModel.onHouseSelected(item.addressId)
                       } else {
+                        // ИСПРАВЛЕНО: Принудительный переход на экран Инфо при выборе квартиры из поиска
+                        onSubModuleChange("InfoApartmentScreen")
                         navigateToApartment(item.addressId)
                       }
                     }
@@ -448,108 +450,108 @@ fun ApartmentNavigationRail(
         // Подсветка иконки чата активна на любом из 3 пошаговых этапов контура чат-системы
         val isChatSelected = activeSubModule == "chat_selector" || activeSubModule == "chat_user_list" || activeSubModule == "chat_room_active"
 
-        // 1. Кнопка Главная (БТИ / Список абонентов диспетчера)
-        NavigationRailItem(
-          selected = isHomeSelected,
-          onClick = {
-            println("[$className.ApartmentNavigationRail]: Перехід на головну панель БТІ/Абонентів. Скидання фокусу.")
-            focusManager.clearFocus()
-            selectedApartmentFocusRequester.requestFocus()
+      val isAptSelected = baseUIState.addressId != 0L
+      val isAdmin = baseUIState.userRole != UserRole.StandardUser
 
-            val targetRoute = if (baseUIState.userRole == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen"
-            onSubModuleChange(targetRoute)
-          },
-          icon = { Icon(Icons.Default.Home, null) },
-          label = if (isRailExpanded) {
-            // ИСПРАВЛЕНО: maxLines = 1 и softWrap = false исключают уродливые 2 строчки на дисплее планшета!
-            { Text("Головна", fontSize = 11.sp, maxLines = 1, softWrap = false) }
-          } else null
-        )
+      // 1. Кнопка Главная (БТИ / Список абонентов диспетчера)
+      NavigationRailItem(
+        selected = isHomeSelected,
+        enabled = if (isAdmin) isAptSelected else true,
+        onClick = {
+          println("[$className.ApartmentNavigationRail]: Переход на главную панель БТИ. Сброс фокуса.")
+          focusManager.clearFocus()
+          selectedApartmentFocusRequester.requestFocus()
 
-        // 2. Кнопка Финансы ЮКІС (Сводные балансы ГИОЦ)
-        NavigationRailItem(
-          selected = isFinanceSelected,
-          onClick = {
-            println("[$className.ApartmentNavigationRail]: Перехід на модуль комунальних нарахувань. Скидання фокусу.")
-            focusManager.clearFocus()
-            selectedApartmentFocusRequester.requestFocus()
-            onSubModuleChange("finance_selector")
-          },
-          icon = { Icon(Icons.Default.CreditCard, null) },
-          label = if (isRailExpanded) {
-            { Text("Фінанси", fontSize = 11.sp, maxLines = 1, softWrap = false) }
-          } else null
-        )
+          onSubModuleChange("InfoApartmentScreen")
+        },
+        icon = { Icon(Icons.Default.Home, null) },
+        label = if (isRailExpanded) {
+          // ИСПРАВЛЕНО: maxLines = 1 и softWrap = false исключают уродливые 2 строчки на дисплее планшета!
+          { Text("Головна", fontSize = 11.sp, maxLines = 1, softWrap = false) }
+        } else null
+      )
 
-        // 3. Кнопка Приборы учета ЮКІС (Ввод показаний водомеров)
-        NavigationRailItem(
-          selected = isMetersSelected,
-          onClick = {
-            println("[$className.ApartmentNavigationRail]: Перехід на модуль лічильників. Скидання фокусу.")
-            focusManager.clearFocus()
-            selectedApartmentFocusRequester.requestFocus()
-            chatViewModel.setSelectedService(null as TotalServiceDebt?)
-            onSubModuleChange("service_selector")
-          },
-          icon = {
-            BadgedBox(
-              badge = {
-                if (totalUnread > 0) {
-                  Badge(containerColor = MaterialTheme.colorScheme.error) {
-                    Text(text = if (totalUnread > 9) "9+" else totalUnread.toString())
-                  }
+      // 2. Кнопка Финансы ЮКІС (Сводные балансы ГИОЦ)
+      NavigationRailItem(
+        selected = isFinanceSelected,
+        enabled = if (isAdmin) isAptSelected else true,
+        onClick = {
+          println("[$className.ApartmentNavigationRail]: Перехід на модуль комунальних нарахувань. Скидання фокусу.")
+          focusManager.clearFocus()
+          selectedApartmentFocusRequester.requestFocus()
+          onSubModuleChange("finance_selector")
+        },
+        icon = { Icon(Icons.Default.CreditCard, null) },
+        label = if (isRailExpanded) {
+          { Text("Фінанси", fontSize = 11.sp, maxLines = 1, softWrap = false) }
+        } else null
+      )
+
+      // 3. Кнопка Приборы учета ЮКІС (Ввод показаний водомеров)
+      NavigationRailItem(
+        selected = isMetersSelected,
+        enabled = if (isAdmin) isAptSelected else true,
+        onClick = {
+          println("[$className.ApartmentNavigationRail]: Перехід на модуль лічильників. Скидання фокусу.")
+          focusManager.clearFocus()
+          selectedApartmentFocusRequester.requestFocus()
+          chatViewModel.setSelectedService(null as TotalServiceDebt?)
+          onSubModuleChange("service_selector")
+        },
+        icon = {
+          // ИСПРАВЛЕНО: Бейдж чата удален с иконки счетчиков в боковом меню!
+          Icon(Icons.Default.ElectricMeter, null)
+        },
+        label = if (isRailExpanded) {
+          { Text("Лічильники", fontSize = 11.sp, maxLines = 1, softWrap = false) }
+        } else null
+      )
+
+      // 4. Кнопка Чат обсуждения ОСББ
+      NavigationRailItem(
+        selected = isChatSelected,
+        // Чат доступен всегда, так как это точка входа для выбора жильца
+        onClick = {
+          println("[$className.ApartmentNavigationRail]: Перехід до модуля обговорень ЮКІС. Скидання фокусу.")
+          focusManager.clearFocus()
+          selectedApartmentFocusRequester.requestFocus()
+          
+          val targetRoute = if (baseUIState.userRole == UserRole.StandardUser) "chat_selector" else "chat_user_list"
+          onSubModuleChange(targetRoute)
+        },
+        icon = {
+          BadgedBox(
+            badge = {
+              if (totalUnread > 0) {
+                Badge(containerColor = MaterialTheme.colorScheme.error) {
+                  Text(text = if (totalUnread > 9) "9+" else totalUnread.toString())
                 }
               }
-            ) {
-              Icon(Icons.Default.ElectricMeter, null)
             }
-          },
-          label = if (isRailExpanded) {
-            { Text("Лічильники", fontSize = 11.sp, maxLines = 1, softWrap = false) }
-          } else null
-        )
+          ) {
+            Icon(Icons.Default.Chat, null)
+          }
+        },
+        label = if (isRailExpanded) {
+          { Text("Чат", fontSize = 11.sp, maxLines = 1, softWrap = false) }
+        } else null
+      )
 
-        // 4. Кнопка Чат обсуждения ОСББ
-        NavigationRailItem(
-          selected = isChatSelected,
-          onClick = {
-            println("[$className.ApartmentNavigationRail]: Перехід до модуля обговорень ЮКІС. Скидання фокусу.")
-            focusManager.clearFocus()
-            selectedApartmentFocusRequester.requestFocus()
-            onSubModuleChange("chat_selector")
-          },
-          icon = {
-            BadgedBox(
-              badge = {
-                if (totalUnread > 0) {
-                  Badge(containerColor = MaterialTheme.colorScheme.error) {
-                    Text(text = if (totalUnread > 9) "9+" else totalUnread.toString())
-                  }
-                }
-              }
-            ) {
-              Icon(Icons.Default.Chat, null)
-            }
-          },
-          label = if (isRailExpanded) {
-            { Text("Чат", fontSize = 11.sp, maxLines = 1, softWrap = false) }
-          } else null
-        )
-
-        // 5. Кнопка Системные Настройки профиля абонента
-        NavigationRailItem(
-          selected = activeSubModule == "SettingsScreenDest",
-          onClick = {
-            println("[$className.ApartmentNavigationRail]: Перехід на модуль системних налаштувань профілю. Скидання фокусу.")
-            focusManager.clearFocus()
-            selectedApartmentFocusRequester.requestFocus()
-            onSubModuleChange("SettingsScreenDest")
-          },
-          icon = { Icon(Icons.Default.Settings, null) },
-          label = if (isRailExpanded) {
-            { Text("Налаштування", fontSize = 11.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip) }
-          } else null
-        )
+      // 5. Кнопка Системные Настройки профиля абонента
+      NavigationRailItem(
+        selected = activeSubModule == "SettingsScreenDest",
+        enabled = true, // Настройки всегда активны согласно правилу
+        onClick = {
+          println("[$className.ApartmentNavigationRail]: Перехід на модуль системних налаштувань профілю. Скидання фокусу.")
+          focusManager.clearFocus()
+          selectedApartmentFocusRequester.requestFocus()
+          onSubModuleChange("SettingsScreenDest")
+        },
+        icon = { Icon(Icons.Default.Settings, null) },
+        label = if (isRailExpanded) {
+          { Text("Налаштування", fontSize = 11.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip) }
+        } else null
+      )
       }
     }
   }

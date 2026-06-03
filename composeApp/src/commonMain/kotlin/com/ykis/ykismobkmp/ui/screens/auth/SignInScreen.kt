@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
@@ -38,43 +39,70 @@ import com.ykis.ykismobkmp.ui.components.LogoImage
 import com.ykis.ykismobkmp.ui.components.EmailField
 import com.ykis.ykismobkmp.ui.components.PasswordField
 import com.ykis.ykismobkmp.ui.components.PhoneVisualTransformation
+import com.ykis.ykismobkmp.core.utils.rememberSmsRetriever
 import com.ykis.ykismobkmp.ui.navigation.MainApartmentScreen
 import com.ykis.ykismobkmp.ui.navigation.SignUpScreen
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import dev.gitlive.firebase.auth.auth
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.email_tab
+import ykismobkmp.composeapp.generated.resources.forgot_password_link
 import ykismobkmp.composeapp.generated.resources.login_details
+import ykismobkmp.composeapp.generated.resources.no_account_text
+import ykismobkmp.composeapp.generated.resources.or_divider
+import ykismobkmp.composeapp.generated.resources.phone_number_label
+import ykismobkmp.composeapp.generated.resources.phone_number_placeholder
+import ykismobkmp.composeapp.generated.resources.phone_tab
 import ykismobkmp.composeapp.generated.resources.repeat_email_not_verified_message
+import ykismobkmp.composeapp.generated.resources.send_code_button
+import ykismobkmp.composeapp.generated.resources.sign_in_button
 import ykismobkmp.composeapp.generated.resources.sign_in_with_google
+import ykismobkmp.composeapp.generated.resources.sign_up_link
+import ykismobkmp.composeapp.generated.resources.sms_code_label
+import ykismobkmp.composeapp.generated.resources.sms_code_placeholder
+import ykismobkmp.composeapp.generated.resources.verify_code_button
+
 private const val className = "SignInScreen"
 
 @Composable
-fun GoogleAuthButton(buttonTextRes: Int, isLoading: Boolean, onTokenReceived: (String) -> Unit) {
+fun GoogleAuthButton(isLoading: Boolean, onStart: () -> Unit, onError: () -> Unit, onTokenReceived: (String) -> Unit) {
   val contextActivity = platformActivityContext()
   Button(
     onClick = {
       if (contextActivity == null) {
-        println("[YkisLogKMP.GoogleAuthButton]: [ERROR] Контекст Activity відсутній у рантаймі КМР")
+        println("[YkisLogKMP.GoogleAuthButton]: [ERROR] Контекст Activity отсутствует")
         return@Button
       }
-      println("[YkisLogKMP.GoogleAuthButton]: [START] Запуск системного вікна вибору Google-аккаунтів через Play Services")
+      
+      onStart()
+      println("[YkisLogKMP.GoogleAuthButton]: [START] Запуск системного окна выбора Google-аккаунтов")
+      
       triggerNativeGoogleSignIn(
         activityContext = contextActivity,
         onTokenReceived = { realIdToken ->
-          println("[YkisLogKMP.GoogleAuthButton]: [SUCCESS] Отримано оригінальний зашифрований токен від Google Play Services")
+          println("[YkisLogKMP.GoogleAuthButton]: [SUCCESS] Токен получен")
           onTokenReceived(realIdToken)
         },
         onError = { errorMsg ->
-          println("[YkisLogKMP.GoogleAuthButton]: [ERROR] Нативний збій: $errorMsg")
+          println("[YkisLogKMP.GoogleAuthButton]: [ERROR] Нативный сбой: $errorMsg")
           SnackbarManager.showMessage(errorMsg)
+          onError()
         }
       )
     },
     enabled = !isLoading,
     modifier = Modifier.fillMaxWidth()
   ) {
-    Text("Увійти через Google")
+    if (isLoading) {
+      CircularProgressIndicator(
+        modifier = Modifier.size(20.dp),
+        color = MaterialTheme.colorScheme.onPrimary,
+        strokeWidth = 2.dp
+      )
+    } else {
+      Text(stringResource(Res.string.sign_in_with_google))
+    }
   }
 }
 object SignInScreen : Screen {
@@ -92,6 +120,15 @@ object SignInScreen : Screen {
     val isGoogleLoading by screenModel.isGoogleLoading.collectAsState()
     var currentContentType by remember { mutableStateOf(ContentType.SINGLE_PANE) }
     var currentNavigationType by remember { mutableStateOf(NavigationType.BOTTOM_NAVIGATION) }
+
+    // АВТОМАТИЗАЦИЯ SMS: Инициализируем платформенный ретривер
+    val smsRetriever = rememberSmsRetriever()
+
+    // Останавливаем прослушивание при выходе с экрана
+    DisposableEffect(Unit) {
+      onDispose { smsRetriever.stopRetriever() }
+    }
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
       val windowWidth = maxWidth
       LaunchedEffect(windowWidth) {
@@ -123,7 +160,15 @@ object SignInScreen : Screen {
         onSendSmsClick = {
           keyboard?.hide()
           screenModel.triggerSmsCode(contextActivity) {
-            println("[YkisLogKMP.$className.Content]: [SMS_SENT] Запит коду успішно передано оператору")
+            println("[YkisLogKMP.$className.Content]: [SMS_SENT] Запрос кода успешно передан оператору. Запуск ретривера...")
+            
+            // ЗАПУСК АВТОМАТИЗАЦИИ: Начинаем слушать входящие SMS
+            smsRetriever.startRetriever { autoCode ->
+              println("[YkisLogKMP.$className.Content]: [AUTO_FILL] SMS код перехвачен: $autoCode")
+              screenModel.onSmsCodeChange(autoCode)
+              // Опционально: можно сразу вызвать подтверждение, если код пришел полностью
+              // screenModel.verifySmsAndSignIn { ... }
+            }
           }
         },
         onVerifySmsClick = {
@@ -153,12 +198,13 @@ object SignInScreen : Screen {
           navigator.push(SignUpScreen)
         },
         onGoogleTokenReceived = { idToken ->
-          println("[YkisLogKMP.$className.Content]: [EVENT] Отримано Google ID Token. Запуск авторизації...")
+          println("[YkisLogKMP.$className.Content]: [EVENT] Получен Google ID Token. Запуск авторизации...")
           screenModel.onSignUpWithGoogle(idToken) {
-            // ИСПРАВЛЕНО НАМЕРТВО: Лишние дублирующие вызовы кэша БТИ полностью вырезаны
-            println("[YkisLogKMP.$className.Content]: [SUCCESS] Успіх Google Auth. Передано під контроль реактивного ядра.")
+            println("[YkisLogKMP.$className.Content]: [SUCCESS] Успех Google Auth.")
           }
-        }
+        },
+        onGoogleStart = { screenModel.setGoogleLoading(true) },
+        onGoogleError = { screenModel.setGoogleLoading(false) }
       )
     }
   }
@@ -183,6 +229,8 @@ fun SignInScreenStateless(
   onForgotPasswordClick: () -> Unit,
   onSignUpClick: () -> Unit,
   onGoogleTokenReceived: (String) -> Unit,
+  onGoogleStart: () -> Unit,
+  onGoogleError: () -> Unit,
   isGoogleLoading: Boolean
 ) {
   var selectedTab by remember { mutableStateOf(0) }
@@ -229,12 +277,12 @@ fun SignInScreenStateless(
               selectedTab = 0
               onResetSmsState() // Скидаємо кроки SMS при переході на Email вкладку
             },
-            text = { Text("Ел. пошта", fontWeight = FontWeight.SemiBold) }
+            text = { Text(stringResource(Res.string.email_tab), fontWeight = FontWeight.SemiBold) }
           )
           Tab(
             selected = selectedTab == 1,
             onClick = { selectedTab = 1 },
-            text = { Text("Телефон", fontWeight = FontWeight.SemiBold) }
+            text = { Text(stringResource(Res.string.phone_tab), fontWeight = FontWeight.SemiBold) }
           )
         }
         if (selectedTab == 0) {
@@ -259,7 +307,7 @@ fun SignInScreenStateless(
                 .clip(MaterialTheme.shapes.medium)
                 .clickable { onForgotPasswordClick() }
                 .padding(6.dp),
-              text = "Забули пароль?",
+              text = stringResource(Res.string.forgot_password_link),
               style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.primary
             )
@@ -273,8 +321,8 @@ fun SignInScreenStateless(
                 onPhoneChange(cleanDigits)
               }
             },
-            label = { Text("Номер телефону") },
-            placeholder = { Text("93 846 81 41") },
+            label = { Text(stringResource(Res.string.phone_number_label)) },
+            placeholder = { Text(stringResource(Res.string.phone_number_placeholder)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             enabled = !isSmsSent && !globalLoading,
@@ -289,8 +337,8 @@ fun SignInScreenStateless(
             OutlinedTextField(
               value = smsCode,
               onValueChange = { if (it.length <= 6) onSmsCodeChange(it) },
-              label = { Text("Код із SMS") },
-              placeholder = { Text("6 знаків") },
+              label = { Text(stringResource(Res.string.sms_code_label)) },
+              placeholder = { Text(stringResource(Res.string.sms_code_placeholder)) },
               modifier = Modifier.fillMaxWidth(),
               singleLine = true,
               enabled = !globalLoading,
@@ -315,9 +363,9 @@ fun SignInScreenStateless(
           }
         ) {
           val mainButtonText = when {
-            selectedTab == 0 -> "Увійти"
-            !isSmsSent -> "Надіслати код"
-            else -> "Підтвердити код"
+            selectedTab == 0 -> stringResource(Res.string.sign_in_button)
+            !isSmsSent -> stringResource(Res.string.send_code_button)
+            else -> stringResource(Res.string.verify_code_button)
           }
           Text(text = mainButtonText, style = MaterialTheme.typography.titleMedium)
         }
@@ -332,7 +380,7 @@ fun SignInScreenStateless(
             )
             Text(
               modifier = Modifier.padding(horizontal = 12.dp),
-              text = "або",
+              text = stringResource(Res.string.or_divider),
               color = MaterialTheme.colorScheme.outline
             )
             Box(
@@ -341,8 +389,9 @@ fun SignInScreenStateless(
             )
           }
           GoogleAuthButton(
-            buttonTextRes = 0,
-            isLoading = globalLoading,
+            isLoading = isGoogleLoading,
+            onStart = onGoogleStart,
+            onError = onGoogleError,
             onTokenReceived = onGoogleTokenReceived
           )
         }
@@ -352,7 +401,7 @@ fun SignInScreenStateless(
           horizontalArrangement = Arrangement.Center,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Text(text = "Немає аккаунту?", style = MaterialTheme.typography.bodyMedium)
+          Text(text = stringResource(Res.string.no_account_text), style = MaterialTheme.typography.bodyMedium)
           Spacer(modifier = Modifier.width(6.dp))
           Text(
             modifier = Modifier
@@ -360,7 +409,7 @@ fun SignInScreenStateless(
               .clickable { onSignUpClick() }
               .padding(4.dp),
             color = MaterialTheme.colorScheme.primary,
-            text = "Реєстрація",
+            text = stringResource(Res.string.sign_up_link),
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodyMedium
           )

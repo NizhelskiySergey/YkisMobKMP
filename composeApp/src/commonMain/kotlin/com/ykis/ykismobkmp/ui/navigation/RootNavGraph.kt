@@ -52,7 +52,7 @@ fun RootNavGraph(
   val firebaseService = apartmentScreenModel.firebaseService
 
   val currentStartState by appStartModel.startState.collectAsState()
-  val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
+  val baseUIState by apartmentScreenModel.uiState.collectAsState()
   val pendingChatId by chatScreenModel.pendingPushChatId.collectAsState()
   val selectedUser by chatScreenModel.selectedUser.collectAsState()
   val currentFirebaseUid = firebaseService.uid

@@ -20,7 +20,7 @@ fun DeleteMessageDialog(
     modifier = modifier,
     onDismissRequest = onDismiss,
     // Поверхность с небольшим подъемом, чтобы выделяться на фоне чата Единого Хаба ЮКІС
-    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp),
+    containerColor = MaterialTheme.colorScheme.secondaryContainer,
     icon = {
       Icon(
         imageVector = Icons.Default.Delete,

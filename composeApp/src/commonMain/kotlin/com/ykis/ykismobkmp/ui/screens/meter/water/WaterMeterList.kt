@@ -32,10 +32,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
+import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import org.jetbrains.compose.resources.painterResource
 import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.ic_water_meter9_24px
 private const val className = "WaterMeterList"
 
 @Composable
@@ -51,11 +51,11 @@ private fun CenteredProgressIndicator(modifier: Modifier = Modifier) {
 @Composable
 fun WaterMeterList(
   modifier: Modifier = Modifier,
-  waterMeterState: WaterMeterState,
+  meterUIState: BaseUIState,
   onWaterMeterClick: (WaterMeterEntity) -> Unit
 ) {
   Crossfade(
-    targetState = waterMeterState.isMetersLoading,
+    targetState = meterUIState.isMetersLoading,
     animationSpec = tween(durationMillis = 300, delayMillis = 100),
     label = "WaterMeterListFade"
   ) { isLoading ->
@@ -67,7 +67,7 @@ fun WaterMeterList(
         contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp)
       ) {
         items(
-          items = waterMeterState.waterMeterList,
+          items = meterUIState.waterMeterList,
           key = { it.vodomerId }
         ) { waterMeter ->
           WaterMeterItem(
@@ -112,7 +112,7 @@ fun WaterMeterItem(
   OutlinedCard(
     modifier = modifier,
     colors = CardDefaults.cardColors(
-      containerColor = MaterialTheme.colorScheme.surfaceContainer
+      containerColor = MaterialTheme.colorScheme.secondaryContainer
     ),
   ) {
     Row(

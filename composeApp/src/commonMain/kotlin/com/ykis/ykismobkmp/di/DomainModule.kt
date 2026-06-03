@@ -12,6 +12,8 @@ import com.ykis.ykismobkmp.domain.repository.apartment.useCase.GetRaionList
 import com.ykis.ykismobkmp.domain.repository.apartment.useCase.SaveUserUid
 import com.ykis.ykismobkmp.domain.repository.apartment.useCase.UpdateBti
 import com.ykis.ykismobkmp.domain.repository.apartment.useCase.VerifyAdminCode
+import com.ykis.ykismobkmp.domain.repository.chat.useCase.InitResidentChats
+import com.ykis.ykismobkmp.domain.repository.chat.useCase.DeleteResidentChats
 import com.ykis.ykismobkmp.domain.repository.ledger.request.GetFlatServices
 import com.ykis.ykismobkmp.domain.repository.ledger.request.GetTotalDebtServices
 import com.ykis.ykismobkmp.domain.repository.meter.useCase.AddHeatReading
@@ -52,6 +54,8 @@ val domainModule = module {
   factory { GetRaionList(repository = get(), cache = get()) }
   factory { GetHouseList(repository = get(), cache = get()) }
   factory { GetFamilyList(repository = get(), cache = get()) }
+  factory { InitResidentChats(chatRepo = get()) }
+  factory { DeleteResidentChats(chatRepo = get()) }
   factory { ClearDatabase() }
 
   // ====================================================================

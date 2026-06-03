@@ -1,5 +1,6 @@
 package com.ykis.ykismobkmp.ui.screens.ledger
 
+import androidx.compose.foundation.background
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.horizontalScroll
@@ -50,8 +51,8 @@ fun ServiceDetailScreen(
   modifier: Modifier = Modifier,
   contentDetail: ContentDetail,
   baseUIState: BaseUIState,
-  totalDebtState: TotalDebtState,
-  screenModel: LedgerScreenModel, // Принимаем сквозную родительскую модель Хаба ЮКІС
+  ledgerUIState: BaseUIState,
+  screenModel: LedgerScreenModel,
   navigateToWebView: (String) -> Unit
 ) {
   val adaptiveNavigationType = LocalNavigationType.current
@@ -59,53 +60,44 @@ fun ServiceDetailScreen(
   Column(
     modifier = modifier.fillMaxSize()
   ) {
-    // Нативный тулбар DefaultAppBar расчетного центра ЮКІС
     DefaultAppBar(
       navigationType = adaptiveNavigationType,
       canNavigateBack = true,
       onBackClick = {
-        // ИСПРАВЛЕНО: Копируем успешную логику модуля счетчиков!
-        // Вызываем только closeContentDetail(), что переведет showDetail в false.
-        // Единый родительский Crossfade смартфона мгновенно закроет экран деталей!
-        println("[$className.onBackClick]: Нажата стрелка назад. Текущий подмодуль финансов: $contentDetail")
+        println("[YkisLogKMP.$className.onBackClick]: Возврат к списку. Служба: $contentDetail")
         screenModel.closeContentDetail()
       },
       title = when (contentDetail) {
-        ContentDetail.OSBB -> baseUIState.osbb.takeIf { it.isNotEmpty() } ?: "Мій ОСББ"
+        ContentDetail.OSBB -> baseUIState.osbb.takeIf { it.isNotEmpty() } ?: "Мой ОСББ"
         ContentDetail.WATER_SERVICE -> stringResource(Res.string.vodokanal)
         ContentDetail.WARM_SERVICE -> stringResource(Res.string.ytke)
         ContentDetail.GARBAGE_SERVICE -> stringResource(Res.string.yzhtrans)
-        // ИСПРАВЛЕНО: Если состояние сбросилось, тулбар не зависнет на "истории платежей"
-        else -> "Комунальні послуги"
+        else -> "Коммунальные услуги"
       },
       subtitle = baseUIState.address
     )
 
 
     Box(modifier = Modifier.weight(1f)) {
-      // Исправлено: Вызываем переименованный контейнер, убирая конфликт перегрузок КМР
       ServiceDetailContentContainer(
         modifier = Modifier.fillMaxSize(),
         contentDetail = contentDetail,
         baseUIState = baseUIState,
+        ledgerUIState = ledgerUIState,
         screenModel = screenModel
       )
     }
   }
 }
 
-/**
- * [ServiceDetailContentContainer] — Изолированный контейнер сбора истории начислений ГИОЦ.
- * Исправлено: Функция переименована для устранения ошибки "never used".
- */
 @Composable
 fun ServiceDetailContentContainer(
   modifier: Modifier = Modifier,
   contentDetail: ContentDetail,
   baseUIState: BaseUIState,
+  ledgerUIState: BaseUIState,
   screenModel: LedgerScreenModel
 ) {
-  val serviceDetail by screenModel.detailState.collectAsState()
   val currentYearString = remember {
     val currentMoment = Clock.System.now()
     val localDateTime = currentMoment.toLocalDateTime(TimeZone.currentSystemDefault())
@@ -114,8 +106,8 @@ fun ServiceDetailContentContainer(
 
   var selectedChip by rememberSaveable { mutableStateOf(currentYearString) }
 
-  LaunchedEffect(serviceDetail.services.size, selectedChip) {
-    println("[YkisLogKMP.ServiceDetailContentContainer]: [STATE_CHANGE] Перерисовано. Элементов: ${serviceDetail.services.size}")
+  LaunchedEffect(ledgerUIState.monthlyServices.size, selectedChip) {
+    println("[YkisLogKMP.ServiceDetailContentContainer]: Обновлено. Месяцев: ${ledgerUIState.monthlyServices.size}")
   }
 
   // Каскадный КМР-триггер перезагрузки таблиц при смене года или квартиры
@@ -133,8 +125,7 @@ fun ServiceDetailContentContainer(
             ContentDetail.GARBAGE_SERVICE -> 3.toByte()
             else -> 4.toByte()
           },
-          year = selectedChip,
-          total = 0,
+          year = selectedChip
         )
       }
     }
@@ -142,12 +133,51 @@ fun ServiceDetailContentContainer(
 
   ServiceDetailContentStateless(
     modifier = modifier,
-    isLoading = serviceDetail.isLoading,
+    isLoading = ledgerUIState.isLoading,
     year = currentYearString,
-    serviceEntities = serviceDetail.services,
+    serviceEntities = ledgerUIState.monthlyServices,
     selectedChip = selectedChip,
     onSelectedChanged = { selectedChip = it }
   )
+}
+
+@Composable
+fun ServiceDetailContentStateless(
+  modifier: Modifier = Modifier,
+  isLoading: Boolean,
+  year: String,
+  serviceEntities: List<ServiceEntity>,
+  selectedChip: String,
+  onSelectedChanged: (String) -> Unit
+) {
+  val yearsList = remember(year) {
+    val baseYear = year.toIntOrNull() ?: 2026
+    List(20) { index -> (baseYear - index).toString() }
+  }
+
+  Column(
+    modifier = modifier.fillMaxSize(),
+    verticalArrangement = Arrangement.Top,
+    horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    GroupFilterChip(
+      list = yearsList,
+      selectedChip = selectedChip,
+      onSelectedChanged = onSelectedChanged
+    )
+
+    Crossfade(
+      targetState = isLoading,
+      animationSpec = tween(300),
+      label = "ServiceDetailCrossfade"
+    ) { isCurrentlyLoading ->
+      if (isCurrentlyLoading) {
+        CenteredProgressIndicator()
+      } else {
+        ListServiceDetails(listServiceEntity = serviceEntities)
+      }
+    }
+  }
 }
 
 
@@ -229,17 +259,15 @@ fun ServiceDetailItem(
   serviceEntity: ServiceEntity = ServiceEntity()
 ) {
   val scrollState = rememberScrollState()
-
-  // ИСПРАВЛЕНО НАМЕРТВО: Явно передаем поле .data из сетевой модели ServiceEntity!
   val formattedMonthHeader = remember(serviceEntity.data) { formatUkMonth(serviceEntity.data) }
 
-  // Хелпер очистки текстовых полей от серверных none/null значений
+  // Хелперы очистки и сокращения данных
   val cleanStr: (Any?) -> String = { valStr ->
     val s = valStr?.toString() ?: ""
-    if (s.equals("none", ignoreCase = true) || s.equals("null", ignoreCase = true)) "" else s
+    val cleaned = if (s.equals("none", ignoreCase = true) || s.equals("null", ignoreCase = true)) "" else s
+    // ИСПРАВЛЕНО: Сокращаем название до 9 символов для экстремальной компактности таблицы
+    if (cleaned.length > 9) cleaned.take(8) + "…" else cleaned
   }
-
-  // Хелпер очистки числовых полей биллинга ГИОЦ
   val cleanNum: (Double?) -> String = { num ->
     if (num == null || num == 0.0) "0.00" else num.toString()
   }
@@ -249,96 +277,66 @@ fun ServiceDetailItem(
       .fillMaxWidth()
       .padding(vertical = 4.dp, horizontal = 12.dp)
   ) {
-    // Красивый жирный заголовок месяца под брендинг ЮКІС
     Text(
       text = formattedMonthHeader,
-      style = MaterialTheme.typography.titleMedium,
-      fontWeight = FontWeight.Black,
+      style = MaterialTheme.typography.bodyLarge, // Уменьшили шрифт месяца
+      fontWeight = FontWeight.Bold,
       color = MaterialTheme.colorScheme.primary,
-      modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 12.dp)
+      modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 8.dp)
     )
 
-    Box(modifier = Modifier.fillMaxWidth()) {
-      // Задний слой: Горизонтальные разделительные линии таблицы
-      Column(
+    // КОМПАКТНЫЙ КОНТЕЙНЕР ТАБЛИЦЫ
+    Column(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 4.dp, vertical = 2.dp)
+    ) {
+      // 1. ЗАГОЛОВКИ ТАБЛИЦЫ (В центре, 11.sp, жирный)
+      Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(29.dp)
+        verticalAlignment = Alignment.CenterVertically
       ) {
-        TableDivider(modifier = Modifier.padding(top = 42.dp))
-        TableDivider(cleanNum(serviceEntity.zadol1))
-        TableDivider(cleanNum(serviceEntity.zadol2))
-        TableDivider(cleanNum(serviceEntity.zadol3))
-        TableDivider(cleanNum(serviceEntity.zadol4))
+        TableCell(text = stringResource(Res.string.services), weight = 1.3f, isHeader = true)
+        TableCell(text = stringResource(Res.string.start_debt), isHeader = true)
+        TableCell(text = stringResource(Res.string.accrued_text), isHeader = true)
+        TableCell(text = stringResource(Res.string.paid), isHeader = true)
+        TableCell(text = stringResource(Res.string.end_debt), isHeader = true)
+      }
+      TableDivider()
+
+      // 2. СТРОКИ ДАННЫХ (Цифры справа, 12.sp, не жирный)
+      val servicesData = listOf(
+        cleanStr(serviceEntity.service1) to listOf(cleanNum(serviceEntity.zadol1), cleanNum(serviceEntity.nachisleno1), cleanNum(serviceEntity.oplacheno1), cleanNum(serviceEntity.dolg1)),
+        cleanStr(serviceEntity.service2) to listOf(cleanNum(serviceEntity.zadol2), cleanNum(serviceEntity.nachisleno2), cleanNum(serviceEntity.oplacheno2), cleanNum(serviceEntity.dolg2)),
+        cleanStr(serviceEntity.service3) to listOf(cleanNum(serviceEntity.zadol3), cleanNum(serviceEntity.nachisleno3), cleanNum(serviceEntity.oplacheno3), cleanNum(serviceEntity.dolg3)),
+        cleanStr(serviceEntity.service4) to listOf(cleanNum(serviceEntity.zadol4), cleanNum(serviceEntity.nachisleno4), cleanNum(serviceEntity.oplacheno4), cleanNum(serviceEntity.dolg4))
+      )
+
+      servicesData.forEach { (name, values) ->
+        if (name.isNotBlank()) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            TableCell(text = name, weight = 1.3f, textAlign = TextAlign.Start) // Название слева
+            values.forEach { valText -> TableCell(text = valText, textAlign = TextAlign.End) } // Цифры справа
+          }
+          TableDivider()
+        }
       }
 
-      // Передний слой: Горизонтально прокручиваемая КМР-сетка колонок баланса ГИОЦ
+      // 3. ИТОГОВАЯ СТРОКА (Жирный, 12.sp)
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .horizontalScroll(scrollState)
-          .padding(start = 8.dp, bottom = 8.dp, end = 8.dp),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.SpaceBetween,
+          .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)),
+        verticalAlignment = Alignment.CenterVertically
       ) {
-        // Колонка №1: Перечень наименований тарифов (Взносы, Ремонтный фонд)
-        ColumnItemInTable(
-          alignment = Alignment.Start,
-          value1 = cleanStr(serviceEntity.service1),
-          value2 = cleanStr(serviceEntity.service2),
-          value3 = cleanStr(serviceEntity.service3),
-          value4 = cleanStr(serviceEntity.service4),
-          header = stringResource(Res.string.services),
-          summary = stringResource(Res.string.summary),
-          headerAlign = TextAlign.Start
-        )
-
-        // Колонка №2: Входящий долг на начало месяца
-        ColumnItemInTable(
-          alignment = Alignment.End,
-          value1 = cleanNum(serviceEntity.zadol1),
-          value2 = cleanNum(serviceEntity.zadol2),
-          value3 = cleanNum(serviceEntity.zadol3),
-          value4 = cleanNum(serviceEntity.zadol4),
-          header = stringResource(Res.string.start_debt),
-          summary = cleanNum(serviceEntity.zadol),
-          headerAlign = TextAlign.End
-        )
-
-        // Колонка №3: Начислено по тарифу за текущий период
-        ColumnItemInTable(
-          alignment = Alignment.End,
-          value1 = cleanNum(serviceEntity.nachisleno1),
-          value2 = cleanNum(serviceEntity.nachisleno2),
-          value3 = cleanNum(serviceEntity.nachisleno3),
-          value4 = cleanNum(serviceEntity.nachisleno4),
-          header = stringResource(Res.string.accrued_text),
-          summary = cleanNum(serviceEntity.nachisleno),
-          headerAlign = TextAlign.End
-        )
-
-        // Колонка №4: Фактически оплачено жильцом
-        ColumnItemInTable(
-          alignment = Alignment.End,
-          value1 = cleanNum(serviceEntity.oplacheno1),
-          value2 = cleanNum(serviceEntity.oplacheno2),
-          value3 = cleanNum(serviceEntity.oplacheno3),
-          value4 = cleanNum(serviceEntity.oplacheno4),
-          header = stringResource(Res.string.paid),
-          summary = cleanNum(serviceEntity.oplacheno),
-          headerAlign = TextAlign.End
-        )
-
-        // Колонка №5: Итоговая задолженность на конец месяца
-        ColumnItemInTable(
-          alignment = Alignment.End,
-          value1 = cleanNum(serviceEntity.dolg1),
-          value2 = cleanNum(serviceEntity.dolg2),
-          value3 = cleanNum(serviceEntity.dolg3),
-          value4 = cleanNum(serviceEntity.dolg4),
-          header = stringResource(Res.string.end_debt),
-          summary = cleanNum(serviceEntity.dolg),
-          headerAlign = TextAlign.End
-        )
+        TableCell(text = stringResource(Res.string.summary), weight = 1.3f, isSummary = true, textAlign = TextAlign.Start)
+        TableCell(text = cleanNum(serviceEntity.zadol), isSummary = true, textAlign = TextAlign.End)
+        TableCell(text = cleanNum(serviceEntity.nachisleno), isSummary = true, textAlign = TextAlign.End)
+        TableCell(text = cleanNum(serviceEntity.oplacheno), isSummary = true, textAlign = TextAlign.End)
+        TableCell(text = cleanNum(serviceEntity.dolg), isSummary = true, textAlign = TextAlign.End)
       }
     }
   }

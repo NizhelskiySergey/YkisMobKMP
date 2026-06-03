@@ -1,10 +1,13 @@
 package com.ykis.ykismobkmp.ui.navigation
 
+import com.ykis.ykismobkmp.core.Constants
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -82,47 +85,68 @@ class MainApartmentScreen(
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
     val chatScreenModel = koinInject<ChatScreenModel>()
 
-    val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
+    val baseUIState by apartmentScreenModel.uiState.collectAsState()
     val userList by chatScreenModel.userList.collectAsState()
 
     var activeSubModule by rememberSaveable {
       mutableStateOf(
         when {
-          baseUIState.addressId == 0L || baseUIState.apartments.isEmpty() -> "AddApartmentScreen"
-          baseUIState.userRole == UserRole.StandardUser -> "InfoApartmentScreen"
-          else -> "UserListScreen"
+          baseUIState.userRole == UserRole.StandardUser -> {
+            if (baseUIState.addressId == 0L || baseUIState.apartments.isEmpty()) "AddApartmentScreen" else "InfoApartmentScreen"
+          }
+          baseUIState.userRole != UserRole.Unknown -> "chat_user_list" 
+          else -> "AddApartmentScreen"
         }
       )
     }
 
+    var isInitialBoot by rememberSaveable { mutableStateOf(true) }
+
     // Реактивный переключатель подмодуля, когда СУБД завершила холодный старт
     // 1. Единый реактивный КМР-триггер переключения стартовых экранов Хаба ЮКІС
-    LaunchedEffect(baseUIState.mainLoading, baseUIState.addressId) {
-      if (!baseUIState.mainLoading && baseUIState.addressId != 0L) {
+    LaunchedEffect(baseUIState.mainLoading) {
+      if (!baseUIState.mainLoading && isInitialBoot) {
         activeSubModule = when {
-          // Для жильца открываем экран Info со сводными балансами и анкетой БТИ
-          baseUIState.userRole == UserRole.StandardUser -> "InfoApartmentScreen"
+          // Для жильца открываем экран Info при наличии привязки
+          baseUIState.userRole == UserRole.StandardUser -> {
+            if (baseUIState.addressId != 0L) "InfoApartmentScreen" else "AddApartmentScreen"
+          }
 
-          // Исправлено: Для председателя ОСББ стартовым экраном также выставляем "InfoApartmentScreen"!
-          // Система автоматически подтянет БТИ первой квартиры дома, полностью исключая зависания!
-          baseUIState.userRole == UserRole.OsbbUser -> "InfoApartmentScreen"
+          // Для всех администраторов (ОСББ и КП) теперь стартовый экран — список чатов
+          baseUIState.userRole != UserRole.Unknown -> "chat_user_list"
 
-          // Для диспетчеров других городских служб оставляем список чатов абонентов
-          else -> "UserListScreen"
+          else -> "AddApartmentScreen"
         }
-        println("[YkisLogKMP.$className.NavigationTrigger]: Стан навантаження завершено. Маршрут activeSubModule переведено на: $activeSubModule")
+        isInitialBoot = false
+        println("[YkisLogKMP.$className.NavigationTrigger]: Первоначальная загрузка завершена. Маршрут установлен на: $activeSubModule")
       }
     }
 
     // 2. Слушатель роли для администраторов коммунальных служб Южного
-    LaunchedEffect(baseUIState.userRole, baseUIState.osbbId) {
+    LaunchedEffect(baseUIState.userRole, baseUIState.osbbId, baseUIState.apartments) {
       val role = baseUIState.userRole
-      if (role != UserRole.StandardUser && role != UserRole.Unknown) {
+      val osbbId = baseUIState.osbbId ?: 0L
+      
+      if (role != UserRole.Unknown) {
+        // Если житель — запускаем мониторинг всех его квартир
+        if (role == UserRole.StandardUser) {
+          if (baseUIState.apartments.isNotEmpty()) {
+             chatScreenModel.trackUserIdentifiersWithRole(role, 0L, baseUIState.apartments)
+          }
+          return@LaunchedEffect
+        }
+
+        // КРИТИЧЕСКИЙ ЧЕК: Если админ ОСББ, но ID еще не подтянулся (равен 0), ждем.
+        if (role == UserRole.OsbbUser && osbbId == 0L) {
+          println("[YkisLogKMP.$className.Navigation]: Очікування завантаження osbbId для адміна...")
+          return@LaunchedEffect
+        }
+
         val effectiveOsbbId = when (role) {
-          UserRole.VodokanalUser -> 9999L
-          UserRole.YtkeUser      -> 9998L
-          UserRole.TboUser       -> 9997L
-          else                   -> baseUIState.osbbId ?: 0L
+          UserRole.VodokanalUser -> Constants.WATER_SERVICE_ID
+          UserRole.YtkeUser      -> Constants.WARM_SERVICE_ID
+          UserRole.TboUser       -> Constants.GARBAGE_SERVICE_ID
+          else                   -> osbbId
         }
 
         // Настраиваем префикс для сокет-контура админ-панели чата
@@ -162,23 +186,11 @@ class MainApartmentScreen(
             ).Content()
           }
 
-          "UserListScreen" -> {
-            UserListScreen(
-              navigationType = navigationType,
-              onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
-              onUserClicked = { selectedItem ->
-                // Используем оригинальную логику переключения на анкету БТИ квартиры
-                apartmentScreenModel.setAddressId(selectedItem.addressId)
-                activeSubModule = "InfoApartmentScreen"
-              }
-            ).Content()
-          }
-
           "AddApartmentScreen" -> {
             AddApartmentScreen(
               onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
               closeContentDetail = {
-                println("[YkisLogKMP.MainApartmentScreen.AddApartmentScreen]: Успішне закриття форми прив'язки. Повернення на анкету БТІ.")
+                println("[YkisLogKMP.MainApartmentScreen.AddApartmentScreen]: Успешное закрытие формы привязки. Возврат на анкету БТИ.")
                 activeSubModule = "InfoApartmentScreen"
               }
             ).Content()
@@ -199,38 +211,68 @@ class MainApartmentScreen(
           }
 
           "chat_selector" -> {
-            println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Шар 1 — відображення селектора служб.")
+            // ОПТИМИЗАЦИЯ: Если админ попал сюда случайно — редирект в список чатов
+            if (baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.Unknown) {
+              println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Админ в селекторе — редирект в chat_user_list.")
+              activeSubModule = "chat_user_list"
+            }
+
+            println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Слой 1 — отображение селектора служб.")
             ServiceSelectorScreen(
               baseUIState = baseUIState,
               onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
               onServiceClick = { selectedServiceDebt ->
-                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Службу обрано: ${selectedServiceDebt.name}. Перехід на список кімнат.")
-                // Переключаем Crossfade смартфона на шаг 2, сохраняя целостность стейтов в ОЗУ!
+                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Служба выбрана: ${selectedServiceDebt.name}. Переход на список комнат.")
                 activeSubModule = "chat_user_list"
               }
             ).Content()
           }
 
           "chat_user_list" -> {
-            println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Шар 2 — відображення списку абонентів.")
+            println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Слой 2 — отображение списка абонентов.")
             UserListScreen(
               onDrawerClicked = {
-                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Повернення назад на вибір компаній.")
-                activeSubModule = "chat_selector"
+                if (baseUIState.userRole == UserRole.StandardUser) {
+                  println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Повернення назад на вибір компаній.")
+                  activeSubModule = "chat_selector"
+                } else {
+                  println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Адмін чат — повернення заблоковано.")
+                }
               },
               navigationType = navigationType,
               onUserClicked = { selectedUserEntity ->
-                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Квартиру обрано: ${selectedUserEntity.address}. Вхід в кімнату повідомлень.")
+                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Квартира вибрана: ${selectedUserEntity.address}. Налаштування контексту...")
+                
+                val role = baseUIState.userRole
+                val targetAddrId = selectedUserEntity.addressId
+
+                if (role == UserRole.OsbbUser) {
+                  // Для адміна ОСББ — повна синхронізація (Firestore + Rail + БТІ)
+                  println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Роль OsbbUser — фіксація addressId.")
+                  apartmentScreenModel.setAddressId(targetAddrId)
+                } else {
+                  // Для міських служб — «легке» завантаження даних БТІ без зміни глобального якоря
+                  println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Роль міської служби — фонове завантаження анкети.")
+                  apartmentScreenModel.getApartment(targetAddrId)
+                }
+                
+                // Активация комнаты в модели чата
+                chatScreenModel.openChatWithUser(
+                  user = selectedUserEntity,
+                  currentRole = role,
+                  currentOsbbId = baseUIState.osbbId ?: 0L
+                )
+
                 activeSubModule = "chat_room_active"
               }
             ).Content()
           }
 
           "chat_room_active" -> {
-            println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Шар 3 — відкриття активної кімнати повідомлень ChatScreen.")
+            println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Слой 3 — открытие активной комнаты сообщений ChatScreen.")
             ChatScreen(
               onBackClick = {
-                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Вихід з кімнати назад до списку квартир.")
+                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Выход из комнаты назад к списку квартир.")
                 activeSubModule = "chat_user_list"
               }
             ).Content()
@@ -267,7 +309,7 @@ class MainApartmentScreen(
             navigator = globalNavigator,
             activeSubModule = activeSubModule,
             onSubModuleChange = { newModule ->
-              println("[YkisLogKMP.MainApartmentScreen.Drawer]: Зміна підмодуля зі шторки на: $newModule")
+              println("[YkisLogKMP.MainApartmentScreen.Drawer]: Изменение подмодуля из шторки на: $newModule")
               activeSubModule = newModule
             },
             onMenuClick = {
@@ -282,8 +324,13 @@ class MainApartmentScreen(
         }
       ) {
         Scaffold(
+          // ИСПРАВЛЕНО: Учитываем только верхнюю статусную полосу, игнорируя нижние системные кнопки,
+          // чтобы нижнее меню было максимально компактным и "прижатым".
+          contentWindowInsets = WindowInsets.statusBars,
           bottomBar = {
-            val showBottomBar = baseUIState.addressId != 0L || baseUIState.userRole != UserRole.StandardUser
+            val isChatRoomActive = activeSubModule == "chat_room_active"
+            val showBottomBar = (baseUIState.addressId != 0L || baseUIState.userRole != UserRole.StandardUser) && !isChatRoomActive
+
             if (showBottomBar) {
               BottomNavigationBar(
                 navigator = globalNavigator,
@@ -291,17 +338,21 @@ class MainApartmentScreen(
                 activeSubModule = activeSubModule,
                 onSubModuleChange = { newModule ->
                   // Прямая Stateless-запись прилетевшего строкового роута чата ("chat_selector") или счетчиков
-                  println("[YkisLogKMP.MainApartmentScreen.BottomNav]: Зміна підмодуля з нижньої панелі на: $newModule")
+                  println("[YkisLogKMP.MainApartmentScreen.BottomNav]: Изменение подмодуля из нижней панели на: $newModule")
                   activeSubModule = newModule
                 }
               )
             }
           }
         ) { paddingValues ->
+          val isChatRoomActive = activeSubModule == "chat_room_active"
           Box(
             modifier = Modifier
               .fillMaxSize()
-              .padding(paddingValues)
+              .padding(
+                top = paddingValues.calculateTopPadding(),
+                bottom = if (isChatRoomActive) 0.dp else paddingValues.calculateBottomPadding()
+              )
           ) {
             RenderSubContent()
           }

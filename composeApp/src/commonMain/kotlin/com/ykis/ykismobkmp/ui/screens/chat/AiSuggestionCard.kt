@@ -48,7 +48,7 @@ fun AiSuggestionCard(
           .padding(8.dp),
         elevation = CardDefaults.cardElevation(4.dp),
         colors = CardDefaults.cardColors(
-          containerColor = MaterialTheme.colorScheme.primaryContainer
+          containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
       ) {
         Column(modifier = Modifier.padding(12.dp)) {

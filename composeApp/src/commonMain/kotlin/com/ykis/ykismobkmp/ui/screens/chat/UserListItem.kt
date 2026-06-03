@@ -49,7 +49,8 @@ fun UserListItem(
   user: UserEntity,
   onUserClick: (UserEntity) -> Unit,
   lastMessage: MessageEntity?,
-  currentUid: String = ""
+  currentUid: String = "",
+  isTyping: Boolean = false
 ) {
   // 1. ПАРСИНГ ИМЕНИ И АДРЕСА (Твой оригинальный Золотой фонд логики)
   val displayName = user.displayName ?: lastMessage?.senderAddress ?: "Користувач"
@@ -118,27 +119,36 @@ fun UserListItem(
         }
 
         // --- СТРОКА 3: ДИНАМИЧЕСКОЕ ПРЕВЬЮ ПОСЛЕДНЕГО СООБЩЕНИЯ ВЕТКИ ЧАТА ---
-        val prefix = if (lastMessage?.senderUid == currentUid) "Ви: " else ""
-        val displayText = remember(lastMessage, prefix) {
-          when {
-            lastMessage == null -> "Немає повідомлень"
-            !lastMessage.text.isNullOrBlank() -> "$prefix${lastMessage.text}"
-            lastMessage.imageUrl != null -> "$prefix📷 Фотографія поломки"
-            lastMessage.fileUrl != null -> "$prefix📎 Прикріплений файл"
-            else -> "Немає повідомлень"
+        if (isTyping) {
+          Text(
+            text = "друкує...",
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.primary, // Выделяем зеленым/основным цветом
+            maxLines = 1
+          )
+        } else {
+          val prefix = if (lastMessage?.senderUid == currentUid) "Ви: " else ""
+          val displayText = remember(lastMessage, prefix) {
+            when {
+              lastMessage == null -> "Немає повідомлень"
+              !lastMessage.text.isNullOrBlank() -> "$prefix${lastMessage.text}"
+              lastMessage.imageUrl != null -> "$prefix📷 Фотографія поломки"
+              lastMessage.fileUrl != null -> "$prefix📎 Прикріплений файл"
+              else -> "Немає повідомлень"
+            }
           }
-        }
 
-        Text(
-          text = displayText,
-          style = MaterialTheme.typography.bodySmall,
-          color = if (lastMessage == null)
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-          else
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
-          maxLines = 1,
-          overflow = TextOverflow.Ellipsis
-        )
+          Text(
+            text = displayText,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (lastMessage == null)
+              MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            else
+              MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
       }
     }
 

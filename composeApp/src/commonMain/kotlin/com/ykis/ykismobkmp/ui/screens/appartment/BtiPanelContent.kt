@@ -59,7 +59,7 @@ fun BtiPanelContent(
   baseUIState: BaseUIState,
   viewModel: ApartmentScreenModel
 ) {
-  val liveBtiState by viewModel.apartmentUiState.collectAsState()
+  val liveBtiState by viewModel.uiState.collectAsState()
 
   LaunchedEffect(baseUIState.addressId) {
     println("[$className.invoke]: Ініціалізація полей форми контактів біллінгу ЮКИС для адреси ID Long: ${baseUIState.addressId}")

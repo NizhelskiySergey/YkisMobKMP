@@ -3,6 +3,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -12,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
@@ -33,10 +35,25 @@ fun NumberField(
 ) {
   OutlinedTextField(
     value = value,
-    onValueChange = onNewValue,
+    onValueChange = { input ->
+      // ГАРАНТИЯ КМР: Фильтруем ввод на лету
+      val filtered = if (isInteger) {
+        input.filter { it.isDigit() }
+      } else {
+        input.replace(',', '.').filter { it.isDigit() || it == '.' }.let { s ->
+          // Разрешаем только одну точку
+          if (s.count { it == '.' } <= 1) s else s.substringBeforeLast(".")
+        }
+      }
+      onNewValue(filtered)
+    },
     label = { Text(label) },
     modifier = modifier.fillMaxWidth(),
-    singleLine = true
+    keyboardOptions = KeyboardOptions(
+      keyboardType = if (isInteger) KeyboardType.Number else KeyboardType.Decimal
+    ),
+    singleLine = true,
+    shape = MaterialTheme.shapes.medium
   )
 }
 

@@ -30,10 +30,9 @@ class GetHouseList(
       // Примечание: Если в твоем ApartmentCache еще нет методов для домов, этот блок вернет пустой список,
       // и приложение пойдет в сеть без падения!
       val localHouses = try {
-        // Если методы getHousesByRaion(raionId) объявлены в интерфейсе кэша
-        // cache.getHousesByRaion(raionId.toInt())
-        emptyList<HouseEntity>() // Временный безопасный КМР-стаб, если дома — чистая сеть
+        cache.getHousesByRaion(raionId)
       } catch (e: Exception) {
+        println("[$className.$methodName]: Ошибка чтения кэша домов: ${e.message}")
         emptyList()
       }
 
@@ -54,7 +53,7 @@ class GetHouseList(
 
         try {
           // Атомарно сохраняем новые дома в кэш SQLDelight
-          // cache.insertHouseList(housesWithRaion)
+          cache.syncHouseList(housesWithRaion)
           println("[$className.$methodName]: Локальная база данных успешно синхронизирована")
         } catch (dbEx: Exception) {
           println("[$className.$methodName]: Ошибка записи домов в СУБД: ${dbEx.message}")
@@ -74,8 +73,7 @@ class GetHouseList(
       // ЭТАП 4: OFFLINE RECOVERY — Если сеть упала (нет интернета), аварийно выдаем локальный кэш
       // Чтобы интерфейс администратора не остался пустым во время аварии в городе Южном
       val fallback = try {
-        // cache.getHousesByRaion(raionId.toInt())
-        emptyList<HouseEntity>()
+        cache.getHousesByRaion(raionId)
       } catch (e: Exception) {
         emptyList()
       }

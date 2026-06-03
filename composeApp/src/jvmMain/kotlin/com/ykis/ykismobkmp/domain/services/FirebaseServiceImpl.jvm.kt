@@ -19,3 +19,5 @@ actual suspend fun performPlatformSignInWithSms(
   println("[YkisLogKMP.FirebaseServiceImpl]: [JVM_DESKTOP] Сценарій входу за SMS недоступний на Mac/PC")
   return Resource.Error("Функція авторизації за номером телефону недоступна на десктопних платформах.")
 }
+
+actual suspend fun getPlatformFcmToken(): String? = null

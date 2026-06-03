@@ -60,6 +60,11 @@ fun YkisPamAppRoot(
     // Безопасно будим SQLite-драйвер Cash App и подтягиваем конфигурацию оферты из облака
     LaunchedEffect(Unit) {
       try {
+        // ИСПРАВЛЕНО НАМЕРТВО: Защитный барьер 500 мс, чтобы дать нативным сервисам Firebase
+        // и Tag Manager завершить регистрацию в системных проперти Android.
+        // Это предотвращает критический крэш SIGSEGV (Fatal signal 11).
+        delay(500)
+
         // 1. Асинхронно скачиваем свежие параметры оферты из Firebase Remote Config
         val firebaseService = koin.get<FirebaseService>()
         firebaseService.fetchConfiguration()

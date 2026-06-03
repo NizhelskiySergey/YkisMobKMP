@@ -36,3 +36,8 @@ actual suspend fun performPlatformSignInWithSms(
     continuation.resume(Resource.Error(e.message ?: "Невірний код підтвердження"))
   }
 }
+
+actual suspend fun getPlatformFcmToken(): String? {
+  println("[YkisLogKMP.FirebaseServiceImpl]: [IOS_FCM] Запрос токена (Заглушка)")
+  return null
+}

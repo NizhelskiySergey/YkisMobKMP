@@ -28,10 +28,9 @@ class GetRaionList(
 
       // ЭТАП 1: ПРОВЕРКА ЛОКАЛЬНОГО КЭША (Запрашиваем районы из SQLDelight через ApartmentCache)
       val localRaions = try {
-        // Если методы работы со справочником районов будут объявлены в интерфейсе кэша:
-        // cache.getRaionList()
-        emptyList<RaionEntity>() // Временный безопасный КМР-стаб, если справочник — чистая сеть
+        cache.getRaionList()
       } catch (e: Exception) {
+        println("[$className.$methodName]: Ошибка чтения кэша районов: ${e.message}")
         emptyList()
       }
 
@@ -53,7 +52,7 @@ class GetRaionList(
 
         try {
           // Атомарно сохраняем новые районы в кэш SQLDelight
-          // cache.insertRaionList(remoteRaions)
+          cache.syncRaionList(remoteRaions)
           println("[$className.$methodName]: Локальная база данных районов успешно синхронизирована")
         } catch (dbEx: Exception) {
           println("[$className.$methodName]: Ошибка записи районов в СУБД: ${dbEx.message}")
@@ -76,8 +75,7 @@ class GetRaionList(
 
       // ЭТАП 4: OFFLINE RECOVERY: Если произошел сбой сети, аварийно отдаем локальный кэш
       val fallback = try {
-        // cache.getRaionList()
-        emptyList<RaionEntity>()
+        cache.getRaionList()
       } catch (e: Exception) {
         emptyList()
       }

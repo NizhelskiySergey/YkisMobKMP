@@ -383,7 +383,7 @@ fun ProfileCard(
 ) {
   Card(
     modifier = modifier.fillMaxWidth(),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
   ) {
     Row(
       modifier = Modifier.padding(16.dp),
@@ -420,7 +420,7 @@ fun ThemeSettingCard(
 ) {
   Card(
     modifier = modifier.fillMaxWidth(),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
   ) {
     Row(
       modifier = Modifier

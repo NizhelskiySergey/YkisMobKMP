@@ -38,6 +38,9 @@ import com.ykis.ykismobkmp.ui.components.PasswordField
 import com.ykis.ykismobkmp.ui.components.RepeatPasswordField
 import org.koin.compose.koinInject
 
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.*
+
 private const val className = "SignUpScreen"
 
 /**
@@ -120,10 +123,10 @@ fun SignUpScreenStateless(
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
       DefaultAppBar(
-        title = "Реєстрація",
+        title = stringResource(Res.string.sign_up_title),
         canNavigateBack = true,
         onBackClick = {
-          println("[YkisLogKMP.$className.SignUpScreenStateless]: [BACK_CLICK] Поверенння на екран входу")
+          println("[YkisLogKMP.$className.SignUpScreenStateless]: [BACK_CLICK] Повернення на екран входу")
           navigateBack()
         }
       )
@@ -178,7 +181,7 @@ fun SignUpScreenStateless(
               )
             } else {
               Text(
-                text = "Зареєструватися",
+                text = stringResource(Res.string.sign_up_button),
                 style = MaterialTheme.typography.titleMedium
               )
             }

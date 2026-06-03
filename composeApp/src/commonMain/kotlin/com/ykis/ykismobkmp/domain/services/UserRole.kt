@@ -30,6 +30,18 @@ enum class UserRole {
   @SerialName("OSBB")
   OsbbUser;
 
+  // Хелпер для извлечения строкового значения SerialName в KMP рантайме
+  fun getSerialName(): String {
+    return when (this) {
+      Unknown -> "UNKNOWN"
+      StandardUser -> "STANDARD_USER"
+      VodokanalUser -> "WATER_SERVICE"
+      YtkeUser -> "WARM_SERVICE"
+      TboUser -> "GARBAGE_SERVICE"
+      OsbbUser -> "OSBB"
+    }
+  }
+
   companion object {
     /**
      * [fromString] — Безопасный кроссплатформенный парсинг строкового значения роли из Firestore.
@@ -43,18 +55,6 @@ enum class UserRole {
         it.name.equals(roleStr, ignoreCase = true) ||
           it.getSerialName().equals(roleStr, ignoreCase = true)
       } ?: StandardUser
-    }
-
-    // Хелпер для извлечения строкового значения SerialName в KMP рантайме
-    private fun UserRole.getSerialName(): String {
-      return when (this) {
-        Unknown -> "UNKNOWN"
-        StandardUser -> "STANDARD_USER"
-        VodokanalUser -> "WATER_SERVICE"
-        YtkeUser -> "WARM_SERVICE"
-        TboUser -> "GARBAGE_SERVICE"
-        OsbbUser -> "OSBB"
-      }
     }
   }
 }

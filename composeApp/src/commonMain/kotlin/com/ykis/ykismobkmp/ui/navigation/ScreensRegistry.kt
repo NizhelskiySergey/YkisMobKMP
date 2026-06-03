@@ -35,7 +35,10 @@ import com.ykis.ykismobkmp.ui.screens.chat.UserListScreen
 import com.ykis.ykismobkmp.ui.screens.ledger.LedgerScreenModel
 import com.ykis.ykismobkmp.ui.screens.ledger.MainServiceScreen
 import com.ykis.ykismobkmp.ui.screens.meter.MainMeterScreen
+import com.ykis.ykismobkmp.ui.components.CameraView
+import com.ykis.ykismobkmp.ui.screens.chat.SendImageScreen
 import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreen
+import com.ykis.ykismobkmp.ui.components.CameraView
 import org.jetbrains.compose.resources.StringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
@@ -79,7 +82,31 @@ object SendImageScreenDest : Screen {
 object CameraScreenDest : Screen {
   @Composable
   override fun Content() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Екран камери") }
+    val navigator = LocalNavigator.currentOrThrow
+    val chatScreenModel = koinInject<ChatScreenModel>()
+    val apartmentScreenModel = koinInject<ApartmentScreenModel>()
+    val baseUIState by apartmentScreenModel.uiState.collectAsState()
+
+    println("[YkisLogKMP.ScreensRegistry.CameraScreen]: Запуск нативного компонента камери")
+    
+    CameraView(
+      onImageCaptured = { path ->
+        println("[YkisLogKMP.ScreensRegistry.CameraScreen]: Фото зафиксировано: $path")
+        chatScreenModel.setSelectedImagePath(path)
+        
+        // Автоматически запускаем анализ Gemini для жильцов
+        if (baseUIState.userRole == UserRole.StandardUser) {
+           chatScreenModel.analyzePhotoWithGemini(path, baseUIState.address)
+        }
+        
+        // Переходим к экрану подтверждения отправки
+        navigator.replace(com.ykis.ykismobkmp.ui.screens.chat.SendImageScreen(imagePath = path, address = baseUIState.address))
+      },
+      onBack = {
+        println("[YkisLogKMP.ScreensRegistry.CameraScreen]: Возврат из камеры без снимка")
+        navigator.pop()
+      }
+    )
   }
 }
 object ProfileScreenDest : Screen {
@@ -168,7 +195,7 @@ data class MainServiceScreenDest(
     val classNameRegistry = "ScreensRegistry"
     println("[YkisLogKMP.$classNameRegistry.MainServiceScreenDest]: Маршрутизатор передає управління ЖИВОМУ фінансовому хабу для о/р: $addressId")
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
-    val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
+    val baseUIState by apartmentScreenModel.uiState.collectAsState()
     MainServiceScreen(
       baseUIState = baseUIState,
       navigationType = LocalNavigationType.current, // Берем тип навигации из стабильного CompositionLocal
@@ -205,11 +232,11 @@ fun getChatRoute(role: UserRole): String {
 }
 fun getNavDestinations(role: UserRole): List<TopLevelDestination> {
   val chatRoute = getChatRoute(role)
-  println("[$className.getNavDestinations]: Розрахунок дестинацій меню для ролі: $role | Чат-маршрут: $chatRoute")
+  println("[$className.getNavDestinations]: Расчет дестинаций меню для роли: $role | Чат-маршрут: $chatRoute")
 
   return listOf(
     TopLevelDestination(
-      route = if (role == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen",
+      route = "InfoApartmentScreen",
       selectedIcon = Icons.Filled.Info,
       unselectedIcon = Icons.Outlined.Info,
       labelId = Res.string.info,
@@ -230,7 +257,7 @@ fun getNavDestinations(role: UserRole): List<TopLevelDestination> {
       alwaysVisible = false
     ),
     TopLevelDestination(
-      route = chatRoute, // Теперь для админа сюда подставится уникальная строка "chat_user_list"
+      route = chatRoute,
       selectedIcon = Icons.AutoMirrored.Filled.Chat,
       unselectedIcon = Icons.AutoMirrored.Outlined.Chat,
       labelId = Res.string.chat,

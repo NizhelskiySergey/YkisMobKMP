@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import ykismobkmp.composeapp.generated.resources.*
 
 /**
  * [SaveUserUid] — Доменный сценарий первичной регистрации и сохранения UID/Email пользователя на сервере.
@@ -24,38 +25,38 @@ class SaveUserUid(
   operator fun invoke(uid: String, email: String): Flow<Resource<GetSimpleResponse>> = flow {
     val methodName = "invoke"
     try {
-      println("[YkisLogKMP.$className.$methodName]: [START] Реєстрація UID в MySQL: ${uid.takeLast(5)}")
+      println("[YkisLogKMP.$className.$methodName]: [START] Регистрация UID в MySQL: ${uid.takeLast(5)}")
       emit(Resource.Loading())
 
       // 1. ЗАПРОС В СЕТЬ (Мультиплатформенный Ktor через Репозиторий ЮКІС)
       val response = repository.saveUserUid(uid, email)
 
-      println("[YkisLogKMP.$className.$methodName]: [RESPONSE] Сервер повернув статус success: ${response.success}")
+      println("[YkisLogKMP.$className.$methodName]: [RESPONSE] Сервер вернул статус success: ${response.success}")
 
       // 2. ОБРАБОТКА РЕЗУЛЬТАТА И МАРШАЛИНГ ОТВЕТОВ
       if (response.success == 1) {
-        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Ідентифікатор користувача UID успішно запечатано в MySQL.")
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Идентификатор пользователя UID успешно запечатан в MySQL.")
         emit(Resource.Success(response))
       } else {
-        val errorMessage = when (response.message) {
-          "UserUIdExist"     -> "Цей ідентифікатор вже зареєстрований"
-          "SaveUserUidError" -> "Помилка збереження на сервері"
-          else               -> response.message ?: "Помилка реєстрації пристрою"
+        val errorRes = when (response.message) {
+          "UserUIdExist"     -> Res.string.user_uid_exist
+          "SaveUserUidError" -> Res.string.error_save_uid
+          else               -> Res.string.error_server
         }
-        println("[YkisLogKMP.$className.$methodName]: [REJECT] Сервер відхилив збереження UID: $errorMessage")
-        emit(Resource.Error(message = errorMessage))
+        println("[YkisLogKMP.$className.$methodName]: [REJECT] Сервер отклонил сохранение UID: ${response.message}")
+        emit(Resource.Error(messageRes = errorRes, message = response.message))
       }
 
     } catch (ce: kotlinx.coroutines.CancellationException) {
       // ИСПРАВЛЕНО НАМЕРТВО: Используется явный кроссплатформенный CancellationException,
       // что полностью исключает падение линкера при сборке под iOS и Mac Desktop!
-      println("[YkisLogKMP.$className.$methodName]: [CANCELLED] Операція скасована областю видимості корутини Хаба.")
+      println("[YkisLogKMP.$className.$methodName]: [CANCELLED] Операция отменена областью видимости корутины Хаба.")
       throw ce
     } catch (ex: Exception) {
-      println("[YkisLogKMP.$className.$methodName]: [FATAL_ERROR] Критичний збій реєстрації UID у базі Южного: ${ex.message}")
+      println("[YkisLogKMP.$className.$methodName]: [FATAL_ERROR] Критический сбой регистрации UID в базе Южного: ${ex.message}")
 
       // ИСПРАВЛЕНО: Платформозависимый printStackTrace заменен на безопасный КМР-вывод логгера
-      emit(Resource.Error(message = "Сервіс недоступний. Спробуйте пізніше"))
+      emit(Resource.Error(messageRes = Res.string.generic_error))
     }
   }.flowOn(Dispatchers.Default) // Сетевой запрос и валидация выполняются в фоновом пуле корутин
 }

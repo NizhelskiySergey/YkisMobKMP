@@ -52,7 +52,7 @@ fun DetailPanel(
         .padding(horizontal = 16.dp, vertical = 8.dp), // Оптимизированы отступы по гайдлайнам Material 3
       shape = MaterialTheme.shapes.large,
       colors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
+        containerColor = MaterialTheme.colorScheme.secondaryContainer
       )
     ) {
       // Внедряем дочерний КМР-контент (например, ServiceDetailScreen)

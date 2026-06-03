@@ -25,7 +25,6 @@ import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.add_reading
 import ykismobkmp.composeapp.generated.resources.delete_my_account
-import ykismobkmp.composeapp.generated.resources.ic_add_reading
 private const val className = "LastReadingCardButtons"
 
 /**

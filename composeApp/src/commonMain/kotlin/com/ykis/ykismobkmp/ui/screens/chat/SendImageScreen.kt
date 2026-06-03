@@ -146,7 +146,7 @@ fun SendImageContent(
 
     // Извлекаем BaseUIState напрямую из легитимного КМР-источника ApartmentScreenModel
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
-    val apartmentLiveUiState by apartmentScreenModel.apartmentUiState.collectAsState()
+    val apartmentLiveUiState by apartmentScreenModel.uiState.collectAsState()
 
     // Реактивно подписываемся на выбранного админом/жильцом оппонента чата
     val targetUser by chatScreenModel.selectedUser.collectAsState()

@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class RaionEntity(
-  @SerialName("raion_id")
+  @SerialName("raionId")
   val raionId: Long = 0L,
 
   @SerialName("raion")

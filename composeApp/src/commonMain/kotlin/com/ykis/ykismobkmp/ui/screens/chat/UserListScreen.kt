@@ -1,4 +1,5 @@
 package com.ykis.ykismobkmp.ui.screens.chat
+import UserList
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,7 +36,6 @@ import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
-import com.ykis.ykismobkmp.ui.screens.chat.components.UserList
 import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -58,8 +58,8 @@ class UserListScreen(
     val chatScreenModel = koinInject<ChatScreenModel>()
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
 
-    // Исправлено: Ссылка приведена к легитимному имени потока apartmentUiState, убирая Unresolved reference!
-    val baseUIState by apartmentScreenModel.apartmentUiState.collectAsState()
+    // Исправлено: Ссылка приведена к легитимному имени потока uiState, убирая Unresolved reference!
+    val baseUIState by apartmentScreenModel.uiState.collectAsState()
 
     // Реактивно подписываемся на динамические сокет-потоки запечатанной вьюмодели чата
     val liveUserList by chatScreenModel.userList.collectAsState()

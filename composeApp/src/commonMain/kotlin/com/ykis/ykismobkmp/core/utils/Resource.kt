@@ -1,5 +1,6 @@
 package com.ykis.ykismobkmp.core.utils
 
+import org.jetbrains.compose.resources.StringResource
 import ykismobkmp.composeapp.generated.resources.Res
 
 private const val className = "Resource"
@@ -11,6 +12,8 @@ private const val className = "Resource"
 sealed class Resource<T>(
   val data: T? = null,
   val message: String? = null,
+  // ДОБАВЛЕНО: Поддержка StringResource для локализации ошибок
+  val messageRes: StringResource? = null,
   // В KMP мы не используем Int для ресурсов.
   // Если нужно передавать именно ключ перевода, используем String или StringRes из KMP
   val errorKey: String? = null
@@ -26,9 +29,10 @@ sealed class Resource<T>(
    */
   class Error<T>(
     message: String? = null,
+    messageRes: StringResource? = null,
     errorKey: String? = null,
     data: T? = null
-  ) : Resource<T>(data, message, errorKey)
+  ) : Resource<T>(data, message, messageRes, errorKey)
 
   /**
    * [Loading] — Состояние ожидания ответа от серверов биллинга.

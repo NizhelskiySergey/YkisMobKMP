@@ -91,8 +91,7 @@ private fun CardEditor(
     shape = RoundedCornerShape(12.dp), // Округление приведено к стандартам M3
     onClick = onEditClick,
     colors = CardDefaults.cardColors(
-      // ИСПРАВЛЕНО: Устаревший метод surfaceColorAtElevation заменен стабильным цветом контейнера
-      containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+      containerColor = MaterialTheme.colorScheme.secondaryContainer
     )
   ) {
     Row(
@@ -146,7 +145,7 @@ fun CardEditorInfo(
     shape = RoundedCornerShape(12.dp),
     onClick = onEditClick,
     colors = CardDefaults.cardColors(
-      containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+      containerColor = MaterialTheme.colorScheme.secondaryContainer
     )
   ) {
     Row(

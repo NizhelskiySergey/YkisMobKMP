@@ -47,6 +47,7 @@ window = "1.5.1"
 dateTimeVersion = "0.7.1"
 buildConfig = "0.15.2"
 firebaseAppcheckDebug = "19.0.2"
+playServicesAuthApiPhone = "18.1.0"
 [libraries]
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCore" }
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCore" }
@@ -154,6 +155,7 @@ firebase-appcheck-debug = { group = "com.google.firebase", name = "firebase-appc
 
 
 
+play-services-auth-api-phone = { module = "com.google.android.gms:play-services-auth-api-phone", version.ref = "playServicesAuthApiPhone" }
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }

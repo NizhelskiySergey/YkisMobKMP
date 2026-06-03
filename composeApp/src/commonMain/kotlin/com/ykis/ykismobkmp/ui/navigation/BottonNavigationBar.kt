@@ -50,19 +50,30 @@ fun BottomNavigationBar(
     println("[$className.BottomNavigationBar]: Перерасчет суммарного счетчика бейджей: $totalUnread")
   }
 
-  // ИСПРАВЛЕНО НАМЕРТВО: Выставили оптимальные 64.dp и СБРОСИЛИ скрытые системные отступы windowInsets!
-  // Это уберет лишние пустые 2 сантиметра снизу, но оставит кнопки КРУПНЫМИ и ЧИТАЕМЫМИ!
+  // ИСПРАВЛЕНО: Уменьшили высоту до стандартных 56.dp и убрали лишние отступы,
+  // чтобы меню было максимально компактным и не перекрывало контент.
   NavigationBar(
     modifier = Modifier
       .fillMaxWidth()
-      .height(64.dp),
+      .height(56.dp), // Уменьшили до минимально комфортной высоты
     containerColor = MaterialTheme.colorScheme.surfaceContainer,
-    windowInsets = WindowInsets(0, 0, 0, 0) // Выталкиваем элементы наружу, убирая микро-сжатие
+    windowInsets = WindowInsets(0, 0, 0, 0)
   ) {
     // Получаем динамический список дестинаций на основе роли текущей сессии
     val navDestinations = getNavDestinations(role = baseUIState.userRole)
 
     navDestinations.forEach { destination ->
+      val isAptSelected = baseUIState.addressId != 0L
+      val isAdmin = baseUIState.userRole != UserRole.StandardUser
+      
+      // Настройки и Чат доступны всегда. Остальное только после выбора квартиры.
+      val isSettingsRoute = destination.route == "SettingsScreen" || destination.route == "SettingsScreenDest"
+      val isChatRoute = destination.route == "chat_user_list" || destination.route == "chat_selector"
+
+      val isEnabled = if (isAdmin && !isAptSelected) {
+        isChatRoute || isSettingsRoute
+      } else true
+
       // Добавлен явный маркер "chat_user_list" в блок чата и убран из блока Главной.
       val isSelected = when (destination.route) {
         "InfoApartmentScreenDest", "AdminUserListScreenDest", "InfoApartmentScreen", "UserListScreen" -> {
@@ -82,13 +93,13 @@ fun BottomNavigationBar(
 
       NavigationBarItem(
         selected = isSelected,
+        enabled = isEnabled,
         onClick = {
           println("[$className.BottomNavigationBar]: Тап по нижней вкладке смартфона -> ${destination.route}")
 
           when (destination.route) {
             "InfoApartmentScreenDest", "AdminUserListScreenDest", "InfoApartmentScreen", "UserListScreen" -> {
-              val targetRoute = if (baseUIState.userRole == UserRole.StandardUser) "InfoApartmentScreen" else "UserListScreen"
-              onSubModuleChange(targetRoute)
+              onSubModuleChange("InfoApartmentScreen")
             }
 
             "MainMeterScreenDest", "MeterScreen", "service_selector" -> {
@@ -104,6 +115,10 @@ fun BottomNavigationBar(
 
             "MainServiceScreenDest", "ServiceListScreen", "finance_selector" -> {
               onSubModuleChange("finance_selector")
+            }
+
+            "SettingsScreen", "SettingsScreenDest" -> {
+              onSubModuleChange("SettingsScreenDest")
             }
           }
         },
