@@ -2,6 +2,7 @@ package com.ykis.ykismobkmp.domain.repository.chat
 
 
 import com.ykis.ykismobkmp.core.utils.Log
+import com.ykis.ykismobkmp.core.utils.currentTimeMillis
 import com.ykis.ykismobkmp.core.utils.wrapForFirebase
 import com.ykis.ykismobkmp.domain.ai.GeminiAiManager
 import com.ykis.ykismobkmp.domain.entity.*
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.catch
 import dev.gitlive.firebase.database.ChildEvent
 import dev.gitlive.firebase.database.FirebaseDatabase
 
@@ -141,7 +143,86 @@ class ChatRepository(
     }
   }
 
-  // --- 2. REALTIME DATABASE (СООБЩЕНИЯ) ---
+  /**
+   * [sendGlobalNotification] — Оповещение всех пользователей (или группы) о новом объявлении.
+   */
+  suspend fun sendGlobalNotification(title: String, body: String, osbbId: Long = 0L) {
+    try {
+      val data = mapOf(
+        "title" to title,
+        "body" to body,
+        "osbbId" to osbbId,
+        "type" to "ANNOUNCEMENT"
+      )
+      println("[$className.sendGlobalNotification]: Вызов Cloud Function 'sendGlobalNotification'...")
+      functions.httpsCallable("sendGlobalNotification").invoke(data)
+    } catch (e: Exception) {
+      Log.e("YkisLog", "[$className.sendGlobalNotification]: Error -> ${e.message}")
+    }
+  }
+
+  // --- 2. ОБЪЯВЛЕНИЯ (ANNOUNCEMENTS) ---
+
+  /**
+   * [publishAnnouncement] — Публикация нового объявления в Firestore.
+   */
+  suspend fun publishAnnouncement(announcement: AnnouncementEntity): Result<Unit> {
+    return try {
+      val col = firestore.collection("announcements")
+      // Создаем документ с авто-сгенерированным ID
+      val timestamp = currentTimeMillis()
+      val finalAnnouncement = announcement.copy(timestamp = timestamp)
+      
+      col.add(finalAnnouncement)
+      
+      // После публикации шлем пуш всем заинтересованным
+      sendGlobalNotification(
+        title = finalAnnouncement.title,
+        body = finalAnnouncement.message.take(100),
+        osbbId = finalAnnouncement.osbbId
+      )
+      
+      Result.success(Unit)
+    } catch (e: Exception) {
+      Log.e("YkisLog", "[$className.publishAnnouncement]: Error -> ${e.message}")
+      Result.failure(e)
+    }
+  }
+
+  /**
+   * [deleteAnnouncement] — Удаление объявления из Firestore.
+   */
+  suspend fun deleteAnnouncement(announcementId: String): Result<Unit> {
+    return try {
+      firestore.collection("announcements").document(announcementId).delete()
+      Result.success(Unit)
+    } catch (e: Exception) {
+      Log.e("YkisLog", "[$className.deleteAnnouncement]: Error -> ${e.message}")
+      Result.failure(e)
+    }
+  }
+
+  /**
+   * [observeAnnouncements] — Получение потока объявлений, отфильтрованных по OSBB.
+   */
+  fun observeAnnouncements(osbbId: Long): Flow<List<AnnouncementEntity>> {
+    // Житель видит общие (0) и свои (osbbId)
+    return firestore.collection("announcements")
+      .snapshots
+      .map { snapshot ->
+        snapshot.documents.map { doc ->
+          doc.data<AnnouncementEntity>().copy(id = doc.id)
+        }.filter { 
+          it.osbbId == 0L || it.osbbId == osbbId
+        }.sortedByDescending { it.timestamp }
+      }
+      .catch { e ->
+        Log.e("YkisLog", "[$className.observeAnnouncements]: PERMISSION_DENIED або інша помилка Firestore: ${e.message}")
+        emit(emptyList()) // Повертаємо порожній список замість крашу
+      }
+  }
+
+  // --- 3. REALTIME DATABASE (СООБЩЕНИЯ) ---
 
   fun observeMessages(chatUid: String): Flow<List<MessageEntity>> {
     return realtime.reference("chats/$chatUid")
@@ -169,6 +250,27 @@ class ChatRepository(
       .valueEvents
       .map { snapshot ->
         snapshot.children.lastOrNull()?.value<MessageEntity>()
+      }
+  }
+
+  fun observePresence(chatId: String): Flow<Map<String, Boolean>> {
+    return realtime.reference("presence/$chatId")
+      .valueEvents
+      .map { snapshot ->
+        snapshot.children.associate { child ->
+          val uid = child.key ?: ""
+          val isOnline = try {
+            val onlineChild = child.child("online")
+            if (onlineChild.exists) {
+              onlineChild.value<Boolean?>() ?: false
+            } else {
+              false
+            }
+          } catch (e: Exception) {
+            false
+          }
+          uid to isOnline
+        }
       }
   }
 

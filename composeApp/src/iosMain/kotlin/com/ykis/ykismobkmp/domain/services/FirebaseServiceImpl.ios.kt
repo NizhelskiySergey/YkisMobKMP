@@ -41,3 +41,7 @@ actual suspend fun getPlatformFcmToken(): String? {
   println("[YkisLogKMP.FirebaseServiceImpl]: [IOS_FCM] Запрос токена (Заглушка)")
   return null
 }
+
+actual fun performPlatformClearNotifications(chatId: String?) {
+  println("[YkisLogKMP.FirebaseServiceImpl]: [IOS_NOTIF_CLEAR] (Заглушка)")
+}

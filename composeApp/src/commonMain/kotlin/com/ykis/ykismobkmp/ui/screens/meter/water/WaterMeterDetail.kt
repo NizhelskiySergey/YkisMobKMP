@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
+import com.ykis.ykismobkmp.core.utils.DateTimeUtils
 import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
 import com.ykis.ykismobkmp.domain.entity.WaterReadingEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
@@ -100,6 +101,10 @@ fun WaterMeterDetail(
           ) {
             WaterReadingItemContent(reading = safeLastReading)
           }
+          val isDeleteEnabled = remember(safeLastReading.dateIn) {
+            DateTimeUtils.isWithinOneHour(safeLastReading.dateIn)
+          }
+
           LastReadingCardButtons(
             onAddButtonClick = {
               println("[$tag.Action]: Відкриття діалогу додавання")
@@ -109,7 +114,8 @@ fun WaterMeterDetail(
               println("[$tag.Action]: Відкриття діалогу видалення")
               showDeleteReadingDialog = true
             },
-            showDeleteButton = true
+            showDeleteButton = true,
+            isDeleteEnabled = isDeleteEnabled
           )
         }
         BaseCard(

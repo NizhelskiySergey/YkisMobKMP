@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
 import com.ykis.ykismobkmp.domain.entity.HeatReadingEntity
+import com.ykis.ykismobkmp.core.utils.DateTimeUtils
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.components.LabelTextWithCheckBox
@@ -58,10 +59,15 @@ fun HeatMeterDetail(
 
   val enabledButton by remember(newHeatReading, safeLastReading.current) {
     derivedStateOf {
-      val newValue = newHeatReading.replace(',', '.').toDoubleOrNull() ?: -1.0
-      val isValid = newValue >= safeLastReading.current // ИСПРАВЛЕНО: Разрешено равенство
-      if (newHeatReading.isNotEmpty() && !isValid) {
-        println("[$tag.Validation]: Значення $newValue менше або дорівнює попередньому якорю ${safeLastReading.current}")
+      val rawInput = newHeatReading.replace(',', '.')
+      val newValue = rawInput.toDoubleOrNull() ?: -1.0
+      
+      // ИСПРАВЛЕНО: Кнопка активна если новое значение БОЛЬШЕ ИЛИ РАВНО текущему.
+      // Это позволяет обновить дату показания и избежать начисления "по среднему".
+      val isValid = newValue >= safeLastReading.current && rawInput.lastOrNull() != '.'
+      
+      if (newHeatReading.isNotEmpty() && !isValid && newValue < safeLastReading.current && newValue != -1.0) {
+        println("[$tag.Validation]: Значення $newValue менше за попереднє ${safeLastReading.current}")
       }
       isValid
     }
@@ -95,10 +101,16 @@ fun HeatMeterDetail(
           isAverage = safeLastReading.avg == 1L
         )
       }
+
+      val isDeleteEnabled = remember(safeLastReading.dateIn) {
+        DateTimeUtils.isWithinOneHour(safeLastReading.dateIn)
+      }
+
       LastReadingCardButtons(
         onAddButtonClick = { showAddReadingDialog = true },
         onDeleteButtonClick = { showDeleteReadingDialog = true },
-        showDeleteButton = true
+        showDeleteButton = true,
+        isDeleteEnabled = isDeleteEnabled
       )
     }
 

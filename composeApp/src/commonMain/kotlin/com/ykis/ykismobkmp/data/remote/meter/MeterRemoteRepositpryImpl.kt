@@ -158,10 +158,24 @@ class MeterRemoteRepositoryImpl(
   ): Map<String, String> {
     val map = HashMap<String, String>()
     map[TEPLOMER_ID] = teplomerId.toString()
-    map[NEW_VALUE] = newValue.toString()
-    map[CURRENT_VALUE] = currentValue.toString()
+    
+    // ИСПРАВЛЕНО: Принудительное форматирование Double в строку с фиксированной точностью (4 знака)
+    // Это исключает ошибки парсинга на стороне PHP-бэкенда (например, научную нотацию 1.2E-4)
+    val formattedNewValue = formatDoubleForApi(newValue)
+    val formattedCurrentValue = formatDoubleForApi(currentValue)
+
+    map[NEW_VALUE] = formattedNewValue
+    map[CURRENT_VALUE] = formattedCurrentValue
     map[UID] = uid
     return map
+  }
+
+  /**
+   * [formatDoubleForApi] — Хелпер для нормализации вещественных чисел перед отправкой в ГИОЦ.
+   */
+  private fun formatDoubleForApi(value: Double): String {
+    // КМР-способ ограничить точность: умножаем, округляем и делим, либо просто обрезаем строку
+    return ((value * 10000).toLong() / 10000.0).toString()
   }
 
   private fun createDeleteWaterReadingMap(uid: String, pokId: Long): Map<String, String> {

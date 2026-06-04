@@ -46,7 +46,7 @@ fun assembleServiceList(
   if (baseUIState.osmdId != 0L) {
     serviceList.add(
       TotalServiceDebt(
-        name = baseUIState.osbb.takeIf { it.isNotEmpty() } ?: stringResource(Res.string.my_osbb),
+        name = "ОСББ",
         color = MaterialTheme.colorScheme.primary,
         debt = ledgerUIState.totalDebt.dolg4 ?: 0.0,
         icon = Icons.Default.CorporateFare,

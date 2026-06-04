@@ -16,6 +16,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -29,6 +30,7 @@ import com.ykis.ykismobkmp.ui.screens.auth.SignUpScreen
 import com.ykis.ykismobkmp.ui.screens.auth.TermsAndConditionScreen
 import com.ykis.ykismobkmp.ui.screens.auth.VerifyEmailScreen
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 
@@ -42,8 +44,7 @@ val LocalNavigationType = compositionLocalOf<NavigationType> { NavigationType.BO
 fun RootNavGraph(
   appState: YkisPamAppState,
   contentType: ContentType,
-  navigationType: NavigationType,
-  initialChatId: String? = null
+  navigationType: NavigationType
 ) {
   val scope = rememberCoroutineScope()
   val appStartModel = koinInject<AppScreenModel>()
@@ -86,15 +87,64 @@ fun RootNavGraph(
     LocalNavigationType provides navigationType
   )   {
 
+    // ИСПРАВЛЕНО НАМЕРТВО: Слушатель пушей вынесен в корень провайдера!
+    // Теперь он "ловит" сигнал даже во время загрузки (заставки) и выполнит 
+    // переход сразу после инициализации навигатора.
+    LaunchedEffect(pendingChatId) {
+      println("[YkisLogKMP.TRAP.RootNav]: LaunchedEffect Triggered. PendingChatId: \"$pendingChatId\"")
+      
+      if (pendingChatId != null) {
+        val id = pendingChatId!!
+        println("[YkisLogKMP.TRAP.RootNav]: [1] Поступил сигнал: \"$id\"")
+        
+        // Ждем пока пропадет лоадер и появится навигатор
+        snapshotFlow { currentStartState }.first { it != AppStartState.Loading }
+        // Ждем готовности системы
+        snapshotFlow { baseUIState }.first { it.userRole != UserRole.Unknown && !it.mainLoading }
+
+        println("[YkisLogKMP.TRAP.RootNav]: [2] Система готова. Обработка ID: $id")
+
+        val parts = id.split("_")
+        if (parts.size >= 3) {
+          val addrId = parts[parts.size - 2].toLongOrNull() ?: 0L
+          val targetUid = parts.last()
+          
+          if (addrId != 0L) {
+            if (baseUIState.userRole == UserRole.StandardUser) {
+              val servicePrefix = when {
+                id.startsWith("WATER_SERVICE") -> "WATER_SERVICE"
+                id.startsWith("WARM_SERVICE") -> "WARM_SERVICE"
+                id.startsWith("GARBAGE_SERVICE") -> "GARBAGE_SERVICE"
+                else -> "OSBB"
+              }
+              chatScreenModel.onServiceSelectedForResident(servicePrefix)
+            }
+
+            apartmentScreenModel.setAddressId(addrId)
+            chatScreenModel.selectUserByUid(targetUid)
+            
+            // Дожидаемся синхронизации ID в UI
+            snapshotFlow { baseUIState }.first { it.addressId == addrId }
+            delay(500)
+            
+            println("[YkisLogKMP.TRAP.RootNav]: [3] >>> ПРЫЖОК В ЧАТ! <<<")
+            // Здесь мы используем костыль: так как навигатор еще может не создаться в UI, 
+            // мы полагаемся на то, что LaunchedEffect внутри Navigator его подхватит ниже.
+            // Но лучше всего передать этот флаг через модель.
+          }
+        }
+      }
+    }
+
     Scaffold(
       containerColor = MaterialTheme.colorScheme.surfaceContainer,
       snackbarHost = { SnackbarHost(hostState = appState.snackbarHostState) { data -> Snackbar(data) } }
     ) { paddingValues ->
       Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
 
-        // Защитный барьер холодного старта. Пока СУБД ЮКІС инициализируется,
-        // мы держим стабильный лоадер и не пускаем граф рекомпозиции в транзакции навигаторов.
-        if (currentStartState == AppStartState.Loading || baseUIState.mainLoading) {
+        // Защитный барьер холодного старта. Пока мы не знаем роль пользователя,
+        // мы держим стабильный лоадер. Но после инициализации навигатор больше не уничтожается!
+        if (currentStartState == AppStartState.Loading) {
           Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -118,6 +168,19 @@ fun RootNavGraph(
             // Динамический диспетчер состояний: Безопасное переключение глобальных экранов
             LaunchedEffect(currentStartState) {
               val currentRoute = navigator.lastItem
+              
+              // ИСПРАВЛЕНО: Не сбрасываем стек, если мы уже в режиме детального просмотра чата (Deep Link)
+              if (currentRoute is ChatScreenDest) {
+                println("[YkisLogKMP.$className.Dispatcher]: [SKIP] Утримання Deep Link екрану чату.")
+                return@LaunchedEffect
+              }
+              
+              // ИСПРАВЛЕНО: Если есть ожидающий пуш — блокируем сброс навигации
+              if (pendingChatId != null) {
+                println("[YkisLogKMP.TRAP.RootNav]: [GUARD] Блокировка сброса стека (ждем пуш-переход)")
+                return@LaunchedEffect
+              }
+
               when (currentStartState) {
                 AppStartState.TermsAndConditions -> {
                   if (currentRoute !is TermsAndConditionScreen) {
@@ -151,33 +214,21 @@ fun RootNavGraph(
               }
             }
 
-            // Нативная КМР обработка диплинков и пуш-маршрутов ГИОЦ г. Южного
-            LaunchedEffect(baseUIState.userRole, initialChatId) {
-              if (baseUIState.userRole != UserRole.Unknown && !initialChatId.isNullOrEmpty()) {
-                val parts = initialChatId.split("_")
-                println("[YkisLogKMP.$className.PushAction]: [PROCESSING] Сегментів у пуш-шляху: ${parts.size}")
-                if (parts.size >= 3) {
-                  val addrId = parts[parts.size - 2].toLongOrNull() ?: 0L
-                  val targetUid = parts.last()
-                  println("[YkisLogKMP.$className.PushAction]: [PARSED] Вытянато: AddressID = ${addrId}L, TargetUID = \"$targetUid\"")
-                  if (addrId != 0L) {
-                    println("[YkisLogKMP.$className.PushAction]: [EXECUTE] Синхронізація адреси в СУБД...")
-                    apartmentScreenModel.setAddressId(addrId)
-                    chatScreenModel.selectUserByUid(targetUid)
-                    delay(400) // Пауза для фиксации транзакций SQLDelight в фоновом пуле
-                    println("[YkisLogKMP.$className.PushAction]: [NAVIGATING] Накат экрана чата поверх стека.")
-                    navigator.push(ChatScreenDest(chatId = initialChatId))
-                  }
-                }
-              }
-            }
-
-            // Слушатель горячих сигналов из Firebase Cloud Messaging (Пуши)
+            // Исполнитель прыжка (уже внутри навигатора)
             LaunchedEffect(pendingChatId) {
-              pendingChatId?.let { id ->
-                println("[YkisLogKMP.$className.LaunchedEffect_Push]: [HOT_SIGNAL] Отримано гарячий пуш: \"$id\".")
-                navigator.push(ChatScreenDest(chatId = id))
-                chatScreenModel.setPendingPushChatId(null)
+              if (pendingChatId != null) {
+                // Ждем готовности стейта
+                snapshotFlow { baseUIState }.first { it.userRole != UserRole.Unknown && !it.mainLoading }
+                // Ждем синхронизации ID
+                val parts = pendingChatId!!.split("_")
+                val addrId = parts.getOrNull(parts.size - 2)?.toLongOrNull() ?: 0L
+                if (addrId != 0L) {
+                   snapshotFlow { baseUIState }.first { it.addressId == addrId }
+                   delay(300)
+                   println("[YkisLogKMP.TRAP.RootNav]: [EXECUTE] Navigator.push -> ChatScreenDest")
+                   navigator.push(ChatScreenDest(chatId = pendingChatId))
+                   chatScreenModel.setPendingPushChatId(null)
+                }
               }
             }
           }

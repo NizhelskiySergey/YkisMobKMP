@@ -43,6 +43,7 @@ import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.navigation.SendImageScreenDest
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.core.utils.rememberFilePicker
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
@@ -80,6 +81,18 @@ class ChatScreen(
 
     // Реактивно вычитываем живой стейт БТИ квартиры Южного
     val baseUIState by apartmentScreenModel.uiState.collectAsState()
+    val selectedUser by chatScreenModel.selectedUser.collectAsState()
+
+    // ИСПРАВЛЕНО НАМЕРТВО: Принудительная синхронизация глобальной квартиры при входе в чат.
+    // Если житель заходит в чат квартиры №X, всё приложение (БТИ, Финансы, Счетчики) 
+    // мгновенно переключается на эту квартиру №X.
+    LaunchedEffect(selectedUser.addressId) {
+      val isResident = baseUIState.userRole == UserRole.StandardUser
+      if (isResident && selectedUser.addressId != 0L && selectedUser.addressId != baseUIState.addressId) {
+        println("[$className.Sync]: Глобальне перемикання на квартиру о/р ${selectedUser.addressId} при вході в чат.")
+        apartmentScreenModel.setAddressId(selectedUser.addressId)
+      }
+    }
 
     // Вызываем Stateful-компоновщик, связывая все слои в едином инстансе ОЗУ
     ChatScreenStateful(
@@ -171,6 +184,8 @@ fun ChatScreenContent(
 
   val editingMessage by screenModel.editingMessage.collectAsState()
 
+  val selectedServicePrefix by screenModel.selectedServicePrefix.collectAsState()
+
   val keyboardController = LocalSoftwareKeyboardController.current
   val focusManager = LocalFocusManager.current
   val listState = rememberLazyListState()
@@ -248,6 +263,7 @@ fun ChatScreenContent(
   val appBarTitle = remember<String>(
     baseUIState.osbb,
     selectedService,
+    selectedServicePrefix,
     isForwardingMode,
     baseUIState.userRole,
     userEntity
@@ -255,9 +271,18 @@ fun ChatScreenContent(
     when {
       isForwardingMode -> "Переслати повідомлення"
       baseUIState.userRole == UserRole.StandardUser -> {
-        val serviceName = selectedService?.name ?: ""
-        if (serviceName.contains("ОСББ", ignoreCase = true)) {
-          baseUIState.osbb ?: "ОСББ"
+        // ИСПРАВЛЕНО: Если объект службы пуст (переход по пушу), вычисляем имя по префиксу
+        val serviceName = selectedService?.name 
+          ?: when(selectedServicePrefix) {
+            "WATER_SERVICE"   -> "КП \"ЮЖВОДОКАНАЛ\""
+            "WARM_SERVICE"    -> "КП тм \"ЮТКЕ\""
+            "GARBAGE_SERVICE" -> "КП \"СПЕЦТРАНС\""
+            "OSBB"            -> baseUIState.osbb.takeIf { !it.isNullOrBlank() && it != "0" } ?: "ОСББ"
+            else              -> ""
+          }
+
+        if (selectedService?.contentDetail == ContentDetail.OSBB || selectedServicePrefix == "OSBB") {
+          baseUIState.osbb.takeIf { !it.isNullOrBlank() && it != "0" } ?: "ОСББ"
         } else {
           serviceName
         }
@@ -337,17 +362,35 @@ fun ChatScreenContent(
                 println("[YkisLogKMP.$className.onSent]: Оновлення існуючого повідомлення в Firebase.")
                 screenModel.updateMessage(messageText)
               } else {
-                val curAddrId = if (baseUIState.userRole == UserRole.StandardUser)
-                  baseUIState.addressId else userEntity.addressId
-                val curAddr = if (baseUIState.userRole == UserRole.StandardUser)
-                  (baseUIState.address ?: "") else (userEntity.displayName ?: "")
+                val isResident = baseUIState.userRole == UserRole.StandardUser
+                val curAddrId = userEntity.addressId
 
-                println("[YkisLogKMP.$className.onSent]: Відправка пакета повідомлення до кімнати о/р: $curAddrId")
+                // ИСПРАВЛЕНО НАМЕРТВО: Прямой поиск анкеты по ID чата.
+                // Это гарантирует, что сообщение будет подписано фамилией именно ТОЙ квартиры,
+                // даже если глобальный стейт еще не успел переключиться.
+                val chatApt = if (isResident) {
+                  baseUIState.apartments.find { it.addressId == curAddrId }
+                } else null
+
+                val curAddr = if (isResident) {
+                  chatApt?.address ?: baseUIState.address ?: ""
+                } else {
+                  userEntity.displayName?.substringBefore("|")?.trim() ?: ""
+                }
+
+                val senderName = if (isResident) {
+                  val surname = chatApt?.nanim ?: baseUIState.nanim ?: "Мешканець"
+                  "$curAddr | $surname"
+                } else {
+                  baseUIState.displayName ?: "Адміністратор"
+                }
+
+                println("[YkisLogKMP.$className.onSent]: Відправка повідомлення. Адреса: $curAddr, Абонент: $senderName")
 
                 screenModel.writeToDatabase(
                   chatUid = chatUid,
                   senderUid = myUid,
-                  senderDisplayedName = baseUIState.displayName ?: "Користувач",
+                  senderDisplayedName = senderName,
                   senderLogoUrl = baseUIState.photoUrl,
                   senderAddress = curAddr,
                   addressId = curAddrId,

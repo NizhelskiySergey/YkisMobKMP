@@ -16,10 +16,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import com.ykis.ykismobkmp.domain.entity.WaterReadingEntity
@@ -133,27 +136,71 @@ fun WaterReadingItemContent(
         labelText = "Кількість днів: ",
         valueText = reading.days.toString()
       )
+      
+      Spacer(modifier = Modifier.height(12.dp))
+
+      // ИСПРАВЛЕНО: Показания выведены в 3 колонки (Попередні, Поточні, Кубів) с центрированием
       Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
       ) {
-        LabelTextWithText(
-          modifier = Modifier.weight(0.5f),
-          labelText = "Попередні: ",
-          valueText = reading.last.toString()
-        )
-        LabelTextWithText(
-          modifier = Modifier.weight(0.5f),
-          labelText = "Поточні: ",
-          valueText = reading.current.toString()
-        )
+        Column(
+          horizontalAlignment = Alignment.CenterHorizontally,
+          modifier = Modifier.weight(1f)
+        ) {
+          Text(
+            text = "Попередні",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+          Text(
+            text = reading.last.toString(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+          )
+        }
+
+        Column(
+          horizontalAlignment = Alignment.CenterHorizontally,
+          modifier = Modifier.weight(1f)
+        ) {
+          Text(
+            text = "Поточні",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+          Text(
+            text = reading.current.toString(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+          )
+        }
+
+        Column(
+          horizontalAlignment = Alignment.CenterHorizontally,
+          modifier = Modifier.weight(1f)
+        ) {
+          Text(
+            text = "Кубів",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+          Text(
+            text = reading.kub.toString(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+          )
+        }
       }
-      Spacer(modifier = Modifier.height(2.dp))
-      LabelTextWithText(
-        labelText = "Використано кубів: ",
-        valueText = "${reading.kub} м³"
-      )
     }
+
+    LabelTextWithText(
+      modifier = Modifier.padding(vertical = 4.dp),
+      labelText = "Дата внесення: ",
+      valueText = reading.dateIn
+    )
   }
 }
 

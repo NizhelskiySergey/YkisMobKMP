@@ -10,3 +10,7 @@ actual fun applyAppBadgeCount(count: Int) {
   // В новых версиях iOS бадж устанавливается через свойство applicationIconBadgeNumber
   app.applicationIconBadgeNumber = count.toLong()
 }
+
+actual fun applyAppBadgeCount(count: Int) {
+  // iOS реализация уже есть выше
+}

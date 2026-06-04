@@ -92,37 +92,39 @@ fun ServiceSelectorContent(
   val isForwardingMode by chatScreenModel.isForwardingMode.collectAsState()
 
   // Локальный чистый КМР-список коммунальных служб города Южного для чат-контура
-  val residentServices = remember(baseUIState.osbb) {
+  val residentServices = remember {
     val list = mutableListOf<TotalServiceDebt>()
-    if (baseUIState.osmdId != 0L || baseUIState.osbbId != 0L) {
-      list.add(
-        TotalServiceDebt(
-          name = baseUIState.osbb.takeIf { it.isNotEmpty() } ?: "Мій ОСББ",
-          color = Color.Unspecified,
-          debt = 0.0,
-          icon = Icons.Default.CorporateFare,
-          contentDetail = ContentDetail.OSBB
-        )
+    
+    // ИСПРАВЛЕНО: Для единообразия используем только названия организаций ("ОСББ", "Водоканал" и т.д.)
+    // без привязки к конкретному имени ОСББ текущей квартиры, так как у пользователя может быть много квартир.
+    list.add(
+      TotalServiceDebt(
+        name = "ОСББ",
+        color = Color.Unspecified,
+        debt = 0.0,
+        icon = Icons.Default.CorporateFare,
+        contentDetail = ContentDetail.OSBB
       )
-    }
+    )
+    
     list.addAll(
       listOf(
         TotalServiceDebt(
-          name = "Водоканал",
+          name = "КП \"ЮЖВОДОКАНАЛ\"",
           color = Color(0xFF2196F3),
           debt = 0.0,
           icon = Icons.Default.WaterDrop,
           contentDetail = ContentDetail.WATER_SERVICE
         ),
         TotalServiceDebt(
-          name = "ЮТКЕ",
+          name = "КП тм \"ЮТКЕ\"",
           color = Color(0xFFFF5722),
           debt = 0.0,
           icon = Icons.Default.HotTub,
           contentDetail = ContentDetail.WARM_SERVICE
         ),
         TotalServiceDebt(
-          name = "Южтранс",
+          name = "КП \"СПЕЦТРАНС\"",
           color = Color(0xFF4CAF50),
           debt = 0.0,
           icon = Icons.Default.Commute,

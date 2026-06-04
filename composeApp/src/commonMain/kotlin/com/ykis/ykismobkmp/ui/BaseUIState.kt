@@ -1,5 +1,6 @@
 package com.ykis.ykismobkmp.ui
 
+import com.ykis.ykismobkmp.domain.entity.AnnouncementEntity
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.entity.FamilyEntity
 import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
@@ -108,7 +109,11 @@ data class BaseUIState(
   @SerialName("isGlobalLoading") val isGlobalLoading: Boolean = false,
   @SerialName("apartmentLoading") val apartmentLoading: Boolean = true,
 
-  // --- 7. ОШИБКИ ---
+  // --- 8. ОБЪЯВЛЕНИЯ (ANNOUNCEMENTS) ---
+  @SerialName("announcements") val announcements: List<AnnouncementEntity> = emptyList(),
+  @SerialName("isAnnouncementsLoading") val isAnnouncementsLoading: Boolean = false,
+
+  // --- 9. ОШИБКИ ---
   @SerialName("error") val error: String? = null
 ) {
   init {

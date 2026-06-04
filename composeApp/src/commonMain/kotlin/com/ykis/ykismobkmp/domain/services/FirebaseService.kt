@@ -59,5 +59,6 @@ interface FirebaseService {
   suspend fun getEmail(): String
   suspend fun getDisplayName(): String
   suspend fun addFcmToken()
+  fun clearNotifications(chatId: String? = null)
   fun stopAllListeners()
 }

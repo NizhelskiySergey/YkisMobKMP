@@ -1,6 +1,8 @@
 package com.ykis.ykismobkmp.domain.services
 
 import android.app.Activity
+import android.app.NotificationManager
+import android.content.Context
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
@@ -92,4 +94,24 @@ actual suspend fun getPlatformFcmToken(): String? = try {
 } catch (e: Exception) {
   println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: Не удалось получить FCM токен: ${e.message}")
   null
+}
+
+actual fun performPlatformClearNotifications(chatId: String?) {
+  try {
+    // Получаем контекст через Firebase SDK (на Android он всегда доступен)
+    val context = com.google.firebase.FirebaseApp.getInstance().applicationContext
+    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    
+    if (chatId != null) {
+      // Очищаем уведомление конкретного чата
+      notificationManager.cancel(chatId.hashCode())
+      println("[YkisLogKMP.FirebaseServiceImpl]: [NOTIF_CLEAR] Уведомления чата $chatId очищены.")
+    } else {
+      // Очищаем ВСЕ уведомления приложения
+      notificationManager.cancelAll()
+      println("[YkisLogKMP.FirebaseServiceImpl]: [NOTIF_CLEAR] Все уведомления приложения очищены.")
+    }
+  } catch (e: Exception) {
+    println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: Ошибка очистки уведомлений: ${e.message}")
+  }
 }

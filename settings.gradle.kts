@@ -12,10 +12,10 @@ pluginManagement {
 
 dependencyResolutionManagement {
   repositories {
-    mavenCentral()
     google()
+    mavenCentral()
     // Дополнительный репозиторий JetBrains для KMP-ресурсов
-    maven("https://jetbrains.space")
+    maven("https://maven.pkg.jetbrains.space/public/p/compose/patch")
   }
 }
 

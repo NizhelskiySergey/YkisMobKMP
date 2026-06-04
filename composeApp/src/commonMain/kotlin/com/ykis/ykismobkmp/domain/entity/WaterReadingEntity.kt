@@ -83,7 +83,7 @@ data class WaterReadingEntity(
   @SerialName("mday")
   val mday: Long = 0L,
 
-  @SerialName("date_in")
+  @SerialName("data_in")
   val dateIn: String = "Unknown"
 )
 

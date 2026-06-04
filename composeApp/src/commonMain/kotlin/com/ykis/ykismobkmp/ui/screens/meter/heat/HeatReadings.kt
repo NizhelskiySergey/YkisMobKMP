@@ -164,6 +164,12 @@ fun HeatReadingItemContent(
         valueText = "${reading.tarif} грн/Гкал"
       )
     }
+
+    LabelTextWithText(
+      modifier = Modifier.padding(vertical = 4.dp),
+      labelText = "Дата внесення: ",
+      valueText = reading.dateIn
+    )
   }
 }
 

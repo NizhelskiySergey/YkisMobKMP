@@ -21,3 +21,7 @@ actual suspend fun performPlatformSignInWithSms(
 }
 
 actual suspend fun getPlatformFcmToken(): String? = null
+
+actual fun performPlatformClearNotifications(chatId: String?) {
+  println("[YkisLogKMP.FirebaseServiceImpl]: [JVM_NOTIF_CLEAR] (Заглушка)")
+}

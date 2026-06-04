@@ -11,6 +11,7 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.ykis.ykismobkmp.MainActivity
 import com.ykis.ykismobkmp.domain.services.FirebaseService
+import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,11 +38,21 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        println("[YkisLogKMP.MessagingService]: Получено Push-уведомление от ${message.from}")
+        println("[YkisLogKMP.MessagingService]: Получено Push-уведомление от ${message.from}. Data: ${message.data}")
 
         val title = message.notification?.title ?: message.data["title"] ?: "ЮКІС"
         val body = message.notification?.body ?: message.data["body"] ?: "Нове повідомлення"
         val chatId = message.data["chatId"]
+        val activeChat = ChatScreenModel.activeChatIdForNotifications
+
+        println("[YkisLogKMP.MessagingService]: Проверка подавления. В пуше chatId: $chatId, Сейчас открыт: $activeChat")
+
+        // ИСПРАВЛЕНО НАМЕРТВО: Если этот чат уже открыт у пользователя перед глазами,
+        // мы подавляем (не показываем) системное уведомление.
+        if (chatId != null && chatId == activeChat) {
+            println("[YkisLogKMP.MessagingService]: Пуш подавлен (Чат $chatId уже открыт)")
+            return
+        }
 
         sendNotification(title, body, chatId)
     }
@@ -49,6 +60,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
     private fun sendNotification(title: String, body: String, chatId: String?) {
         val intent = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            // ИСПРАВЛЕНО: Кладём chatId под обоими именами для надёжности
+            putExtra("chatId", chatId)
             putExtra("chat_id", chatId)
         }
 
@@ -77,7 +90,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
             notificationManager.createNotificationChannel(channel)
         }
 
-        notificationManager.notify(currentTimeMillis().toInt(), notificationBuilder.build())
+        // ИСПРАВЛЕНО: Используем детерминированный ID на базе chatId, чтобы новые сообщения 
+        // из одного чата заменяли старые уведомления (актуальность бейджа).
+        val notificationId = chatId?.hashCode() ?: currentTimeMillis().toInt()
+        notificationManager.notify(notificationId, notificationBuilder.build())
     }
 
     private fun currentTimeMillis(): Long = System.currentTimeMillis()

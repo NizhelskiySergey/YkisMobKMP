@@ -25,6 +25,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
@@ -449,6 +450,7 @@ fun ApartmentNavigationRail(
 
         // Подсветка иконки чата активна на любом из 3 пошаговых этапов контура чат-системы
         val isChatSelected = activeSubModule == "chat_selector" || activeSubModule == "chat_user_list" || activeSubModule == "chat_room_active"
+        val isAnnouncementsSelected = activeSubModule == "announcements"
 
       val isAptSelected = baseUIState.addressId != 0L
       val isAdmin = baseUIState.userRole != UserRole.StandardUser
@@ -507,7 +509,23 @@ fun ApartmentNavigationRail(
         } else null
       )
 
-      // 4. Кнопка Чат обсуждения ОСББ
+      // 4. Кнопка Оголошення (Новини)
+      NavigationRailItem(
+        selected = isAnnouncementsSelected,
+        enabled = true,
+        onClick = {
+          println("[$className.ApartmentNavigationRail]: Перехід до розділу оголошень. Скидання фокусу.")
+          focusManager.clearFocus()
+          selectedApartmentFocusRequester.requestFocus()
+          onSubModuleChange("announcements")
+        },
+        icon = { Icon(Icons.Default.Campaign, null) },
+        label = if (isRailExpanded) {
+          { Text("Оголошення", fontSize = 11.sp, maxLines = 1, softWrap = false) }
+        } else null
+      )
+
+      // 5. Кнопка Чат обсуждения ОСББ
       NavigationRailItem(
         selected = isChatSelected,
         // Чат доступен всегда, так как это точка входа для выбора жильца

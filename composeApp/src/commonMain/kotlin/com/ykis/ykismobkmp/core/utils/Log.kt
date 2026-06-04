@@ -9,7 +9,7 @@ import io.github.aakira.napier.Napier
  */
 object Log {
   // МЕНЯТЬ ЗДЕСЬ ПЕРЕД РЕЛИЗОМ:
-  private const val isDebug = true 
+  private const val isDebug = true
 
   fun d(msg: String, tag: String = "YkisLogKMP") {
     if (isDebug) {

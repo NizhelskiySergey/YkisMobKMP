@@ -5,6 +5,7 @@ import com.ykis.ykismobkmp.domain.repository.ledger.LedgerService
 import com.ykis.ykismobkmp.domain.repository.meter.MeterService
 import com.ykis.ykismobkmp.domain.services.ClearDatabase
 import com.ykis.ykismobkmp.ui.navigation.AppScreenModel
+import com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementScreenModel
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.auth.AuthScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
@@ -23,7 +24,8 @@ val navigationModule = module {
   single { ApartmentScreenModel(get(), get(), get()) }
   single { FamilyListScreenModel(getFamilyListUseCase = get(), logService = get()) }
   single { LedgerScreenModel(ledgerService = get(), logService = get()) }
-  single { ChatScreenModel(get(), get()) }
+  single { ChatScreenModel(get(), get(), get()) }
+  single { AnnouncementScreenModel(get(), get()) }
   single { MeterScreenModel(get(), get()) }
   factory { AuthScreenModel(get(), get(), get()) }
   factory { ClearDatabase() }

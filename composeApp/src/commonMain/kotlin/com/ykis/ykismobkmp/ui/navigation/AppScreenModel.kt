@@ -39,10 +39,10 @@ class AppScreenModel(
     screenModelScope.launch {
       _startState.value = AppStartState.Loading
 
-      // ИСПРАВЛЕНО НАМЕРТВО: Стартовый защитный барьер разгрузки процессора на 600 мс.
+      // ИСПРАВЛЕНО НАМЕРТВО: Стартовый защитный барьер разгрузки процессора увеличен до 1200 мс.
       // Дает нативным сервисам Google Play Services и Tag Manager завершить рефлексивную
       // привязку к SystemProperties, полностью исключая краш SIGSEGV (Fatal signal 11)!
-      delay(600)
+      delay(1200)
 
       // 1. ШАГ №1: Перевірка ліцензійної угоди (Оферти ГІОЦ)
       val isTermsAccepted = appCache.getBoolean(key = TERMS_ACCEPTED_KEY, defaultValue = false)

@@ -11,6 +11,7 @@ import com.ykis.ykismobkmp.core.utils.currentTimeMillis
 import com.ykis.ykismobkmp.domain.entity.MessageEntity
 import com.ykis.ykismobkmp.domain.entity.UserEntity
 import com.ykis.ykismobkmp.domain.repository.chat.ChatRepository
+import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.domain.services.LogService
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseScreenModel
@@ -38,10 +39,12 @@ private const val className = "ChatViewModel"
 
 class ChatScreenModel(
   private val chatRepo: ChatRepository,
+  private val firebaseService: FirebaseService, // Добавили зависимость
   logService: LogService
 ) : BaseScreenModel(logService) {
 
   private val className = "ChatViewModel"
+
   private val _assistantResponse = MutableStateFlow<String?>(null)
   val assistantResponse = _assistantResponse.asStateFlow()
 
@@ -51,10 +54,13 @@ class ChatScreenModel(
   private var lastTypingSentTime = 0L
   private var typingStopJob: Job? = null
   private var activeTrackerJob: Job? = null
-  private var messageSubscriptionJob: Job? = null // ИСПРАВЛЕНО: Ссылка на текущую подписку сообщений
+  private var messageSubscriptionJob: Job? = null
 
   private val _isOpponentTyping = MutableStateFlow(false)
   val isOpponentTyping = _isOpponentTyping.asStateFlow()
+
+  private val _isOpponentOnline = MutableStateFlow(false)
+  val isOpponentOnline = _isOpponentOnline.asStateFlow()
 
   private val _selectedImagePath = MutableStateFlow<String?>(null)
   val selectedImagePath = _selectedImagePath.asStateFlow()
@@ -75,6 +81,69 @@ class ChatScreenModel(
 
   private val _searchQuery = MutableStateFlow("")
   val searchQuery = _searchQuery.asStateFlow()
+
+  private val _selectedUser = MutableStateFlow(UserEntity())
+  val selectedUser = _selectedUser.asStateFlow()
+
+  private val _isLoadingAfterSending = MutableStateFlow(false)
+  val isLoadingAfterSending = _isLoadingAfterSending.asStateFlow()
+
+  private val _selectedMessage = MutableStateFlow(MessageEntity())
+  val selectedMessage = _selectedMessage.asStateFlow()
+
+  private var currentChatPath: String? = null
+
+  private val _unreadCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
+  val unreadCounts: StateFlow<Map<String, Int>> = _unreadCounts.asStateFlow()
+
+  private val _globalTypingStatuses = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+  val globalTypingStatuses = _globalTypingStatuses.asStateFlow()
+
+  private val _recipientTokens = MutableStateFlow<List<String>>(emptyList())
+  val recipientTokens = _recipientTokens.asStateFlow()
+
+  private val _messageToDelete = MutableStateFlow<MessageEntity?>(null)
+  val messageToDelete = _messageToDelete.asStateFlow()
+
+  private val _editingMessage = MutableStateFlow<MessageEntity?>(null)
+  val editingMessage = _editingMessage.asStateFlow()
+
+  private val _forwardingMessage = MutableStateFlow<MessageEntity?>(null)
+  val forwardingMessage = _forwardingMessage.asStateFlow()
+
+  val isForwardingMode = _forwardingMessage
+    .map { it != null }
+    .stateIn(screenModelScope, SharingStarted.Lazily, false)
+
+  private val _pendingPushChatId = MutableStateFlow<String?>(null)
+  val pendingPushChatId = _pendingPushChatId.asStateFlow()
+
+  private val _selectedServicePrefix = MutableStateFlow<String?>(null)
+  val selectedServicePrefix = _selectedServicePrefix.asStateFlow()
+
+  companion object {
+    // ИСПРАВЛЕНО: Глобальный статический маркер активного чата для подавления пушей на уровне ОС
+    var activeChatIdForNotifications: String? = null
+  }
+
+  private val unreadCountListeners = mutableMapOf<String, Job>()
+  private val lastMessageListeners = mutableMapOf<String, Job>()
+  private val typingListeners = mutableMapOf<String, Job>()
+  private val presenceListeners = mutableMapOf<String, Job>()
+
+  init {
+    Log.i("Инициализация ChatScreenModel", tag = className)
+    
+    // ИСПРАВЛЕНО: Увеличена защитная задержка до 3 секунд для стабилизации нативного слоя
+    screenModelScope.launch {
+      delay(3000)
+      updateSystemIconBadge()
+
+      _unreadCounts.collect {
+        updateSystemIconBadge()
+      }
+    }
+  }
 
   /**
    * [userList] — Синхронизированный список чатов-квартир для жильцов и администраторов ОСББ.
@@ -132,49 +201,6 @@ class ChatScreenModel(
     initialValue = emptyList()
   )
 
-  private val _selectedUser = MutableStateFlow(UserEntity())
-  val selectedUser = _selectedUser.asStateFlow()
-
-  private val _isLoadingAfterSending = MutableStateFlow(false)
-  val isLoadingAfterSending = _isLoadingAfterSending.asStateFlow()
-
-  private val _selectedMessage = MutableStateFlow(MessageEntity())
-  val selectedMessage = _selectedMessage.asStateFlow()
-
-  private var currentChatPath: String? = null
-
-  private val _unreadCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
-  val unreadCounts: StateFlow<Map<String, Int>> = _unreadCounts.asStateFlow()
-
-  // ИСПРАВЛЕНО: Глобальный маппинг статусов печати для всех видимых чатов (бейдж в списке)
-  private val _globalTypingStatuses = MutableStateFlow<Map<String, Boolean>>(emptyMap())
-  val globalTypingStatuses = _globalTypingStatuses.asStateFlow()
-
-  private val _recipientTokens = MutableStateFlow<List<String>>(emptyList())
-  val recipientTokens = _recipientTokens.asStateFlow()
-
-  private val _messageToDelete = MutableStateFlow<MessageEntity?>(null)
-  val messageToDelete = _messageToDelete.asStateFlow()
-
-  private val _editingMessage = MutableStateFlow<MessageEntity?>(null)
-  val editingMessage = _editingMessage.asStateFlow()
-
-  private val _forwardingMessage = MutableStateFlow<MessageEntity?>(null)
-  val forwardingMessage = _forwardingMessage.asStateFlow()
-
-  val isForwardingMode = _forwardingMessage
-    .map { it != null }
-    .stateIn(screenModelScope, SharingStarted.Lazily, false)
-
-  private val _pendingPushChatId = MutableStateFlow<String?>(null)
-  val pendingPushChatId = _pendingPushChatId.asStateFlow()
-
-  private val _selectedServicePrefix = MutableStateFlow<String?>(null)
-  val selectedServicePrefix = _selectedServicePrefix.asStateFlow()
-
-  private val unreadCountListeners = mutableMapOf<String, Job>()
-  private val lastMessageListeners = mutableMapOf<String, Job>()
-  private val typingListeners = mutableMapOf<String, Job>()
 
   fun setSelectedService(prefix: String?) {
     _selectedServicePrefix.value = prefix
@@ -391,6 +417,7 @@ class ChatScreenModel(
   }
 
   fun setPendingPushChatId(id: String?) {
+    println("[YkisLogKMP.TRAP.ChatModel]: Запись в очередь перехода. ID: \"$id\"")
     _pendingPushChatId.value = id
   }
 
@@ -576,6 +603,9 @@ class ChatScreenModel(
     typingListeners.values.forEach { it.cancel() }
     typingListeners.clear()
 
+    presenceListeners.values.forEach { it.cancel() }
+    presenceListeners.clear()
+
     println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Усі Firebase-вотчери успішно відключені. Пам'ять чиста.")
     super.onDispose()
   }
@@ -656,6 +686,10 @@ class ChatScreenModel(
       withContext(NonCancellable) {
         chatRepo.markMessagesAsRead(chatId, myUid)
         _unreadCounts.update { it + (chatId to 0) }
+        
+        // ИСПРАВЛЕНО: Стираем системные уведомления для этого чата при прочтении
+        firebaseService.clearNotifications(chatId)
+
         println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Усі повідомлення кімнати позначені як прочитані.")
       }
     }
@@ -821,10 +855,14 @@ class ChatScreenModel(
       val finalDisplayName = if (role != UserRole.StandardUser) {
         try {
           when (role) {
-            UserRole.VodokanalUser -> "Водоканал Южне"
-            UserRole.YtkeUser      -> "ЮТКЕ"
-            UserRole.TboUser       -> "Южтранс"
-            UserRole.OsbbUser      -> "Адміністратор ОСББ"
+            UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
+            UserRole.YtkeUser      -> "КП тм \"ЮТКЕ\""
+            UserRole.TboUser       -> "КП \"СПЕЦТРАНС\""
+            UserRole.OsbbUser      -> {
+              // ИСПРАВЛЕНО: Для админа ОСББ используем название из профиля, если оно есть
+              if (senderAddress.isNotBlank()) senderAddress.substringBefore("|").trim() 
+              else "ОСББ"
+            }
             else                   -> "Адміністратор"
           }
         } catch (e: Exception) {
@@ -862,10 +900,12 @@ class ChatScreenModel(
       if (result.isSuccess) {
         println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Транзакція повідомлення успішно запечатана в базі")
         
-        // ОТПРАВКА PUSH-УВЕДОМЛЕНИЯ ЧЕРЕЗ CLOUD FUNCTIONS
+        // ИСПРАВЛЕНО: ОТПРАВКА PUSH ТОЛЬКО ЕСЛИ ОППОНЕНТ НЕ В ЧАТЕ
         val tokens = _recipientTokens.value
-        if (tokens.isNotEmpty()) {
-          println("[YkisLogKMP.$className.$methodName]: [PUSH] Отправка уведомления на ${tokens.size} устройств. Токены: ${tokens.map { it.take(5) }}")
+        val shouldSendPush = tokens.isNotEmpty() && !_isOpponentOnline.value
+
+        if (shouldSendPush) {
+          println("[YkisLogKMP.$className.$methodName]: [PUSH] Отправка уведомления на ${tokens.size} устройств.")
           val notificationData = mapOf(
             "tokens" to tokens,
             "title" to finalDisplayName,
@@ -880,7 +920,8 @@ class ChatScreenModel(
             }
           }
         } else {
-          println("[YkisLogKMP.$className.$methodName]: [PUSH_SKIP] Список токенов пуст. Уведомление не отправлено.")
+          val reason = if (_isOpponentOnline.value) "Оппонент в сети" else "Нет токенов"
+          println("[YkisLogKMP.$className.$methodName]: [PUSH_SKIP] Пропуск уведомления ($reason)")
         }
 
         _messageText.value = ""
@@ -977,6 +1018,32 @@ class ChatScreenModel(
 
 
   /**
+   * [observeOpponentPresence] — Отслеживание статуса "В сети" оппонента для управления пушами.
+   */
+  private fun observeOpponentPresence(chatId: String) {
+    val myUid = chatRepo.currentUid ?: return
+    
+    // ИСПРАВЛЕНО: Отменяем старый листенер присутствия, если он был
+    presenceListeners[chatId]?.cancel()
+
+    val job = screenModelScope.launch {
+      chatRepo.observePresence(chatId)
+        .catch { error ->
+          Log.w("Ошибка наблюдения присутствия: ${error.message}", tag = className)
+        }
+        .collect { presenceMap ->
+          // Мы считаем оппонента "в сети", если КТО-ТО КРОМЕ НАС сейчас онлайн в этой комнате
+          val someoneElseOnline = presenceMap.filterKeys { it != myUid }.values.any { it == true }
+          _isOpponentOnline.value = someoneElseOnline
+          
+          // ОТЛАДКА: Логируем состояние, чтобы понять почему прилетают пуши
+          println("[YkisLogKMP.$className.Presence]: Чат: $chatId | Собеседник в сети? $someoneElseOnline | Карта: $presenceMap | Мой UID: $myUid")
+        }
+    }
+    presenceListeners[chatId] = job
+  }
+
+  /**
    * [readFromDatabase] — Инициализация, подписка и чтение потока сообщений комнаты чата из Firebase СУБД.
    * Исправлено: Параметры osbbId и addressId переведены на сквозной Long-стандарт для полной совместимости!
    */
@@ -1023,13 +1090,20 @@ class ChatScreenModel(
 
         println("[YkisLogKMP.$className.$methodName]: [INIT] Подписка на Firebase поток сокетов: $targetPath")
         currentChatPath = targetPath
+        activeChatIdForNotifications = targetPath // Блокируем уведомления для этого пути
         
+        // ИСПРАВЛЕНО: Запуск универсального отслеживания присутствия для блокировки пушей
+        observeOpponentPresence(targetPath)
+
         // Очищаем только если сменили чат
         if (currentChatPath != targetPath) _firebaseTest.value = emptyList()
 
         // ИСПРАВЛЕНО: Пресенс и статус печати запускаем ОДИН РАЗ при открытии, а не в коллбеке сообщений
         setPresence(targetPath, true)
         observeTypingStatus(targetPath)
+        
+        // Стираем уведомления при входе в чат (на случай если пользователь зашел через иконку)
+        firebaseService.clearNotifications(targetPath)
 
         // Подгружаем токены получателей (админов) для жителя
         if (role == UserRole.StandardUser) {
@@ -1077,12 +1151,15 @@ class ChatScreenModel(
     }
     println("[YkisLogKMP.$className.$methodName]: [START] Зачистка активной комнаты: $chatId")
     
+    activeChatIdForNotifications = null // Разблокируем уведомления
+    
     // ИСПРАВЛЕНО: Физически убиваем фоновое прослушивание сообщений при выходе из комнаты
     messageSubscriptionJob?.cancel()
     messageSubscriptionJob = null
 
     currentChatPath = null
     _isOpponentTyping.value = false
+    _isOpponentOnline.value = false // ИСПРАВЛЕНО: Сбрасываем статус при выходе
     setTypingStatus(false)
     setPresence(chatId, false)
     println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Контекст кімнати успішно деактивовано.")

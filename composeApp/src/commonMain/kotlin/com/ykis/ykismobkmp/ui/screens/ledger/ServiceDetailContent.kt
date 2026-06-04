@@ -68,7 +68,7 @@ fun ServiceDetailScreen(
         screenModel.closeContentDetail()
       },
       title = when (contentDetail) {
-        ContentDetail.OSBB -> baseUIState.osbb.takeIf { it.isNotEmpty() } ?: "Мой ОСББ"
+        ContentDetail.OSBB -> "ОСББ"
         ContentDetail.WATER_SERVICE -> stringResource(Res.string.vodokanal)
         ContentDetail.WARM_SERVICE -> stringResource(Res.string.ytke)
         ContentDetail.GARBAGE_SERVICE -> stringResource(Res.string.yzhtrans)

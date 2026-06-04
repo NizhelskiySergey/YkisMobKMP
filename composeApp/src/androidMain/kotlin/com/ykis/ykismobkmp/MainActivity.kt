@@ -1,4 +1,5 @@
 package com.ykis.ykismobkmp
+import android.content.Intent
 import android.os.Bundle
 import android.Manifest
 import android.content.pm.PackageManager
@@ -6,18 +7,21 @@ import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.core.content.ContextCompat
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.google.firebase.Firebase
-import com.google.firebase.appcheck.FirebaseAppCheck
-import com.google.firebase.appcheck.appCheck
 import com.ykis.ykismobkmp.di.initAndroidKoin
+import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 
 private const val tag = "MainActivity"
 
@@ -42,46 +46,65 @@ class MainActivity : ComponentActivity() {
   @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    println("[$tag.onCreate]: Запуск нативного слоя Android, инициализация сессии ЮКИС")
+    println("[$tag.onCreate]: Запуск MainActivity")
 
     checkNotificationPermission()
+    
+    // ИСПРАВЛЕНО: Koin уже инициализирован в YkisApp.kt
+    // Здесь только обрабатываем диплинк
+    handleDeepLink(intent)
 
-    // ИСПРАВЛЕНО НАМЕРТВО: Вызываем специализированный андроид-инициализатор, передавая контекст Activity!
-    // Он автоматически подмешает androidPlatformModule и свяжет интерфейс AppSettingsRepository с его реализацией.
-    // ИСПРАВЛЕНО НАМЕРТВО: Передаем applicationContext вместо Activity!
-    // Это гарантирует, что драйвер SQLDelight получит вечный доступ к дисковой системе смартфона!
-    initAndroidKoin(context = this@MainActivity.applicationContext)
-
-    // ИСПРАВЛЕНО НАМЕРТВО: Переносим инициализацию App Check в фоновый поток с задержкой.
-    // Это предотвращает SIGSEGV (Fatal signal 11) при конфликте с Google Play Services и Tag Manager на старте.
-    lifecycleScope.launch {
-      try {
-        delay(500) // Даем системе завершить первичную загрузку классов и привязку свойств
-        val firebaseAppCheck = FirebaseAppCheck.getInstance()
-        firebaseAppCheck.installAppCheckProviderFactory(
-          DebugAppCheckProviderFactory.getInstance()
-        )
-        println("[YkisLogKMP.MainActivity]: Нативная отладочная фабрика Google успешно запущена в фоновом режиме")
-      } catch (e: Exception) {
-        println("[YkisLogKMP.MainActivity_ERROR]: Ошибка предустановки App Check на устройстве: ${e.message}")
-      }
-    }
-
+    // 3. ОТКЛЮЧЕНО: App Check и прочие тяжелые нативные модули Google
+    // Это гарантированно уберет конфликт в SystemProperties
 
     setContent {
-      // Подключаем тему оформления расчетного центра г. Южного
       YkisPAMTheme {
-
-        // Вызываем каноничный мультиплатформенный замерщик классов окон Material 3 KMP
+        // Замеряем окно без try-catch (Compose сам обработает это в рантайме)
         val windowSizeClass = calculateWindowSizeClass(activity = this)
 
-        // Вызываем графическое ядро из правильного пакета и передаем все 3 ожидаемых аргумента
         YkisPamAppRoot(
           windowSize = windowSizeClass,
-          displayFeatures = emptyList(), // Список особенностей для складных экранов (Fold API)
-          initialChatId = intent?.getStringExtra("chat_id") // Проброс ID пуша глубокой навигации
+          displayFeatures = emptyList()
         )
       }
+    }
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    println("[YkisLogKMP.MainActivity]: Получен новый Intent (Hot Push)")
+    handleDeepLink(intent)
+  }
+
+  private fun handleDeepLink(intent: Intent?) {
+    val extras = intent?.extras
+    println("[YkisLogKMP.TRAP.Main]: --- ДЕТАЛЬНЫЙ АНАЛИЗ INTENT ---")
+    println("[YkisLogKMP.TRAP.Main]: Action: ${intent?.action}")
+    
+    if (extras != null) {
+      for (key in extras.keySet()) {
+        println("[YkisLogKMP.TRAP.Main]: Ключ: \"$key\" -> Значение: \"${extras.get(key)}\"")
+      }
+    } else {
+      println("[YkisLogKMP.TRAP.Main]: Extras пустые")
+    }
+
+    // Ищем ID по всем возможным вариантам написания
+    val chatId = extras?.getString("chat_id") 
+      ?: extras?.getString("chatId") 
+      ?: extras?.getString("gcm.notification.chatId")
+      ?: extras?.getString("id")
+
+    if (!chatId.isNullOrEmpty()) {
+      println("[YkisLogKMP.TRAP.Main]: [FOUND] Идентификатор чата пойман: \"$chatId\"")
+      
+      lifecycleScope.launch {
+        delay(500) 
+        val chatModel: ChatScreenModel by inject()
+        chatModel.setPendingPushChatId(chatId)
+      }
+    } else {
+      println("[YkisLogKMP.TRAP.Main]: [NOT_FOUND] chat_id не найден в этом интенте.")
     }
   }
 

@@ -28,7 +28,6 @@ fun DomainWaterMeter.toDbWaterMeter(): DbWaterMeter {
     zdate = this.zdate,
     avg = this.avg,
     spisan = this.spisan,
-    // ИСПРАВЛЕНО: Связываем поле out домена с экранированным полем isOut твоей SQL схемы
     isOut = this.isOut,
     paused = this.paused,
     dataSpis = this.dataSpis,

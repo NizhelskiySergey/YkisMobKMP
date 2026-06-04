@@ -88,6 +88,9 @@ fun BottomNavigationBar(
         }
 
         "MainServiceScreenDest", "ServiceListScreen", "finance_selector" -> activeSubModule == "finance_selector"
+        
+        "announcements" -> activeSubModule == "announcements"
+
         else -> false
       }
 
@@ -115,6 +118,10 @@ fun BottomNavigationBar(
 
             "MainServiceScreenDest", "ServiceListScreen", "finance_selector" -> {
               onSubModuleChange("finance_selector")
+            }
+
+            "announcements" -> {
+              onSubModuleChange("announcements")
             }
 
             "SettingsScreen", "SettingsScreenDest" -> {

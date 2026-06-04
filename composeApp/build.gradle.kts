@@ -1,7 +1,6 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import com.android.build.api.dsl.ApplicationExtension
-import org.gradle.kotlin.dsl.implementation
 
 plugins {
   alias(libs.plugins.kotlinMultiplatform)
@@ -43,8 +42,6 @@ kotlin {
       commonWebpackConfig {
         outputFileName = "composeApp.js"
 
-        // ИСПРАВЛЕНО НАМЕРТВО: Убираем вызов project.projectDir, который ломал Configuration Cache!
-        // Webpack сам автоматически найдет папку ресурсов jsMain/resources по умолчанию!
         devServer = (devServer ?: org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig.DevServer()).copy(
           open = true,
           port = 8081
@@ -123,6 +120,7 @@ kotlin {
     }
 
     androidMain.dependencies {
+      implementation(project.dependencies.platform("com.google.firebase:firebase-bom:33.9.0"))
       implementation(libs.androidx.activity.compose)
       implementation(libs.androidx.splashscreen)
       implementation(libs.ktor.client.okhttp)

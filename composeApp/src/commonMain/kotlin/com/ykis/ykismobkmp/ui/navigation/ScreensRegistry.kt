@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.Adjust
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.ElectricMeter
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Opacity
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +32,7 @@ import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.appartment.InfoApartmentScreen
+import com.ykis.ykismobkmp.ui.screens.chat.ChatScreen
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.UserListScreen
 import com.ykis.ykismobkmp.ui.screens.ledger.LedgerScreenModel
@@ -37,12 +40,14 @@ import com.ykis.ykismobkmp.ui.screens.ledger.MainServiceScreen
 import com.ykis.ykismobkmp.ui.screens.meter.MainMeterScreen
 import com.ykis.ykismobkmp.ui.components.CameraView
 import com.ykis.ykismobkmp.ui.screens.chat.SendImageScreen
+import com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementListScreen
 import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreen
 import com.ykis.ykismobkmp.ui.components.CameraView
 import org.jetbrains.compose.resources.StringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.accrued
+import ykismobkmp.composeapp.generated.resources.announcements
 import ykismobkmp.composeapp.generated.resources.chat
 import ykismobkmp.composeapp.generated.resources.info
 import ykismobkmp.composeapp.generated.resources.meters
@@ -132,10 +137,17 @@ data class ChatScreenDest(
 ) : Screen {
   @Composable
   override fun Content() {
-    println("[YkisLogKMP.$className.ChatScreenDest]: Отрисовка чату для токена: $chatId")
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-      Text("Стрічка обговорень чату для ID: $chatId")
-    }
+    val navigator = LocalNavigator.currentOrThrow
+    println("[YkisLogKMP.ScreensRegistry.ChatScreenDest]: Отрисовка чату для токена: $chatId")
+    
+    // ИСПРАВЛЕНО: Вызываем реальный экран чата вместо текстовой заглушки.
+    // Это позволяет Deep Link навигации открывать полноценный интерфейс сообщений.
+    ChatScreen(
+      onBackClick = {
+        println("[YkisLogKMP.ScreensRegistry.ChatScreenDest]: Нажата кнопка назад в Deep Link чате")
+        navigator.pop()
+      }
+    ).Content()
   }
 }
 data class InfoApartmentScreenDest(
@@ -255,6 +267,13 @@ fun getNavDestinations(role: UserRole): List<TopLevelDestination> {
       unselectedIcon = Icons.Outlined.Payments,
       labelId = Res.string.accrued,
       alwaysVisible = false
+    ),
+    TopLevelDestination(
+      route = "announcements",
+      selectedIcon = Icons.Default.Campaign,
+      unselectedIcon = Icons.Outlined.Campaign,
+      labelId = Res.string.announcements,
+      alwaysVisible = true
     ),
     TopLevelDestination(
       route = chatRoute,

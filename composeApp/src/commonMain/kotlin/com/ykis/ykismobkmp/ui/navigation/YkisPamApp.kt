@@ -18,8 +18,7 @@ private const val className = "YkisPamApp"
 @Composable
 fun YkisPamApp(
   windowSize: WindowSizeClass,
-  displayFeatures: List<Any>,
-  initialChatId: String? = null
+  displayFeatures: List<Any>
 ) {
   val (navigationType, contentType) = rememberAdaptiveLayoutType(
     windowSize = windowSize,
@@ -44,8 +43,7 @@ fun YkisPamApp(
   RootNavGraph(
     appState = rememberAppState(),
     contentType = contentType,
-    navigationType = navigationType,
-    initialChatId = initialChatId
+    navigationType = navigationType
   )
 }
 @Composable

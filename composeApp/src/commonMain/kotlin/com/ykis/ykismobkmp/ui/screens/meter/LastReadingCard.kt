@@ -35,7 +35,8 @@ fun LastReadingCardButtons(
   modifier: Modifier = Modifier,
   onAddButtonClick: () -> Unit,
   onDeleteButtonClick: () -> Unit,
-  showDeleteButton: Boolean
+  showDeleteButton: Boolean,
+  isDeleteEnabled: Boolean = true
 ) {
   Row(
     modifier = modifier.fillMaxWidth(),
@@ -50,7 +51,11 @@ fun LastReadingCardButtons(
     ) {
       TextButton(
         onClick = onDeleteButtonClick,
-        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+        enabled = isDeleteEnabled,
+        colors = ButtonDefaults.textButtonColors(
+          contentColor = MaterialTheme.colorScheme.error,
+          disabledContentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.38f)
+        )
       ) {
         Row(
           verticalAlignment = Alignment.CenterVertically,

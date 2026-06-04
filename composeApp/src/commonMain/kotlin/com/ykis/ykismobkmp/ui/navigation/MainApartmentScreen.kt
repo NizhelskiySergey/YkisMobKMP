@@ -50,6 +50,7 @@ import com.ykis.ykismobkmp.ui.screens.ledger.MainServiceScreen
 import com.ykis.ykismobkmp.ui.screens.meter.MainMeterScreen
 import com.ykis.ykismobkmp.ui.screens.meter.MeterListScreen
 import com.ykis.ykismobkmp.ui.screens.meter.MeterScreenModel
+import com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementListScreen
 import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreen
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -246,9 +247,9 @@ class MainApartmentScreen(
                 val role = baseUIState.userRole
                 val targetAddrId = selectedUserEntity.addressId
 
-                if (role == UserRole.OsbbUser) {
-                  // Для адміна ОСББ — повна синхронізація (Firestore + Rail + БТІ)
-                  println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Роль OsbbUser — фіксація addressId.")
+                if (role == UserRole.OsbbUser || role == UserRole.StandardUser) {
+                  // Для адміна ОСББ та Мешканця — повна синхронізація (Firestore + Rail + БТІ)
+                  println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Роль $role — фіксація addressId: $targetAddrId")
                   apartmentScreenModel.setAddressId(targetAddrId)
                 } else {
                   // Для міських служб — «легке» завантаження даних БТІ без зміни глобального якоря
@@ -275,6 +276,14 @@ class MainApartmentScreen(
                 println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Выход из комнаты назад к списку квартир.")
                 activeSubModule = "chat_user_list"
               }
+            ).Content()
+          }
+
+          "announcements" -> {
+            println("[YkisLogKMP.MainApartmentScreen]: Перехід до розділу Оголошення.")
+            AnnouncementListScreen(
+              onDrawerClicked = { coroutineScope.launch { drawerState.open() } },
+              navigationType = navigationType
             ).Content()
           }
 

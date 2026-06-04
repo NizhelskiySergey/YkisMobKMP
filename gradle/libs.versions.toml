@@ -48,6 +48,10 @@ dateTimeVersion = "0.7.1"
 buildConfig = "0.15.2"
 firebaseAppcheckDebug = "19.0.2"
 playServicesAuthApiPhone = "18.1.0"
+firebaseAnalytics = "22.3.0"
+firebaseCommonKtx = "21.0.0"
+firebaseBom = "33.9.0"
+
 [libraries]
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCore" }
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCore" }
@@ -140,14 +144,15 @@ firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "gitlive-f
 firebase-appcheck = { module = "dev.gitlive:firebase-appcheck", version.ref = "gitlive-firebase" }
 firebase-messaging = { module = "dev.gitlive:firebase-messaging", version.ref = "gitlive-firebase" }
 firebase-crashlytics = { module = "dev.gitlive:firebase-crashlytics", version.ref = "gitlive-firebase" }
-firebase-analytics = { module = "com.google.firebase:firebase-analytics-ktx", version = "firebase-analytics" }
-firebase-common-ktx = { module = "com.google.firebase:firebase-common-ktx", version = "firebase-common-ktx" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics", version.ref = "firebaseAnalytics" }
+firebase-common-ktx = { module = "com.google.firebase:firebase-common-ktx", version.ref = "firebaseCommonKtx" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
 androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials-play-services-auth" }
 androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
 # Изображения (Coil3 поддерживает KMP)
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 play-services-measurement-api = { group = "com.google.android.gms", name = "play-services-measurement-api", version.ref = "playServicesMeasurementApi" }
 androidx-datastore-preferences-core = { group = "androidx.datastore", name = "datastore-preferences-core", version.ref = "datastorePreferencesCore" }
 firebase-appcheck-debug = { group = "com.google.firebase", name = "firebase-appcheck-debug", version.ref = "firebaseAppcheckDebug" }

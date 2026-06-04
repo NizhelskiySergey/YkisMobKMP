@@ -484,9 +484,15 @@ class FirebaseServiceImpl(
       println("[YkisLogKMP.$className.$methodName]: [ERROR] Ошибка регистрации токена: ${e.message}")
     }
   }
+
+  override fun clearNotifications(chatId: String?) {
+    performPlatformClearNotifications(chatId)
+  }
 }
 
 expect suspend fun getPlatformFcmToken(): String?
+
+expect fun performPlatformClearNotifications(chatId: String?)
 
 private fun String?.isNullOfBlank(): Boolean = this == null || this.trim().isEmpty()
 // Ожидаемая КМР-функция отправки SMS для реализации на платформах

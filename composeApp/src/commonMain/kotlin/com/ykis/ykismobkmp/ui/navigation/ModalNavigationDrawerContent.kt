@@ -200,6 +200,28 @@ fun ModalNavigationDrawerContent(
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = stringResource(Res.string.add_appartment))
           }
+          
+          Spacer(modifier = Modifier.height(12.dp))
+          
+          // НОВАЯ КНОПКА: Оголошення (для быстрого доступа из шторки)
+          OutlinedButton(
+            onClick = {
+              println("[$className.$methodName]: [ANNOUNCE_CLICK] Переход на Оголошення")
+              keyboardController?.hide()
+              focusManager.clearFocus()
+              onMenuClick()
+              onSubModuleChange("announcements")
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+              contentColor = MaterialTheme.colorScheme.primary
+            )
+          ) {
+            Icon(Icons.Default.Campaign, null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = stringResource(Res.string.announcements))
+          }
         }
       }
 

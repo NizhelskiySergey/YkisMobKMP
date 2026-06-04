@@ -159,14 +159,17 @@ fun MeterDetailContent(
           },
           newHeatReading = meterUIState.newHeatReading,
           onNewReadingChange = { newValue ->
-            viewModel.onNewHeatReadingChange(newValue.filter { it.isDigit() || it == '.' || it == ',' })
+            // ИСПРАВЛЕНО: Убрана лишняя фильтрация, так как NumberField уже нормализует ввод
+            viewModel.onNewHeatReadingChange(newValue)
           },
           addReading = {
+            // ИСПРАВЛЕНО: Гарантированная нормализация разделителя перед парсингом в Double
+            val normalizedValue = meterUIState.newHeatReading.replace(',', '.').toDoubleOrNull() ?: 0.0
             viewModel.addHeatReading(
               uid = baseUIState.uid.toString(),
               teplomerId = meterUIState.selectedHeatMeter.teplomerId,
               currentValue = meterUIState.lastHeatReading?.current ?: 0.0,
-              newValue = meterUIState.newHeatReading.toDoubleOrNull() ?: 0.0
+              newValue = normalizedValue
             )
           },
           deleteReading = {

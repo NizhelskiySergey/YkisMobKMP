@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <queries>
+        <!-- Разрешаем взаимодействие с пуш-сервисами Samsung -->
+        <package android:name="com.sec.spp.push" />
+        <intent>
+            <action android:name="com.google.firebase.MESSAGING_EVENT" />
+        </intent>
+    </queries>
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
@@ -9,6 +17,7 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <application
+        android:name=".YkisApp"
         android:allowBackup="true"
         android:icon="@drawable/ykis"
         android:label="@string/app_name"
