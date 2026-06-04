@@ -1,16 +1,21 @@
 import SwiftUI
 import FirebaseCore
-import FirebaseAppCheck // КРИТИЧЕСКИЙ ИМПОРТ
+import FirebaseAppCheck
+import ComposeApp // ИСПРАВЛЕНО: Импортируем наше КМР-ядро
 
 @main
 struct iOSApp: App {
     init() {
-        // ИСПРАВЛЕНО: Принудительно запускаем отладочный провайдер для симуляторов
+        // 1. Инициализируем Koin DI до старта любых UI-компонентов
+        Koin_iosKt.doInitIosKoin()
+        
+        // 2. Настраиваем App Check для симуляторов
         #if DEBUG
         let providerFactory = AppCheckDebugProviderFactory()
         AppCheck.setAppCheckProviderFactory(providerFactory)
         #endif
         
+        // 3. Запускаем Firebase
         FirebaseApp.configure()
     }
 

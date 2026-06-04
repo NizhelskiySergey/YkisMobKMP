@@ -16,33 +16,13 @@ fun createDefaultWindowSizeClass(): WindowSizeClass {
 
 /**
  * [MainViewController] — Главная точка входа графического холста для iOS.
- * Автономная самоинициализация Koin графа полностью возвращена!
  */
-fun MainViewController(windowSize: WindowSizeClass, initialChatId: String?): UIViewController {
-
-  val isKoinActive = try {
-    org.koin.mp.KoinPlatform.getKoin() != null
-  } catch (e: Exception) {
-    false
-  }
-
-  if (!isKoinActive) {
-    try {
-      initKoin(
-        platformModule = module { },
-        appDeclaration = { }
-      )
-      println("[MainViewController.iosMain]: Граф Koin успешно самоинициализирован на стороне Kotlin-Native")
-    } catch (e: Exception) {
-      println("[MainViewController.iosMain_WARN]: Граф уже был запущен параллельно: ${e.message}")
-    }
-  }
+fun MainViewController(windowSize: WindowSizeClass): UIViewController {
 
   return ComposeUIViewController {
     YkisPamAppRoot(
       windowSize = windowSize,
-      displayFeatures = emptyList(),
-      initialChatId = initialChatId
+      displayFeatures = emptyList()
     )
   }
 }

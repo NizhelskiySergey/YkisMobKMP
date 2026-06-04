@@ -3,13 +3,10 @@ import ComposeApp
 
 struct ComposeView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        // РЕШЕНИЕ: Запрашиваем дефолтный размер напрямую через нашу Kotlin-фабрику!
-        // Ошибки "Missing arguments" навсегда уничтожены со сборщика Apple!
         let defaultWindowSize = MainViewControllerKt.createDefaultWindowSizeClass()
 
         return MainViewControllerKt.MainViewController(
-            windowSize: defaultWindowSize,
-            initialChatId: nil
+            windowSize: defaultWindowSize
         )
     }
 
