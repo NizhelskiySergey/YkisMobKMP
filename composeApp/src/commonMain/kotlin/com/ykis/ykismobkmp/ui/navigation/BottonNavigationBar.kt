@@ -37,13 +37,16 @@ fun BottomNavigationBar(
   activeSubModule: String, // Сквозной стейт активного подмодуля Хаба ЮКІС
   onSubModuleChange: (String) -> Unit // Сквозной коллбек смены кадра
 ) {
-  // Нативная КМР-инжекция общей модели чатов YkisMobKMP
+  // Нативная КМР-инжекция моделей YkisMobKMP
   val chatScreenModel = koinInject<ChatScreenModel>()
+  val announcementModel = koinInject<com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementScreenModel>()
 
   val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
+  val announcementState by announcementModel.uiState.collectAsState()
 
   // Считаем общую сумму непрочитанных сообщений ГИОЦ г. Южного
   val totalUnread = remember(unreadCounts) { unreadCounts.values.sum() }
+  val unreadAnnouncements = announcementState.unreadAnnouncementsCount
 
   // Логирование рантайма согласно правилу [Класс.Метод]
   LaunchedEffect(totalUnread) {
@@ -139,6 +142,8 @@ fun BottomNavigationBar(
                 destination.route == "chat_user_list" ||
                 destination.route == "AdminUserListScreenDest" ||
                 destination.route == "UserListScreen"
+              
+              val isAnnouncementRoute = destination.route == "announcements"
 
               if (isChatRoute && totalUnread > 0) {
                 Badge(
@@ -146,6 +151,13 @@ fun BottomNavigationBar(
                   contentColor = MaterialTheme.colorScheme.onError
                 ) {
                   Text(text = if (totalUnread > 9) "9+" else totalUnread.toString())
+                }
+              } else if (isAnnouncementRoute && unreadAnnouncements > 0) {
+                Badge(
+                  containerColor = MaterialTheme.colorScheme.error,
+                  contentColor = MaterialTheme.colorScheme.onError
+                ) {
+                  Text(text = if (unreadAnnouncements > 9) "9+" else unreadAnnouncements.toString())
                 }
               }
             }

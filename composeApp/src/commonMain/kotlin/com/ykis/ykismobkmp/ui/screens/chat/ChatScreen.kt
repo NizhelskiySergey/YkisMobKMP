@@ -67,6 +67,7 @@ sealed class ChatItem {
  */
 private const val className = "ChatScreen"
 class ChatScreen(
+  val chatId: String? = null, // ID комнаты для инициализации из пуша
   private val onBackClick: () -> Unit = {} // Передаем сквозной коллбек возврата Хаба смартфона
 ) : Screen {
 
@@ -84,13 +85,20 @@ class ChatScreen(
     val selectedUser by chatScreenModel.selectedUser.collectAsState()
 
     // ИСПРАВЛЕНО НАМЕРТВО: Принудительная синхронизация глобальной квартиры при входе в чат.
-    // Если житель заходит в чат квартиры №X, всё приложение (БТИ, Финансы, Счетчики) 
-    // мгновенно переключается на эту квартиру №X.
-    LaunchedEffect(selectedUser.addressId) {
+    LaunchedEffect(chatId, selectedUser.addressId) {
       val isResident = baseUIState.userRole == UserRole.StandardUser
-      if (isResident && selectedUser.addressId != 0L && selectedUser.addressId != baseUIState.addressId) {
-        println("[$className.Sync]: Глобальне перемикання на квартиру о/р ${selectedUser.addressId} при вході в чат.")
-        apartmentScreenModel.setAddressId(selectedUser.addressId)
+      
+      // Если мы пришли из пуша и ID не совпадает с текущим - переключаем!
+      val targetAddrId = if (!chatId.isNullOrBlank()) {
+         chatId.split("_").getOrNull(chatId.split("_").size - 2)?.toLongOrNull() ?: 0L
+      } else {
+         selectedUser.addressId
+      }
+
+      if (isResident && targetAddrId != 0L && targetAddrId != baseUIState.addressId) {
+        println("[$className.Sync]: Глобальное переключение на квартиру о/р ${targetAddrId} при входе в чат.")
+        apartmentScreenModel.setAddressId(targetAddrId)
+        chatScreenModel.selectUserByAddressId(targetAddrId)
       }
     }
 
@@ -148,7 +156,7 @@ fun ChatScreenStateful(
     navigateToCameraScreen = {
       // КМР Навигация Voyager для перехода в интерфейс встроенной камери смартфона
       println("[YkisLogKMP.$className.ChatScreenStateful.onCameraClick]: Запуск апаратної камери...")
-      navigator.push(CameraScreenDest)
+      navigator.push(CameraScreenDest())
     },
     navigateToImageDetailScreen = { message ->
       // Передаем сквозную стейт-модель в ImageDetailScreen, полностью ликвидруя утечки памяти в бэкстеке iOS/Mac

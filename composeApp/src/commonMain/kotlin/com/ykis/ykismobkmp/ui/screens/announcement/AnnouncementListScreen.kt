@@ -1,21 +1,28 @@
 package com.ykis.ykismobkmp.ui.screens.announcement
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import coil3.compose.AsyncImage
 import com.ykis.ykismobkmp.domain.entity.AnnouncementEntity
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseUIState
@@ -43,6 +50,14 @@ class AnnouncementListScreen(
 
         LaunchedEffect(baseUIState.osbbId) {
             announcementModel.observeAnnouncements(baseUIState.osbbId)
+        }
+
+        // ИСПРАВЛЕНО: Сбрасываем бейдж при просмотре списка
+        DisposableEffect(Unit) {
+            onDispose {
+                println("[AnnouncementListScreen]: Выход из раздела, сброс бейджей.")
+                announcementModel.markAsRead()
+            }
         }
 
         Scaffold(
@@ -120,10 +135,11 @@ fun AnnouncementItem(
     onDeleteClick: (String) -> Unit
 ) {
     val isGlobal = item.osbbId == 0L
+    val uriHandler = LocalUriHandler.current
     
     BaseCard(
         modifier = Modifier.fillMaxWidth(),
-        label = if (isGlobal) "Міське оголошення" else "Оголошення ОСББ"
+        label = if (isGlobal) "Міське оголошення" else item.authorName
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -136,11 +152,6 @@ fun AnnouncementItem(
                         text = item.title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = item.authorName,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -164,6 +175,46 @@ fun AnnouncementItem(
                 text = item.message,
                 style = MaterialTheme.typography.bodyMedium
             )
+
+            // ИЗОБРАЖЕНИЕ (если есть)
+            if (!item.imageUrl.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                AsyncImage(
+                    model = item.imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Fit // ИСПРАВЛЕНО: Чтобы фото было видно целиком
+                )
+            }
+
+            // ФАЙЛ (если есть)
+            if (!item.fileUrl.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { uriHandler.openUri(item.fileUrl) },
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.AttachFile, null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = item.fileName ?: "Документ",
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
             
             Spacer(modifier = Modifier.height(12.dp))
 

@@ -112,6 +112,13 @@ data class BaseUIState(
   // --- 8. ОБЪЯВЛЕНИЯ (ANNOUNCEMENTS) ---
   @SerialName("announcements") val announcements: List<AnnouncementEntity> = emptyList(),
   @SerialName("isAnnouncementsLoading") val isAnnouncementsLoading: Boolean = false,
+  @SerialName("unreadAnnouncementsCount") val unreadAnnouncementsCount: Int = 0,
+  @SerialName("lastAnnouncementsCheck") val lastAnnouncementsCheck: Long = 0L,
+  @SerialName("announcementImagePath") val announcementImagePath: String? = null,
+  @SerialName("announcementFilePath") val announcementFilePath: String? = null,
+  @SerialName("isAnnouncementUploading") val isAnnouncementUploading: Boolean = false,
+  @SerialName("announcementDraftTitle") val announcementDraftTitle: String = "",
+  @SerialName("announcementDraftMessage") val announcementDraftMessage: String = "",
 
   // --- 9. ОШИБКИ ---
   @SerialName("error") val error: String? = null

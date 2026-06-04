@@ -144,11 +144,14 @@ fun ApartmentNavigationRail(
 
   val chatViewModel = koinInject<ChatScreenModel>()
   val apartmentViewModel = koinInject<ApartmentScreenModel>()
+  val announcementModel = koinInject<com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementScreenModel>()
 
   val searchQuery by apartmentViewModel.searchQuery.collectAsState()
   val apartments by apartmentViewModel.filteredApartments.collectAsState()
   val isUserAdmin = baseUIState.userRole != UserRole.StandardUser
   val unreadCounts by chatViewModel.unreadCounts.collectAsState()
+  val announcementState by announcementModel.uiState.collectAsState()
+  
   val listMode = baseUIState.listMode
   val isOrgAdmin = baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
   val raions = baseUIState.raions
@@ -156,6 +159,7 @@ fun ApartmentNavigationRail(
   val houses by apartmentViewModel.drawerHouses.collectAsState()
   val drawerApartments by apartmentViewModel.drawerApartments.collectAsState()
   val totalUnread = remember(unreadCounts) { unreadCounts.values.sum() }
+  val unreadAnnouncements = announcementState.unreadAnnouncementsCount
 
   LaunchedEffect(totalUnread) {
     println("[$className.ApartmentNavigationRail]: Суммарный счетчик непрочитанных обновлен в фоне: $totalUnread")
@@ -519,7 +523,19 @@ fun ApartmentNavigationRail(
           selectedApartmentFocusRequester.requestFocus()
           onSubModuleChange("announcements")
         },
-        icon = { Icon(Icons.Default.Campaign, null) },
+        icon = {
+          BadgedBox(
+            badge = {
+              if (unreadAnnouncements > 0) {
+                Badge(containerColor = MaterialTheme.colorScheme.error) {
+                  Text(text = if (unreadAnnouncements > 9) "9+" else unreadAnnouncements.toString())
+                }
+              }
+            }
+          ) {
+            Icon(Icons.Default.Campaign, null)
+          }
+        },
         label = if (isRailExpanded) {
           { Text("Оголошення", fontSize = 11.sp, maxLines = 1, softWrap = false) }
         } else null

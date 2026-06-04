@@ -310,8 +310,11 @@ class FirebaseServiceImpl(
   override suspend fun signOut() {
     val methodName = "signOut"
     try {
-      println("[YkisLogKMP.$className.$methodName]: [START] Запит до GitLive SDK на анулювання токена сесії...")
+      println("[YkisLogKMP.$className.$methodName]: [START] Зачистка токенов и логаут...")
 
+      // Сначала пробуем удалить токен из облака, пока сессия жива
+      removeFcmToken()
+      
       // Нативно удаляем сессионный токен из защищенного хранилища Keystore смартфона!
       auth.signOut()
 
@@ -482,6 +485,22 @@ class FirebaseServiceImpl(
       println("[YkisLogKMP.$className.$methodName]: [SUCCESS] FCM токен успешно добавлен: ${token.take(10)}...")
     } catch (e: Exception) {
       println("[YkisLogKMP.$className.$methodName]: [ERROR] Ошибка регистрации токена: ${e.message}")
+    }
+  }
+
+  override suspend fun removeFcmToken() {
+    val methodName = "removeFcmToken"
+    try {
+      val token = getPlatformFcmToken() ?: return
+      val currentUid = auth.currentUser?.uid ?: return
+      
+      val userDocRef = db.collection("users").document(currentUid)
+      val updates = mapOf("fcmTokens" to dev.gitlive.firebase.firestore.FieldValue.arrayRemove(token))
+      userDocRef.update(updates)
+      
+      println("[YkisLogKMP.$className.$methodName]: [SUCCESS] FCM токен удален из профиля")
+    } catch (e: Exception) {
+      println("[YkisLogKMP.$className.$methodName]: [ERROR] Не удалось удалить токен: ${e.message}")
     }
   }
 

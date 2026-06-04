@@ -107,10 +107,19 @@ fun RootNavGraph(
         val parts = id.split("_")
         if (parts.size >= 3) {
           val addrId = parts[parts.size - 2].toLongOrNull() ?: 0L
-          val targetUid = parts.last()
           
           if (addrId != 0L) {
-            if (baseUIState.userRole == UserRole.StandardUser) {
+            val isResident = baseUIState.userRole == UserRole.StandardUser
+            val hasThisApartment = baseUIState.apartments.any { it.addressId == addrId }
+
+            // ИСПРАВЛЕНО: Если это житель и у него нет этой квартиры — блокируем прыжок
+            if (isResident && !hasThisApartment) {
+              println("[YkisLogKMP.TRAP.RootNav]: [BLOCK] Квартира ${addrId}L не найдена. Прыжок отменен.")
+              chatScreenModel.setPendingPushChatId(null)
+              return@LaunchedEffect
+            }
+
+            if (isResident) {
               val servicePrefix = when {
                 id.startsWith("WATER_SERVICE") -> "WATER_SERVICE"
                 id.startsWith("WARM_SERVICE") -> "WARM_SERVICE"
@@ -120,17 +129,19 @@ fun RootNavGraph(
               chatScreenModel.onServiceSelectedForResident(servicePrefix)
             }
 
+            // ИСПРАВЛЕНО НАМЕРТВО: Сначала принудительно переключаем квартиру
             apartmentScreenModel.setAddressId(addrId)
-            chatScreenModel.selectUserByUid(targetUid)
             
-            // Дожидаемся синхронизации ID в UI
+            // Ждем синхронизации ID в глобальном стейте
             snapshotFlow { baseUIState }.first { it.addressId == addrId }
+            
+            // ИСПРАВЛЕНО НАМЕРТВО: Теперь ищем комнату чата по адресу, а не по UID!
+            // Это решает проблему дублей у жителей с несколькими квартирами.
+            chatScreenModel.selectUserByAddressId(addrId)
+
             delay(500)
             
             println("[YkisLogKMP.TRAP.RootNav]: [3] >>> ПРЫЖОК В ЧАТ! <<<")
-            // Здесь мы используем костыль: так как навигатор еще может не создаться в UI, 
-            // мы полагаемся на то, что LaunchedEffect внутри Navigator его подхватит ниже.
-            // Но лучше всего передать этот флаг через модель.
           }
         }
       }

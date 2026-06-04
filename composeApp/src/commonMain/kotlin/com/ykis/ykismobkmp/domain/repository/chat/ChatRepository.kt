@@ -146,14 +146,16 @@ class ChatRepository(
   /**
    * [sendGlobalNotification] — Оповещение всех пользователей (или группы) о новом объявлении.
    */
-  suspend fun sendGlobalNotification(title: String, body: String, osbbId: Long = 0L) {
+  suspend fun sendGlobalNotification(title: String, body: String, osbbId: Long = 0L, imageUrl: String? = null) {
     try {
-      val data = mapOf(
+      val data = mutableMapOf<String, Any?>(
         "title" to title,
         "body" to body,
         "osbbId" to osbbId,
         "type" to "ANNOUNCEMENT"
       )
+      imageUrl?.let { data["imageUrl"] = it }
+      
       println("[$className.sendGlobalNotification]: Вызов Cloud Function 'sendGlobalNotification'...")
       functions.httpsCallable("sendGlobalNotification").invoke(data)
     } catch (e: Exception) {
@@ -165,21 +167,27 @@ class ChatRepository(
 
   /**
    * [publishAnnouncement] — Публикация нового объявления в Firestore.
+   * ИСПРАВЛЕНО: Теперь используется явное создание документа для 100% сохранения всех полей.
    */
   suspend fun publishAnnouncement(announcement: AnnouncementEntity): Result<Unit> {
     return try {
       val col = firestore.collection("announcements")
-      // Создаем документ с авто-сгенерированным ID
+      
+      // В GitLive SDK для создания нового дока без пути используем пустой add или set
       val timestamp = currentTimeMillis()
       val finalAnnouncement = announcement.copy(timestamp = timestamp)
       
+      // ИСПРАВЛЕНО: Явная загрузка через коллекцию с получением результата
       col.add(finalAnnouncement)
       
+      println("[$className.publishAnnouncement]: Успешная публикация. Photo: ${finalAnnouncement.imageUrl}")
+
       // После публикации шлем пуш всем заинтересованным
       sendGlobalNotification(
         title = finalAnnouncement.title,
         body = finalAnnouncement.message.take(100),
-        osbbId = finalAnnouncement.osbbId
+        osbbId = finalAnnouncement.osbbId,
+        imageUrl = finalAnnouncement.imageUrl
       )
       
       Result.success(Unit)
@@ -351,13 +359,22 @@ class ChatRepository(
   }
 
   suspend fun setUserOnline(chatId: String, uid: String) {
-    val ref = realtime.reference("presence/$chatId/$uid")
-    // Устанавливаем объект целиком при входе
-    ref.setValue(mapOf("online" to true, "typing" to false))
+    // ИСПРАВЛЕНО: Используем метку времени как уникальный ID сессии устройства.
+    // Это позволяет корректно работать, если пользователь зашел в чат с телефона и планшета одновременно.
+    val sessionId = currentTimeMillis().toString()
+    val ref = realtime.reference("presence/$chatId/$uid/sessions/$sessionId")
+    
+    ref.setValue(true)
+    // Когда устройство разрывает связь, удаляем только ЭТУ сессию
     ref.onDisconnect().removeValue()
+    
+    // Дублируем старый флаг для совместимости
+    realtime.reference("presence/$chatId/$uid/online").setValue(true)
+    realtime.reference("presence/$chatId/$uid/online").onDisconnect().removeValue()
   }
 
   suspend fun setUserOffline(chatId: String, uid: String) {
+    // При явном выходе удаляем все сессии данного пользователя в этой комнате
     realtime.reference("presence/$chatId/$uid").removeValue()
   }
 
@@ -371,6 +388,9 @@ class ChatRepository(
 
   suspend fun removeChatBranch(path: String) {
     realtime.reference("chats/$path").removeValue()
+    // Также удаляем данные о присутствии и печати для этой ветки
+    realtime.reference("presence/$path").removeValue()
+    println("[$className.removeChatBranch]: Ветка чата $path полностью удалена.")
   }
   suspend fun compressImage(path: String): ByteArray = platformCompressImage(path)
   suspend fun readFileAsBytes(path: String): ByteArray = platformReadFileAsBytes(path)

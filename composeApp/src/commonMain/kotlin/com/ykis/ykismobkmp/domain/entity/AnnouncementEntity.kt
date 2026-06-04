@@ -17,5 +17,8 @@ data class AnnouncementEntity(
     @SerialName("author_role") val authorRole: UserRole = UserRole.Unknown,
     @SerialName("osbb_id") val osbbId: Long = 0L, // 0 - для всех, либо конкретный ID ОСББ
     @SerialName("timestamp") val timestamp: Long = 0L,
-    @SerialName("is_priority") val isPriority: Boolean = false
+    @SerialName("is_priority") val isPriority: Boolean = false,
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("file_url") val fileUrl: String? = null,
+    @SerialName("file_name") val fileName: String? = null
 )

@@ -85,9 +85,18 @@ class MainApartmentScreen(
 
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
     val chatScreenModel = koinInject<ChatScreenModel>()
+    val announcementModel = koinInject<com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementScreenModel>()
 
     val baseUIState by apartmentScreenModel.uiState.collectAsState()
     val userList by chatScreenModel.userList.collectAsState()
+
+    // ИСПРАВЛЕНО: Ранний старт мониторинга объявлений для корректного отображения бейджей при запуске
+    LaunchedEffect(baseUIState.osbbId) {
+      if (baseUIState.userRole != UserRole.Unknown) {
+        println("[YkisLogKMP.$className]: Фоновий запуск моніторингу оголошень для OSBB ID: ${baseUIState.osbbId}")
+        announcementModel.observeAnnouncements(baseUIState.osbbId)
+      }
+    }
 
     var activeSubModule by rememberSaveable {
       mutableStateOf(
@@ -103,23 +112,36 @@ class MainApartmentScreen(
 
     var isInitialBoot by rememberSaveable { mutableStateOf(true) }
 
-    // Реактивный переключатель подмодуля, когда СУБД завершила холодный старт
-    // 1. Единый реактивный КМР-триггер переключения стартовых экранов Хаба ЮКІС
-    LaunchedEffect(baseUIState.mainLoading) {
-      if (!baseUIState.mainLoading && isInitialBoot) {
+    // ИСПРАВЛЕНО НАМЕРТВО: Реактивный диспетчер переключения подмодулей.
+    // Теперь приложение САМО переходит на нужный экран сразу после успешной привязки счета или авторизации админа.
+    LaunchedEffect(baseUIState.addressId, baseUIState.userRole, baseUIState.osbbId, baseUIState.mainLoading) {
+      val role = baseUIState.userRole
+      val addressId = baseUIState.addressId
+      val osbbId = baseUIState.osbbId
+
+      // 1. Обработка ПЕРВОГО запуска (Холодный старт)
+      if (isInitialBoot && !baseUIState.mainLoading) {
         activeSubModule = when {
-          // Для жильца открываем экран Info при наличии привязки
-          baseUIState.userRole == UserRole.StandardUser -> {
-            if (baseUIState.addressId != 0L) "InfoApartmentScreen" else "AddApartmentScreen"
+          role == UserRole.StandardUser -> {
+            if (addressId != 0L) "InfoApartmentScreen" else "AddApartmentScreen"
           }
-
-          // Для всех администраторов (ОСББ и КП) теперь стартовый экран — список чатов
-          baseUIState.userRole != UserRole.Unknown -> "chat_user_list"
-
+          role != UserRole.Unknown -> "chat_user_list"
           else -> "AddApartmentScreen"
         }
         isInitialBoot = false
-        println("[YkisLogKMP.$className.NavigationTrigger]: Первоначальная загрузка завершена. Маршрут установлен на: $activeSubModule")
+        println("[YkisLogKMP.$className.Navigation]: Холодний старт завершено. Екран: $activeSubModule")
+        return@LaunchedEffect
+      }
+
+      // 2. Обработка ДИНАМИЧЕСКИХ переходов (Успешная привязка/авторизация)
+      if (!isInitialBoot && activeSubModule == "AddApartmentScreen") {
+        if (role == UserRole.StandardUser && addressId != 0L) {
+          println("[YkisLogKMP.$className.Navigation]: Рахунок прив'язано. Перехід на InfoApartmentScreen")
+          activeSubModule = "InfoApartmentScreen"
+        } else if (role != UserRole.StandardUser && role != UserRole.Unknown && osbbId != 0L) {
+          println("[YkisLogKMP.$className.Navigation]: Адмін авторизований. Перехід на список чатів")
+          activeSubModule = "chat_user_list"
+        }
       }
     }
 

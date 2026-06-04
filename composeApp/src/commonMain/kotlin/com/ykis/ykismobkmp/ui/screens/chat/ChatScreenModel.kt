@@ -416,6 +416,19 @@ class ChatScreenModel(
     }
   }
 
+  /**
+   * [selectUserByAddressId] — Выбор конкретной комнаты чата по ID квартиры (для Deep Link).
+   */
+  fun selectUserByAddressId(addressId: Long) {
+    val user = userList.value.find { it.addressId == addressId }
+    if (user != null) {
+      _selectedUser.value = user
+      Log.i("[PUSH_SYNC] Кімната для о/р $addressId знайдена: ${user.displayName}", tag = className)
+    } else {
+      Log.w("[PUSH_SYNC] Кімната для о/р $addressId ще не готова", tag = className)
+    }
+  }
+
   fun setPendingPushChatId(id: String?) {
     println("[YkisLogKMP.TRAP.ChatModel]: Запись в очередь перехода. ID: \"$id\"")
     _pendingPushChatId.value = id
@@ -624,6 +637,8 @@ class ChatScreenModel(
       val roleName = when (currentRole) {
         UserRole.VodokanalUser -> "диспетчера Водоканалу"
         UserRole.OsbbUser      -> "голови ОСББ"
+        UserRole.YtkeUser      -> "диспетчера Тепломережі"
+        UserRole.TboUser       -> "диспетчера Спецтрансу"
         else                   -> "мешканця квартири"
       }
 
@@ -640,7 +655,12 @@ class ChatScreenModel(
         _assistantResponse.value = response
       }.onFailure { error ->
         println("[YkisLogKMP.$className.$methodName]: Помилка нейромережі: ${error.message}")
-        _assistantResponse.value = "Помилка ШІ: ${error.message}"
+        val msg = error.message ?: ""
+        if (msg.contains("429") || msg.contains("limit") || msg.contains("quota")) {
+           _assistantResponse.value = "Перевищено ліміт запитів до ШІ. Спробуйте пізніше або перевірте підписку AI PRO."
+        } else {
+           _assistantResponse.value = "Помилка ШІ: ${error.message}"
+        }
         logService.logNonFatalCrash(error)
       }
     }
@@ -900,7 +920,7 @@ class ChatScreenModel(
       if (result.isSuccess) {
         println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Транзакція повідомлення успішно запечатана в базі")
         
-        // ИСПРАВЛЕНО: ОТПРАВКА PUSH ТОЛЬКО ЕСЛИ ОППОНЕНТ НЕ В ЧАТЕ
+        // ИСПРАВЛЕНО: ОТПРАВКА PUSH НА ВСЕ УСТРОЙСТВА (без блокировки по активности жильца)
         val tokens = _recipientTokens.value
         val shouldSendPush = tokens.isNotEmpty() && !_isOpponentOnline.value
 
@@ -1032,8 +1052,9 @@ class ChatScreenModel(
           Log.w("Ошибка наблюдения присутствия: ${error.message}", tag = className)
         }
         .collect { presenceMap ->
-          // Мы считаем оппонента "в сети", если КТО-ТО КРОМЕ НАС сейчас онлайн в этой комнате
-          val someoneElseOnline = presenceMap.filterKeys { it != myUid }.values.any { it == true }
+          // ИСПРАВЛЕНО: Теперь мы считаем оппонента "в сети", если у него есть 
+          // хотя бы одна активная сессия в этой комнате. Это блокирует пуши на все устройства.
+          val someoneElseOnline = presenceMap.filterKeys { it != myUid }.isNotEmpty()
           _isOpponentOnline.value = someoneElseOnline
           
           // ОТЛАДКА: Логируем состояние, чтобы понять почему прилетают пуши

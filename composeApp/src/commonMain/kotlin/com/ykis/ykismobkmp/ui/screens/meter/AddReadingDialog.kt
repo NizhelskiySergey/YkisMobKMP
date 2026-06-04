@@ -31,30 +31,38 @@ fun NumberField(
   value: String,
   onNewValue: (String) -> Unit,
   label: String,
-  isInteger: Boolean
+  isInteger: Boolean,
+  isError: Boolean = false,
+  errorMessage: String? = null
 ) {
-  OutlinedTextField(
-    value = value,
-    onValueChange = { input ->
-      // ГАРАНТИЯ КМР: Фильтруем ввод на лету
-      val filtered = if (isInteger) {
-        input.filter { it.isDigit() }
-      } else {
-        input.replace(',', '.').filter { it.isDigit() || it == '.' }.let { s ->
-          // Разрешаем только одну точку
-          if (s.count { it == '.' } <= 1) s else s.substringBeforeLast(".")
+  Column(modifier = modifier.fillMaxWidth()) {
+    OutlinedTextField(
+      value = value,
+      onValueChange = { input ->
+        // ГАРАНТИЯ КМР: Фильтруем ввод на лету
+        val filtered = if (isInteger) {
+          input.filter { it.isDigit() }
+        } else {
+          input.replace(',', '.').filter { it.isDigit() || it == '.' }.let { s ->
+            // Разрешаем только одну точку
+            if (s.count { it == '.' } <= 1) s else s.substringBeforeLast(".")
+          }
         }
-      }
-      onNewValue(filtered)
-    },
-    label = { Text(label) },
-    modifier = modifier.fillMaxWidth(),
-    keyboardOptions = KeyboardOptions(
-      keyboardType = if (isInteger) KeyboardType.Number else KeyboardType.Decimal
-    ),
-    singleLine = true,
-    shape = MaterialTheme.shapes.medium
-  )
+        onNewValue(filtered)
+      },
+      label = { Text(label) },
+      modifier = Modifier.fillMaxWidth(),
+      keyboardOptions = KeyboardOptions(
+        keyboardType = if (isInteger) KeyboardType.Number else KeyboardType.Decimal
+      ),
+      singleLine = true,
+      isError = isError,
+      supportingText = if (isError && !errorMessage.isNullOrBlank()) {
+        { Text(errorMessage, color = MaterialTheme.colorScheme.error) }
+      } else null,
+      shape = MaterialTheme.shapes.medium
+    )
+  }
 }
 
 private const val tag = "AddReadingDialog"
@@ -72,7 +80,9 @@ fun AddReadingDialog(
   newReading: String,
   onReadingChange: (String) -> Unit,
   enabledButton: Boolean,
-  isInteger: Boolean
+  isInteger: Boolean,
+  isError: Boolean = false,
+  errorMessage: String? = null
 ) {
   // Вывод логов по правилу [Класс.Метод] через КМР-команду println()
   println("[$tag.Content]: Діалогове вікно введення відкрито. Поточний якір: $currentReading")
@@ -124,9 +134,10 @@ fun AddReadingDialog(
             println("[$tag.onReadingChange]: Введення символу показання -> $input")
             onReadingChange(input)
           },
-          // ИСПРАВЛЕНО: Ресурс JetBrains обернут в stringResource() для передачи чистой строки String
           label = stringResource(Res.string.new_reading),
-          isInteger = isInteger
+          isInteger = isInteger,
+          isError = isError,
+          errorMessage = errorMessage
         )
       }
     },

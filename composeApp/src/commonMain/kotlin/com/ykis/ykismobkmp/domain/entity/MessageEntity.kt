@@ -5,6 +5,11 @@ import kotlinx.serialization.Serializable
 
 
 @Serializable
+data class ChatMetadata(
+  @SerialName("residentActive") val residentActive: Boolean = true
+)
+
+@Serializable
 data class MessageEntity(
   val id: String = "",
   val senderUid: String = "",

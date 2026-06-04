@@ -55,7 +55,7 @@ val domainModule = module {
   factory { GetHouseList(repository = get(), cache = get()) }
   factory { GetFamilyList(repository = get(), cache = get()) }
   factory { InitResidentChats(chatRepo = get()) }
-  factory { DeleteResidentChats(chatRepo = get()) }
+  factory { DeleteResidentChats() }
   factory { ClearDatabase() }
 
   // ====================================================================

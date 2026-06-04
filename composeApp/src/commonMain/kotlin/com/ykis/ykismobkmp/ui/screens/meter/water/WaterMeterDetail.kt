@@ -60,11 +60,15 @@ fun WaterMeterDetail(
   val enabledButton by remember(newWaterReading, safeLastReading.current) {
     derivedStateOf {
       val newValue = newWaterReading.toLongOrNull() ?: -1L
-      val isValid = newValue >= safeLastReading.current // ИСПРАВЛЕНО: Разрешено равенство (нулевое потребление)
-      if (newWaterReading.isNotEmpty() && !isValid) {
-        println("[$tag.Validation]: Значення $newValue менше за попередній якір ${safeLastReading.current}")
-      }
+      val isValid = newValue >= safeLastReading.current
       isValid
+    }
+  }
+  
+  val isErrorValue = remember(newWaterReading, safeLastReading.current) {
+    derivedStateOf {
+      val newValue = newWaterReading.toLongOrNull() ?: -1L
+      newWaterReading.isNotEmpty() && newValue < safeLastReading.current && newValue != -1L
     }
   }
   LaunchedEffect(baseUIState.addressId, waterMeterEntity.vodomerId) {
@@ -211,7 +215,9 @@ fun WaterMeterDetail(
       newReading = newWaterReading,
       onReadingChange = onNewReadingChange,
       enabledButton = enabledButton,
-      isInteger = true // ИСПРАВЛЕНО: Для водоснабжения кубы всегда целые
+      isInteger = true, // ИСПРАВЛЕНО: Для водоснабжения кубы всегда целые
+      isError = isErrorValue.value,
+      errorMessage = "Значення має бути не менше ${safeLastReading.current}"
     )
   }
   if (showDeleteReadingDialog) {

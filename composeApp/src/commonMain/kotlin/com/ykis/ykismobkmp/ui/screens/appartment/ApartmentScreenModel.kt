@@ -1016,10 +1016,23 @@ class ApartmentScreenModel(
     val uid = firebaseService.uid ?: ""
     if (addressId <= 0L || uid.isBlank()) return
 
+    val currentState = _uiState.value
+    // Запоминаем osbbId перед удалением для зачистки чатов
+    val targetApt = currentState.apartments.find { it.addressId == addressId }
+    val targetOsbbId = targetApt?.osmdId ?: 0L
+
     launchCatching(showLoader = true) {
       println("[YkisLogKMP.$className.$methodName]: [START] Запрос на удаление о/р $addressId для UID: $uid")
 
-      // 1. Физически удаляем квартиру на сервере биллинга Южного через Ktor
+      // 1. Зачистка веток чатов в Firebase (чтобы диспетчер не слал пуши "в никуда")
+      apartmentService.deleteResidentChats(
+          scope = screenModelScope,
+          uid = uid,
+          osbbId = targetOsbbId,
+          addressId = addressId
+      )
+
+      // 2. Физически удаляем квартиру на сервере биллинга Южного через Ktor
       apartmentService.deleteApartment(addressId, uid).collect { deleteResult ->
         if (deleteResult is Resource.Success) {
           println("[YkisLogKMP.$className.$methodName]: [DELETE_SERVER_OK] Квартира успішно видалена з бази Южного.")

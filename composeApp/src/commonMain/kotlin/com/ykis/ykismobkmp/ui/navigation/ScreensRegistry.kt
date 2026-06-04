@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -84,28 +85,40 @@ object SendImageScreenDest : Screen {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Перегляд ІИ-фотографії лічильника") }
   }
 }
-object CameraScreenDest : Screen {
+enum class CameraTarget { CHAT, ANNOUNCEMENT }
+
+data class CameraScreenDest(
+  val target: CameraTarget = CameraTarget.CHAT
+) : Screen {
   @Composable
   override fun Content() {
     val navigator = LocalNavigator.currentOrThrow
     val chatScreenModel = koinInject<ChatScreenModel>()
+    val announcementModel = koinInject<com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementScreenModel>()
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
     val baseUIState by apartmentScreenModel.uiState.collectAsState()
 
-    println("[YkisLogKMP.ScreensRegistry.CameraScreen]: Запуск нативного компонента камери")
+    println("[YkisLogKMP.ScreensRegistry.CameraScreen]: Запуск нативного компонента камери для $target")
     
     CameraView(
       onImageCaptured = { path ->
         println("[YkisLogKMP.ScreensRegistry.CameraScreen]: Фото зафиксировано: $path")
-        chatScreenModel.setSelectedImagePath(path)
         
-        // Автоматически запускаем анализ Gemini для жильцов
-        if (baseUIState.userRole == UserRole.StandardUser) {
-           chatScreenModel.analyzePhotoWithGemini(path, baseUIState.address)
+        when (target) {
+            CameraTarget.CHAT -> {
+                chatScreenModel.setSelectedImagePath(path)
+                // Автоматически запускаем анализ Gemini для жильцов
+                if (baseUIState.userRole == UserRole.StandardUser) {
+                   chatScreenModel.analyzePhotoWithGemini(path, baseUIState.address)
+                }
+                // Переходим к экрану подтверждения отправки
+                navigator.replace(com.ykis.ykismobkmp.ui.screens.chat.SendImageScreen(imagePath = path, address = baseUIState.address))
+            }
+            CameraTarget.ANNOUNCEMENT -> {
+                announcementModel.setAnnouncementImagePath(path)
+                navigator.pop()
+            }
         }
-        
-        // Переходим к экрану подтверждения отправки
-        navigator.replace(com.ykis.ykismobkmp.ui.screens.chat.SendImageScreen(imagePath = path, address = baseUIState.address))
       },
       onBack = {
         println("[YkisLogKMP.ScreensRegistry.CameraScreen]: Возврат из камеры без снимка")
@@ -138,11 +151,24 @@ data class ChatScreenDest(
   @Composable
   override fun Content() {
     val navigator = LocalNavigator.currentOrThrow
-    println("[YkisLogKMP.ScreensRegistry.ChatScreenDest]: Отрисовка чату для токена: $chatId")
+    val chatScreenModel = koinInject<ChatScreenModel>()
     
-    // ИСПРАВЛЕНО: Вызываем реальный экран чата вместо текстовой заглушки.
-    // Это позволяет Deep Link навигации открывать полноценный интерфейс сообщений.
+    // ИСПРАВЛЕНО: Перед отрисовкой принудительно настраиваем модель на ID из пуша
+    LaunchedEffect(chatId) {
+      if (!chatId.isNullOrBlank()) {
+        println("[YkisLogKMP.ScreensRegistry.ChatScreenDest]: Инициализация комнаты из пуша: $chatId")
+        val parts = chatId.split("_")
+        if (parts.size >= 3) {
+          val addrId = parts[parts.size - 2].toLongOrNull() ?: 0L
+          if (addrId != 0L) {
+             chatScreenModel.selectUserByAddressId(addrId)
+          }
+        }
+      }
+    }
+
     ChatScreen(
+      chatId = chatId, // Пробрасываем ID для внутренней логики
       onBackClick = {
         println("[YkisLogKMP.ScreensRegistry.ChatScreenDest]: Нажата кнопка назад в Deep Link чате")
         navigator.pop()

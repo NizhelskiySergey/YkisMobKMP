@@ -6,6 +6,10 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.net.HttpURLConnection
+import java.net.URL
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -16,6 +20,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -43,24 +48,30 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
         val title = message.notification?.title ?: message.data["title"] ?: "ЮКІС"
         val body = message.notification?.body ?: message.data["body"] ?: "Нове повідомлення"
         val chatId = message.data["chatId"]
+        val imageUrl = message.data["imageUrl"] ?: message.notification?.imageUrl?.toString()
         val activeChat = ChatScreenModel.activeChatIdForNotifications
 
         println("[YkisLogKMP.MessagingService]: Проверка подавления. В пуше chatId: $chatId, Сейчас открыт: $activeChat")
 
-        // ИСПРАВЛЕНО НАМЕРТВО: Если этот чат уже открыт у пользователя перед глазами,
-        // мы подавляем (не показываем) системное уведомление.
         if (chatId != null && chatId == activeChat) {
             println("[YkisLogKMP.MessagingService]: Пуш подавлен (Чат $chatId уже открыт)")
             return
         }
 
-        sendNotification(title, body, chatId)
+        serviceScope.launch {
+            val bitmap = if (!imageUrl.isNullOrBlank()) {
+                getBitmapFromUrl(imageUrl)
+            } else null
+            
+            withContext(Dispatchers.Main) {
+                sendNotification(title, body, chatId, bitmap)
+            }
+        }
     }
 
-    private fun sendNotification(title: String, body: String, chatId: String?) {
+    private fun sendNotification(title: String, body: String, chatId: String?, image: Bitmap? = null) {
         val intent = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            // ИСПРАВЛЕНО: Кладём chatId под обоими именами для надёжности
             putExtra("chatId", chatId)
             putExtra("chat_id", chatId)
         }
@@ -72,12 +83,21 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
 
         val channelId = "ykis_chat_notifications"
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(com.ykis.ykismobkmp.R.drawable.ykis) // Используем нашу новую иконку
+            .setSmallIcon(com.ykis.ykismobkmp.R.drawable.ykis)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+
+        if (image != null) {
+            notificationBuilder.setLargeIcon(image)
+            notificationBuilder.setStyle(
+                NotificationCompat.BigPictureStyle()
+                    .bigPicture(image)
+                    .bigLargeIcon(null as Bitmap?)
+            )
+        }
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -90,10 +110,22 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
             notificationManager.createNotificationChannel(channel)
         }
 
-        // ИСПРАВЛЕНО: Используем детерминированный ID на базе chatId, чтобы новые сообщения 
-        // из одного чата заменяли старые уведомления (актуальность бейджа).
         val notificationId = chatId?.hashCode() ?: currentTimeMillis().toInt()
         notificationManager.notify(notificationId, notificationBuilder.build())
+    }
+
+    private suspend fun getBitmapFromUrl(imageUrl: String): Bitmap? = withContext(Dispatchers.IO) {
+        try {
+            val url = URL(imageUrl)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.doInput = true
+            connection.connect()
+            val input = connection.inputStream
+            BitmapFactory.decodeStream(input)
+        } catch (e: Exception) {
+            println("[YkisLogKMP.MessagingService_ERROR]: Ошибка загрузки изображения для пуша: ${e.message}")
+            null
+        }
     }
 
     private fun currentTimeMillis(): Long = System.currentTimeMillis()

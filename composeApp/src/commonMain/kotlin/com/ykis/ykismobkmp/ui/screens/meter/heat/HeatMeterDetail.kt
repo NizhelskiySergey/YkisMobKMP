@@ -62,14 +62,17 @@ fun HeatMeterDetail(
       val rawInput = newHeatReading.replace(',', '.')
       val newValue = rawInput.toDoubleOrNull() ?: -1.0
       
-      // ИСПРАВЛЕНО: Кнопка активна если новое значение БОЛЬШЕ ИЛИ РАВНО текущему.
-      // Это позволяет обновить дату показания и избежать начисления "по среднему".
+      // Кнопка активна если новое значение БОЛЬШЕ ИЛИ РАВНО текущему.
       val isValid = newValue >= safeLastReading.current && rawInput.lastOrNull() != '.'
-      
-      if (newHeatReading.isNotEmpty() && !isValid && newValue < safeLastReading.current && newValue != -1.0) {
-        println("[$tag.Validation]: Значення $newValue менше за попереднє ${safeLastReading.current}")
-      }
       isValid
+    }
+  }
+
+  val isErrorValue = remember(newHeatReading, safeLastReading.current) {
+    derivedStateOf {
+      val rawInput = newHeatReading.replace(',', '.')
+      val newValue = rawInput.toDoubleOrNull() ?: -1.0
+      newHeatReading.isNotEmpty() && newValue < safeLastReading.current && newValue != -1.0
     }
   }
 
@@ -195,7 +198,9 @@ fun HeatMeterDetail(
       newReading = newHeatReading,
       onReadingChange = onNewReadingChange,
       enabledButton = enabledButton,
-      isInteger = false // Для тепла разрешен ввод дробной части через точку/запятую
+      isInteger = false, // Для тепла разрешен ввод дробной части через точку/запятую
+      isError = isErrorValue.value,
+      errorMessage = "Значення має бути не менше ${safeLastReading.current}"
     )
   }
 
