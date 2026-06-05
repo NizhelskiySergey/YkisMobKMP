@@ -55,28 +55,28 @@ import ykismobkmp.composeapp.generated.resources.meters
 import ykismobkmp.composeapp.generated.resources.settings
 
 private const val className = "ScreensRegistry"
-object SignUpScreen : Screen {
+object SignUpScreenDest : Screen {
   @Composable
   override fun Content() {
     println("[YkisLogKMP.$className.SignUpScreen]: Маршрутизатор передає управління холсту реєстрації")
     com.ykis.ykismobkmp.ui.screens.auth.SignUpScreen.Content()
   }
 }
-object VerifyEmailScreen : Screen {
+object VerifyEmailScreenDest : Screen {
   @Composable
   override fun Content() {
     println("[YkisLogKMP.$className.VerifyEmailScreen]: Маршрутизатор передає управління холсту верифікації пошти")
     com.ykis.ykismobkmp.ui.screens.auth.VerifyEmailScreen.Content()
   }
 }
-object AddApartmentScreen : Screen {
+object AddApartmentScreenDest : Screen {
   @Composable
   override fun Content() {
     println("[YkisLogKMP.$className.AddApartmentScreen]: Маршрутизатор передає управління живому холсту прив'язки квартири")
-    AddApartmentScreen(
-      onDrawerClicked = { /* Открытие боковой панели шторки */ },
-      closeContentDetail = { /* Закрытие подмодуля привязки */ }
-    )
+    com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen(
+      onDrawerClicked = { /* ... */ },
+      closeContentDetail = { /* ... */ }
+    ).Content()
   }
 }
 object SendImageScreenDest : Screen {

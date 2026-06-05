@@ -36,6 +36,7 @@ import com.ykis.ykismobkmp.ui.components.EmailField
 import com.ykis.ykismobkmp.ui.components.LogoImage
 import com.ykis.ykismobkmp.ui.components.PasswordField
 import com.ykis.ykismobkmp.ui.components.RepeatPasswordField
+import com.ykis.ykismobkmp.ui.navigation.VerifyEmailScreenDest
 import org.koin.compose.koinInject
 
 import org.jetbrains.compose.resources.stringResource
@@ -66,7 +67,7 @@ object SignUpScreen : Screen {
           println("[YkisLogKMP.$className.Content]: [SUCCESS] Реєстрація успішна. Перехід на екран підтвердження пошти.")
 
           // ИСПРАВЛЕНО: Нативно пушаем синглтон VerifyEmailScreen в стек Voyager без круглых скобок ()
-          navigator.push(VerifyEmailScreen)
+          navigator.push(VerifyEmailScreenDest)
         }
         is Resource.Error -> {
           println("[YkisLogKMP.$className.Content]: [ERROR] ${response.message}")

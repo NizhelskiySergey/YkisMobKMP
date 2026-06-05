@@ -2,6 +2,7 @@ package com.ykis.ykismobkmp.ui.screens.appartment
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -143,7 +144,8 @@ fun AddApartmentScreenStateless(
               onClick = onAddClick,
               enabled = isButtonEnabled,
               shape = RoundedCornerShape(12.dp),
-              modifier = Modifier.height(54.dp)
+              modifier = Modifier.height(54.dp).padding(horizontal = 4.dp), // ИСПРАВЛЕНО: Уменьшена ширина через отступы
+              contentPadding = PaddingValues(horizontal = 16.dp) // Более компактные внутренние поля
             ) {
               Text(
                 text = stringResource(Res.string.add),

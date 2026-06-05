@@ -1064,11 +1064,20 @@ class ApartmentScreenModel(
           currentState.copy(
             addressId = 0L,
             address = "",
-            apartment = ApartmentEntity(),
+            apartment = com.ykis.ykismobkmp.domain.entity.ApartmentEntity(),
             apartmentLoading = false,
-            mainLoading = false
+            mainLoading = false,
+            apartments = emptyList() // ИСПРАВЛЕНО: Явная зачистка списка
           )
         }
+
+        // ИСПРАВЛЕНО: Принудительно уведомляем навигационное ядро, что нужно сменить экран
+        try {
+            org.koin.mp.KoinPlatform.getKoin().get<com.ykis.ykismobkmp.ui.navigation.AppScreenModel>().evaluateStartDestination()
+        } catch (e: Exception) {
+            println("[YkisLogKMP.$className.$methodName]: Не удалось сбросить состояние навигации.")
+        }
+
         onNavigateToAddScreen()
       } else {
         // Если у жителя Южного остались другие квартиры — берем первую из оставшихся (ID 6314)

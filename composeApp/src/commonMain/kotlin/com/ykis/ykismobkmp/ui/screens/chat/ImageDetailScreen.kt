@@ -56,7 +56,7 @@ class ImageDetailScreen(
     val currentMessage by screenModel.selectedMessage.collectAsState()
 
     ImageDetailContent(
-      messageEntity = currentMessage,
+      messageEntity = currentMessage ?: MessageEntity(),
       navigateUp = {
         println("[YkisLogKMP.$className.Content]: Закриття перегляду фото. Нативний Voyager pop.")
         navigator.pop()

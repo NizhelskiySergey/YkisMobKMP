@@ -1,89 +1,101 @@
 package com.ykis.ykismobkmp.ui.navigation
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBackIosNew
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocationCity
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusTarget
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.navigator.Navigator
-import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
-import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.domain.services.UserRole
-import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
-import com.ykis.ykismobkmp.domain.entity.ApartmentEntity // Твой оригинальный класс жилого фонда
+import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
+import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
-import ykismobkmp.composeapp.generated.resources.*
+import org.koin.compose.koinInject
+
 private const val className = "ModalNavigationDrawerContent"
 
 @Composable
 fun ModalNavigationDrawerContent(
-  modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
-  navigator: Navigator, // Единственный навигатор верхнего уровня (для системных окон)
-  activeSubModule: String, // ДОБАВЛЕНО НАМЕРТВО: Сквозной стейт активного подмодуля Хаба ЮКІС
-  onSubModuleChange: (String) -> Unit, // ДОБАВЛЕНО НАМЕРТВО: Сквозной коллбек смены кадра
-  onMenuClick: () -> Unit = {}, // Закрытие шторки drawerState.close()
+  navigator: Navigator,
+  activeSubModule: String,
+  onSubModuleChange: (String) -> Unit,
+  onMenuClick: () -> Unit,
   navigateToApartment: (Long) -> Unit,
   isApartmentsEmpty: Boolean
 ) {
-  val methodName = "DrawerContent"
-  val keyboardController = LocalSoftwareKeyboardController.current
   val focusManager = LocalFocusManager.current
+  val keyboardController = LocalSoftwareKeyboardController.current
 
-  // Сквозные КМР-координаторы фокуса для принудительного сброса курсора в Android/iOS
   val selectedDrawerApartmentFocusRequester = remember { FocusRequester() }
-  val searchFocusRequester = remember { FocusRequester() }
 
   val apartmentScreenModel = koinInject<ApartmentScreenModel>()
   val chatScreenModel = koinInject<ChatScreenModel>()
 
   val searchQuery by apartmentScreenModel.searchQuery.collectAsState()
-  val houses by apartmentScreenModel.drawerHouses.collectAsState()
-  val drawerApartments by apartmentScreenModel.drawerApartments.collectAsState()
-  val filteredResults by apartmentScreenModel.filteredApartments.collectAsState()
-
+  val apartments by apartmentScreenModel.filteredApartments.collectAsState()
   val isUserAdmin = baseUIState.userRole != UserRole.StandardUser
-  val isOrgAdmin = baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
   val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
-  val listMode = baseUIState.listMode
+  
+  val drawerHouses by apartmentScreenModel.drawerHouses.collectAsState()
+  val drawerApartments by apartmentScreenModel.drawerApartments.collectAsState()
 
-  // ИСПРАВЛЕНО НАМЕРТВО: Атомарный глушитель авто-фокуса при ПЕРВОМ выдвижении шторки смартфона!
-  // Как только шторка инициализируется в памяти, мы принудительно переносим фокус на вибраную квартиру,
-  // полностью блокируя автоматический перехват курсора строкой поиска и исключая ложный вылет клавиатуры!
   LaunchedEffect(Unit) {
-    println("[YkisLogKMP.$className.$methodName]: Шторка висунута. Блокування автоматичного фокусу пошуку.")
-    focusManager.clearFocus()
-    // Мягко уводим фокус на выбранную карточку квартиры БТИ
-    selectedDrawerApartmentFocusRequester.requestFocus()
+    if (!isApartmentsEmpty) {
+      focusManager.clearFocus()
+      selectedDrawerApartmentFocusRequester.requestFocus()
+    }
   }
 
-  // Упреждающее снятие фокуса при переключении подмодулей шторки смартфона
   DisposableEffect(activeSubModule) {
     onDispose {
-      println("[YkisLogKMP.$className.$methodName]: Зміна екрану смартфона. Примусове анулювання фокусу.")
       focusManager.clearFocus()
     }
   }
@@ -98,397 +110,177 @@ fun ModalNavigationDrawerContent(
       .mapValues { it.value.sum() }
   }
 
-
   ModalDrawerSheet(
-    modifier = modifier.width(320.dp),
+    modifier = Modifier.width(320.dp),
     drawerContainerColor = MaterialTheme.colorScheme.surface
   ) {
     Column(modifier = Modifier.fillMaxSize()) {
-
-      // --- ШАПКА: ПОИСК АДМИНА ИЛИ КНОПКА ДОБАВЛЕНИЯ КВАРТИРЫ ---
       Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
         if (isUserAdmin) {
-          // Флаг того, что админ РЕАЛЬНО нажал пальцем на строку для ввода текста
-          var isSearchEditingActive by remember { mutableStateOf(false) }
-
-          if (!isSearchEditingActive && searchQuery.isEmpty()) {
-            // ЭТАП А: Статичное зеркало поля поиска.
-            // Оно физически НЕ МОЖЕТ перехватить фокус и никогда не вызовет клавиатуру при открытии шторки!
-            Box(
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp) // Жесткая высота Material 3 поля ввода
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-                .clickable {
-                  println("[$className.$methodName]: Користувач свідомо активував режим пошуку.")
-                  isSearchEditingActive = true
+          Row(verticalAlignment = Alignment.CenterVertically) {
+             if (baseUIState.listMode != ListMode.RAIONS) {
+                IconButton(onClick = { apartmentScreenModel.goBackLevel() }) {
+                   Icon(Icons.Default.ArrowBackIosNew, "Back")
                 }
-                .padding(horizontal = 16.dp),
-              contentAlignment = Alignment.CenterStart
-            ) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                  imageVector = Icons.Default.Search,
-                  contentDescription = null,
-                  tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-                Spacer(Modifier.width(12.dp))
-                Text(
-                  text = "Пошук адреси чи о/р",
-                  color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                  style = MaterialTheme.typography.bodyLarge
-                )
-              }
-            }
-          } else {
-            // ЭТАП Б: Настоящее поле ввода. Включается только по ручному клику!
-            OutlinedTextField(
-              value = searchQuery,
-              onValueChange = { query ->
-                apartmentScreenModel.onSearchQueryChanged(query)
-              },
-              modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
-              placeholder = { Text("Пошук адреси чи о/р", fontSize = 14.sp) },
-              leadingIcon = { Icon(Icons.Default.Search, null) },
-              trailingIcon = {
-                IconButton(onClick = {
-                  println("[$className.$methodName]: Скидання тексту пошуку та закриття режиму редагування.")
-                  apartmentScreenModel.onSearchQueryChanged("")
-                  isSearchEditingActive = false // Выходим из режима поиска, пряча TextField
-                  focusManager.clearFocus()
-                  selectedDrawerApartmentFocusRequester.requestFocus()
-                }) {
-                  Icon(Icons.Default.Close, null)
-                }
-              },
-              singleLine = true,
-              shape = RoundedCornerShape(12.dp),
-              keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-              keyboardActions = KeyboardActions(onDone = {
-                isSearchEditingActive = false // Закрываем режим ввода при тапе на Done
-                focusManager.clearFocus()
-                selectedDrawerApartmentFocusRequester.requestFocus()
-              })
-            )
-
-            // Как только текстовое поле появилось на экране, принудительно зажигаем курсор в нем
-            LaunchedEffect(Unit) {
-              searchFocusRequester.requestFocus()
-            }
+             }
+             OutlinedTextField(
+               value = searchQuery,
+               onValueChange = { apartmentScreenModel.onSearchQueryChanged(it) },
+               modifier = Modifier.weight(1f),
+               placeholder = { Text("Пошук...", fontSize = 14.sp) },
+               leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.size(20.dp)) },
+               trailingIcon = {
+                 if (searchQuery.isNotEmpty()) {
+                   IconButton(onClick = { apartmentScreenModel.onSearchQueryChanged("") }) {
+                     Icon(Icons.Default.Close, null, modifier = Modifier.size(20.dp))
+                   }
+                 }
+               },
+               singleLine = true,
+               shape = RoundedCornerShape(12.dp)
+             )
           }
         } else {
-          Text(
-            text = stringResource(Res.string.list_apartment),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
-          )
-          Spacer(modifier = Modifier.height(12.dp))
-          Button(
+          NavigationDrawerItem(
+            label = { Text("Додати особовий рахунок") },
+            selected = activeSubModule == "AddApartmentScreen",
             onClick = {
-              println("[$className.$methodName]: [ADD_CLICK] Переход на привязку БТИ квартиры")
-              keyboardController?.hide()
-              focusManager.clearFocus()
-              selectedDrawerApartmentFocusRequester.requestFocus()
-              onMenuClick()
               onSubModuleChange("AddApartmentScreen")
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
-          ) {
-            Icon(Icons.Default.AddHome, null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = stringResource(Res.string.add_appartment))
-          }
-          
-          Spacer(modifier = Modifier.height(12.dp))
-          
-          // НОВАЯ КНОПКА: Оголошення (для быстрого доступа из шторки)
-          OutlinedButton(
-            onClick = {
-              println("[$className.$methodName]: [ANNOUNCE_CLICK] Переход на Оголошення")
-              keyboardController?.hide()
-              focusManager.clearFocus()
               onMenuClick()
-              onSubModuleChange("announcements")
             },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.outlinedButtonColors(
-              contentColor = MaterialTheme.colorScheme.primary
-            )
-          ) {
-            Icon(Icons.Default.Campaign, null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = stringResource(Res.string.announcements))
-          }
+            icon = { Icon(Icons.Default.Add, null) },
+            shape = RoundedCornerShape(12.dp)
+          )
         }
       }
 
-      HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+      HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
 
-      Column(modifier = Modifier.weight(1f)) {
-        // Кнопка НАЗАД для многоуровневых слоев ЖКХ
-        if (listMode != ListMode.RAIONS && isOrgAdmin && searchQuery.isEmpty()) {
-          NavigationDrawerItem(
-            label = { Text("Назад", fontWeight = FontWeight.Bold) },
-            selected = false,
-            icon = { Icon(Icons.Default.ArrowBackIosNew, null, Modifier.size(18.dp)) },
-            onClick = {
-              println("[$className.$methodName]: [BACK_LEVEL] Запрос возврата. Текущий слой: $listMode")
-              focusManager.clearFocus()
-              selectedDrawerApartmentFocusRequester.requestFocus()
-              apartmentScreenModel.goBackLevel()
-            },
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-          )
-          HorizontalDivider()
-        }
+      LazyColumn(
+        modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+        contentPadding = PaddingValues(vertical = 8.dp)
+      ) {
+        when (baseUIState.listMode) {
+          ListMode.RAIONS -> {
+            items(baseUIState.raions) { raion ->
+              DrawerApartmentItem(
+                title = raion.raion,
+                subtitle = "Одеська обл.",
+                extraInfo = "ID: ${raion.raionId}",
+                icon = Icons.Default.Map,
+                isSelected = baseUIState.selectedRaionId == raion.raionId,
+                badgeCount = 0,
+                onClick = { apartmentScreenModel.onRaionSelected(raion) }
+              )
+            }
+          }
+          ListMode.HOUSES -> {
+            items(drawerHouses) { house ->
+              DrawerApartmentItem(
+                title = house.house,
+                subtitle = "Житловий фонд",
+                extraInfo = "ID: ${house.houseId}",
+                icon = Icons.Default.LocationCity,
+                isSelected = baseUIState.selectedHouseId == house.houseId,
+                badgeCount = 0,
+                onClick = { apartmentScreenModel.onHouseSelected(house.houseId) }
+              )
+            }
+          }
+          ListMode.APARTMENTS -> {
+            val source = if (baseUIState.userRole == UserRole.StandardUser) apartments else drawerApartments
+            if (source.isEmpty()) {
+              item {
+                 Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                     Text("Список порожній", style = MaterialTheme.typography.bodyMedium)
+                 }
+              }
+            } else {
+              items(source, key = { it.addressId }) { apartment ->
+                val isSelected = apartment.addressId == baseUIState.addressId
+                val badgeCount = apartmentBadges[apartment.addressId.toString()] ?: 0
 
-
-        // --- ЛЕНТА КВАРТИР И ДОМОВ ---
-        LazyColumn(
-          modifier = Modifier.fillMaxSize(),
-          contentPadding = PaddingValues(vertical = 8.dp)
-        ) {
-          if (searchQuery.isNotEmpty()) {
-            items(filteredResults, key = { "search_${it.addressId}" }) { item ->
-              val isSelected = baseUIState.addressId == item.addressId
-
-              Box(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .then(
-                    if (isSelected) {
-                      Modifier
-                        .focusRequester(selectedDrawerApartmentFocusRequester)
-                        .focusTarget()
-                    } else {
-                      Modifier
-                    }
-                  )
-              ) {
-                DrawerItemContent(
-                  apartment = item,
+                DrawerApartmentItem(
+                  title = "кв. ${apartment.address ?: ""}",
+                  subtitle = apartment.nanim,
+                  extraInfo = "о/р ${apartment.addressId}",
+                  icon = Icons.Default.Home,
                   isSelected = isSelected,
-                  listMode = listMode,
-                  badgeCount = 0,
+                  badgeCount = badgeCount,
+                  focusRequester = if (isSelected) selectedDrawerApartmentFocusRequester else null,
                   onClick = {
-                    println("[$className.$methodName]: Клік по елементу пошуку шторки. Анулювання курсору.")
-                    focusManager.clearFocus()
-                    selectedDrawerApartmentFocusRequester.requestFocus()
                     keyboardController?.hide()
-
-                    if (listMode == ListMode.HOUSES) {
-                      println("[$className.$methodName]: [SEARCH_SELECT_HOUSE] Выбран дом ID: ${item.addressId}")
-                      apartmentScreenModel.onHouseSelected(item.addressId)
-                    } else {
-                      println("[$className.$methodName]: [SEARCH_SELECT_APT] Фиксация о/р квартиры ID: ${item.addressId}")
-                      // ИСПРАВЛЕНО: Принудительный переход на экран Инфо при выборе квартиры из поиска
-                      onSubModuleChange("InfoApartmentScreen")
-                      navigateToApartment(item.addressId)
-                      onMenuClick()
-                    }
+                    onMenuClick()
+                    navigateToApartment(apartment.addressId)
                   }
                 )
               }
             }
-          } else {
-            when (listMode) {
-              ListMode.RAIONS -> {
-                items(baseUIState.raions, key = { "r_${it.raionId}" }) { raion ->
-                  val isSelected = baseUIState.selectedRaionId == raion.raionId
-
-                  Box(
-                    modifier = Modifier
-                      .fillMaxWidth()
-                      .then(
-                        if (isSelected) {
-                          Modifier
-                            .focusRequester(selectedDrawerApartmentFocusRequester)
-                            .focusTarget()
-                        } else {
-                          Modifier
-                        }
-                      )
-                  ) {
-                    NavigationDrawerItem(
-                      label = { Text(raion.raion ?: "") },
-                      selected = isSelected,
-                      icon = { Icon(Icons.Default.Map, null) },
-                      onClick = {
-                        println("[$className.$methodName]: [SELECT_RAION] Клик по району: ${raion.raion}")
-                        focusManager.clearFocus()
-                        selectedDrawerApartmentFocusRequester.requestFocus()
-                        apartmentScreenModel.onRaionSelected(raion)
-                      },
-                      modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                  }
-                }
-              }
-              ListMode.HOUSES -> {
-                items(houses, key = { "h_${it.houseId}" }) { house ->
-                  val isSelected = baseUIState.selectedHouseId == house.houseId
-
-                  Box(
-                    modifier = Modifier
-                      .fillMaxWidth()
-                      .then(
-                        if (isSelected) {
-                          Modifier
-                            .focusRequester(selectedDrawerApartmentFocusRequester)
-                            .focusTarget()
-                        } else {
-                          Modifier
-                        }
-                      )
-                  ) {
-                    NavigationDrawerItem(
-                      label = { Text(house.house ?: "") },
-                      selected = isSelected,
-                      icon = { Icon(Icons.Default.Domain, null) },
-                      onClick = {
-                        println("[$className.$methodName]: [SELECT_HOUSE] Клик по дому ID: ${house.houseId}")
-                        focusManager.clearFocus()
-                        selectedDrawerApartmentFocusRequester.requestFocus()
-                        apartmentScreenModel.onHouseSelected(house.houseId)
-                      },
-                      modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                  }
-                }
-              }
-              ListMode.APARTMENTS -> {
-                val aptList = if (isOrgAdmin) drawerApartments else baseUIState.apartments
-                items(aptList, key = { "a_${it.addressId}" }) { apt ->
-                  val isSelected = baseUIState.addressId == apt.addressId
-                  val badgeCount = apartmentBadges[apt.addressId.toString()] ?: 0
-
-                  Box(
-                    modifier = Modifier
-                      .fillMaxWidth()
-                      // Прошиваем выбранную админ-карточку БТИ фокус-маркером во избежание залипания клавиатуры
-                      .then(
-                        if (isSelected) {
-                          Modifier
-                            .focusRequester(selectedDrawerApartmentFocusRequester)
-                            .focusTarget()
-                        } else {
-                          Modifier
-                        }
-                      )
-                  ) {
-                    DrawerItemContent(
-                      apartment = apt,
-                      isSelected = isSelected,
-                      listMode = ListMode.APARTMENTS,
-                      badgeCount = badgeCount,
-                      onClick = {
-                        println("[$className.$methodName]: [SELECT_APT] Клик по квартире о/р Long: ${apt.addressId}")
-                        focusManager.clearFocus()
-                        selectedDrawerApartmentFocusRequester.requestFocus()
-                        keyboardController?.hide()
-                        navigateToApartment(apt.addressId)
-                        onMenuClick()
-                      }
-                    )
-                  }
-                }
-              }
-            }
           }
         }
       }
 
-
+      HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
+      
+      NavigationDrawerItem(
+        label = { Text("Вихід") },
+        selected = false,
+        onClick = { /* Логика выхода */ },
+        icon = { Icon(Icons.AutoMirrored.Filled.Logout, null) },
+        modifier = Modifier.padding(16.dp),
+        shape = RoundedCornerShape(12.dp)
+      )
     }
   }
 }
 
-/**
- * [DrawerItemContent] — Внутрішній компонент отрисовки ячейки будинку або квартири ЮКІС на базі NavigationDrawerItem
- */
 @Composable
-fun DrawerItemContent(
-  modifier: Modifier = Modifier,
-  apartment: ApartmentEntity,
+fun DrawerApartmentItem(
+  title: String,
+  subtitle: String?,
+  extraInfo: String,
+  icon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Default.Home,
   isSelected: Boolean,
-  listMode: ListMode,
   badgeCount: Int,
+  focusRequester: FocusRequester? = null,
   onClick: () -> Unit
 ) {
-  val focusManager = LocalFocusManager.current
-
   NavigationDrawerItem(
     label = {
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-      ) {
+      Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Start
-          ) {
-            Text(
-              text = apartment.address ?: "",
-              fontWeight = FontWeight.Bold,
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-              text = "| о/р ${apartment.addressId}",
-              style = MaterialTheme.typography.labelSmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-              maxLines = 1,
-              softWrap = false
-            )
+          Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+          if (!subtitle.isNullOrBlank()) {
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
           }
-
-          if (listMode == ListMode.APARTMENTS) {
-            apartment.nanim?.let {
+          Text(extraInfo, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+        }
+        if (badgeCount > 0) {
+          Surface(
+            color = MaterialTheme.colorScheme.error,
+            shape = CircleShape,
+            modifier = Modifier.size(24.dp)
+          ) {
+            Box(contentAlignment = Alignment.Center) {
               Text(
-                text = it,
+                text = if (badgeCount > 99) "99+" else badgeCount.toString(),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                color = MaterialTheme.colorScheme.onError
               )
             }
-          }
-        }
-
-        if (badgeCount > 0) {
-          Badge(
-            containerColor = MaterialTheme.colorScheme.error,
-            modifier = Modifier.padding(start = 4.dp)
-          ) {
-            Text(text = badgeCount.toString(), fontWeight = FontWeight.Bold)
           }
         }
       }
     },
     selected = isSelected,
-    onClick = {
-      println("[YkisLogKMP.DrawerItemContent]: Клік по адресі у шторці смартфона. Скидання фокусу пошуку.")
-      // ІСПРАВЛЕНО: Примусово знімаємо фокус введення в OutlinedTextField при тапі на будь-яку квартиру шторки
-      focusManager.clearFocus()
-      onClick()
-    },
-    icon = {
-      Icon(
-        imageVector = if (listMode == ListMode.HOUSES) Icons.Default.Domain else Icons.Default.Home,
-        contentDescription = null
-      )
-    },
-    modifier = modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+    onClick = onClick,
+    icon = { Icon(icon, null) },
+    modifier = Modifier.then(if (focusRequester != null) Modifier.focusRequester(focusRequester).focusTarget() else Modifier),
+    shape = RoundedCornerShape(12.dp),
+    colors = NavigationDrawerItemDefaults.colors(
+      selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+      selectedIconColor = MaterialTheme.colorScheme.primary,
+      selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer
+    )
   )
 }
-
-
-
-
-
-

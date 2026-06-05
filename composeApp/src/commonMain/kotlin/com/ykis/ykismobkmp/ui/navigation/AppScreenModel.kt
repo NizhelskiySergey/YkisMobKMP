@@ -37,12 +37,11 @@ class AppScreenModel(
 
   fun evaluateStartDestination() {
     screenModelScope.launch {
-      _startState.value = AppStartState.Loading
-
-      // ИСПРАВЛЕНО НАМЕРТВО: Стартовый защитный барьер разгрузки процессора увеличен до 1200 мс.
-      // Дает нативным сервисам Google Play Services и Tag Manager завершить рефлексивную
-      // привязку к SystemProperties, полностью исключая краш SIGSEGV (Fatal signal 11)!
-      delay(1200)
+      // ИСПРАВЛЕНО: Ставим Loading только если мы ЕЩЕ НЕ определились с состоянием.
+      // Это предотвратит уничтожение навигатора и корутин чата при обновлении профиля.
+      if (_startState.value == AppStartState.Loading) {
+          delay(1200)
+      }
 
       // 1. ШАГ №1: Перевірка ліцензійної угоди (Оферти ГІОЦ)
       val isTermsAccepted = appCache.getBoolean(key = TERMS_ACCEPTED_KEY, defaultValue = false)
@@ -60,27 +59,42 @@ class AppScreenModel(
         println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 1] Оферта прийнята.")
       }
 
-      // 2. ШАГ №2: Проверка сессии Firebase с буферизацией (300 мс)
+      // 2. ШАГ №2: Проверка сессии Firebase
       delay(300)
-      val hasActiveUser = firebaseService.isUserAuthenticatedInFirebase
-      println("[YkisLogKMP.$className.evaluateStartDestination]: Перевірка авторизації Firebase. Статус: $hasActiveUser")
+      val currentUid = firebaseService.uid
+      val hasActiveUser = firebaseService.isUserAuthenticatedInFirebase && currentUid.isNotBlank()
+      println("[YkisLogKMP.$className.evaluateStartDestination]: Перевірка авторизації Firebase. Статус: $hasActiveUser, UID: ${currentUid.takeLast(5)}")
 
       if (!hasActiveUser) {
-        println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Сесія відсутня. Наказ на SignIn.")
+        println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Сесія недійсна або порожня. Наказ на SignIn.")
         _startState.value = AppStartState.SignIn
         return@launch
+      }
+
+      // ИСПРАВЛЕНО: Проверка подтверждения Email при старте
+      val isVerified = firebaseService.isEmailVerified ?: false
+      if (!isVerified) {
+          println("[YkisLogKMP.$className.evaluateStartDestination]: [STEP 2.5] Пошта НЕ підтверджена. Редирект на верифікацію.")
+          _startState.value = AppStartState.VerifyEmail
+          return@launch
       }
 
       // ГАРАНТИЯ ПУШЕЙ: Пробуем зарегистрировать токен при каждом входе
       firebaseService.addFcmToken()
 
-      // 3. ШАГ №3: ПОЛЬЗОВАТЕЛЬ АВТОРИЗОВАН — Безопасное чтение профиля БТИ без зацикливания памяти
-      println("[YkisLogKMP.$className.evaluateStartDestination]: [SESSION_OK] Запуск одноразового моніторингу профілю...")
-
+      // 3. ШАГ №3: ПОЛЬЗОВАТЕЛЬ АВТОРИЗОВАН
+      println("[YkisLogKMP.$className.evaluateStartDestination]: [SESSION_OK] Запуск моніторингу профілю...")
       apartmentScreenModel.observeUserProfile()
 
+      // ИСПРАВЛЕНО: Ждем загрузки, но следим за UID. Если он пропал (авто-выход Firebase) — прерываемся.
       val finalUIState = apartmentScreenModel.uiState.first { state ->
-        state.userRole != UserRole.Unknown && !state.mainLoading
+        (state.userRole != UserRole.Unknown && !state.mainLoading) || firebaseService.uid.isBlank()
+      }
+
+      if (firebaseService.uid.isBlank()) {
+        println("[YkisLogKMP.$className.evaluateStartDestination]: [SESSION_LOST] Сесія анульована в процесі. Редирект на SignIn.")
+        _startState.value = AppStartState.SignIn
+        return@launch
       }
 
       val currentRole = finalUIState.userRole

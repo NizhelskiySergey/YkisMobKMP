@@ -50,8 +50,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
-import cafe.adriel.voyager.navigator.LocalNavigator
-import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
@@ -75,7 +73,6 @@ class InfoApartmentScreen(
   @OptIn(ExperimentalMaterial3Api::class)
   @Composable
   override fun Content() {
-    val navigator = LocalNavigator.currentOrThrow
     val adaptiveContentType = LocalContentType.current
     val adaptiveNavigationType = LocalNavigationType.current
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
@@ -100,8 +97,10 @@ class InfoApartmentScreen(
             apartmentScreenModel.deleteApartmentFromProfile(
               addressId = baseUIState.addressId,
               onNavigateToAddScreen = {
-                println("[YkisLogKMP.$className.Content]: Замена корня стека Voyager на экран привязки квартиры БТИ")
-                navigator.replaceAll(com.ykis.ykismobkmp.ui.navigation.AddApartmentScreen)
+                // ИСПРАВЛЕНО: Мы больше не делаем replaceAll здесь. 
+                // MainApartmentScreen сам переключит активный подмодуль на AddApartmentScreen
+                // благодаря нашему новому LaunchedEffect в MainApartmentScreen.kt.
+                println("[YkisLogKMP.$className.Content]: Квартира видалена. Повернення під контроль MainApartmentScreen.")
               }
             )
             showWarningDialog = false

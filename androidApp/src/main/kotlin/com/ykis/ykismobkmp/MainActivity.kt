@@ -7,12 +7,8 @@ import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -83,7 +79,7 @@ class MainActivity : ComponentActivity() {
     
     if (extras != null) {
       for (key in extras.keySet()) {
-        println("[YkisLogKMP.TRAP.Main]: Ключ: \"$key\" -> Значение: \"${extras.get(key)}\"")
+        println("[YkisLogKMP.TRAP.Main]: Ключ: \"$key\" -> Значение: \"${extras.getString(key)}\"")
       }
     } else {
       println("[YkisLogKMP.TRAP.Main]: Extras пустые")

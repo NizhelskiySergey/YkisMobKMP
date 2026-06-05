@@ -18,29 +18,38 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import dev.gitlive.firebase.database.ChildEvent
 import dev.gitlive.firebase.database.FirebaseDatabase
 
 /**
  * [ChatRepository] — единственный источник данных для чатов и ИИ.
- * Использует GitLive Firebase SDK для мультиплатформенности.
+ * ИСПРАВЛЕНО: Безопасное использование компонентов Firebase для предотвращения крашей на iOS/Desktop.
  */
 class ChatRepository(
-  private val firestore: FirebaseFirestore,
-  val realtime: FirebaseDatabase,
-  val storage: FirebaseStorage,
-  private val functions: FirebaseFunctions,
+  private val _firestore: FirebaseFirestore?,
+  private val _realtime: FirebaseDatabase?,
+  private val _storage: FirebaseStorage?,
+  private val _functions: FirebaseFunctions?,
   private val aiManager: GeminiAiManager
 ) {
   private val className = "ChatRepository"
 
+  // Геттеры с проверкой на null, чтобы не падать при отсутствии SDK
+  private val firestore get() = _firestore ?: throw IllegalStateException("Firestore not available")
+  val realtime get() = _realtime ?: throw IllegalStateException("Realtime Database not available")
+  val storage get() = _storage ?: throw IllegalStateException("Storage not available")
+  private val functions get() = _functions ?: throw IllegalStateException("Functions not available")
+
   val currentUid: String?
-    get() = Firebase.auth.currentUser?.uid
+    get() = try { Firebase.auth.currentUser?.uid } catch (e: Exception) { null }
 
   // --- 1. FIRESTORE (ПРОФИЛИ) ---
 
   suspend fun fetchUsersByIds(ids: List<String>): List<UserEntity> {
-    if (ids.isEmpty()) return emptyList()
+    if (ids.isEmpty() || _firestore == null) return emptyList()
     val idsToFetch = ids.distinct().take(30)
 
     return try {
@@ -56,19 +65,15 @@ class ChatRepository(
       emptyList()
     }
   }
-  /**
-   * [ChatRepository.observeTyping] — поток статусов печати участников чата.
-   * Использует расширения GitLive для парсинга Snapshot в Map.
-   */
+  
   fun observeTyping(chatId: String): Flow<Map<String, Boolean>> {
+    if (_realtime == null) return flow { emit(emptyMap()) }
     return realtime.reference("presence/$chatId")
       .valueEvents
       .map { snapshot ->
         snapshot.children.associate { child ->
           val uid = child.key ?: ""
-          // Достаем поле typing максимально надежным способом
           val isTyping = try {
-             // Использование .child().exists для проверки наличия поля в GitLive SDK
              val typingChild = child.child("typing")
              if (typingChild.exists) {
                  typingChild.value<Boolean?>() ?: false
@@ -84,32 +89,30 @@ class ChatRepository(
   }
 
   suspend fun setTypingStatus(chatId: String, uid: String, isTyping: Boolean) {
+    if (_realtime == null) return
     try {
-      // Используем updateChildren, чтобы не затереть поле "online"
       val updates = mapOf("typing" to isTyping)
       realtime.reference("presence/$chatId/$uid").updateChildren(updates)
     } catch (e: Exception) {
       Log.e("YkisLog", "[$className.setTypingStatus]: ${e.message}")
     }
   }
-  /**
-   * [ChatRepository.observeChatKeys] — Получение списка веток чатов по заданному префиксу.
-   * Используется диспетчерами для фильтрации своих чатов (Water, Osbb и т.д.).
-   */
+
   fun observeChatKeys(prefix: String): Flow<List<String>> {
+    if (_realtime == null) return flowOf(emptyList())
+    // ИСПРАВЛЕНО: Убираем orderByKey(), так как на iOS это вызывает конфликт с startAt/endAt.
+    // По умолчанию Realtime DB и так сортирует по ключам.
     return realtime.reference("chats")
-      .orderByKey()
       .startAt(prefix)
-      .endAt(prefix + "\uf8ff") // Спецсимвол для захвата всех веток, начинающихся с префикса
+      .endAt(prefix + "\uf8ff")
       .valueEvents
       .map { snapshot ->
-        // Извлекаем только ключи (ID чатов)
         snapshot.children.mapNotNull { it.key }
       }
   }
 
   suspend fun fetchAdminsByOsbb(osbbId: Long): List<UserEntity> {
-    // ИСПРАВЛЕНО: Используем стабильный SerialName для точного совпадения с полем в Firestore
+    if (_firestore == null) return emptyList()
     val adminRoles = listOf(
       UserRole.VodokanalUser.getSerialName(),
       UserRole.YtkeUser.getSerialName(),
@@ -134,19 +137,58 @@ class ChatRepository(
     }
   }
 
+  suspend fun fetchUserByAddressId(addressId: Long): UserEntity? {
+    if (_firestore == null) return null
+    return try {
+      val result = firestore.collection("users")
+        .where { "addressId" equalTo addressId }
+        .get()
+      result.documents.firstOrNull()?.let { mapToUserEntity(it.id, it.data()) }
+    } catch (e: Exception) {
+      null
+    }
+  }
+
+  suspend fun fetchUserListForService(serviceName: String): List<UserEntity> {
+      if (_firestore == null) return emptyList()
+      return try {
+          val snapshot = firestore.collection("users").get()
+          snapshot.documents.map { mapToUserEntity(it.id, it.data()) }
+      } catch (e: Exception) {
+          emptyList()
+      }
+  }
+
+  fun observeUnreadCounts(chatPaths: List<String>, myUid: String): Flow<Map<String, Int>> {
+    if (_realtime == null || chatPaths.isEmpty()) return flow { emit(emptyMap()) }
+    
+    val flows = chatPaths.map { path ->
+      realtime.reference("chats/$path")
+        .valueEvents
+        .map { snapshot ->
+          val count = snapshot.children.count { child ->
+            val senderUid = child.child("senderUid").value<String?>()
+            val isRead = child.child("read").value<Boolean?>() ?: false
+            senderUid != myUid && !isRead
+          }
+          path to count
+        }
+    }
+    
+    return combine(flows) { it.toMap() }
+  }
+
   suspend fun sendChatNotification(data: Map<String, Any?>) {
+    if (_functions == null) return
     try {
-      println("[$className.sendChatNotification]: Вызов Cloud Function 'sendChatNotification'...")
       functions.httpsCallable("sendChatNotification").invoke(data)
     } catch (e: Exception) {
       Log.e("YkisLog", "[$className.sendChatNotification]: Error -> ${e.message}")
     }
   }
 
-  /**
-   * [sendGlobalNotification] — Оповещение всех пользователей (или группы) о новом объявлении.
-   */
   suspend fun sendGlobalNotification(title: String, body: String, osbbId: Long = 0L, imageUrl: String? = null) {
+    if (_functions == null) return
     try {
       val data = mutableMapOf<String, Any?>(
         "title" to title,
@@ -155,41 +197,25 @@ class ChatRepository(
         "type" to "ANNOUNCEMENT"
       )
       imageUrl?.let { data["imageUrl"] = it }
-      
-      println("[$className.sendGlobalNotification]: Вызов Cloud Function 'sendGlobalNotification'...")
       functions.httpsCallable("sendGlobalNotification").invoke(data)
     } catch (e: Exception) {
       Log.e("YkisLog", "[$className.sendGlobalNotification]: Error -> ${e.message}")
     }
   }
 
-  // --- 2. ОБЪЯВЛЕНИЯ (ANNOUNCEMENTS) ---
-
-  /**
-   * [publishAnnouncement] — Публикация нового объявления в Firestore.
-   * ИСПРАВЛЕНО: Теперь используется явное создание документа для 100% сохранения всех полей.
-   */
   suspend fun publishAnnouncement(announcement: AnnouncementEntity): Result<Unit> {
+    if (_firestore == null) return Result.failure(Exception("Firestore not ready"))
     return try {
       val col = firestore.collection("announcements")
-      
-      // В GitLive SDK для создания нового дока без пути используем пустой add или set
       val timestamp = currentTimeMillis()
       val finalAnnouncement = announcement.copy(timestamp = timestamp)
-      
-      // ИСПРАВЛЕНО: Явная загрузка через коллекцию с получением результата
       col.add(finalAnnouncement)
-      
-      println("[$className.publishAnnouncement]: Успешная публикация. Photo: ${finalAnnouncement.imageUrl}")
-
-      // После публикации шлем пуш всем заинтересованным
       sendGlobalNotification(
         title = finalAnnouncement.title,
         body = finalAnnouncement.message.take(100),
         osbbId = finalAnnouncement.osbbId,
         imageUrl = finalAnnouncement.imageUrl
       )
-      
       Result.success(Unit)
     } catch (e: Exception) {
       Log.e("YkisLog", "[$className.publishAnnouncement]: Error -> ${e.message}")
@@ -197,10 +223,8 @@ class ChatRepository(
     }
   }
 
-  /**
-   * [deleteAnnouncement] — Удаление объявления из Firestore.
-   */
   suspend fun deleteAnnouncement(announcementId: String): Result<Unit> {
+    if (_firestore == null) return Result.failure(Exception("Firestore not ready"))
     return try {
       firestore.collection("announcements").document(announcementId).delete()
       Result.success(Unit)
@@ -210,11 +234,8 @@ class ChatRepository(
     }
   }
 
-  /**
-   * [observeAnnouncements] — Получение потока объявлений, отфильтрованных по OSBB.
-   */
   fun observeAnnouncements(osbbId: Long): Flow<List<AnnouncementEntity>> {
-    // Житель видит общие (0) и свои (osbbId)
+    if (_firestore == null) return flow { emit(emptyList()) }
     return firestore.collection("announcements")
       .snapshots
       .map { snapshot ->
@@ -225,24 +246,21 @@ class ChatRepository(
         }.sortedByDescending { it.timestamp }
       }
       .catch { e ->
-        Log.e("YkisLog", "[$className.observeAnnouncements]: PERMISSION_DENIED або інша помилка Firestore: ${e.message}")
-        emit(emptyList()) // Повертаємо порожній список замість крашу
+        Log.e("YkisLog", "[$className.observeAnnouncements]: Error: ${e.message}")
+        emit(emptyList())
       }
   }
 
-  // --- 3. REALTIME DATABASE (СООБЩЕНИЯ) ---
-
   fun observeMessages(chatUid: String): Flow<List<MessageEntity>> {
+    if (_realtime == null) return flow { emit(emptyList()) }
     return realtime.reference("chats/$chatUid")
       .childEvents()
       .scan(emptyList<MessageEntity>()) { accumulator, event ->
         val message = try {
           event.snapshot.value<MessageEntity>()
         } catch (e: Exception) {
-          Log.e("YkisLog", "[$className.observeMessages]: Parse error")
           return@scan accumulator
         }
-
         when (event.type) {
           ChildEvent.Type.ADDED -> (accumulator + message).sortedBy { it.timestamp }
           ChildEvent.Type.CHANGED -> accumulator.map { if (it.id == message.id) message else it }
@@ -253,6 +271,7 @@ class ChatRepository(
   }
 
   fun observeLastMessage(chatUid: String): Flow<MessageEntity?> {
+    if (_realtime == null) return flow { emit(null) }
     return realtime.reference("chats/$chatUid")
       .limitToLast(1)
       .valueEvents
@@ -262,6 +281,7 @@ class ChatRepository(
   }
 
   fun observePresence(chatId: String): Flow<Map<String, Boolean>> {
+    if (_realtime == null) return flow { emit(emptyMap()) }
     return realtime.reference("presence/$chatId")
       .valueEvents
       .map { snapshot ->
@@ -282,7 +302,18 @@ class ChatRepository(
       }
   }
 
+  fun observeChatMetadata(chatId: String): Flow<ChatMetadata> {
+    if (_realtime == null) return flow { emit(ChatMetadata()) }
+    return realtime.reference("chats/$chatId/_metadata")
+      .valueEvents
+      .map { snapshot ->
+        snapshot.value<ChatMetadata?>() ?: ChatMetadata()
+      }
+  }
+
+
   suspend fun sendMessage(path: String, message: MessageEntity): Result<Unit> {
+    if (_realtime == null) return Result.failure(Exception("Realtime not ready"))
     return try {
       val ref = realtime.reference("chats/$path")
       val key = if (message.id.isBlank() || message.id == "init") {
@@ -290,38 +321,32 @@ class ChatRepository(
       } else {
         message.id
       }
-
       ref.child(key).setValue(message.copy(id = key))
-      Log.d("YkisLog", "[$className.sendMessage]: Success to $path")
       Result.success(Unit)
     } catch (e: Exception) {
-      Log.e("YkisLog", "[$className.sendMessage]: Error -> ${e.message}")
       Result.failure(e)
     }
   }
 
-
   suspend fun isChatBranchExists(path: String): Boolean {
+    if (_realtime == null) return false
     return try {
-      // Вместо проблемного .get() используем поток и берем первый эмит
       val snapshot = realtime.reference("chats/$path").valueEvents.first()
       snapshot.exists
     } catch (e: Exception) {
-      Log.e("YkisLog", "[$className.isChatBranchExists]: ${e.message}")
       false
     }
   }
 
   suspend fun markMessagesAsRead(chatId: String, myUid: String) {
+    if (_realtime == null) return
     try {
       val ref = realtime.reference("chats/$chatId")
-      // Получаем данные (используем valueEvents.first() если .get() не виден)
       val snapshot = ref.limitToLast(50).valueEvents.first()
       val updates = mutableMapOf<String, Any?>()
       snapshot.children.forEach { child ->
         val senderUid = child.child("senderUid").value<String?>()
         val isRead = child.child("read").value<Boolean?>() ?: false
-
         if (!isRead && senderUid != myUid && senderUid != null) {
           val msgKey = child.key
           if (msgKey != null) {
@@ -329,109 +354,76 @@ class ChatRepository(
           }
         }
       }
-      if (updates.isNotEmpty()) {
-        ref.updateChildren(updates)
-        Log.d("YkisLog", "[$className.markRead]: Success")
-      }
-    } catch (e: Exception) {
-      Log.e("YkisLog", "[$className.markRead]: Error -> ${e.message}")
-    }
+      if (updates.isNotEmpty()) ref.updateChildren(updates)
+    } catch (e: Exception) { }
   }
+
   suspend fun uploadFile(imageData: ByteArray, storagePath: String): String {
+    if (_storage == null) throw Exception("Storage not ready")
     val ref = storage.reference(storagePath)
-
-    // Твое расширение решает проблему конструктора Data
-    val firebaseData = imageData.wrapForFirebase()
-
-    // Выполняем загрузку
-    ref.putData(firebaseData)
-
-    // Получаем публичную ссылку для сохранения в Realtime DB
+    ref.putData(imageData.wrapForFirebase())
     return ref.getDownloadUrl()
   }
+
   suspend fun deleteFileFromStorage(url: String) {
+    if (_storage == null) return
     try {
       storage.getReferenceFromUrl(url).delete()
-      Log.d("YkisLog", "[$className.deleteFile]: Deleted successfully")
-    } catch (e: Exception) {
-      Log.e("YkisLog", "[$className.deleteFile]: Error -> ${e.message}")
-    }
+    } catch (e: Exception) { }
   }
 
   suspend fun setUserOnline(chatId: String, uid: String) {
-    // ИСПРАВЛЕНО: Используем метку времени как уникальный ID сессии устройства.
-    // Это позволяет корректно работать, если пользователь зашел в чат с телефона и планшета одновременно.
+    if (_realtime == null) return
     val sessionId = currentTimeMillis().toString()
     val ref = realtime.reference("presence/$chatId/$uid/sessions/$sessionId")
-    
     ref.setValue(true)
-    // Когда устройство разрывает связь, удаляем только ЭТУ сессию
     ref.onDisconnect().removeValue()
-    
-    // Дублируем старый флаг для совместимости
     realtime.reference("presence/$chatId/$uid/online").setValue(true)
     realtime.reference("presence/$chatId/$uid/online").onDisconnect().removeValue()
   }
 
   suspend fun setUserOffline(chatId: String, uid: String) {
-    // При явном выходе удаляем все сессии данного пользователя в этой комнате
+    if (_realtime == null) return
     realtime.reference("presence/$chatId/$uid").removeValue()
   }
 
   suspend fun updateMessage(path: String, msgId: String, updates: Map<String, Any?>) {
+    if (_realtime == null) return
     realtime.reference("chats/$path/$msgId").updateChildren(updates)
   }
 
   suspend fun removeMessage(path: String, msgId: String) {
+    if (_realtime == null) return
     realtime.reference("chats/$path/$msgId").removeValue()
   }
 
   suspend fun removeChatBranch(path: String) {
+    if (_realtime == null) return
     realtime.reference("chats/$path").removeValue()
-    // Также удаляем данные о присутствии и печати для этой ветки
     realtime.reference("presence/$path").removeValue()
-    println("[$className.removeChatBranch]: Ветка чата $path полностью удалена.")
   }
+
   suspend fun compressImage(path: String): ByteArray = platformCompressImage(path)
   suspend fun readFileAsBytes(path: String): ByteArray = platformReadFileAsBytes(path)
-
   suspend fun askAiAssistant(prompt: String) = aiManager.askAssistant(prompt)
+  suspend fun analyzeMeterImage(prompt: String, imageData: ByteArray) = aiManager.analyzeMeterImage(prompt, imageData)
 
-  suspend fun analyzeMeterImage(prompt: String, imageData: ByteArray) =
-    aiManager.analyzeMeterImage(prompt, imageData)
-  /**
-   * [ChatRepository.deleteMessageForUser] — Добавление UID в список удаливших сообщение.
-   */
-  /**
-   * [ChatRepository.deleteMessageForUser] — Добавление UID в список удаливших сообщение.
-   */
   suspend fun deleteMessageForUser(chatPath: String, messageId: String, uid: String): Result<Unit> {
+    if (_realtime == null) return Result.failure(Exception("Realtime not ready"))
     return try {
       val ref = realtime.reference("chats/$chatPath/$messageId/deletedFor")
-
-      // Используем твое исправление: valueEvents.first() вместо get()
       val snapshot = ref.valueEvents.first()
-
-      // Извлекаем список UID, которые уже удалили это сообщение
       val currentList = snapshot.value<List<String>?>() ?: emptyList()
-
       if (!currentList.contains(uid)) {
         val newList = currentList + uid
         ref.setValue(newList)
       }
-
       Result.success(Unit)
     } catch (e: Exception) {
-      Log.e("YkisLog", "[ChatRepository.deleteForMe]: ${e.message}")
       Result.failure(e)
     }
   }
-
-
-
 }
+
 expect suspend fun platformCompressImage(path: String): ByteArray
 expect suspend fun platformReadFileAsBytes(path: String): ByteArray
-
-
-

@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -20,21 +19,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.core.screen.Screen
-import cafe.adriel.voyager.navigator.LocalNavigator
-import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.domain.entity.MessageEntity
 import com.ykis.ykismobkmp.domain.entity.UserEntity
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.UserListItem
-import org.koin.compose.koinInject
+
 private const val className = "UserList"
 
-/**
- * [UserWithLatestMessage] — Кросплатформенный контейнер-снимок диалога чат-системы.
- */
 data class UserWithLatestMessage(
   val user: UserEntity,
   val latestMessage: MessageEntity,
@@ -42,35 +35,24 @@ data class UserWithLatestMessage(
   val chatId: String
 )
 
-/**
- * [UserList] — Декларативная верстка, маршалинг ключей Firebase и сортировка ленты диалогов Material 3.
- * Исправлено: Дублирующий класс UserListScreen полностью вырезан, предотвращая ошибку Redeclaration!
- */
 @Composable
 fun UserList(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
   userList: List<UserEntity>,
   onUserClick: (UserEntity) -> Unit,
-  chatScreenModel: ChatScreenModel // Работаем на единой сквозной стейт-модели Хаба ЮКІС
+  chatScreenModel: ChatScreenModel
 ) {
-  // Подписки на мультиплатформенные StateFlow из ChatScreenModel
   val latestMessages by chatScreenModel.lastMessages.collectAsState()
   val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
   val typingStatuses by chatScreenModel.globalTypingStatuses.collectAsState()
   val selectedPrefix by chatScreenModel.selectedServicePrefix.collectAsState()
 
-  // Трансформация и высокоскоростная сортировка списка комнат на смартфонах
   val userWithMessages = remember(userList, latestMessages, unreadCounts, typingStatuses, selectedPrefix) {
-    val methodName = "Mapping"
-    println("[YkisLogKMP.$className.$methodName]: Початок маршалінгу кімнат. Роль користувача: ${baseUIState.userRole} | Активний префікс: $selectedPrefix")
-
     userList.map { user ->
-      // ГЕНЕРАЦИЯ КЛЮЧА ЧАТА (Синхронизировано на 100% с логикой СУБД, Firebase и ChatScreenModel!)
       val chatId = when (baseUIState.userRole) {
         UserRole.StandardUser -> {
-          val prefix = selectedPrefix ?: "UNKNOWN"
-          // ИСПРАВЛЕНО: Для жильца используем системные ID служб, чтобы ключи совпадали с БД
+          val prefix = selectedPrefix
           val sysId = when(prefix) {
             "WATER_SERVICE" -> Constants.WATER_SERVICE_ID
             "WARM_SERVICE" -> Constants.WARM_SERVICE_ID
@@ -79,8 +61,6 @@ fun UserList(
           }
           "${prefix}_${sysId}_${user.addressId}_${user.uid}"
         }
-        // Исправлено: Системные коды Long-идентификаторов коммунальных предприятий города Южного
-        // приведены к жесткому и единому стандарту вьюмодели (9999L / 9998L / 9997L)!
         UserRole.VodokanalUser -> "WATER_SERVICE_${Constants.WATER_SERVICE_ID}_${user.addressId}_${user.uid}"
         UserRole.YtkeUser      -> "WARM_SERVICE_${Constants.WARM_SERVICE_ID}_${user.addressId}_${user.uid}"
         UserRole.TboUser       -> "GARBAGE_SERVICE_${Constants.GARBAGE_SERVICE_ID}_${user.addressId}_${user.uid}"
@@ -93,11 +73,9 @@ fun UserList(
       val isTyping = typingStatuses[chatId] ?: false
       val safeMsg = lastMsg ?: MessageEntity(text = "", timestamp = 0L)
 
-      // Если собеседник печатает — выводим статус вместо текста сообщения
-      val previewText = if (isTyping) "друкує..." else safeMsg.text ?: ""
+      val previewText = if (isTyping) "друкує..." else safeMsg.text
 
-      // Если адрес отправителя пустой, нативно подставляем легитимный адрес/ФИО из карточки абонента БТИ
-      val stableDisplayName = if (!safeMsg.senderAddress.isNullOrBlank()) {
+      val stableDisplayName = if (safeMsg.senderAddress.isNotBlank()) {
         safeMsg.senderAddress
       } else {
         user.displayName ?: "Користувач (о/р ${user.addressId})"
@@ -110,7 +88,6 @@ fun UserList(
         chatId = chatId
       )
     }.sortedWith(
-      // Сначала чаты с новыми сообщениями (бейджами), затем по времени последнего сообщения (DESC)
       compareByDescending<UserWithLatestMessage> { it.unreadCount > 0 }
         .thenByDescending { it.latestMessage.timestamp }
     )
@@ -135,10 +112,9 @@ fun UserList(
       }
     }
 
-    // Рендерим отсортированную КМР-коллекцию чатов на дисплей смартфона
     items(
       items = userWithMessages,
-      key = { it.chatId } // Уникальный составной токен в качестве КМР-ключа строки для Skiko
+      key = { it.chatId }
     ) { item ->
       Box(
         modifier = Modifier
@@ -148,15 +124,13 @@ fun UserList(
         UserListItem(
           user = item.user,
           onUserClick = {
-            println("[YkisLogKMP.$className.onClick]: Обрано діалог для входу. Сформований ChatId: ${item.chatId}")
             onUserClick(it)
           },
           lastMessage = if (item.latestMessage.timestamp > 0L) item.latestMessage else null,
           currentUid = baseUIState.uid.toString(),
-          isTyping = typingStatuses[item.chatId] == true // ИСПРАВЛЕНО: Убрано ошибочное условие < 0
+          isTyping = typingStatuses[item.chatId] == true
         )
 
-        // Сферический бейдж непрочитанных сообщений коммунальных ведомостей ОСББ
         if (item.unreadCount > 0) {
           Surface(
             modifier = Modifier
@@ -179,6 +153,3 @@ fun UserList(
     }
   }
 }
-
-
-

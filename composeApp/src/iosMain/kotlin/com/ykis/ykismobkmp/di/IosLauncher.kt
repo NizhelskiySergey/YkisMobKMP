@@ -5,31 +5,43 @@ import com.russhwolf.settings.NSUserDefaultsSettings
 import com.ykis.ykismobkmp.data.preferences.AppSettingsRepository
 import com.ykis.ykismobkmp.data.preferences.AppSettingsRepositoryImpl
 import com.ykis.ykismobkmp.db.DatabaseDriverFactory
+import com.ykis.ykismobkmp.domain.ai.LocalAiEngine
+import io.github.aakira.napier.DebugAntilog
+import io.github.aakira.napier.Napier
 import org.koin.core.module.Module
 import org.koin.dsl.module
 import platform.Foundation.NSUserDefaults
+import kotlin.experimental.ExperimentalObjCName
+import kotlin.native.ObjCName
 
 /**
  * [iosPlatformModule] — Граф нативных зависимостей для iPhone и Симуляторов.
  */
 val iosPlatformModule: Module = module {
-  // 1. Кроссплатформенный кэш настроек на базе нативного Apple NSUserDefaults
   single<Settings> {
     NSUserDefaultsSettings(NSUserDefaults.standardUserDefaults)
   }
   single<AppSettingsRepository> {
     AppSettingsRepositoryImpl( get())
   }
-  // 2. Драйвер SQLite баз данных под iOS
   single { DatabaseDriverFactory() }
+  
+  // ИСПРАВЛЕНО: Добавляем локальный AI движок Apple Core ML
+  single { LocalAiEngine() }
 }
 
 /**
- * [initIosKoin] — Точка старта DI для Xcode.
- * Снабжена аннотацией, делающей метод глобально видимым в Swift слое.
+ * [AppInitializer] — Точка входа для Swift.
  */
-fun initIosKoin() {
-  initKoin(
-    platformModule = iosPlatformModule
-  )
+@OptIn(ExperimentalObjCName::class)
+@ObjCName("AppInitializer")
+class AppInitializer {
+    fun run() {
+        // Инициализируем Napier для логов в Xcode
+        Napier.base(DebugAntilog())
+
+        initKoin(
+            platformModule = iosPlatformModule
+        )
+    }
 }

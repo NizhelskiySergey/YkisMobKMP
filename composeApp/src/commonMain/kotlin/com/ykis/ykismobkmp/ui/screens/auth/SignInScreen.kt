@@ -41,7 +41,8 @@ import com.ykis.ykismobkmp.ui.components.PasswordField
 import com.ykis.ykismobkmp.ui.components.PhoneVisualTransformation
 import com.ykis.ykismobkmp.core.utils.rememberSmsRetriever
 import com.ykis.ykismobkmp.ui.navigation.MainApartmentScreen
-import com.ykis.ykismobkmp.ui.navigation.SignUpScreen
+import com.ykis.ykismobkmp.ui.navigation.SignUpScreenDest
+import com.ykis.ykismobkmp.ui.navigation.VerifyEmailScreenDest
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import dev.gitlive.firebase.auth.auth
 import org.jetbrains.compose.resources.stringResource
@@ -68,6 +69,15 @@ private const val className = "SignInScreen"
 @Composable
 fun GoogleAuthButton(isLoading: Boolean, onStart: () -> Unit, onError: () -> Unit, onTokenReceived: (String) -> Unit) {
   val contextActivity = platformActivityContext()
+  val platform = com.ykis.ykismobkmp.getPlatform().name
+  
+  // ИСПРАВЛЕНО: Скрываем кнопку Google на iOS и Desktop, так как там нужен другой механизм
+  val isSupported = !platform.contains("Java", true) && 
+                    !platform.contains("JVM", true) && 
+                    !platform.contains("iOS", true)
+
+  if (!isSupported) return 
+
   Button(
     onClick = {
       if (contextActivity == null) {
@@ -186,7 +196,7 @@ object SignInScreen : Screen {
             val isVerified = activeUser?.isEmailVerified ?: false
             if (!isVerified) {
               println("[YkisLogKMP.$className.Content]: Вхід успішний, але пошта НЕ підтверджена. Навігація на VerifyEmailScreen.")
-              navigator.push(VerifyEmailScreen)
+              navigator.push(VerifyEmailScreenDest)
             } else {
               println("[YkisLogKMP.$className.Content]: [SUCCESS] Вхід за Email успішний. Передано під контроль реактивного ядра.")
             }
@@ -195,7 +205,7 @@ object SignInScreen : Screen {
         onForgotPasswordClick = { screenModel.onForgotPasswordClick() },
         onSignUpClick = {
           println("[YkisLogKMP.$className.Content]: [NAVIGATION] Перехід на екран реєстрації SignUpScreen")
-          navigator.push(SignUpScreen)
+          navigator.push(SignUpScreenDest)
         },
         onGoogleTokenReceived = { idToken ->
           println("[YkisLogKMP.$className.Content]: [EVENT] Получен Google ID Token. Запуск авторизации...")

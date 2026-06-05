@@ -13,6 +13,8 @@ sealed class AppStartState {
 
   data object SignIn : AppStartState()
 
+  data object VerifyEmail : AppStartState()
+
   data object AddApartment : AppStartState()
 
   data object InfoApartment : AppStartState()

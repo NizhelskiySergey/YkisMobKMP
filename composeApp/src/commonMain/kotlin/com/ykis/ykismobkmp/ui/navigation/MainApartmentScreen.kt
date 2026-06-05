@@ -134,13 +134,21 @@ class MainApartmentScreen(
       }
 
       // 2. Обработка ДИНАМИЧЕСКИХ переходов (Успешная привязка/авторизация)
-      if (!isInitialBoot && activeSubModule == "AddApartmentScreen") {
-        if (role == UserRole.StandardUser && addressId != 0L) {
-          println("[YkisLogKMP.$className.Navigation]: Рахунок прив'язано. Перехід на InfoApartmentScreen")
-          activeSubModule = "InfoApartmentScreen"
-        } else if (role != UserRole.StandardUser && role != UserRole.Unknown && osbbId != 0L) {
-          println("[YkisLogKMP.$className.Navigation]: Адмін авторизований. Перехід на список чатів")
-          activeSubModule = "chat_user_list"
+      if (!isInitialBoot) {
+        if (activeSubModule == "AddApartmentScreen") {
+          if (role == UserRole.StandardUser && addressId != 0L) {
+            println("[YkisLogKMP.$className.Navigation]: Рахунок прив'язано. Перехід на InfoApartmentScreen")
+            activeSubModule = "InfoApartmentScreen"
+          } else if (role != UserRole.StandardUser && role != UserRole.Unknown && osbbId != 0L) {
+            println("[YkisLogKMP.$className.Navigation]: Адмін авторизований. Перехід на список чатів")
+            activeSubModule = "chat_user_list"
+          }
+        } else if (activeSubModule == "InfoApartmentScreen") {
+           // 3. Обработка УДАЛЕНИЯ последнего счета
+           if (role == UserRole.StandardUser && addressId == 0L) {
+             println("[YkisLogKMP.$className.Navigation]: Рахунків немає. Редирект на AddApartmentScreen")
+             activeSubModule = "AddApartmentScreen"
+           }
         }
       }
     }
@@ -264,10 +272,16 @@ class MainApartmentScreen(
               },
               navigationType = navigationType,
               onUserClicked = { selectedUserEntity ->
-                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Квартира вибрана: ${selectedUserEntity.address}. Налаштування контексту...")
+                println("[YkisLogKMP.MainApartmentScreen.ChatRouter]: Квартира вибрана: ${selectedUserEntity.address}")
                 
                 val role = baseUIState.userRole
                 val targetAddrId = selectedUserEntity.addressId
+
+                if (role == UserRole.StandardUser) {
+                  // ГАРАНТИЯ ПУТИ: Принудительно фиксируем префикс в модели ПЕРЕД открытием чата
+                  val prefix = chatScreenModel.selectedServicePrefix.value
+                  chatScreenModel.onServiceSelectedForResident(prefix)
+                }
 
                 if (role == UserRole.OsbbUser || role == UserRole.StandardUser) {
                   // Для адміна ОСББ та Мешканця — повна синхронізація (Firestore + Rail + БТІ)

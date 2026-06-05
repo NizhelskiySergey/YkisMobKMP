@@ -1,0 +1,123 @@
+{
+  "project_info": {
+    "project_number": "1062920014188",
+    "firebase_url": "https://ykis-mob-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "ykis-mob",
+    "storage_bucket": "ykis-mob.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1062920014188:android:2fd6c70e4349bef4088b49",
+        "android_client_info": {
+          "package_name": "com.ykis.mob"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1062920014188-bvmojdc4pce6hk21oaiedua86te1h841.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ykis.mob",
+            "certificate_hash": "e5db9398117656c709e475d386a2cc9865172e0b"
+          }
+        },
+        {
+          "client_id": "1062920014188-j5ip04lfhpcctukc74kbrmslojgvv2ur.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ykis.mob",
+            "certificate_hash": "6a8538b50221c865329ee2405a14bcb887e378c6"
+          }
+        },
+        {
+          "client_id": "1062920014188-jl09lhv4ucjeft4fp2mva0j8kemv83hj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ykis.mob",
+            "certificate_hash": "7f0554265f5027c822b11c7a9203ff806ec4e800"
+          }
+        },
+        {
+          "client_id": "1062920014188-t49akhe8bi4u07vde9n40bqsfdvcpfj3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ykis.mob",
+            "certificate_hash": "afd147ec89ca0be52daf3c5f820553707dde314d"
+          }
+        },
+        {
+          "client_id": "1062920014188-8s41hcrkkik155m7mo2spj26jupp27e5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANkWXoRsCeRUvyQ4Q8ueFTdKJS8N0957s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1062920014188-8s41hcrkkik155m7mo2spj26jupp27e5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1062920014188-6d9rg00vlffkgvb7h7vf3eq3401fhbp5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ykis.ykismobkmp.YkisMobKMP"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1062920014188:android:e7793f85a98e5abf088b49",
+        "android_client_info": {
+          "package_name": "com.ykis.ykismobkmp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1062920014188-jh5vmtvk4jnpcnusm2854rq22cb141j8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ykis.ykismobkmp",
+            "certificate_hash": "afd147ec89ca0be52daf3c5f820553707dde314d"
+          }
+        },
+        {
+          "client_id": "1062920014188-8s41hcrkkik155m7mo2spj26jupp27e5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANkWXoRsCeRUvyQ4Q8ueFTdKJS8N0957s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1062920014188-8s41hcrkkik155m7mo2spj26jupp27e5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1062920014188-6d9rg00vlffkgvb7h7vf3eq3401fhbp5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ykis.ykismobkmp.YkisMobKMP"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

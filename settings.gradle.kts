@@ -14,8 +14,9 @@ dependencyResolutionManagement {
   repositories {
     google()
     mavenCentral()
-    // Дополнительный репозиторий JetBrains для KMP-ресурсов
-    maven("https://maven.pkg.jetbrains.space/public/p/compose/patch")
+    // Временно отключаем нестабильный репозиторий JetBrains, 
+    // так как он вызывает сбои при поиске Firebase библиотек.
+    // maven("https://maven.pkg.jetbrains.space/public/p/compose/patch")
   }
 }
 
@@ -24,3 +25,4 @@ plugins {
 }
 
 include(":composeApp")
+include(":androidApp")

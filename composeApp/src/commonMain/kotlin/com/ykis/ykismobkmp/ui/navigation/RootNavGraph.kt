@@ -26,7 +26,6 @@ import cafe.adriel.voyager.transitions.SlideTransition
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.auth.SignInScreen
-import com.ykis.ykismobkmp.ui.screens.auth.SignUpScreen
 import com.ykis.ykismobkmp.ui.screens.auth.TermsAndConditionScreen
 import com.ykis.ykismobkmp.ui.screens.auth.VerifyEmailScreen
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
@@ -168,6 +167,7 @@ fun RootNavGraph(
             when (currentStartState) {
               AppStartState.TermsAndConditions -> TermsAndConditionScreen(appStartModel.cachedTermsText)
               AppStartState.SignIn -> SignInScreen
+              AppStartState.VerifyEmail -> VerifyEmailScreenDest
               else -> MainApartmentScreen(contentType = contentType, navigationType = navigationType)
             }
           }
@@ -201,16 +201,24 @@ fun RootNavGraph(
                   }
                 }
                 AppStartState.SignIn -> {
-                  if (currentRoute != SignInScreen && currentRoute != SignUpScreen && currentRoute != VerifyEmailScreen) {
+                  if (currentRoute != SignInScreen && currentRoute != SignUpScreenDest && currentRoute != VerifyEmailScreenDest) {
                     println("[YkisLogKMP.$className.Dispatcher]: [NAV_ACTION] Сесія відсутня. Перехід на SignInScreen.")
                     navigator.replaceAll(SignInScreen)
+                  }
+                }
+                AppStartState.VerifyEmail -> {
+                  if (currentRoute != VerifyEmailScreenDest) {
+                    println("[YkisLogKMP.$className.Dispatcher]: [NAV_ACTION] Пошта не підтверджена. Перехід на VerifyEmailScreen.")
+                    navigator.replaceAll(VerifyEmailScreenDest)
                   }
                 }
                 AppStartState.AddApartment,
                 AppStartState.InfoApartment,
                 AppStartState.UserList -> {
-                  if (currentRoute !is MainApartmentScreen) {
-                    println("[YkisLogKMP.$className.Dispatcher]: [EXECUTE] Запуск монолитного хаба MainApartmentScreen")
+                  // ИСПРАВЛЕНО: Если мы УЖЕ внутри хаба MainApartmentScreen, 
+                  // не нужно делать replaceAll, иначе все корутины (чаты) упадут с CancellationException.
+                  if (currentRoute !is MainApartmentScreen && currentRoute !is ChatScreenDest) {
+                    println("[YkisLogKMP.$className.Dispatcher]: [EXECUTE] Запуск хаба MainApartmentScreen")
                     navigator.replaceAll(
                       MainApartmentScreen(
                         contentType = contentType,

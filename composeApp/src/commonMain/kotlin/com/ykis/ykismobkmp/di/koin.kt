@@ -54,132 +54,57 @@ import org.koin.mp.KoinPlatform
 private const val KOIN_TAG = "YkisLogKMP.Koin"
 
 /**
- * [commonModule] — Инфраструктурный модуль: Сеть (Ktor), Сервисы, Firebase, ИИ и Системные репозитории.
+ * [commonModule] — Инфраструктурный модуль.
  */
 val commonModule = module {
   single {
     HttpClient {
       install(ContentNegotiation) {
-        json(
-          json = Json {
-            ignoreUnknownKeys = true
-            isLenient = true
-            encodeDefaults = true
-            prettyPrint = true
-          },
-          contentType = io.ktor.http.ContentType.Application.Json
-        )
+        json(Json { ignoreUnknownKeys = true; isLenient = true; encodeDefaults = true; prettyPrint = true })
       }
       install(Logging) {
-        // Теперь абсолютно каждый запрос и HTML/JSON ответ бэкенда Южного получит наш сквозной маркер!
-        logger = object : Logger {
-          override fun log(message: String) {
-            // Пропускаем через println, что гарантирует вывод в общий поток Logcat без обрезки тегов
-            println("[YkisLogKMP.Network]: $message")
-          }
-        }
+        logger = object : Logger { override fun log(message: String) { println("[YkisLogKMP.Network]: $message") } }
         level = LogLevel.ALL
       }
-
-      install(HttpTimeout) {
-        requestTimeoutMillis = 30_000
-        connectTimeoutMillis = 30_000
-      }
+      install(HttpTimeout) { requestTimeoutMillis = 30_000; connectTimeoutMillis = 30_000 }
     }
   }
 
   single { KtorApiService(get()) }
   single { SnackbarManager }
-  single { Firebase.firestore }
-  single { Firebase.database }
-  single { Firebase.storage }
-  single { Firebase.functions }
   single { LogService() }
   single<com.russhwolf.settings.Settings> { com.russhwolf.settings.Settings() }
 
-  // Инициализация Generative AI (Gemini) для умного ассистента ЮКИС г. Южный
+  // Инициализация Gemini
   single {
-    dev.shreyaspatil.ai.client.generativeai.GenerativeModel(
-      modelName = "gemini-pro",
-      apiKey = GEMINI_API_KEY
-    )
+    dev.shreyaspatil.ai.client.generativeai.GenerativeModel(modelName = "gemini-pro", apiKey = GEMINI_API_KEY)
   }
   single<GeminiAiManager> { GeminiCloudProvider(model = get(), localEngine = get()) }
+  
+  // ИСПРАВЛЕНО: Безопасное создание ChatRepository без использования get<T?>()
   single {
     ChatRepository(
-      firestore = get(),
-      realtime = get(),
-      storage = get(),
-      functions = get(),
+      _firestore = try { Firebase.firestore } catch (t: Throwable) { null },
+      _realtime = try { Firebase.database } catch (t: Throwable) { null },
+      _storage = try { Firebase.storage } catch (t: Throwable) { null },
+      _functions = try { Firebase.functions } catch (t: Throwable) { null },
       aiManager = get()
     )
   }
 
-  // Каноничный прокси-сервис аутентификации Firebase
-  single<FirebaseService> {
-    val realService = FirebaseServiceImpl(
-      settings = get(),
-      apartmentService = get(),
-      chatRepo = get()
-    )
+  single<FirebaseService> { FirebaseServiceImpl(settings = get()) }
 
-    //  КМР-ПРОКСИ СЕРВИСА GOOGLE FIREBASE
-    object : FirebaseService by realService {
-
-      // 1. Каскадное глушение Snapshot-соединений в ОЗУ смартфона
-      override fun stopAllListeners() {
-        try {
-          realService.stopAllListeners()
-        } catch (e: Exception) {
-          println("[$KOIN_TAG.FirebaseProxy_ERR]: Сбой при остановке слушателей: ${e.message}")
-        }
-      }
-
-      //  прокси-объект нативно перехватывает наш suspend вызов signOut(),
-      // аннулирует Auth сессию в Keystore и стирает UID, полностью вычищая рантайм!
-      override suspend fun signOut() {
-        try {
-          println("[$KOIN_TAG.FirebaseProxy]: Перехват вызова безопасного логаута. Перенаправление в realService...")
-          realService.signOut()
-        } catch (e: Exception) {
-          println("[$KOIN_TAG.FirebaseProxy_ERR]: Каскадный сбой при закрытии Auth сессии Firebase: ${e.message}")
-        }
-      }
-
-      // 3. Каскадное безвозвратное удаление коммунального профиля из баз данных
-      // Внутри анонимного прокси object : FirebaseService by realService в Koin:
-      override suspend fun revokeAccess(): Resource<Boolean> {
-        return try {
-          println("[$KOIN_TAG.FirebaseProxy]: Перехват вызова безвозвратного удаления профиля ЮКИС...")
-          realService.revokeAccess()
-        } catch (e: Exception) {
-          println("[$KOIN_TAG.FirebaseProxy_ERR]: Каскадный сбой при удалении аккаунта: ${e.message}")
-          Resource.Error(message = e.message)
-        }
-      }
-    }
-    }
-
-
-  // ====================================================================
-  // --- ИСПРАВЛЕНО НАМЕРТВО: ПОЛНАЯ СЕТЕВАЯ СВЯЗКА РЕПОЗИТОРИЕВ ЮКИС ---
-  // ====================================================================
-
-  // Пакет 1. Недвижимость (Apartment)
+  // Репозитории
   single<ApartmentRemote> { ApartmentRemoteImpl(ktorApiService = get()) }
   single<ApartmentRepository> { ApartmentRepositoryImpl(remote = get()) }
-
-  // Пакет 2. Приборы учета (Meter)
   single<MeterRemoteRepository> { MeterRemoteRepositoryImpl(ktorApiService = get()) }
   single<MeterRepository> { MeterRepositoryImpl( get()) }
-
-  // Пакет 3. Биллинг и бухгалтерские начисления (Ledger)
   single<LedgerRemoteRepository> { LedgerRemoteRepositoryImpl(ktorApiService = get()) }
   single<LedgerRepository> { LedgerRepositoryImpl(get()) }
 }
 
 /**
- * [databaseModule] — Инициализация СУБД SQLDelight 2.x, объектов доступа к данным (DAO) и КМР-кэша.
+ * [databaseModule] — СУБД SQLDelight.
  */
 val databaseModule = module {
   single<YkisDatabases> {
@@ -189,46 +114,19 @@ val databaseModule = module {
 
   single<YkisDatabasesQueries> { get<YkisDatabases>().ykisDatabasesQueries }
 
-  // Регистрируем все очищенные от Room-зависимостей объекты DAO
-  single { ApartmentDao(dbQueries = get()) }
-  single { MeterDao(dbQueries = get()) }
-  single { LedgerDao(dbQueries = get()) }
+  single { ApartmentDao(get<YkisDatabasesQueries>()) }
+  single { MeterDao(get<YkisDatabasesQueries>()) }
+  single { LedgerDao(get<YkisDatabasesQueries>()) }
 
-  // Снабжаем рантайм КМР-реализациями локального кэширования диска устройства
   single<ApartmentCache> { ApartmentCacheImpl(apartmentDao = get()) }
   single<MeterRepositoryCash> { MeterRepositoryCashImpl(meterDao = get()) }
   single<LedgerRepositoryCash> { LedgerRepositoryCashImpl(ledgerDao = get()) }
 }
 
-/**
- * [navigationModule] — Презентационный слой: ScreenModels для Voyager и Сервисы-Комбайны.
- */
-/**
- * Главная точка старта и инициализации Koin-контекста для всех платформ.
- */
-fun initKoin(
-  platformModule: Module = module {},
-  appDeclaration: KoinAppDeclaration = {}
-) {
-  // КМР-ПРЕДОХРАНИТЕЛЬ: Если платформа выдает готовый Koin, значит приложение просто перевернулось
-  if (KoinPlatform.getKoinOrNull() != null) {
-    println("[YkisLogKMP.Koin]: Граф DI вже запущенний на платформі. Пропуск повторного старту при повороті.")
-    return
-  }
-
+fun initKoin(platformModule: Module = module {}, appDeclaration: KoinAppDeclaration = {}) {
+  if (KoinPlatform.getKoinOrNull() != null) return
   startKoin {
     appDeclaration()
-    modules(
-      listOf(
-        commonModule,
-        databaseModule,
-        domainModule,
-        navigationModule,
-        platformModule
-      )
-    )
+    modules(listOf(commonModule, databaseModule, domainModule, navigationModule, platformModule))
   }
 }
-
-
-

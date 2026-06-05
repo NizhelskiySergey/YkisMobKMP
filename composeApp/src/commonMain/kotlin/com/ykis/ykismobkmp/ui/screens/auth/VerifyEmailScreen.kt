@@ -45,11 +45,13 @@ import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.LocalContentType
 import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
 import com.ykis.ykismobkmp.ui.navigation.MainApartmentScreen
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.alredy_user
 import ykismobkmp.composeapp.generated.resources.email_sent_to
+import ykismobkmp.composeapp.generated.resources.send_again
 import ykismobkmp.composeapp.generated.resources.repeat_email_not_verified_message
 import ykismobkmp.composeapp.generated.resources.terms_condition_down
 import ykismobkmp.composeapp.generated.resources.verify_email
@@ -74,9 +76,25 @@ object VerifyEmailScreen : Screen {
     val viewModel = koinInject<AuthScreenModel>()
     val reloadUserResponse by viewModel.reloadUserResponse.collectAsState()
 
-    // Логирование согласно правилу [Класс.Метод]
+    // АВТОМАТИЗАЦИЯ: Проверяем статус каждые 5 секунд
     LaunchedEffect(Unit) {
-      println("[YkisLogKMP.$className.Content]: [ENTER_SCREEN] Очікування підтвердження пошти для ${viewModel.email}")
+      println("[YkisLogKMP.$className.Content]: [AUTO_CHECK] Запуск фонового мониторинга подтверждения...")
+      while (true) {
+        delay(5000)
+        
+        // ИСПРАВЛЕНО: Безопасный вызов reloadUser. 
+        // Если почта НЕ подтверждена, viewModel сама покажет Snackbar, но МЫ НЕ перейдем дальше.
+        viewModel.reloadUser {
+          // Этот блок выполнится ТОЛЬКО если verified == true
+          println("[YkisLogKMP.$className.Content]: [SUCCESS] Пошта підтверджена автоматически.")
+          navigator.replaceAll(
+            MainApartmentScreen(
+              contentType = adaptiveContentType,
+              navigationType = adaptiveNavigationType
+            )
+          )
+        }
+      }
     }
 
     VerifyEmailScreenStateless(
@@ -148,7 +166,7 @@ fun VerifyEmailScreenStateless(
               strokeWidth = 2.dp
             )
           } else {
-            Text(text = stringResource(Res.string.terms_condition_down), style = MaterialTheme.typography.titleMedium)
+            Text(text = stringResource(Res.string.alredy_user), style = MaterialTheme.typography.titleMedium)
           }
         }
       }
@@ -198,7 +216,7 @@ fun VerifyEmailScreenStateless(
         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-          text = stringResource(Res.string.alredy_user),
+          text = stringResource(Res.string.send_again),
           style = MaterialTheme.typography.labelLarge,
           textDecoration = TextDecoration.Underline,
           color = MaterialTheme.colorScheme.secondary

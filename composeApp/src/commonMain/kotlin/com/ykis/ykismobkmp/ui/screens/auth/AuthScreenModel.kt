@@ -78,7 +78,7 @@ class AuthScreenModel(
   }
 
   fun onEmailChange(newValue: String) {
-    _authUiState.update { it.copy(email = newValue) }
+    _authUiState.update { it.copy(email = newValue.trim()) }
   }
 
   fun onPasswordChange(newValue: String) {
@@ -218,8 +218,7 @@ class AuthScreenModel(
       val result = firebaseService.firebaseSignUpWithEmailAndPassword(email, password)
       
       if (result is Resource.Success) {
-        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Пользователь создан. Отправка email верификации...")
-        firebaseService.sendEmailVerification()
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Користувач створений. Лист верифікації має бути надісланий автоматично.")
         firebaseService.addFcmToken()
         _signUpResponse.value = Resource.Success(true)
         onSuccess()
@@ -274,9 +273,9 @@ class AuthScreenModel(
         println("[YkisLogKMP.$className.$methodName]: [RESULT] Статус верификации почты в облаке: $verified")
         if (verified) {
           firebaseService.addFcmToken()
+          // ИСПРАВЛЕНО: Принудительно обновляем глобальный стейт перед переходом
+          appScreenModel.evaluateStartDestination()
           onSuccess()
-        } else {
-          SnackbarManager.showMessage(Res.string.email_not_verified_message)
         }
       }
     }
