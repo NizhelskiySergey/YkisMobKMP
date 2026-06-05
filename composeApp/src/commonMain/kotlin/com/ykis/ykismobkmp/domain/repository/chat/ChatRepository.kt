@@ -100,9 +100,10 @@ class ChatRepository(
 
   fun observeChatKeys(prefix: String): Flow<List<String>> {
     if (_realtime == null) return flowOf(emptyList())
-    // ИСПРАВЛЕНО: Убираем orderByKey(), так как на iOS это вызывает конфликт с startAt/endAt.
-    // По умолчанию Realtime DB и так сортирует по ключам.
+    // ИСПРАВЛЕНО: Возвращаем orderByKey(), он обязателен для работы startAt/endAt.
+    // Если на iOS возникнет сбой, мы обернем это в нативную проверку.
     return realtime.reference("chats")
+      .orderByKey()
       .startAt(prefix)
       .endAt(prefix + "\uf8ff")
       .valueEvents

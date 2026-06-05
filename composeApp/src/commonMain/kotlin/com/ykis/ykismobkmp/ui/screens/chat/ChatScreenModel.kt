@@ -173,21 +173,59 @@ class ChatScreenModel(
         icon = Icons.Default.Home,
         contentDetail = detail
      )
+     // ИСПРАВЛЕНО: Принудительно запускаем поиск чатов после смены префикса
+     fetchUserList()
   }
 
   private fun fetchUserList() {
     val service = _selectedService.value ?: return
     screenModelScope.launch {
       try {
+        // ИСПРАВЛЕНО: Формируем точный поисковый префикс для админа (Служба + ID предприятия)
+        // Если это VodokanalUser (9999), то префикс будет "WATER_SERVICE_9999"
         val prefix = _selectedServicePrefix.value
-        chatRepo.observeChatKeys(prefix).collect { keys ->
-            val userUids = keys.mapNotNull { it.split("_").lastOrNull() }
-            if (userUids.isNotEmpty()) {
-                val users = chatRepo.fetchUsersByIds(userUids)
+        val role = firebaseService.getUserProfile().userRole
+        val osbbId = firebaseService.getUserProfile().osbbId
+        
+        val searchPrefix = if (UserRole.fromString(role) != UserRole.StandardUser) {
+           "${prefix}_${osbbId}_" // Добавляем завершающее подчеркивание для точности
+        } else {
+           prefix
+        }
+        
+        println("[YkisLogKMP]: [FETCH_USERS] Пошук за префіксом: $searchPrefix")
+        
+        chatRepo.observeChatKeys(searchPrefix).collect { keys ->
+            println("[YkisLogKMP]: [FETCH_USERS] Знайдено ключів: ${keys.size} -> $keys")
+            
+            // Извлекаем пары (AddressId, UserUID) из ключей формата PREFIX_OSBBID_ADDRESSID_USERUID
+            val chatInfos = keys.mapNotNull { key ->
+                val parts = key.split("_")
+                if (parts.size >= 4) {
+                    val addrId = parts[parts.size - 2].toLongOrNull() ?: 0L
+                    val uid = parts.last()
+                    addrId to uid
+                } else null
+            }
+
+            if (chatInfos.isNotEmpty()) {
+                val uids = chatInfos.map { it.second }.distinct()
+                println("[YkisLogKMP]: [FETCH_USERS] Запит профілів для UID-ів: $uids")
+                
+                val users = chatRepo.fetchUsersByIds(uids)
+                println("[YkisLogKMP]: [FETCH_USERS] Firestore повернув ${users.size} профілів")
+
                 _userList.value = users.filter { 
                   it.address.contains(_searchQuery.value, ignoreCase = true) ||
                   it.addressId.toString().contains(_searchQuery.value)
                 }
+                
+                if (_userList.value.isEmpty() && users.isNotEmpty()) {
+                    println("[YkisLogKMP]: [WARN] Користувачі знайдені, але відфільтровані пошуком або пустим адресом.")
+                }
+            } else {
+                println("[YkisLogKMP]: [FETCH_USERS] Ветки чатів знайдено, але структура ключа невірна.")
+                _userList.value = emptyList()
             }
         }
       } catch (e: Exception) {

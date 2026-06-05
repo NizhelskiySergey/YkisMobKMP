@@ -144,7 +144,7 @@ class FirebaseServiceImpl(
         isEmailVerification = auth.currentUser?.isEmailVerified ?: false,
         name = snapshot.get<String>("displayName") ?: auth.currentUser?.displayName,
         userRole = snapshot.get<String>("userRole") ?: UserRole.StandardUser.name,
-        osbbId = snapshot.get<Long>("osbbId") ?: 0L,
+        osbbId = snapshot.get<Long>("osbbId") ?: snapshot.get<Long>("osbb") ?: 0L,
         addressId = snapshot.get<Long>("addressId") ?: 0L
       )
     } catch (e: Exception) {

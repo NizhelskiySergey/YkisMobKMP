@@ -12,7 +12,6 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -27,6 +26,7 @@ import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+private const val className = "BottomNavigationBar"
 
 @Composable
 fun BottomNavigationBar(

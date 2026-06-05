@@ -43,7 +43,6 @@ import com.ykis.ykismobkmp.ui.components.CameraView
 import com.ykis.ykismobkmp.ui.screens.chat.SendImageScreen
 import com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementListScreen
 import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreen
-import com.ykis.ykismobkmp.ui.components.CameraView
 import org.jetbrains.compose.resources.StringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
@@ -107,11 +106,9 @@ data class CameraScreenDest(
         when (target) {
             CameraTarget.CHAT -> {
                 chatScreenModel.setSelectedImagePath(path)
-                // Автоматически запускаем анализ Gemini для жильцов
                 if (baseUIState.userRole == UserRole.StandardUser) {
                    chatScreenModel.analyzePhotoWithGemini(path, baseUIState.address)
                 }
-                // Переходим к экрану подтверждения отправки
                 navigator.replace(com.ykis.ykismobkmp.ui.screens.chat.SendImageScreen(imagePath = path, address = baseUIState.address))
             }
             CameraTarget.ANNOUNCEMENT -> {
@@ -153,7 +150,6 @@ data class ChatScreenDest(
     val navigator = LocalNavigator.currentOrThrow
     val chatScreenModel = koinInject<ChatScreenModel>()
     
-    // ИСПРАВЛЕНО: Перед отрисовкой принудительно настраиваем модель на ID из пуша
     LaunchedEffect(chatId) {
       if (!chatId.isNullOrBlank()) {
         println("[YkisLogKMP.ScreensRegistry.ChatScreenDest]: Инициализация комнаты из пуша: $chatId")
@@ -168,7 +164,7 @@ data class ChatScreenDest(
     }
 
     ChatScreen(
-      chatId = chatId, // Пробрасываем ID для внутренней логики
+      chatId = chatId,
       onBackClick = {
         println("[YkisLogKMP.ScreensRegistry.ChatScreenDest]: Нажата кнопка назад в Deep Link чате")
         navigator.pop()
@@ -179,13 +175,11 @@ data class ChatScreenDest(
 data class InfoApartmentScreenDest(
   val addressId: Long = 0L
 ) : Screen {
-  override val key: cafe.adriel.voyager.core.screen.ScreenKey
-    get() = "InfoApartmentScreenDest_${addressId}"
+  override val key: ScreenKey get() = "InfoApartmentScreenDest_${addressId}"
   @Composable
   override fun Content() {
     val classNameRegistry = "ScreensRegistry"
     println("[YkisLogKMP.$classNameRegistry.InfoApartmentScreenDest]: Маршрутизатор передає управління ЖИВОМУ холсту БТІ для о/р: $addressId")
-    val navigator = cafe.adriel.voyager.navigator.LocalNavigator.currentOrThrow
     InfoApartmentScreen(
       onDrawerClicked = {
         println("[YkisLogKMP.$classNameRegistry.InfoApartmentScreenDest]: Клік по бургер-кнопці на екрані БТІ.")
@@ -226,8 +220,7 @@ object MainMeterScreenDest : Screen {
 data class MainServiceScreenDest(
   val addressId: Long = 0L
 ) : Screen {
-  override val key: ScreenKey
-    get() = "MainServiceScreenDest_${addressId}"
+  override val key: ScreenKey get() = "MainServiceScreenDest_${addressId}"
   @Composable
   override fun Content() {
     val classNameRegistry = "ScreensRegistry"
@@ -236,7 +229,7 @@ data class MainServiceScreenDest(
     val baseUIState by apartmentScreenModel.uiState.collectAsState()
     MainServiceScreen(
       baseUIState = baseUIState,
-      navigationType = LocalNavigationType.current, // Берем тип навигации из стабильного CompositionLocal
+      navigationType = LocalNavigationType.current,
       onDrawerClick = {
         println("[YkisLogKMP.$classNameRegistry.MainServiceScreenDest]: Клік по бургер-кнопці на екрані фінансів.")
       }
@@ -244,12 +237,12 @@ data class MainServiceScreenDest(
   }
 }
 
-object SettingsScreenDest : cafe.adriel.voyager.core.screen.Screen {
+object SettingsScreenDest : Screen {
   @Composable
   override fun Content() {
     val classNameRegistry = "ScreensRegistry"
     println("[YkisLogKMP.$classNameRegistry.SettingsScreenDest]: Маршрутизатор передає управління холсту системних налаштувань")
-    val navigator = cafe.adriel.voyager.navigator.LocalNavigator.currentOrThrow
+    val navigator = LocalNavigator.currentOrThrow
     SettingsScreen(
       onDrawerClick = {
         println("[YkisLogKMP.$classNameRegistry.SettingsScreenDest]: Запрос закрытия экрана настроек, возврат по стеку.")
@@ -316,43 +309,4 @@ fun getNavDestinations(role: UserRole): List<TopLevelDestination> {
       alwaysVisible = true
     )
   )
-}
-
-object RouteRegistry {
-  const val SIGN_IN = "SignInScreen"
-  const val VERIFY_EMAIL = "VerifyEmailScreen"
-  const val SIGN_UP = "SignUpScreen"
-  const val ADD_APARTMENT = "AddApartmentScreen"
-  const val METER = "MeterScreen"
-  const val SERVICE_LIST = "ServiceListScreen"
-  const val USER_LIST = "UserListScreen"
-  const val SEND_IMAGE = "SendImageScreen"
-  const val CAMERA = "CameraScreen"
-  const val IMAGE_DETAIL = "ImageDetailScreen"
-  const val CHAT = "ChatScreen"
-  const val PROFILE = "ProfileScreen"
-  const val SETTINGS = "SettingsScreen"
-  const val BTI = "BtiScreen"
-  const val FAMILY = "FamilyScreen"
-  const val INFO_APARTMENT = "InfoApartmentScreen"
-  const val WEB_VIEW = "WebViewScreen"
-}
-
-object YkisNavConstants {
-  const val APARTMENT_SCREEN = "ApartmentScreen"
-  const val WATER_SCREEN = "WaterScreen"
-  const val SERVICE_DETAIL_SCREEN = "ServiceDetailScreen"
-  const val ADDRESS_ID = "addressId"
-  const val ADDRESS_DEFAULT_ID = "0"
-  const val HOUSE_ID = "houseId"
-  const val HOUSE_DEFAULT_ID = "0"
-  const val SERVICE = "service"
-  const val SERVICE_DEFAULT = "1"
-  const val SERVICE_NAME = "serviceName"
-  const val SERVICE_DEFAULT_NAME = "ОСББ"
-  const val ADDRESS = "address"
-  const val ADDRESS_DEFAULT = "адреса"
-  const val ADDRESS_ID_ARG = "?$ADDRESS_ID={$ADDRESS_ID}"
-  const val FLAT_ARG = "?$ADDRESS_ID={$ADDRESS_ID},$ADDRESS={$ADDRESS}"
-  const val SERVICE_ARG = "?$ADDRESS_ID={$ADDRESS_ID},$ADDRESS={$ADDRESS},$HOUSE_ID={$HOUSE_ID},$SERVICE={$SERVICE},$SERVICE_NAME={$SERVICE_NAME}"
 }
