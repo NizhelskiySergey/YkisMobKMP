@@ -94,7 +94,7 @@ fun DefaultAppBar(
               modifier = Modifier.size(24.dp)
             )
           }
-        } else if (navigationType == NavigationType.BOTTOM_NAVIGATION || navigationType == NavigationType.NAVIGATION_RAIL_COMPACT || navigationType == NavigationType.NAVIGATION_RAIL_EXPANDED) {
+        } else if (navigationType == NavigationType.BOTTOM_NAVIGATION) {
           IconButton(onClick = {
             println("[YkisLogKMP.$appBarClassName]: Клик по бургер-меню (Drawer)")
             onDrawerClick()

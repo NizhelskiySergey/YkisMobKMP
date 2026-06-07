@@ -1,5 +1,4 @@
 package com.ykis.ykismobkmp.ui.screens.chat
-import UserList
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -98,11 +97,14 @@ class UserListScreen(
         title = appBarTitle,
         subtitle = if (baseUIState.userRole == UserRole.StandardUser) "Ваші адреси" else "Список чатів",
         onDrawerClick = onDrawerClicked,
-        canNavigateBack = true,
+        canNavigateBack = baseUIState.userRole == UserRole.StandardUser,
+        navigationType = com.ykis.ykismobkmp.ui.navigation.LocalNavigationType.current,
         onBackClick = {
-          println("[YkisLogKMP.$className.Content.onBackClick]: Скидання поточної служби та вихід у меню Хаба.")
-          chatScreenModel.setSelectedService(null as TotalServiceDebt?)
-          onDrawerClicked()
+          if (baseUIState.userRole == UserRole.StandardUser) {
+            println("[YkisLogKMP.$className.Content.onBackClick]: Скидання поточної служби та вихід у меню Хаба.")
+            chatScreenModel.setSelectedService(null as TotalServiceDebt?)
+            onDrawerClicked()
+          }
         }
       )
 

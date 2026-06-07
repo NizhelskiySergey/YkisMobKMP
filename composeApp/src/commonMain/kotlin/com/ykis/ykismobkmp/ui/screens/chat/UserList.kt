@@ -1,3 +1,5 @@
+package com.ykis.ykismobkmp.ui.screens.chat
+
 import com.ykis.ykismobkmp.core.Constants
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,8 +25,6 @@ import com.ykis.ykismobkmp.domain.entity.MessageEntity
 import com.ykis.ykismobkmp.domain.entity.UserEntity
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseUIState
-import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
-import com.ykis.ykismobkmp.ui.screens.chat.UserListItem
 
 private const val className = "UserList"
 
@@ -41,7 +41,6 @@ fun UserList(
   val typingStatuses by chatScreenModel.globalTypingStatuses.collectAsState()
   val selectedPrefix by chatScreenModel.selectedServicePrefix.collectAsState()
 
-  // ОПТИМИЗАЦИЯ: Упрощаем логику формирования списка, чтобы не блокировать Main Thread
   val userWithMessages = remember(userList, latestMessages, unreadCounts, typingStatuses, selectedPrefix) {
     userList.map { user ->
       val chatId = when (baseUIState.userRole) {
@@ -51,23 +50,28 @@ fun UserList(
             "WATER_SERVICE" -> Constants.WATER_SERVICE_ID
             "WARM_SERVICE" -> Constants.WARM_SERVICE_ID
             "GARBAGE_SERVICE" -> Constants.GARBAGE_SERVICE_ID
-            else -> user.osbbId ?: 0L
+            else -> user.osbbId
           }
-          "${prefix}_${sysId}_${user.addressId}_${user.uid}"
+          "${prefix}_${sysId}_${user.addressId}"
         }
-        UserRole.VodokanalUser -> "WATER_SERVICE_${Constants.WATER_SERVICE_ID}_${user.addressId}_${user.uid}"
-        UserRole.YtkeUser      -> "WARM_SERVICE_${Constants.WARM_SERVICE_ID}_${user.addressId}_${user.uid}"
-        UserRole.TboUser       -> "GARBAGE_SERVICE_${Constants.GARBAGE_SERVICE_ID}_${user.addressId}_${user.uid}"
-        UserRole.OsbbUser      -> "OSBB_${baseUIState.osbbId}_${user.addressId}_${user.uid}"
-        else                   -> "UNKNOWN_${user.addressId}_${user.uid}"
+        UserRole.VodokanalUser -> "WATER_SERVICE_${Constants.WATER_SERVICE_ID}_${user.addressId}"
+        UserRole.YtkeUser      -> "WARM_SERVICE_${Constants.WARM_SERVICE_ID}_${user.addressId}"
+        UserRole.TboUser       -> "GARBAGE_SERVICE_${Constants.GARBAGE_SERVICE_ID}_${user.addressId}"
+        UserRole.OsbbUser      -> "OSBB_${baseUIState.osbbId}_${user.addressId}"
+        else                   -> "UNKNOWN_${user.addressId}"
       }
 
       val lastMsg = latestMessages[chatId]
       val count = unreadCounts[chatId] ?: 0
       val isTyping = typingStatuses[chatId] ?: false
       
+      // LOG: Для відладки в консолі
+      if (lastMsg != null) {
+          println("[UserList]: Чат $chatId має останнє повідомлення: ${lastMsg.text}")
+      }
+
       Triple(user, lastMsg, Pair(count, isTyping))
-    }.sortedByDescending { it.second?.timestamp ?: 0L } // Сортируем только по времени последнего сообщения
+    }.sortedByDescending { it.second?.timestamp ?: 0L }
   }
 
   LazyColumn(
@@ -91,7 +95,7 @@ fun UserList(
 
     items(
       items = userWithMessages,
-      key = { it.first.uid + it.first.addressId } // ИСПРАВЛЕНО: Более стабильный ключ для предотвращения SIGSEGV
+      key = { it.first.addressId.toString() + it.first.displayName }
     ) { (user, lastMsg, stats) ->
       val (count, isTyping) = stats
       

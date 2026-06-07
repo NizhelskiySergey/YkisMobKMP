@@ -510,7 +510,7 @@ fun ActionButtons(
       modifier = Modifier
         .fillMaxWidth()
         .padding(vertical = 12.dp),
-      text = "${stringResource(Res.string.version)} 2.1.0 KMP",
+      text = "ЮКІС версія 1.1 KMP\nрозробник ФОП Ніжельський С.О.",
       style = MaterialTheme.typography.labelMedium,
       textAlign = TextAlign.Center,
       color = MaterialTheme.colorScheme.onSurfaceVariant

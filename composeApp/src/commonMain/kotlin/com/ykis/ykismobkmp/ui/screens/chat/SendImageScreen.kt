@@ -141,12 +141,10 @@ fun SendImageContent(
         val role = apartmentLiveUiState.userRole
         val user = targetUser
 
-        val chatUid = if (role == UserRole.StandardUser) myUid else (user?.uid ?: "")
         val curAddrId = if (role == UserRole.StandardUser) apartmentLiveUiState.addressId else (user?.addressId ?: 0L)
         val curAddr = if (role == UserRole.StandardUser) (apartmentLiveUiState.address ?: "м. Южне") else (user?.address ?: "Абонент")
 
         chatScreenModel.uploadFileAndSendMessage(
-          targetUid = chatUid,
           senderUid = myUid,
           senderDisplayedName = apartmentLiveUiState.displayName ?: "Користувач",
           senderLogoUrl = apartmentLiveUiState.photoUrl,

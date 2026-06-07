@@ -181,12 +181,11 @@ fun ChatScreenContent(
   LaunchedEffect(baseUIState.addressId, baseUIState.userRole, chatUid, userEntity.uid, baseUIState.osbbId) {
     val role = baseUIState.userRole
     val addrId = if (role == UserRole.StandardUser) baseUIState.addressId else userEntity.addressId
-    val targetUid = if (role == UserRole.StandardUser) chatUid else userEntity.uid ?: ""
     val osbbId = baseUIState.osbbId ?: 0L
 
-    if (role != UserRole.Unknown && addrId > 0L && targetUid.isNotBlank()) {
-      println("[YkisLogKMP.ChatScreen]: Запуск подписки из UI. Role: $role, OSBB: $osbbId, Addr: $addrId")
-      screenModel.readFromDatabase(role, targetUid, osbbId, addrId)
+    if (role != UserRole.Unknown && addrId > 0L) {
+      println("[YkisLogKMP.ChatScreen]: Запуск підписки з UI. Role: $role, OSBB: $osbbId, Addr: $addrId")
+      screenModel.readFromDatabase(role, osbbId, addrId)
     }
   }
 

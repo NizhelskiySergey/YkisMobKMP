@@ -107,18 +107,7 @@ fun UserListItem(
           }
         }
 
-        // --- СТРОКА 2: ФИО ЗАРЕГИСТРИРОВАННОГО ЖИЛЬЦА ---
-        if (residentName.isNotEmpty()) {
-          Text(
-            text = residentName,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1
-          )
-        }
-
-        // --- СТРОКА 3: ДИНАМИЧЕСКОЕ ПРЕВЬЮ ПОСЛЕДНЕГО СООБЩЕНИЯ ВЕТКИ ЧАТА ---
+        // --- СТРОКА 2: ДИНАМИЧЕСКОЕ ПРЕВЬЮ ПОСЛЕДНЕГО СООБЩЕНИЯ ВЕТКИ ЧАТА ---
         if (isTyping) {
           Text(
             text = "друкує...",

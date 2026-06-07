@@ -19,14 +19,12 @@ import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import dev.gitlive.firebase.database.ChildEvent
 import dev.gitlive.firebase.database.FirebaseDatabase
 
 /**
  * [ChatRepository] — единственный источник данных для чатов и ИИ.
- * ИСПРАВЛЕНО: Безопасное использование компонентов Firebase для предотвращения крашей на iOS/Desktop.
  */
 class ChatRepository(
   private val _firestore: FirebaseFirestore?,
@@ -37,7 +35,6 @@ class ChatRepository(
 ) {
   private val className = "ChatRepository"
 
-  // Геттеры с проверкой на null, чтобы не падать при отсутствии SDK
   private val firestore get() = _firestore ?: throw IllegalStateException("Firestore not available")
   val realtime get() = _realtime ?: throw IllegalStateException("Realtime Database not available")
   val storage get() = _storage ?: throw IllegalStateException("Storage not available")
@@ -45,8 +42,6 @@ class ChatRepository(
 
   val currentUid: String?
     get() = try { Firebase.auth.currentUser?.uid } catch (e: Exception) { null }
-
-  // --- 1. FIRESTORE (ПРОФИЛИ) ---
 
   suspend fun fetchUsersByIds(ids: List<String>): List<UserEntity> {
     if (ids.isEmpty() || _firestore == null) return emptyList()
@@ -100,8 +95,6 @@ class ChatRepository(
 
   fun observeChatKeys(prefix: String): Flow<List<String>> {
     if (_realtime == null) return flowOf(emptyList())
-    // ИСПРАВЛЕНО: Возвращаем orderByKey(), он обязателен для работы startAt/endAt.
-    // Если на iOS возникнет сбой, мы обернем это в нативную проверку.
     return realtime.reference("chats")
       .orderByKey()
       .startAt(prefix)
@@ -122,16 +115,15 @@ class ChatRepository(
     )
 
     return try {
-      val snapshot = firestore.collection("users")
-        .where {
-          "osbbId" equalTo osbbId
-          "userRole" contains adminRoles
-        }
-        .get()
-
-      snapshot.documents.map { doc ->
+      // ИСПРАВЛЕНО: Двойная проверка osbbId (число и строка)
+      val resNum = firestore.collection("users").where { "osbbId" equalTo osbbId }.get()
+      val resStr = firestore.collection("users").where { "osbbId" equalTo osbbId.toString() }.get()
+      
+      val combined = (resNum.documents + resStr.documents).distinctBy { it.id }
+      
+      combined.map { doc ->
         mapToUserEntity(doc.id, doc.data())
-      }
+      }.filter { adminRoles.contains(it.userRole.getSerialName()) }
     } catch (e: Exception) {
       Log.e("YkisLog", "[$className.fetchAdminsByOsbb]: Error -> ${e.message}")
       emptyList()
@@ -141,49 +133,93 @@ class ChatRepository(
   suspend fun fetchUserByAddressId(addressId: Long): UserEntity? {
     if (_firestore == null) return null
     return try {
-      val result = firestore.collection("users")
-        .where { "addressId" equalTo addressId }
-        .get()
-      result.documents.firstOrNull()?.let { mapToUserEntity(it.id, it.data()) }
+      val resultNum = firestore.collection("users").where { "addressId" equalTo addressId }.get()
+      val resultStr = firestore.collection("users").where { "addressId" equalTo addressId.toString() }.get()
+      
+      (resultNum.documents + resultStr.documents).firstOrNull()?.let { 
+          mapToUserEntity(it.id, it.data()) 
+      }
     } catch (e: Exception) {
       null
     }
   }
 
-  suspend fun fetchUserListForService(serviceName: String): List<UserEntity> {
-      if (_firestore == null) return emptyList()
-      return try {
-          val snapshot = firestore.collection("users").get()
-          snapshot.documents.map { mapToUserEntity(it.id, it.data()) }
-      } catch (e: Exception) {
-          emptyList()
+  fun observeUnreadCounts(myUid: String): Flow<Map<String, Int>> {
+    if (_realtime == null) return flow { emit(emptyMap()) }
+    return realtime.reference("unread_counters/$myUid")
+      .valueEvents
+      .map { snapshot ->
+        snapshot.children.associate { it.key!! to (it.value<Int?>() ?: 0) }
       }
   }
 
-  fun observeUnreadCounts(chatPaths: List<String>, myUid: String): Flow<Map<String, Int>> {
-    if (_realtime == null || chatPaths.isEmpty()) return flow { emit(emptyMap()) }
-    
-    val flows = chatPaths.map { path ->
-      realtime.reference("chats/$path")
-        .valueEvents
-        .map { snapshot ->
-          val count = snapshot.children.count { child ->
-            val senderUid = child.child("senderUid").value<String?>()
-            val isRead = child.child("read").value<Boolean?>() ?: false
-            senderUid != myUid && !isRead
-          }
-          path to count
+  suspend fun resetUnreadCount(chatId: String, myUid: String) {
+    if (_realtime == null) return
+    try {
+      println("[$className]: Скидання лічильника для $myUid у чаті $chatId")
+      realtime.reference("unread_counters/$myUid/$chatId").setValue(0)
+    } catch (e: Exception) { }
+  }
+
+  suspend fun incrementUnreadForUids(chatId: String, uids: List<String>) {
+    if (_realtime == null || uids.isEmpty()) return
+    try {
+      uids.distinct().forEach { uid ->
+        val presenceSnapshot = realtime.reference("presence/$chatId/$uid/online").valueEvents.first()
+        val isUserInChatRightNow = presenceSnapshot.value<Boolean?>() ?: false
+        
+        if (!isUserInChatRightNow) {
+            val ref = realtime.reference("unread_counters/$uid/$chatId")
+            val snapshot = ref.valueEvents.first()
+            val current = snapshot.value<Int?>() ?: 0
+            ref.setValue(current + 1)
+            println("[$className]: Бэйдж для $uid у чаті $chatId збільшено до ${current + 1}")
         }
+      }
+    } catch (e: Exception) {
+      Log.e("YkisLog", "[$className.incrementUnreadForUids]: Error -> ${e.message}")
     }
-    
-    return combine(flows) { it.toMap() }
+  }
+
+  suspend fun incrementUnreadForParticipants(chatId: String, senderUid: String) {
+    if (_realtime == null) return
+    try {
+      val participantsSnapshot = realtime.reference("chat_access/$chatId").valueEvents.first()
+      val uids = participantsSnapshot.children.mapNotNull { it.key }.filter { it != senderUid }
+      
+      if (uids.isNotEmpty()) {
+        incrementUnreadForUids(chatId, uids)
+      }
+    } catch (e: Exception) { 
+       Log.e("YkisLog", "[$className.incrementUnreadForParticipants]: Error -> ${e.message}")
+    }
+  }
+
+  suspend fun fetchAllUsersByAddressId(addressId: Long): List<UserEntity> {
+    if (_firestore == null) return emptyList()
+    return try {
+      val resultNum = firestore.collection("users")
+        .where { "addressId" equalTo addressId }
+        .get()
+      val resultStr = firestore.collection("users")
+        .where { "addressId" equalTo addressId.toString() }
+        .get()
+        
+      val combined = (resultNum.documents + resultStr.documents).distinctBy { it.id }
+      combined.map { mapToUserEntity(it.id, it.data()) }
+    } catch (e: Exception) {
+      emptyList()
+    }
   }
 
   suspend fun sendChatNotification(data: Map<String, Any?>) {
     if (_functions == null) return
     try {
+      println("[$className]: Виклик Cloud Function 'sendChatNotification'...")
       functions.httpsCallable("sendChatNotification").invoke(data)
+      println("[$className]: Cloud Function успішно ініційована.")
     } catch (e: Exception) {
+      println("[$className.sendChatNotification_ERROR]: Cloud Function помилка: ${e.message}")
       Log.e("YkisLog", "[$className.sendChatNotification]: Error -> ${e.message}")
     }
   }
@@ -238,7 +274,7 @@ class ChatRepository(
   fun observeAnnouncements(osbbId: Long): Flow<List<AnnouncementEntity>> {
     if (_firestore == null) return flow { emit(emptyList()) }
     return firestore.collection("announcements")
-      .snapshots
+      .snapshots()
       .map { snapshot ->
         snapshot.documents.map { doc ->
           doc.data<AnnouncementEntity>().copy(id = doc.id)
@@ -252,9 +288,14 @@ class ChatRepository(
       }
   }
 
-  fun observeMessages(chatUid: String): Flow<List<MessageEntity>> {
+  /**
+   * [observeMessages] — Стрімінгове отримання повідомлень з лімітом.
+   * ІСПРАВЛЕНО: Додано limitToLast для запобігання перевантаженню при великій історії.
+   */
+  fun observeMessages(chatUid: String, limit: Int = 20): Flow<List<MessageEntity>> {
     if (_realtime == null) return flow { emit(emptyList()) }
     return realtime.reference("chats/$chatUid")
+      .limitToLast(limit) // БЕРЕМО ЛИШЕ ОСТАННІ ПОВІДОМЛЕННЯ
       .childEvents()
       .scan(emptyList<MessageEntity>()) { accumulator, event ->
         val message = try {
@@ -302,16 +343,6 @@ class ChatRepository(
         }
       }
   }
-
-  fun observeChatMetadata(chatId: String): Flow<ChatMetadata> {
-    if (_realtime == null) return flow { emit(ChatMetadata()) }
-    return realtime.reference("chats/$chatId/_metadata")
-      .valueEvents
-      .map { snapshot ->
-        snapshot.value<ChatMetadata?>() ?: ChatMetadata()
-      }
-  }
-
 
   suspend fun sendMessage(path: String, message: MessageEntity): Result<Unit> {
     if (_realtime == null) return Result.failure(Exception("Realtime not ready"))
@@ -402,6 +433,33 @@ class ChatRepository(
     if (_realtime == null) return
     realtime.reference("chats/$path").removeValue()
     realtime.reference("presence/$path").removeValue()
+    realtime.reference("chat_access/$path").removeValue()
+  }
+
+  /**
+   * [addChatParticipant] — Реєстрація користувача у списку доступу до чату квартири.
+   */
+  suspend fun addChatParticipant(chatId: String, uid: String) {
+    if (_realtime == null) return
+    try {
+      realtime.reference("chat_access/$chatId/$uid").setValue(true)
+      println("[$className.addChatParticipant]: Доступ для $uid до чату $chatId зафіксовано.")
+    } catch (e: Exception) {
+      Log.e("YkisLog", "[$className.addChatParticipant]: Error -> ${e.message}")
+    }
+  }
+
+  /**
+   * [removeChatParticipant] — Видалення користувача зі списку доступу.
+   */
+  suspend fun removeChatParticipant(chatId: String, uid: String) {
+    if (_realtime == null) return
+    try {
+      realtime.reference("chat_access/$chatId/$uid").removeValue()
+      println("[$className.removeChatParticipant]: Доступ для $uid до чату $chatId видалено.")
+    } catch (e: Exception) {
+      Log.e("YkisLog", "[$className.removeChatParticipant]: Error -> ${e.message}")
+    }
   }
 
   suspend fun compressImage(path: String): ByteArray = platformCompressImage(path)
