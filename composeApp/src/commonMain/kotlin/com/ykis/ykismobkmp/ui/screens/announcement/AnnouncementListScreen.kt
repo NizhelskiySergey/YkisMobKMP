@@ -1,24 +1,32 @@
 package com.ykis.ykismobkmp.ui.screens.announcement
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -29,10 +37,16 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
+import com.ykis.ykismobkmp.core.utils.formatDateFull
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.info
+
+sealed class GroupedAnnouncement {
+    data class DateHeader(val date: String) : GroupedAnnouncement()
+    data class Item(val announcement: AnnouncementEntity) : GroupedAnnouncement()
+}
 
 class AnnouncementListScreen(
     private val onDrawerClicked: () -> Unit
@@ -57,11 +71,18 @@ class AnnouncementListScreen(
 
         Scaffold(
             topBar = {
-                DefaultAppBar(
-                    title = "Оголошення",
-                    onDrawerClick = onDrawerClicked,
-                    canNavigateBack = false
-                )
+                Column {
+                    DefaultAppBar(
+                        title = "Оголошення",
+                        onDrawerClick = onDrawerClicked,
+                        canNavigateBack = false
+                    )
+                    FilterChipsRow(
+                        selectedRole = screenState.announcementFilterRole,
+                        onRoleSelected = { announcementModel.setFilter(it) }
+                    )
+                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                }
             },
             floatingActionButton = {
                 if (baseUIState.userRole != UserRole.StandardUser) {
@@ -83,8 +104,20 @@ class AnnouncementListScreen(
                             CircularProgressIndicator()
                         }
                     } else {
+                        val filteredAnnouncements = remember(screenState.announcements, screenState.announcementFilterRole) {
+                            if (screenState.announcementFilterRole == null) screenState.announcements
+                            else screenState.announcements.filter { it.authorRole == screenState.announcementFilterRole }
+                        }
+
+                        val groupedItems = remember(filteredAnnouncements) {
+                            filteredAnnouncements.groupBy { formatDateFull(it.timestamp) }
+                                .flatMap { (date, items) ->
+                                    listOf(GroupedAnnouncement.DateHeader(date)) + items.map { GroupedAnnouncement.Item(it) }
+                                }
+                        }
+
                         AnnouncementList(
-                            announcements = screenState.announcements,
+                            groupedItems = groupedItems,
                             isAdmin = baseUIState.userRole != UserRole.StandardUser,
                             onDeleteClick = { id -> announcementModel.deleteAnnouncement(id) }
                         )
@@ -96,12 +129,56 @@ class AnnouncementListScreen(
 }
 
 @Composable
+fun FilterChipsRow(
+    selectedRole: UserRole?,
+    onRoleSelected: (UserRole?) -> Unit
+) {
+    val filters = listOf(
+        null to "Всі",
+        UserRole.VodokanalUser to "Водоканал",
+        UserRole.YtkeUser to "Тепломережа",
+        UserRole.TboUser to "Спецтранс",
+        UserRole.OsbbUser to "ОСББ"
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Default.FilterList, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+        
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            filters.forEach { (role, label) ->
+                FilterChip(
+                    selected = selectedRole == role,
+                    onClick = { onRoleSelected(role) },
+                    label = { Text(label, fontSize = 12.sp) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun AnnouncementList(
-    announcements: List<AnnouncementEntity>,
+    groupedItems: List<GroupedAnnouncement>,
     isAdmin: Boolean,
     onDeleteClick: (String) -> Unit
 ) {
-    if (announcements.isEmpty()) {
+    if (groupedItems.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Оголошень поки що немає", style = MaterialTheme.typography.bodyLarge)
         }
@@ -111,13 +188,46 @@ fun AnnouncementList(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(announcements, key = { it.id }) { item ->
-                AnnouncementItem(
-                    item = item,
-                    isAdmin = isAdmin,
-                    onDeleteClick = onDeleteClick
-                )
+            groupedItems.forEach { grouped ->
+                when (grouped) {
+                    is GroupedAnnouncement.DateHeader -> {
+                        item(key = "header_${grouped.date}") {
+                            DateHeaderChip(date = grouped.date)
+                        }
+                    }
+                    is GroupedAnnouncement.Item -> {
+                        item(key = grouped.announcement.id) {
+                            AnnouncementItem(
+                                item = grouped.announcement,
+                                isAdmin = isAdmin,
+                                onDeleteClick = onDeleteClick
+                            )
+                        }
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+fun DateHeaderChip(date: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                text = date,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
         }
     }
 }
@@ -185,9 +295,9 @@ fun AnnouncementItem(
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(250.dp)
+                        .heightIn(max = 400.dp) // ИСПРАВЛЕНО: Ограничение максимальной высоты
                         .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Fit // ИСПРАВЛЕНО: Чтобы фото было видно целиком
+                    contentScale = ContentScale.Fit
                 )
             }
 
@@ -216,15 +326,6 @@ fun AnnouncementItem(
                     }
                 }
             }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = com.ykis.ykismobkmp.core.utils.formatDateFull(item.timestamp),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.align(Alignment.End)
-            )
         }
     }
 }

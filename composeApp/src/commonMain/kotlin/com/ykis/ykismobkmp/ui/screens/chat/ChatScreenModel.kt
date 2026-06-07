@@ -202,7 +202,6 @@ class ChatScreenModel(
           else -> "OSBB"
        }
        _selectedServicePrefix.value = prefix
-       println("[YkisLogKMP]: [PREFIX_RESOLVED] '${service.name}' -> $prefix")
        
        screenModelScope.launch {
           val profile = firebaseService.getUserProfile()
@@ -268,7 +267,7 @@ class ChatScreenModel(
   }
 
   fun getChatPath(role: UserRole, osbbId: Long, addressId: Long, targetUserUid: String?): String {
-    val servicePrefix = _selectedServicePrefix.value
+    val servicePrefix = _selectedServicePrefix.value ?: "OSBB"
     
     val effectiveId = if (role == UserRole.StandardUser) {
         when (servicePrefix) {
@@ -365,8 +364,6 @@ class ChatScreenModel(
     activeChatIdForNotifications = null
     currentChatPath = null
     messageSubscriptionJob?.cancel()
-    typingStatusJob?.cancel()
-    presenceJob?.cancel()
     _firebaseTest.value = emptyList()
     _isOpponentOnline.value = false
     _isOpponentTyping.value = false
@@ -374,6 +371,7 @@ class ChatScreenModel(
   }
 
   fun handleSendMessage(baseUIState: BaseUIState) {
+      val methodName = "handleSendMessage"
       val user = _selectedUser.value
       val role = baseUIState.userRole
       
@@ -413,18 +411,15 @@ class ChatScreenModel(
 
       println("[YkisLogKMP]: [SEND_START] Отправка в: $path")
 
-      writeToDatabase(
-          chatUid = path,
+      writeToDatabaseInternal(
+          chatId = path,
           senderUid = myUid,
           senderDisplayedName = senderName,
           senderLogoUrl = firebaseService.photoUrl,
           senderAddress = if (isResident) (baseUIState.address ?: "") else (user?.address ?: ""),
-          addressId = if (isResident) baseUIState.addressId else (user?.addressId ?: 0L),
           imageUrl = null,
           fileUrl = null,
           fileName = null,
-          osbbId = baseUIState.osbbId ?: 0L,
-          role = role,
           recipientTokens = tokens,
           onComplete = {
               clearAiSuggestion()
@@ -432,18 +427,15 @@ class ChatScreenModel(
       )
   }
 
-  fun writeToDatabase(
-    chatUid: String,
+  private fun writeToDatabaseInternal(
+    chatId: String,
     senderUid: String,
     senderDisplayedName: String,
     senderLogoUrl: String?,
     senderAddress: String,
-    addressId: Long,
     imageUrl: String?,
     fileUrl: String?,
     fileName: String?,
-    osbbId: Long,
-    role: UserRole,
     recipientTokens: List<String>,
     onComplete: () -> Unit
   ) {
@@ -464,8 +456,8 @@ class ChatScreenModel(
             fileName = fileName,
             timestamp = currentTimeMillis()
         )
-        println("[YkisLogKMP]: [FIREBASE_WRITE] Путь: $chatUid")
-        chatRepo.sendMessage(chatUid, message)
+        println("[YkisLogKMP]: [FIREBASE_WRITE] Путь: $chatId")
+        chatRepo.sendMessage(chatId, message)
         
         println("[YkisLogKMP]: [FIREBASE_SUCCESS]")
         _messageText.value = ""
@@ -476,7 +468,7 @@ class ChatScreenModel(
                 "tokens" to recipientTokens,
                 "title" to senderDisplayedName,
                 "body" to text,
-                "chatId" to chatUid,
+                "chatId" to chatId,
                 "imageUrl" to imageUrl
             )
             chatRepo.sendChatNotification(data)
@@ -491,7 +483,7 @@ class ChatScreenModel(
   }
 
   fun uploadFileAndSendMessage(
-      chatUid: String,
+      targetUid: String, // Для админов это UID жильца
       senderUid: String,
       senderDisplayedName: String,
       senderLogoUrl: String?,
@@ -503,25 +495,42 @@ class ChatScreenModel(
       onComplete: () -> Unit
   ) {
       val path = _selectedImagePath.value ?: return
+      
+      // ВОССТАНОВЛЕНИЕ ПУТИ ЧАТА ДЛЯ ФАЙЛА
+      val targetChatId = currentChatPath ?: run {
+          val recovered = getChatPath(role, osbbId, addressId, if(role == UserRole.StandardUser) null else targetUid)
+          currentChatPath = recovered
+          recovered
+      }
+
       launchCatching {
           _isLoadingAfterSending.value = true
           try {
+              println("[YkisLogKMP]: [FILE_UPLOAD_START] Путь: $path")
               val bytes = chatRepo.readFileAsBytes(path)
-              val fileName = path.split("/").lastOrNull() ?: "image.jpg"
-              val url = chatRepo.uploadFile(bytes, "chats/$chatUid/$fileName")
               
-              writeToDatabase(
-                  chatUid = chatUid,
+              val isImage = path.lowercase().let { 
+                  it.endsWith(".jpg") || it.endsWith(".jpeg") || it.endsWith(".png") || it.endsWith(".webp") 
+              }
+              
+              val fileName = path.split("/").lastOrNull() ?: "file_${currentTimeMillis()}"
+              val ext = if (isImage) "jpg" else path.substringAfterLast(".", "bin")
+              
+              // Формируем путь в Storage
+              val storagePath = "chat_files/${osbbId}/${addressId}/${currentTimeMillis()}.$ext"
+              val url = chatRepo.uploadFile(bytes, storagePath)
+              
+              println("[YkisLogKMP]: [FILE_UPLOAD_SUCCESS] URL: $url")
+
+              writeToDatabaseInternal(
+                  chatId = targetChatId,
                   senderUid = senderUid,
                   senderDisplayedName = senderDisplayedName,
                   senderLogoUrl = senderLogoUrl,
                   senderAddress = senderAddress,
-                  addressId = addressId,
-                  imageUrl = url,
-                  fileUrl = null,
+                  imageUrl = if (isImage) url else null,
+                  fileUrl = if (!isImage) url else null,
                   fileName = fileName,
-                  osbbId = osbbId,
-                  role = role,
                   recipientTokens = recipientTokens,
                   onComplete = { 
                       _selectedImagePath.value = null
@@ -529,6 +538,7 @@ class ChatScreenModel(
                   }
               )
           } catch (e: Exception) {
+              println("[YkisLogKMP]: [FILE_ERROR] ${e.message}")
               logService.logNonFatalCrash(e)
           } finally {
               _isLoadingAfterSending.value = false
@@ -776,8 +786,6 @@ class ChatScreenModel(
   fun stopAllListeners() {
       println("[ChatScreenModel]: Зупинка всіх фонових слухачів...")
       messageSubscriptionJob?.cancel()
-      typingStatusJob?.cancel()
-      presenceJob?.cancel()
       activeTrackerJob?.cancel()
       lastMessageListeners.values.forEach { it.cancel() }
       unreadCountListeners.values.forEach { it.cancel() }
@@ -821,6 +829,13 @@ class ChatScreenModel(
         cancelForwarding()
         SnackbarManager.showMessage(Res.string.success_send_message)
       } catch (e: Exception) { }
+    }
+  }
+
+  private fun markMessagesAsRead(chatId: String) {
+    val myUid = chatRepo.currentUid ?: return
+    launchCatching {
+      chatRepo.markMessagesAsRead(chatId, myUid)
     }
   }
 }

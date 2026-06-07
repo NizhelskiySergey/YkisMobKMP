@@ -215,6 +215,10 @@ class AnnouncementScreenModel(
         }
     }
 
+    fun setFilter(role: UserRole?) {
+        _uiState.update { it.copy(announcementFilterRole = role) }
+    }
+
     /**
      * [stopAllListeners] — Мгновенная остановка всех фоновых процессов.
      */

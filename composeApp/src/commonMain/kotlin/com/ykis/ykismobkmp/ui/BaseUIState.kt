@@ -119,6 +119,7 @@ data class BaseUIState(
   @SerialName("isAnnouncementUploading") val isAnnouncementUploading: Boolean = false,
   @SerialName("announcementDraftTitle") val announcementDraftTitle: String = "",
   @SerialName("announcementDraftMessage") val announcementDraftMessage: String = "",
+  @SerialName("announcementFilterRole") val announcementFilterRole: UserRole? = null,
 
   // --- 9. ОШИБКИ ---
   @SerialName("error") val error: String? = null

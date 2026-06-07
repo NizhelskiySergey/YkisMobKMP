@@ -1,11 +1,14 @@
 package com.ykis.ykismobkmp.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.interop.UIKitView
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -63,11 +66,21 @@ actual fun CameraView(
   val captureSession = remember { AVCaptureSession() }
   val photoOutput = remember { AVCapturePhotoOutput() }
   var isCapturing by remember { mutableStateOf(false) }
+  var isCameraAvailable by remember { mutableStateOf(true) }
 
   LaunchedEffect(Unit) {
     captureSession.sessionPreset = AVCaptureSessionPresetPhoto
-    val device = AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo) ?: return@LaunchedEffect
-    val input = AVCaptureDeviceInput.deviceInputWithDevice(device, null) as? AVCaptureDeviceInput ?: return@LaunchedEffect
+    val device = AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo)
+    if (device == null) {
+      isCameraAvailable = false
+      return@LaunchedEffect
+    }
+
+    val input = AVCaptureDeviceInput.deviceInputWithDevice(device, null) as? AVCaptureDeviceInput
+    if (input == null) {
+      isCameraAvailable = false
+      return@LaunchedEffect
+    }
 
     if (captureSession.canAddInput(input)) captureSession.addInput(input)
     if (captureSession.canAddOutput(photoOutput)) captureSession.addOutput(photoOutput)
@@ -81,50 +94,77 @@ actual fun CameraView(
     }
   }
 
-  Box(modifier = Modifier.fillMaxSize()) {
-    UIKitView(
-      modifier = Modifier.fillMaxSize(),
-      factory = {
-        UIView(frame = CGRectZero.readValue()).apply {
-          val previewLayer = AVCaptureVideoPreviewLayer.layerWithSession(captureSession).apply {
-            videoGravity = AVLayerVideoGravityResizeAspectFill
-            frame = layer.bounds
+  Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    if (isCameraAvailable) {
+      UIKitView(
+        modifier = Modifier.fillMaxSize(),
+        factory = {
+          UIView(frame = CGRectZero.readValue()).apply {
+            val previewLayer = AVCaptureVideoPreviewLayer.layerWithSession(captureSession).apply {
+              videoGravity = AVLayerVideoGravityResizeAspectFill
+              frame = layer.bounds
+            }
+            layer.addSublayer(previewLayer)
           }
-          layer.addSublayer(previewLayer)
+        }
+      )
+    } else {
+      Column(
+        modifier = Modifier.align(Alignment.Center),
+        horizontalAlignment = Alignment.CenterHorizontally
+      ) {
+        Text("Камера недоступна", color = Color.White)
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = onBack) {
+          Text("Повернутися назад")
         }
       }
-    )
+    }
 
-    Button(
-      modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp),
-      enabled = !isCapturing,
-      onClick = {
-        // ПРОВЕРКА: Есть ли активное соединение с камерой?
-        // Это предотвращает краш "No active and enabled video connection"
-        val connection = photoOutput.connectionWithMediaType(AVMediaTypeVideo)
-        
-        if (connection != null && connection.isActive()) {
-          isCapturing = true
-
-          val photoSettings = AVCapturePhotoSettings.photoSettingsWithFormat(
-            mapOf(AVVideoCodecKey to AVVideoCodecJPEG)
-          )
-
-          photoOutput.capturePhotoWithSettings(
-            settings = photoSettings,
-            delegate = PhotoCaptureDelegate(
-              onCaptured = { path -> onImageCaptured(path) },
-              onFinished = { isCapturing = false }
-            )
-          )
-        } else {
-          println("[$tag.ios]: Камера ще не готова або недоступна (можливо, це симулятор)")
-          // Если это симулятор, можно добавить эмуляцию фото для тестов
-          // Но для реального устройства просто игнорируем нажатие, пока не появится картинка
-        }
-      }
+    // Кнопка назад вгорі зліва (завжди доступна)
+    IconButton(
+      modifier = Modifier
+        .statusBarsPadding()
+        .padding(16.dp)
+        .align(Alignment.TopStart)
+        .background(Color.Black.copy(alpha = 0.5f), MaterialTheme.shapes.small),
+      onClick = onBack
     ) {
-      Text(if (isCapturing) "Зйомка..." else "Зробити фото")
+      Icon(
+        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+        contentDescription = "Назад",
+        tint = Color.White
+      )
+    }
+
+    if (isCameraAvailable) {
+      Button(
+        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp),
+        enabled = !isCapturing,
+        onClick = {
+          val connection = photoOutput.connectionWithMediaType(AVMediaTypeVideo)
+          
+          if (connection != null && connection.isActive()) {
+            isCapturing = true
+
+            val photoSettings = AVCapturePhotoSettings.photoSettingsWithFormat(
+              mapOf(AVVideoCodecKey to AVVideoCodecJPEG)
+            )
+
+            photoOutput.capturePhotoWithSettings(
+              settings = photoSettings,
+              delegate = PhotoCaptureDelegate(
+                onCaptured = { path -> onImageCaptured(path) },
+                onFinished = { isCapturing = false }
+              )
+            )
+          } else {
+            println("[$tag.ios]: Камера ще не готова")
+          }
+        }
+      ) {
+        Text(if (isCapturing) "Зйомка..." else "Зробити фото")
+      }
     }
   }
 }
