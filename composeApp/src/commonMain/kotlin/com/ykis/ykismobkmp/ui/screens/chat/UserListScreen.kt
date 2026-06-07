@@ -34,7 +34,6 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.domain.entity.UserEntity
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
 import org.jetbrains.compose.resources.stringResource
@@ -46,7 +45,6 @@ import ykismobkmp.composeapp.generated.resources.select_recipient
 private const val className = "UserListScreen"
 class UserListScreen(
   private val onDrawerClicked: () -> Unit = {},
-  private val navigationType: NavigationType = NavigationType.BOTTOM_NAVIGATION,
   private val onUserClicked: (UserEntity) -> Unit = {}
 ) : Screen {
 
@@ -72,34 +70,40 @@ class UserListScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-      val appBarTitle = remember(baseUIState.userRole, selectedService) {
+      val orgFullName = remember(baseUIState.userRole, baseUIState.osbb) {
+        when (baseUIState.userRole) {
+          UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
+          UserRole.YtkeUser -> "КП тм \"ЮТКЕ\""
+          UserRole.TboUser -> "КП \"СПЕЦТРАНС\""
+          UserRole.OsbbUser -> baseUIState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "ОСББ"
+          else -> ""
+        }
+      }
+
+      val appBarTitle = remember(baseUIState.userRole, selectedService, orgFullName) {
         val role = baseUIState.userRole
         val serviceName = selectedService?.name ?: ""
-        val result = if (role == UserRole.StandardUser) {
+        if (role == UserRole.StandardUser) {
           if (serviceName.contains("ОСББ", ignoreCase = true) || serviceName.isBlank()) {
             "ОСББ чати"
           } else {
             serviceName
           }
         } else {
-          "Список доступних чатів"
+          orgFullName
         }
-        println("[YkisLogKMP.$className.Content.AppBar]: [FIXED_TITLE] -> $result")
-        result
       }
 
       DefaultAppBar(
         title = appBarTitle,
-        subtitle = if (baseUIState.userRole == UserRole.StandardUser) "Ваші адреси" else "",
+        subtitle = if (baseUIState.userRole == UserRole.StandardUser) "Ваші адреси" else "Список чатів",
         onDrawerClick = onDrawerClicked,
         canNavigateBack = true,
         onBackClick = {
           println("[YkisLogKMP.$className.Content.onBackClick]: Скидання поточної служби та вихід у меню Хаба.")
-          // Исправлено: Невалидный каст строки удален, передаем чистый КМР-литерал null типа TotalServiceDebt?
           chatScreenModel.setSelectedService(null as TotalServiceDebt?)
           onDrawerClicked()
-        },
-        navigationType = navigationType
+        }
       )
 
       if (baseUIState.userRole != UserRole.StandardUser && !isForwardingMode) {
@@ -206,6 +210,3 @@ class UserListScreen(
     }
   }
 }
-
-
-

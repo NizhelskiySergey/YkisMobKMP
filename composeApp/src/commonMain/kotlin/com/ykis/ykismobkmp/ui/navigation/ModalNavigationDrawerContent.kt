@@ -39,8 +39,6 @@ import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import ykismobkmp.composeapp.generated.resources.*
 
-private const val className = "ModalNavigationDrawerContent"
-
 @Composable
 fun ModalNavigationDrawerContent(
   modifier: Modifier = Modifier,
@@ -99,7 +97,32 @@ fun ModalNavigationDrawerContent(
     drawerContainerColor = MaterialTheme.colorScheme.surface
   ) {
     Column(modifier = Modifier.fillMaxSize()) {
-      Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+      if (isUserAdmin) {
+        val shortName = when (baseUIState.userRole) {
+          UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
+          UserRole.YtkeUser -> "КП тм \"ЮТКЕ\""
+          UserRole.TboUser -> "КП \"СПЕЦТРАНС\""
+          UserRole.OsbbUser -> baseUIState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "ОСББ"
+          else -> "Адмін"
+        }
+        Row(
+          modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 8.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+          Text(
+            text = shortName,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+          )
+          IconButton(onClick = { onMenuClick() }) {
+            Icon(Icons.Default.Close, contentDescription = "Закрити")
+          }
+        }
+      }
+
+      Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = if (isUserAdmin) 8.dp else 16.dp)) {
         if (isUserAdmin) {
           var isSearchEditingActive by remember { mutableStateOf(false) }
 
@@ -277,17 +300,6 @@ fun ModalNavigationDrawerContent(
           }
         }
       }
-
-      HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
-      
-      NavigationDrawerItem(
-        label = { Text("Вихід") },
-        selected = false,
-        onClick = { /* Логика выхода */ },
-        icon = { Icon(Icons.AutoMirrored.Filled.Logout, null) },
-        modifier = Modifier.padding(16.dp),
-        shape = RoundedCornerShape(12.dp)
-      )
     }
   }
 }

@@ -44,6 +44,7 @@ import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.LocalContentType
 import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
+import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.navigation.MainApartmentScreen
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
@@ -225,4 +226,3 @@ fun VerifyEmailScreenStateless(
     }
   }
 }
-

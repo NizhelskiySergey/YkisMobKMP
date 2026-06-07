@@ -377,6 +377,7 @@ class AuthScreenModel(
   fun triggerSmsCode(activityContext: Any?, onSuccess: () -> Unit) {
     val methodName = "triggerSmsCode"
     val phone = _authUiState.value.phoneNumber
+    val formattedPhone = if (phone.startsWith("+")) phone else "+380$phone"
 
     // ЗАЩИТА ОТ ДРЕБЕЗГА
     if (_smsSendResponse.value is Resource.Loading) return
@@ -387,7 +388,7 @@ class AuthScreenModel(
     }
 
     launchCatching {
-      println("[YkisLogKMP.$className.$methodName]: [START] Запрос SMS на номер: $phone")
+      println("[YkisLogKMP.$className.$methodName]: [START] Запрос SMS на номер: $formattedPhone")
       _smsSendResponse.value = Resource.Loading()
 
       // Вызываем наш expect/actual мост, который мы настроили на нативном уровне

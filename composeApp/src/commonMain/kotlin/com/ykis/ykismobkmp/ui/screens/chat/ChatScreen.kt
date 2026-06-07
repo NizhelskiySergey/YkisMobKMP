@@ -86,7 +86,6 @@ class ChatScreen(
     ChatScreenStateful(
       screenModel = chatScreenModel,
       baseUIState = baseUIState,
-      navigationType = NavigationType.BOTTOM_NAVIGATION,
       onBackClick = {
         onBackClick()
         navigator.pop()
@@ -99,7 +98,6 @@ class ChatScreen(
 fun ChatScreenStateful(
   screenModel: ChatScreenModel,
   baseUIState: BaseUIState,
-  navigationType: NavigationType,
   onBackClick: () -> Unit
 ) {
   val navigator = LocalNavigator.currentOrThrow
@@ -117,7 +115,6 @@ fun ChatScreenStateful(
     userEntity = selectedUser ?: UserEntity(),
     screenModel = screenModel,
     baseUIState = baseUIState,
-    navigationType = navigationType,
     chatUid = chatUid,
     navigateBack = onBackClick,
     navigateToSendImageScreen = {
@@ -142,7 +139,6 @@ fun ChatScreenContent(
   userEntity: UserEntity,
   screenModel: ChatScreenModel,
   baseUIState: BaseUIState,
-  navigationType: NavigationType,
   navigateBack: () -> Unit,
   navigateToSendImageScreen: () -> Unit,
   chatUid: String,
@@ -182,13 +178,15 @@ fun ChatScreenContent(
     }
   }
 
-  LaunchedEffect(baseUIState.addressId, baseUIState.userRole, chatUid, userEntity.uid) {
+  LaunchedEffect(baseUIState.addressId, baseUIState.userRole, chatUid, userEntity.uid, baseUIState.osbbId) {
     val role = baseUIState.userRole
     val addrId = if (role == UserRole.StandardUser) baseUIState.addressId else userEntity.addressId
     val targetUid = if (role == UserRole.StandardUser) chatUid else userEntity.uid ?: ""
+    val osbbId = baseUIState.osbbId ?: 0L
 
     if (role != UserRole.Unknown && addrId > 0L && targetUid.isNotBlank()) {
-      screenModel.readFromDatabase(role, targetUid, 0L, addrId)
+      println("[YkisLogKMP.ChatScreen]: Запуск подписки из UI. Role: $role, OSBB: $osbbId, Addr: $addrId")
+      screenModel.readFromDatabase(role, targetUid, osbbId, addrId)
     }
   }
 
@@ -209,13 +207,13 @@ fun ChatScreenContent(
     when {
       isForwardingMode -> "Переслати повідомлення"
       baseUIState.userRole == UserRole.StandardUser -> {
-        val name = selectedService?.name ?: when(selectedServicePrefix) {
+        // ИСПРАВЛЕНО: Гарантируем название службы в заголовке для жителя
+        selectedService?.name ?: when(selectedServicePrefix) {
             "WATER_SERVICE"   -> "КП \"ЮЖВОДОКАНАЛ\""
             "WARM_SERVICE"    -> "КП тм \"ЮТКЕ\""
             "GARBAGE_SERVICE" -> "КП \"СПЕЦТРАНС\""
-            else              -> baseUIState.osbb ?: "ОСББ"
+            else              -> if (baseUIState.osbb.isNotBlank()) baseUIState.osbb else "ОСББ"
           }
-        name
       }
       else -> userEntity.displayName?.substringBefore("|")?.trim() ?: "Чат"
     }
@@ -243,8 +241,7 @@ fun ChatScreenContent(
             keyboardController?.hide()
             focusManager.clearFocus()
             if (isForwardingMode) screenModel.cancelForwarding() else navigateBack()
-          },
-          navigationType = navigationType
+          }
         )
         HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
       }

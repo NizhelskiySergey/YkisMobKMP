@@ -29,15 +29,13 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
-import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.info
 
 class AnnouncementListScreen(
-    private val onDrawerClicked: () -> Unit,
-    private val navigationType: NavigationType
+    private val onDrawerClicked: () -> Unit
 ) : Screen {
 
     @Composable
@@ -48,16 +46,13 @@ class AnnouncementListScreen(
         val baseUIState by apartmentModel.uiState.collectAsState()
         val screenState by announcementModel.uiState.collectAsState()
 
-        LaunchedEffect(baseUIState.osbbId) {
-            announcementModel.observeAnnouncements(baseUIState.osbbId)
+        LaunchedEffect(Unit) {
+            println("[AnnouncementListScreen]: Вхід у розділ, скидання бейджей.")
+            announcementModel.markAsRead()
         }
 
-        // ИСПРАВЛЕНО: Сбрасываем бейдж при просмотре списка
-        DisposableEffect(Unit) {
-            onDispose {
-                println("[AnnouncementListScreen]: Выход из раздела, сброс бейджей.")
-                announcementModel.markAsRead()
-            }
+        LaunchedEffect(baseUIState.osbbId) {
+            announcementModel.observeAnnouncements(baseUIState.osbbId)
         }
 
         Scaffold(
@@ -65,8 +60,7 @@ class AnnouncementListScreen(
                 DefaultAppBar(
                     title = "Оголошення",
                     onDrawerClick = onDrawerClicked,
-                    canNavigateBack = false,
-                    navigationType = navigationType
+                    canNavigateBack = false
                 )
             },
             floatingActionButton = {
@@ -139,7 +133,14 @@ fun AnnouncementItem(
     
     BaseCard(
         modifier = Modifier.fillMaxWidth(),
-        label = if (isGlobal) "Міське оголошення" else item.authorName
+        label = when {
+            item.authorRole == UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
+            item.authorRole == UserRole.YtkeUser -> "КП тм \"ЮТКЕ\""
+            item.authorRole == UserRole.TboUser -> "КП \"СПЕЦТРАНС\""
+            !item.authorName.isNullOrBlank() -> item.authorName
+            isGlobal -> "Міське оголошення"
+            else -> "ОСББ"
+        }
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(

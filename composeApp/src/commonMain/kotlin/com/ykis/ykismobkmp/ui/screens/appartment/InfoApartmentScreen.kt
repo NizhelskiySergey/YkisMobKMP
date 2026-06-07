@@ -55,7 +55,6 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.ContentType
 import com.ykis.ykismobkmp.ui.navigation.LocalContentType
-import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
@@ -74,7 +73,6 @@ class InfoApartmentScreen(
   @Composable
   override fun Content() {
     val adaptiveContentType = LocalContentType.current
-    val adaptiveNavigationType = LocalNavigationType.current
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
     val baseUIState by apartmentScreenModel.uiState.collectAsState()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -145,7 +143,6 @@ class InfoApartmentScreen(
           subtitle = " о/р ${baseUIState.addressId}",
           canNavigateBack = false,
           onDrawerClick = onDrawerClicked,
-          navigationType = adaptiveNavigationType,
           actionButton = {
             if (baseUIState.userRole == UserRole.StandardUser && baseUIState.addressId != 0L) {
               IconButton(onClick = { showWarningDialog = true }) {

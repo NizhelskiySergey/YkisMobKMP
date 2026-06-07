@@ -71,9 +71,13 @@ class AppScreenModel(
         return@launch
       }
 
-      // ИСПРАВЛЕНО: Проверка подтверждения Email при старте
+      // ИСПРАВЛЕНО: Проверка подтверждения Email при старте (Только для Email-провайдера)
+      val provider = firebaseService.providerId
       val isVerified = firebaseService.isEmailVerified ?: false
-      if (!isVerified) {
+      
+      // Если пользователь зашел через пароль (password) — требуем верификацию.
+      // Если через телефон (phone) или Google — пускаем без проверки почты.
+      if (provider == "password" && !isVerified) {
           println("[YkisLogKMP.$className.evaluateStartDestination]: [STEP 2.5] Пошта НЕ підтверджена. Редирект на верифікацію.")
           _startState.value = AppStartState.VerifyEmail
           return@launch

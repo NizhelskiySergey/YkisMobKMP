@@ -172,10 +172,26 @@ class FirebaseServiceImpl(
   }
 
   override suspend fun signOut() {
-    try { auth.signOut() } catch (e: Exception) { }
+    try {
+      stopAllListeners()
+      auth.signOut() 
+    } catch (e: Exception) { }
   }
 
-  override fun stopAllListeners() { }
+  override fun stopAllListeners() {
+      // ИСПРАВЛЕНО: Теперь этот метод вызывает закрытие во всех моделях через Koin
+      try {
+          val chatModel: com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel = org.koin.mp.KoinPlatform.getKoin().get()
+          chatModel.stopAllListeners()
+          
+          val announcementModel: com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementScreenModel = org.koin.mp.KoinPlatform.getKoin().get()
+          announcementModel.stopAllListeners()
+          
+          println("[FirebaseServiceImpl]: Всі слухачі КМР-моделей успішно зупинені.")
+      } catch (e: Exception) {
+          println("[FirebaseServiceImpl_WARN]: Помилка при зупинці слухачів: ${e.message}")
+      }
+  }
 
   override suspend fun reloadFirebaseUser(): Resource<Boolean> = try {
     val user = auth.currentUser

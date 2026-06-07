@@ -19,7 +19,6 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.navigation.ContentType
 import com.ykis.ykismobkmp.ui.navigation.LocalContentType
-import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.ledger.list.ServiceListScreen
 import org.koin.compose.koinInject
@@ -28,7 +27,6 @@ private const val tag = "MainServiceScreen"
 
 class MainServiceScreen(
   private val baseUIState: BaseUIState, // Принимаем снимок состояния БТИ
-  private val navigationType: NavigationType, // Принимаем тип навигации для DefaultAppBar
   private val onDrawerClick: () -> Unit = {},
   private val navigateToWebView: (String) -> Unit = {}
 ) : Screen {

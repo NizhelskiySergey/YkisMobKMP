@@ -29,10 +29,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.success_send_message
 
+private const val tag = "ChatViewModel"
 private const val className = "ChatViewModel"
 
 class ChatScreenModel(
@@ -50,8 +53,8 @@ class ChatScreenModel(
   private val _searchQuery = MutableStateFlow("")
   val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-  private val _userList = MutableStateFlow<List<UserEntity>>(emptyList())
-  val userList: StateFlow<List<UserEntity>> = _userList.asStateFlow()
+  private val _userIdentifiersWithRole = MutableStateFlow<List<String>>(emptyList())
+  private val _rawFetchedProfiles = MutableStateFlow<List<UserEntity>>(emptyList())
 
   private val _selectedUser = MutableStateFlow<UserEntity?>(null)
   val selectedUser: StateFlow<UserEntity?> = _selectedUser.asStateFlow()
@@ -67,12 +70,6 @@ class ChatScreenModel(
 
   private val _isLoadingAfterSending = MutableStateFlow(false)
   val isLoadingAfterSending: StateFlow<Boolean> = _isLoadingAfterSending.asStateFlow()
-
-  private val _isForwardingMode = MutableStateFlow(false)
-  val isForwardingMode: StateFlow<Boolean> = _isForwardingMode.asStateFlow()
-
-  private val _forwardingMessage = MutableStateFlow<MessageEntity?>(null)
-  val forwardingMessage: StateFlow<MessageEntity?> = _forwardingMessage.asStateFlow()
 
   private val _editingMessage = MutableStateFlow<MessageEntity?>(null)
   val editingMessage: StateFlow<MessageEntity?> = _editingMessage.asStateFlow()
@@ -110,15 +107,74 @@ class ChatScreenModel(
   private val _pendingPushChatId = MutableStateFlow<String?>(null)
   val pendingPushChatId: StateFlow<String?> = _pendingPushChatId.asStateFlow()
 
+  private val _forwardingMessage = MutableStateFlow<MessageEntity?>(null)
+  val forwardingMessage = _forwardingMessage.asStateFlow()
+
+  val isForwardingMode = _forwardingMessage
+    .map { it != null }
+    .stateIn(screenModelScope, SharingStarted.Lazily, false)
+
   private var currentChatPath: String? = null
   private var messageSubscriptionJob: Job? = null
   private var typingStatusJob: Job? = null
   private var presenceJob: Job? = null
-  private var unreadCountJob: Job? = null
+  private var activeTrackerJob: Job? = null
+  private var lastMessageListeners = mutableMapOf<String, Job>()
+  private var unreadCountListeners = mutableMapOf<String, Job>()
 
   companion object {
     var activeChatIdForNotifications: String? = null
   }
+
+  val userList: StateFlow<List<UserEntity>> = combine(
+    _userIdentifiersWithRole,
+    _rawFetchedProfiles,
+    _lastMessages,
+    _searchQuery
+  ) { keys, profiles, lastMsgs, query ->
+    val fullList = keys.mapNotNull { key ->
+      val parts = key.split("_")
+      if (parts.size < 4) return@mapNotNull null
+
+      val uidFromKey = parts.last()
+      val addrIdFromKey = parts.getOrNull(parts.size - 2)?.toLongOrNull() ?: 0L
+
+      val profile = profiles.find { it.uid == uidFromKey }
+      val lastMsg = lastMsgs[key]
+      val preview = lastMsg?.text ?: "Немає повідомлень"
+
+      val finalDisplayName = when {
+        !lastMsg?.senderAddress.isNullOrBlank() -> lastMsg.senderAddress
+        profile != null -> profile.displayName ?: "Жилець (о/р $addrIdFromKey)"
+        else -> "Користувач (о/р $addrIdFromKey)"
+      }
+
+      profile?.copy(
+        addressId = addrIdFromKey,
+        address = preview,
+        displayName = finalDisplayName
+      ) ?: UserEntity(
+        uid = uidFromKey,
+        addressId = addrIdFromKey,
+        displayName = finalDisplayName,
+        address = preview
+      )
+    }
+
+    if (query.isBlank()) {
+      fullList
+    } else {
+      fullList.filter { user ->
+        (user.displayName?.contains(query, ignoreCase = true) == true) ||
+          user.addressId.toString().contains(query) ||
+          user.address.contains(query, ignoreCase = true)
+      }
+    }
+  }.stateIn(
+    scope = screenModelScope,
+    started = SharingStarted.WhileSubscribed(5000),
+    initialValue = emptyList()
+  )
 
   fun setPendingPushChatId(id: String?) {
     _pendingPushChatId.value = id
@@ -126,7 +182,6 @@ class ChatScreenModel(
 
   fun onSearchQueryChanged(query: String) {
     _searchQuery.value = query
-    fetchUserList()
   }
 
   fun onMessageTextChanged(text: String) {
@@ -148,7 +203,11 @@ class ChatScreenModel(
        }
        _selectedServicePrefix.value = prefix
        println("[YkisLogKMP]: [PREFIX_RESOLVED] '${service.name}' -> $prefix")
-       fetchUserList()
+       
+       screenModelScope.launch {
+          val profile = firebaseService.getUserProfile()
+          trackUserIdentifiersWithRole(UserRole.fromString(profile.userRole), profile.osbbId)
+       }
     }
   }
 
@@ -173,77 +232,29 @@ class ChatScreenModel(
         icon = Icons.Default.Home,
         contentDetail = detail
      )
-     // ИСПРАВЛЕНО: Принудительно запускаем поиск чатов после смены префикса
-     fetchUserList()
-  }
-
-  private fun fetchUserList() {
-    val service = _selectedService.value ?: return
-    screenModelScope.launch {
-      try {
-        // ИСПРАВЛЕНО: Формируем точный поисковый префикс для админа (Служба + ID предприятия)
-        // Если это VodokanalUser (9999), то префикс будет "WATER_SERVICE_9999"
-        val prefix = _selectedServicePrefix.value
-        val role = firebaseService.getUserProfile().userRole
-        val osbbId = firebaseService.getUserProfile().osbbId
-        
-        val searchPrefix = if (UserRole.fromString(role) != UserRole.StandardUser) {
-           "${prefix}_${osbbId}_" // Добавляем завершающее подчеркивание для точности
-        } else {
-           prefix
-        }
-        
-        println("[YkisLogKMP]: [FETCH_USERS] Пошук за префіксом: $searchPrefix")
-        
-        chatRepo.observeChatKeys(searchPrefix).collect { keys ->
-            println("[YkisLogKMP]: [FETCH_USERS] Знайдено ключів: ${keys.size} -> $keys")
-            
-            // Извлекаем пары (AddressId, UserUID) из ключей формата PREFIX_OSBBID_ADDRESSID_USERUID
-            val chatInfos = keys.mapNotNull { key ->
-                val parts = key.split("_")
-                if (parts.size >= 4) {
-                    val addrId = parts[parts.size - 2].toLongOrNull() ?: 0L
-                    val uid = parts.last()
-                    addrId to uid
-                } else null
-            }
-
-            if (chatInfos.isNotEmpty()) {
-                val uids = chatInfos.map { it.second }.distinct()
-                println("[YkisLogKMP]: [FETCH_USERS] Запит профілів для UID-ів: $uids")
-                
-                val users = chatRepo.fetchUsersByIds(uids)
-                println("[YkisLogKMP]: [FETCH_USERS] Firestore повернув ${users.size} профілів")
-
-                _userList.value = users.filter { 
-                  it.address.contains(_searchQuery.value, ignoreCase = true) ||
-                  it.addressId.toString().contains(_searchQuery.value)
-                }
-                
-                if (_userList.value.isEmpty() && users.isNotEmpty()) {
-                    println("[YkisLogKMP]: [WARN] Користувачі знайдені, але відфільтровані пошуком або пустим адресом.")
-                }
-            } else {
-                println("[YkisLogKMP]: [FETCH_USERS] Ветки чатів знайдено, але структура ключа невірна.")
-                _userList.value = emptyList()
-            }
-        }
-      } catch (e: Exception) {
-        if (e !is CancellationException) logService.logNonFatalCrash(e)
-      }
-    }
+     
+     screenModelScope.launch {
+        val profile = firebaseService.getUserProfile()
+        trackUserIdentifiersWithRole(UserRole.fromString(profile.userRole), profile.osbbId)
+     }
   }
 
   fun selectUserByAddressId(addressId: Long) {
      screenModelScope.launch {
-        val user = chatRepo.fetchUserByAddressId(addressId)
-        if (user != null) {
-          _selectedUser.value = user
+        val existing = userList.value.find { it.addressId == addressId }
+        if (existing != null) {
+            _selectedUser.value = existing
+        } else {
+            val user = chatRepo.fetchUserByAddressId(addressId)
+            if (user != null) {
+              _selectedUser.value = user
+            }
         }
      }
   }
 
   fun openChatWithUser(user: UserEntity, currentRole: UserRole, currentOsbbId: Long) {
+    println("[YkisLogKMP.$className]: [OPEN_CHAT] Користувач: ${user.address}, Роль: $currentRole")
     _selectedUser.value = user
     _firebaseTest.value = emptyList()
     _messageText.value = ""
@@ -275,14 +286,25 @@ class ChatScreenModel(
       "${servicePrefix}_${effectiveId}_${addressId}_${targetUserUid}"
     }
     
-    println("[YkisLogKMP]: [PATH_CALC] Prefix: $servicePrefix | ID: $effectiveId | Path: $path")
     return path
   }
 
   fun readFromDatabase(role: UserRole, senderUid: String, osbbId: Long, addressId: Long) {
-    val targetPath = getChatPath(role, osbbId, addressId, senderUid)
+    val finalOsbbId = if (osbbId == 0L) {
+        when (role) {
+            UserRole.VodokanalUser -> 9999L
+            UserRole.YtkeUser      -> 9998L
+            UserRole.TboUser       -> 9997L
+            else -> osbbId
+        }
+    } else osbbId
+
+    val targetPath = getChatPath(role, finalOsbbId, addressId, senderUid)
     
-    if (currentChatPath == targetPath && messageSubscriptionJob?.isActive == true) return
+    if (currentChatPath == targetPath && messageSubscriptionJob?.isActive == true) {
+        println("[YkisLogKMP]: [READ_SKIP] Вже підписані на $targetPath")
+        return
+    }
 
     println("[YkisLogKMP]: [READ_START] Путь: $targetPath")
 
@@ -298,7 +320,6 @@ class ChatScreenModel(
         observeTypingStatus(targetPath)
         firebaseService.clearNotifications(targetPath)
 
-        // ИСПРАВЛЕНО: Диспетчеры для пушей подгружаются ТОЛЬКО если есть UID
         if (role == UserRole.StandardUser && activeUid.isNotBlank()) {
            screenModelScope.launch {
               try {
@@ -316,7 +337,6 @@ class ChatScreenModel(
             messages.filter { msg -> !msg.deletedFor.contains(activeUid) }.sortedBy { it.timestamp }
           }
           .collect { filteredMessages ->
-            println("[YkisLogKMP]: [DATA_IN] Сообщений: ${filteredMessages.size} для $targetPath")
             _firebaseTest.value = filteredMessages
             val hasUnreadFromOpponent = filteredMessages.any { !it.read && it.senderUid != activeUid }
             if (hasUnreadFromOpponent) {
@@ -325,8 +345,9 @@ class ChatScreenModel(
           }
       } catch (e: Exception) {
         if (e is CancellationException) {
-          println("[YkisLogKMP]: [CLEANUP] Подписка завершена.")
+          println("[YkisLogKMP]: [CLEANUP] Підписка скасована (нормально при зміні екрану).")
         } else {
+          println("[YkisLogKMP]: [READ_ERROR] Помилка БД: ${e.message}")
           logService.logNonFatalCrash(e)
         }
       }
@@ -350,37 +371,55 @@ class ChatScreenModel(
     _isOpponentOnline.value = false
     _isOpponentTyping.value = false
     _messageText.value = ""
-    _editingMessage.value = null
   }
 
   fun handleSendMessage(baseUIState: BaseUIState) {
-      val path = currentChatPath ?: return
-      val myUid = firebaseService.uid
+      val user = _selectedUser.value
       val role = baseUIState.userRole
-      val user = _selectedUser.value ?: return
       
+      // ВОССТАНОВЛЕНИЕ ПУТИ: Если путь пуст, пересчитываем его
+      val path = currentChatPath ?: run {
+          val addrId = if (role == UserRole.StandardUser) baseUIState.addressId else (user?.addressId ?: 0L)
+          val targetUid = if (role == UserRole.StandardUser) (firebaseService.uid) else (user?.uid ?: "")
+          val osbbId = baseUIState.osbbId ?: 0L
+          val recovered = getChatPath(role, osbbId, addrId, targetUid)
+          println("[YkisLogKMP]: [PATH_RECOVERED] Восстановлен путь: $recovered")
+          currentChatPath = recovered
+          recovered
+      }
+
+      val myUid = firebaseService.uid
+      val currentMessageText = _messageText.value
+      
+      if (currentMessageText.isBlank()) return
+
       val isResident = role == UserRole.StandardUser
-      
       val senderName = if (isResident) {
-          val chatApt = baseUIState.apartments.find { it.addressId == user.addressId }
+          val chatApt = baseUIState.apartments.find { it.addressId == (user?.addressId ?: baseUIState.addressId) }
           val addr = chatApt?.address ?: baseUIState.address ?: ""
           val nanim = chatApt?.nanim ?: baseUIState.nanim ?: "Мешканець"
           "$addr | $nanim"
       } else {
-          baseUIState.displayName ?: "Диспетчер"
+          when (role) {
+            UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
+            UserRole.YtkeUser      -> "КП тм \"ЮТКЕ\""
+            UserRole.TboUser       -> "КП \"СПЕЦТРАНС\""
+            UserRole.OsbbUser      -> baseUIState.osbb.ifBlank { "ОСББ" }
+            else                   -> baseUIState.displayName ?: "Диспетчер"
+          }
       }
 
-      val tokens = if (isResident) _recipientTokens.value else (user.tokens)
+      val tokens = if (isResident) _recipientTokens.value else (user?.tokens ?: emptyList())
 
-      println("[YkisLogKMP]: [SEND_TRACE] Отправка в $path")
+      println("[YkisLogKMP]: [SEND_START] Отправка в: $path")
 
       writeToDatabase(
           chatUid = path,
           senderUid = myUid,
           senderDisplayedName = senderName,
           senderLogoUrl = firebaseService.photoUrl,
-          senderAddress = if (isResident) (baseUIState.address ?: "") else user.address,
-          addressId = user.addressId,
+          senderAddress = if (isResident) (baseUIState.address ?: "") else (user?.address ?: ""),
+          addressId = if (isResident) baseUIState.addressId else (user?.addressId ?: 0L),
           imageUrl = null,
           fileUrl = null,
           fileName = null,
@@ -409,8 +448,6 @@ class ChatScreenModel(
     onComplete: () -> Unit
   ) {
     val text = _messageText.value
-    if (text.isBlank() && imageUrl == null && fileUrl == null) return
-
     _isLoadingAfterSending.value = true
     setUserTyping(false)
 
@@ -427,7 +464,10 @@ class ChatScreenModel(
             fileName = fileName,
             timestamp = currentTimeMillis()
         )
+        println("[YkisLogKMP]: [FIREBASE_WRITE] Путь: $chatUid")
         chatRepo.sendMessage(chatUid, message)
+        
+        println("[YkisLogKMP]: [FIREBASE_SUCCESS]")
         _messageText.value = ""
         onComplete()
         
@@ -442,6 +482,7 @@ class ChatScreenModel(
             chatRepo.sendChatNotification(data)
         }
       } catch (e: Exception) {
+        println("[YkisLogKMP]: [FIREBASE_ERROR] ${e.message}")
         logService.logNonFatalCrash(e)
       } finally {
         _isLoadingAfterSending.value = false
@@ -622,40 +663,126 @@ class ChatScreenModel(
   }
 
   fun trackUserIdentifiersWithRole(role: UserRole, osbbId: Long, apartments: List<ApartmentEntity> = emptyList()) {
-    val keys = mutableListOf<String>()
-    val myUid = chatRepo.currentUid ?: return
+    val methodName = "trackUserIdentifiers"
+    val myUid = chatRepo.currentUid ?: ""
+    val safeOsbbId = osbbId ?: 0L
+    
+    println("[YkisLogKMP]: ENTRY. Роль: $role | Квартир: ${apartments.size}")
+
+    activeTrackerJob?.cancel()
 
     if (role == UserRole.StandardUser) {
+      val residentKeys = mutableListOf<String>()
       apartments.forEach { apt ->
-        val addrId = apt.addressId
-        val osmdId = apt.osmdId ?: 0L
-        keys.add("OSBB_${osmdId}_${addrId}_$myUid")
-        keys.add("WATER_SERVICE_${Constants.WATER_SERVICE_ID}_${addrId}_$myUid")
-        keys.add("WARM_SERVICE_${Constants.WARM_SERVICE_ID}_${addrId}_$myUid")
-        keys.add("GARBAGE_SERVICE_${Constants.GARBAGE_SERVICE_ID}_${addrId}_$myUid")
+        residentKeys.add("OSBB_${apt.osmdId ?: 0L}_${apt.addressId}_$myUid")
+        residentKeys.add("WATER_SERVICE_${Constants.WATER_SERVICE_ID}_${apt.addressId}_$myUid")
+        residentKeys.add("WARM_SERVICE_${Constants.WARM_SERVICE_ID}_${apt.addressId}_$myUid")
+        residentKeys.add("GARBAGE_SERVICE_${Constants.GARBAGE_SERVICE_ID}_${apt.addressId}_$myUid")
+      }
+      
+      if (residentKeys.isNotEmpty()) {
+        println("[YkisLogKMP]: Житель — запуск мониторинга ${residentKeys.size} веток.")
+        _userIdentifiersWithRole.value = residentKeys
+        subscribeToUnreadCount(residentKeys)
+        subscribeToLastMessages(residentKeys)
+      }
+      return
+    }
+
+    // ЛОГІКА ДЛЯ АДМИНА
+    val prefix = _selectedServicePrefix.value ?: "OSBB"
+    val targetPrefix = when (role) {
+      UserRole.VodokanalUser -> "WATER_SERVICE_${Constants.WATER_SERVICE_ID}_"
+      UserRole.YtkeUser      -> "WARM_SERVICE_${Constants.WARM_SERVICE_ID}_"
+      UserRole.TboUser       -> "GARBAGE_SERVICE_${Constants.GARBAGE_SERVICE_ID}_"
+      UserRole.OsbbUser      -> "OSBB_${safeOsbbId}_"
+      else                   -> "${prefix}_${safeOsbbId}_"
+    }
+
+    println("[YkisLogKMP]: [FETCH_USERS] Пошук за префіксом: $targetPrefix")
+
+    activeTrackerJob = screenModelScope.launch {
+      chatRepo.observeChatKeys(targetPrefix).collect { chatKeys ->
+          println("[YkisLogKMP]: [FETCH_USERS] Знайдено ключів: ${chatKeys.size} -> $chatKeys")
+          
+          _userIdentifiersWithRole.value = chatKeys
+
+          if (chatKeys.isNotEmpty()) {
+            subscribeToUnreadCount(chatKeys)
+            subscribeToLastMessages(chatKeys)
+            getUsers()
+          } else {
+            _rawFetchedProfiles.value = emptyList()
+            _unreadCounts.value = emptyMap()
+          }
       }
     }
-    if (keys.isNotEmpty()) subscribeToUnreadCount(keys)
   }
 
-  private fun subscribeToUnreadCount(chatPaths: List<String>) {
-    unreadCountJob?.cancel()
-    unreadCountJob = screenModelScope.launch {
-        chatRepo.observeUnreadCounts(chatPaths, chatRepo.currentUid ?: "").collect {
-            _unreadCounts.value = it
-            applyAppBadgeCount(it.values.sum())
+  private fun subscribeToUnreadCount(chatKeys: List<String>) {
+    val myUid = chatRepo.currentUid ?: return
+    chatKeys.forEach { chatId ->
+      if (chatId.isBlank() || unreadCountListeners.containsKey(chatId)) return@forEach
+      val job = screenModelScope.launch {
+        chatRepo.observeMessages(chatId)
+          .map { messages ->
+            messages.count { it.senderUid != myUid && !it.read }
+          }
+          .collect { count ->
+            _unreadCounts.update { it + (chatId to count) }
+            applyAppBadgeCount(_unreadCounts.value.values.sum())
+          }
+      }
+      unreadCountListeners[chatId] = job
+    }
+  }
+
+  private fun subscribeToLastMessages(chatKeys: List<String>) {
+    chatKeys.forEach { chatId ->
+      if (chatId.isBlank() || lastMessageListeners.containsKey(chatId)) return@forEach
+      val job = screenModelScope.launch {
+        chatRepo.observeLastMessage(chatId).collect { message ->
+          if (message != null) {
+            _lastMessages.update { it + (chatId to message) }
+          }
         }
+      }
+      lastMessageListeners[chatId] = job
+    }
+  }
+
+  fun getUsers() {
+    val chatKeys = _userIdentifiersWithRole.value
+    if (chatKeys.isEmpty()) return
+
+    launchCatching(snackbar = false) {
+      val uidsToFetch = chatKeys.map { it.substringAfterLast("_") }
+        .filter { it.isNotEmpty() }
+        .distinct()
+
+      val fetchedProfiles = chatRepo.fetchUsersByIds(uidsToFetch)
+      _rawFetchedProfiles.value = fetchedProfiles
     }
   }
 
   fun startForwarding(message: MessageEntity) {
     _forwardingMessage.value = message
-    _isForwardingMode.value = true
   }
 
   fun cancelForwarding() {
     _forwardingMessage.value = null
-    _isForwardingMode.value = false
+  }
+
+  fun stopAllListeners() {
+      println("[ChatScreenModel]: Зупинка всіх фонових слухачів...")
+      messageSubscriptionJob?.cancel()
+      typingStatusJob?.cancel()
+      presenceJob?.cancel()
+      activeTrackerJob?.cancel()
+      lastMessageListeners.values.forEach { it.cancel() }
+      unreadCountListeners.values.forEach { it.cancel() }
+      lastMessageListeners.clear()
+      unreadCountListeners.clear()
   }
 
   fun confirmForwardToService(service: ContentDetail, baseState: BaseUIState, targetUser: UserEntity? = null) {

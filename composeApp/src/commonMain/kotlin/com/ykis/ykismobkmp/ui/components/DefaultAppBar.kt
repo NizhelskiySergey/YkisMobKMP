@@ -40,7 +40,7 @@ fun DefaultAppBar(
   onBackClick: () -> Unit = {},
   onDrawerClick: () -> Unit = {},
   canNavigateBack: Boolean = true,
-  navigationType: NavigationType? = null,
+  navigationType: NavigationType = NavigationType.BOTTOM_NAVIGATION,
   actionButton: @Composable (() -> Unit)? = null,
 ) {
   // ИСПРАВЛЕНО НАМЕРТВО: Принудительно зажали общую высоту верхнего тулбара до компактных 52.dp!
@@ -94,7 +94,7 @@ fun DefaultAppBar(
               modifier = Modifier.size(24.dp)
             )
           }
-        } else if (navigationType == NavigationType.BOTTOM_NAVIGATION) {
+        } else if (navigationType == NavigationType.BOTTOM_NAVIGATION || navigationType == NavigationType.NAVIGATION_RAIL_COMPACT || navigationType == NavigationType.NAVIGATION_RAIL_EXPANDED) {
           IconButton(onClick = {
             println("[YkisLogKMP.$appBarClassName]: Клик по бургер-меню (Drawer)")
             onDrawerClick()
@@ -120,5 +120,3 @@ fun DefaultAppBar(
     )
   }
 }
-
-

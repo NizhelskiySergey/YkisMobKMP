@@ -83,6 +83,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1062920014188-g0hqer4udt9ejnkoi6sc5ec64n8ne10m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ykis.ykismobkmp",
+            "certificate_hash": "c1548943b734d106070f52f4520547c7640584ae"
+          }
+        },
+        {
           "client_id": "1062920014188-jh5vmtvk4jnpcnusm2854rq22cb141j8.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

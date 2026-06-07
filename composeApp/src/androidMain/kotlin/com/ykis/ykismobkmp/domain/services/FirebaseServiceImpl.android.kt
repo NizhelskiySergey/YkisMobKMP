@@ -28,37 +28,61 @@ actual suspend fun performPlatformSendSms(
     return@suspendCancellableCoroutine
   }
 
-  val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-    override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-      println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_SMS] Автоматическая мгновенная верификация")
-    }
-
-    override fun onVerificationFailed(e: FirebaseException) {
-      println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_SMS_ERROR] Отказ Google Cloud: ${e.message}")
-      continuation.resume(Resource.Error(e.message ?: "Сбой отправки SMS"))
-    }
-
-    override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
-      println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_SMS_SUCCESS] Код отправлен! ID сессии: $verificationId")
-      continuation.resume(Resource.Success(verificationId))
-    }
-  }
-
   // Извлекаем оригинальный нативный инстанс Google через свойство .android библиотеки GitLive
   val nativeAndroidAuth = auth.android
 
-  // ИСПРАВЛЕНО: Принудительно добавляем международный префикс к чистым цифрам из KMP стейта
-  val fullFormattedPhoneNumber = if (phoneNumber.startsWith("+")) phoneNumber else "+380$phoneNumber"
+  val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+    override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+      println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_SMS] Автоматична миттєва верифікація")
+      nativeAndroidAuth.signInWithCredential(credential)
+        .addOnSuccessListener {
+            println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_SMS_AUTO_OK] Автоматичний вхід успішний")
+        }
+    }
 
-  val options = PhoneAuthOptions.newBuilder(nativeAndroidAuth)
-    .setPhoneNumber(fullFormattedPhoneNumber) // Передаем полный валидный номер телефона
-    .setTimeout(60L, TimeUnit.SECONDS)
-    .setActivity(activity)
-    .setCallbacks(callbacks)
-    .build()
+    override fun onVerificationFailed(e: FirebaseException) {
+      println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_SMS_ERROR] Відмова Google Cloud: ${e.message}")
+      if (continuation.isActive) continuation.resume(Resource.Error(e.message ?: "Сбой отправки SMS"))
+    }
 
+    override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
+      println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_SMS_SUCCESS] Код надіслано! ID сесії: $verificationId")
+      if (continuation.isActive) continuation.resume(Resource.Success(verificationId))
+    }
+  }
 
-  PhoneAuthProvider.verifyPhoneNumber(options)
+  val cleanPhone = phoneNumber.filter { it.isDigit() }
+  val fullFormattedPhoneNumber = when {
+      phoneNumber.startsWith("+") -> phoneNumber
+      cleanPhone.startsWith("380") -> "+$cleanPhone"
+      cleanPhone.startsWith("0") -> "+380${cleanPhone.drop(1)}"
+      else -> "+380$cleanPhone"
+  }
+  
+  println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_SMS_PREPARE] Номер: $fullFormattedPhoneNumber")
+
+  try {
+      // ИСПРАВЛЕНО: Принудительный запрос токена App Check перед отправкой SMS
+      com.google.firebase.appcheck.FirebaseAppCheck.getInstance().getAppCheckToken(false).addOnCompleteListener { task ->
+          if (task.isSuccessful) {
+              println("[YkisLogKMP.FirebaseServiceImpl]: App Check токен отримано: ${task.result?.token?.take(10)}...")
+          } else {
+              println("[YkisLogKMP.FirebaseServiceImpl]: [APP_CHECK_FAIL] Помилка: ${task.exception?.message}")
+          }
+          
+          // В ЛЮБОМ СЛУЧАЕ пробуем отправить SMS
+          val options = PhoneAuthOptions.newBuilder(nativeAndroidAuth)
+            .setPhoneNumber(fullFormattedPhoneNumber)
+            .setTimeout(60L, TimeUnit.SECONDS)
+            .setActivity(activity)
+            .setCallbacks(callbacks)
+            .build()
+
+          PhoneAuthProvider.verifyPhoneNumber(options)
+      }
+  } catch (e: Exception) {
+      println("[YkisLogKMP.FirebaseServiceImpl]: [CRITICAL_FAIL] ${e.message}")
+  }
 }
 
 actual suspend fun performPlatformSignInWithSms(
@@ -69,10 +93,8 @@ actual suspend fun performPlatformSignInWithSms(
   try {
     println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_AUTH] Сборка нативного credential Google")
 
-    // 1. Получаем оригинальный нативный токен от Google Android SDK
     val nativeCredential = PhoneAuthProvider.getCredential(verificationId, smsCode)
 
-    // 2. Нативно авторизуем жильца непосредственно в нативном ядре FirebaseAuth Android
     auth.android.signInWithCredential(nativeCredential)
       .addOnSuccessListener {
         println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_AUTH_SUCCESS] Вход по телефону успешно завершен!")
@@ -98,16 +120,13 @@ actual suspend fun getPlatformFcmToken(): String? = try {
 
 actual fun performPlatformClearNotifications(chatId: String?) {
   try {
-    // Получаем контекст через Firebase SDK (на Android он всегда доступен)
     val context = com.google.firebase.FirebaseApp.getInstance().applicationContext
     val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     
     if (chatId != null) {
-      // Очищаем уведомление конкретного чата
       notificationManager.cancel(chatId.hashCode())
       println("[YkisLogKMP.FirebaseServiceImpl]: [NOTIF_CLEAR] Уведомления чата $chatId очищены.")
     } else {
-      // Очищаем ВСЕ уведомления приложения
       notificationManager.cancelAll()
       println("[YkisLogKMP.FirebaseServiceImpl]: [NOTIF_CLEAR] Все уведомления приложения очищены.")
     }

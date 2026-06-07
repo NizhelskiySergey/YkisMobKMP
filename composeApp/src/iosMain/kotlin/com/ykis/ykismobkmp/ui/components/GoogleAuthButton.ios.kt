@@ -13,6 +13,41 @@ import org.jetbrains.compose.resources.painterResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.ic_google_logo
 
+
+@Composable
+fun AppleAuthButton(
+  isLoading: Boolean,
+  onStart: () -> Unit,
+  onTokenReceived: (String) -> Unit
+) {
+  Button(
+    onClick = {
+      onStart()
+      println("[AppleAuthButton.ios]: Клик на Sign in with Apple.")
+      // Здесь будет логика вызова нативного окна Apple Auth
+      SnackbarManager.showMessage("Авторизація Apple в розробці...")
+    },
+    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+    enabled = !isLoading,
+    shape = RoundedCornerShape(12.dp),
+    colors = ButtonDefaults.buttonColors(
+      containerColor = MaterialTheme.colorScheme.onSurface,
+      contentColor = MaterialTheme.colorScheme.surface
+    )
+  ) {
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+      // Можно использовать системную иконку или ресурс
+      Text(
+        text = "Увійти через Apple",
+        style = MaterialTheme.typography.titleMedium
+      )
+    }
+  }
+}
+
 @Composable
 actual fun GoogleAuthButton(
   buttonTextRes: Int,

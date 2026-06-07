@@ -37,12 +37,11 @@ import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.navigation.LocalContentType
-import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
-import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -68,8 +67,7 @@ class ServiceSelectorScreen(
       baseUIState = baseUIState,
       chatScreenModel = chatScreenModel,
       onServiceClick = onServiceClick,
-      onDrawerClicked = onDrawerClicked,
-      navigationType = NavigationType.BOTTOM_NAVIGATION
+      onDrawerClicked = onDrawerClicked
     )
   }
 }
@@ -83,13 +81,17 @@ fun ServiceSelectorContent(
   baseUIState: BaseUIState,
   chatScreenModel: ChatScreenModel,
   onServiceClick: (TotalServiceDebt) -> Unit,
-  onDrawerClicked: () -> Unit,
-  navigationType: NavigationType
+  onDrawerClicked: () -> Unit
 ) {
   val methodName = "ServiceSelectorContent"
 
+  val announcementModel = koinInject<com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementScreenModel>()
   val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
+  val announcementState by announcementModel.uiState.collectAsState()
   val isForwardingMode by chatScreenModel.isForwardingMode.collectAsState()
+
+  val lastCheck = announcementState.lastAnnouncementsCheck
+  val announcements = announcementState.announcements
 
   // Локальный чистый КМР-список коммунальных служб города Южного для чат-контура
   val residentServices = remember {
@@ -140,8 +142,7 @@ fun ServiceSelectorContent(
       title = stringResource(Res.string.services),
       subtitle = "Оберіть службу чату",
       onDrawerClick = onDrawerClicked,
-      canNavigateBack = false,
-      navigationType = navigationType
+      canNavigateBack = false
     )
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -152,10 +153,9 @@ fun ServiceSelectorContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
       ) {
         residentServices.forEach { service ->
-          // СЧИТАЕМ СУММАРНЫЙ БЕЙДЖ НЕПРОЧИТАННЫХ (По всем КМР Long квартирам жильца для этой службы)
-          val totalCount = remember(unreadCounts, baseUIState.apartments, service.contentDetail) {
-            baseUIState.apartments.sumOf { apt ->
-              // ИСПРАВЛЕНО: Ссылка на несуществующий osbbId удалена, оставлен легитимный osmdId
+          // СЧИТАЕМ СУММАРНЫЙ БЕЙДЖ (Чаты + Новые Объявления от этой службы)
+          val totalCount = remember(unreadCounts, announcements, lastCheck, baseUIState.apartments, service.contentDetail) {
+            val chatUnread = baseUIState.apartments.sumOf { apt ->
               val chatId = when (service.contentDetail) {
                 ContentDetail.OSBB -> "OSBB_${apt.osmdId}_${apt.addressId}_${baseUIState.uid}"
                 ContentDetail.WATER_SERVICE -> "WATER_SERVICE_9999_${apt.addressId}_${baseUIState.uid}"
@@ -165,6 +165,18 @@ fun ServiceSelectorContent(
               }
               unreadCounts[chatId] ?: 0
             }
+            
+            val announcementUnread = announcements.count { 
+                it.timestamp > lastCheck && when(service.contentDetail) {
+                    ContentDetail.WATER_SERVICE -> it.authorRole == UserRole.VodokanalUser
+                    ContentDetail.WARM_SERVICE -> it.authorRole == UserRole.YtkeUser
+                    ContentDetail.GARBAGE_SERVICE -> it.authorRole == UserRole.TboUser
+                    ContentDetail.OSBB -> it.authorRole == UserRole.OsbbUser
+                    else -> false
+                }
+            }
+            
+            chatUnread + announcementUnread
           }
 
           Box(modifier = Modifier.fillMaxWidth()) {
@@ -227,7 +239,3 @@ fun ServiceSelectorContent(
     }
   }
 }
-
-
-
-

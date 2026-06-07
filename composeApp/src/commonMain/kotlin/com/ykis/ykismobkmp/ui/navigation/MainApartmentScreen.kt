@@ -156,7 +156,6 @@ class MainApartmentScreen(
           else                   -> osbbId
         }
 
-        // ИСПРАВЛЕНО: Автоматически устанавливаем префикс службы для всех админов
         val adminPrefix = when (role) {
           UserRole.VodokanalUser -> "WATER_SERVICE"
           UserRole.YtkeUser      -> "WARM_SERVICE"
@@ -188,14 +187,13 @@ class MainApartmentScreen(
           "InfoApartmentScreen" -> InfoApartmentScreen(onDrawerClicked = { coroutineScope.launch { drawerState.open() } }).Content()
           "AddApartmentScreen" -> AddApartmentScreen(onDrawerClicked = { coroutineScope.launch { drawerState.open() } }, closeContentDetail = { activeSubModule = "InfoApartmentScreen" }).Content()
           "service_selector" -> MainMeterScreen(onDrawerClick = { coroutineScope.launch { drawerState.open() } }).Content()
-          "finance_selector" -> MainServiceScreen(baseUIState = baseUIState, navigationType = navigationType, onDrawerClick = { coroutineScope.launch { drawerState.open() } }).Content()
+          "finance_selector" -> MainServiceScreen(baseUIState = baseUIState, onDrawerClick = { coroutineScope.launch { drawerState.open() } }).Content()
           "chat_selector" -> {
             if (baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.Unknown) activeSubModule = "chat_user_list"
             ServiceSelectorScreen(baseUIState = baseUIState, onDrawerClicked = { coroutineScope.launch { drawerState.open() } }, onServiceClick = { activeSubModule = "chat_user_list" }).Content()
           }
           "chat_user_list" -> UserListScreen(
-              onDrawerClicked = { if (baseUIState.userRole == UserRole.StandardUser) activeSubModule = "chat_selector" },
-              navigationType = navigationType,
+              onDrawerClicked = { if (baseUIState.userRole == UserRole.StandardUser) activeSubModule = "chat_selector" else coroutineScope.launch { drawerState.open() } },
               onUserClicked = { user ->
                 val role = baseUIState.userRole
                 if (role == UserRole.OsbbUser || role == UserRole.StandardUser) apartmentScreenModel.setAddressId(user.addressId)
@@ -207,7 +205,7 @@ class MainApartmentScreen(
               }
             ).Content()
           "chat_room_active" -> ChatScreen(onBackClick = { activeSubModule = "chat_user_list" }).Content()
-          "announcements" -> AnnouncementListScreen(onDrawerClicked = { coroutineScope.launch { drawerState.open() } }, navigationType = navigationType).Content()
+          "announcements" -> AnnouncementListScreen(onDrawerClicked = { coroutineScope.launch { drawerState.open() } }).Content()
           "SettingsScreenDest" -> SettingsScreen(onDrawerClick = { coroutineScope.launch { drawerState.open() } }).Content()
           else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Модуль ЖКХ") }
         }
@@ -217,9 +215,32 @@ class MainApartmentScreen(
     val localFocusManager = LocalFocusManager.current
     val localKeyboardController = LocalSoftwareKeyboardController.current
 
-    if (navigationType == NavigationType.BOTTOM_NAVIGATION) {
+    val showRail = navigationType == NavigationType.NAVIGATION_RAIL_COMPACT || 
+                   navigationType == NavigationType.NAVIGATION_RAIL_EXPANDED || 
+                   navigationType == NavigationType.PERMANENT_NAVIGATION_DRAWER
+
+    Row(modifier = Modifier.fillMaxSize()) {
+      if (showRail) {
+        ApartmentNavigationRail(
+          baseUIState = baseUIState,
+          navigator = globalNavigator,
+          activeSubModule = activeSubModule,
+          onSubModuleChange = { activeSubModule = it },
+          isRailExpanded = isRailExpanded,
+          onMenuClick = {
+            apartmentScreenModel.onSearchQueryChanged("")
+            onMenuClick()
+          },
+          navigateToApartment = finalizeApartmentSelection,
+          railWidth = railWidth,
+          isApartmentsEmpty = baseUIState.addressId == 0L
+        )
+        VerticalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+      }
+
       ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = !showRail, // Отключаем жесты дравера, если есть рейл
         drawerContent = {
           ModalNavigationDrawerContent(
             baseUIState = baseUIState,
@@ -241,32 +262,20 @@ class MainApartmentScreen(
           bottomBar = {
             val isChatRoomActive = activeSubModule == "chat_room_active"
             val showBottomBar = (baseUIState.addressId != 0L || baseUIState.userRole != UserRole.StandardUser) && !isChatRoomActive
-            if (showBottomBar) BottomNavigationBar(navigator = globalNavigator, baseUIState = baseUIState, activeSubModule = activeSubModule, onSubModuleChange = { activeSubModule = it })
+            if (showBottomBar) {
+               BottomNavigationBar(
+                 navigator = globalNavigator, 
+                 baseUIState = baseUIState, 
+                 activeSubModule = activeSubModule, 
+                 onSubModuleChange = { activeSubModule = it }
+               )
+            }
           }
         ) { paddingValues ->
           val isChatRoomActive = activeSubModule == "chat_room_active"
-          Box(modifier = Modifier.fillMaxSize().padding(top = paddingValues.calculateTopPadding(), bottom = if (isChatRoomActive) 0.dp else paddingValues.calculateBottomPadding())) { RenderSubContent() }
-        }
-      }
-    } else {
-      Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Row(modifier = Modifier.fillMaxSize()) {
-          ApartmentNavigationRail(
-            baseUIState = baseUIState,
-            navigator = globalNavigator,
-            activeSubModule = activeSubModule,
-            onSubModuleChange = { activeSubModule = it },
-            isRailExpanded = isRailExpanded,
-            onMenuClick = {
-              apartmentScreenModel.onSearchQueryChanged("")
-              onMenuClick()
-            },
-            navigateToApartment = finalizeApartmentSelection,
-            railWidth = railWidth,
-            isApartmentsEmpty = baseUIState.addressId == 0L
-          )
-          VerticalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-          Box(modifier = Modifier.weight(1f).fillMaxHeight()) { RenderSubContent() }
+          Box(modifier = Modifier.fillMaxSize().padding(top = paddingValues.calculateTopPadding(), bottom = if (isChatRoomActive) 0.dp else paddingValues.calculateBottomPadding())) { 
+            RenderSubContent() 
+          }
         }
       }
     }

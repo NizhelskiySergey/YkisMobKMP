@@ -29,7 +29,6 @@ import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
-import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.accrued_text
 import ykismobkmp.composeapp.generated.resources.end_debt
@@ -55,13 +54,10 @@ fun ServiceDetailScreen(
   screenModel: LedgerScreenModel,
   navigateToWebView: (String) -> Unit
 ) {
-  val adaptiveNavigationType = LocalNavigationType.current
-
   Column(
     modifier = modifier.fillMaxSize()
   ) {
     DefaultAppBar(
-      navigationType = adaptiveNavigationType,
       canNavigateBack = true,
       onBackClick = {
         println("[YkisLogKMP.$className.onBackClick]: Возврат к списку. Служба: $contentDetail")

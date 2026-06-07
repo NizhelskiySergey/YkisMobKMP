@@ -214,4 +214,12 @@ class AnnouncementScreenModel(
             }
         }
     }
+
+    /**
+     * [stopAllListeners] — Мгновенная остановка всех фоновых процессов.
+     */
+    fun stopAllListeners() {
+        println("[AnnouncementScreenModel]: Зупинка моніторингу оголошень.")
+        observeJob?.cancel()
+    }
 }

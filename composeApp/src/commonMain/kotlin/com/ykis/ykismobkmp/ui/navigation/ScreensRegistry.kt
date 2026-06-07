@@ -229,7 +229,6 @@ data class MainServiceScreenDest(
     val baseUIState by apartmentScreenModel.uiState.collectAsState()
     MainServiceScreen(
       baseUIState = baseUIState,
-      navigationType = LocalNavigationType.current,
       onDrawerClick = {
         println("[YkisLogKMP.$classNameRegistry.MainServiceScreenDest]: Клік по бургер-кнопці на екрані фінансів.")
       }

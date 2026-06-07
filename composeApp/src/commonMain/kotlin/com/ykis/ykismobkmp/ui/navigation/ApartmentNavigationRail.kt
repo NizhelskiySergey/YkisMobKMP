@@ -18,36 +18,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.ArrowBackIosNew
-import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Domain
-import androidx.compose.material.icons.filled.ElectricMeter
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Opacity
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRailDefaults
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -55,7 +45,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -80,7 +69,6 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
-import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
@@ -138,13 +126,11 @@ fun ApartmentNavigationRail(
 
   val chatViewModel = koinInject<ChatScreenModel>()
   val apartmentViewModel = koinInject<ApartmentScreenModel>()
-  val announcementModel = koinInject<com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementScreenModel>()
 
   val searchQuery by apartmentViewModel.searchQuery.collectAsState()
   val apartments by apartmentViewModel.filteredApartments.collectAsState()
   val isUserAdmin = baseUIState.userRole != UserRole.StandardUser
   val unreadCounts by chatViewModel.unreadCounts.collectAsState()
-  val announcementState by announcementModel.uiState.collectAsState()
   
   val listMode = baseUIState.listMode
   val isOrgAdmin = baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
@@ -152,8 +138,6 @@ fun ApartmentNavigationRail(
 
   val houses by apartmentViewModel.drawerHouses.collectAsState()
   val drawerApartments by apartmentViewModel.drawerApartments.collectAsState()
-  val totalUnread = remember(unreadCounts) { unreadCounts.values.sum() }
-  val unreadAnnouncements = announcementState.unreadAnnouncementsCount
 
   val apartmentBadges = remember(unreadCounts) {
     unreadCounts.map { (fullKey, count) ->
@@ -171,10 +155,27 @@ fun ApartmentNavigationRail(
     header = {
       Row(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
       ) {
         IconButton(onClick = onMenuClick) {
           Icon(Icons.Default.Menu, contentDescription = "Menu")
+        }
+        if (isRailExpanded && isUserAdmin) {
+          val shortName = when (baseUIState.userRole) {
+            UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
+            UserRole.YtkeUser -> "КП тм \"ЮТКЕ\""
+            UserRole.TboUser -> "КП \"СПЕЦТРАНС\""
+            UserRole.OsbbUser -> baseUIState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "ОСББ"
+            else -> ""
+          }
+          Text(
+            text = shortName,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(end = 16.dp)
+          )
         }
       }
 
@@ -394,133 +395,6 @@ fun ApartmentNavigationRail(
             }
           }
         }
-      }
-
-      Column(
-        modifier = Modifier
-          .fillMaxWidth()
-          .wrapContentHeight()
-          .padding(bottom = 16.dp)
-      ) {
-        HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
-
-        val isHomeSelected = activeSubModule == "InfoApartmentScreen" || activeSubModule == "UserListScreen"
-        val isFinanceSelected = activeSubModule == "finance_selector"
-        val isMetersSelected = activeSubModule == "service_selector"
-        val isChatSelected = activeSubModule == "chat_selector" || activeSubModule == "chat_user_list" || activeSubModule == "chat_room_active"
-        val isAnnouncementsSelected = activeSubModule == "announcements"
-
-        val isAptSelected = baseUIState.addressId != 0L
-        val isAdmin = baseUIState.userRole != UserRole.StandardUser
-
-        NavigationRailItem(
-          selected = isHomeSelected,
-          enabled = if (isAdmin) isAptSelected else true,
-          onClick = {
-            focusManager.clearFocus()
-            selectedApartmentFocusRequester.requestFocus()
-            onSubModuleChange("InfoApartmentScreen")
-          },
-          icon = { Icon(Icons.Default.Home, null) },
-          label = if (isRailExpanded) {
-            { Text("Головна", fontSize = 11.sp, maxLines = 1, softWrap = false) }
-          } else null
-        )
-
-        NavigationRailItem(
-          selected = isFinanceSelected,
-          enabled = if (isAdmin) isAptSelected else true,
-          onClick = {
-            focusManager.clearFocus()
-            selectedApartmentFocusRequester.requestFocus()
-            onSubModuleChange("finance_selector")
-          },
-          icon = { Icon(Icons.Default.CreditCard, null) },
-          label = if (isRailExpanded) {
-            { Text("Фінанси", fontSize = 11.sp, maxLines = 1, softWrap = false) }
-          } else null
-        )
-
-        NavigationRailItem(
-          selected = isMetersSelected,
-          enabled = if (isAdmin) isAptSelected else true,
-          onClick = {
-            focusManager.clearFocus()
-            selectedApartmentFocusRequester.requestFocus()
-            chatViewModel.setSelectedService(null as TotalServiceDebt?)
-            onSubModuleChange("service_selector")
-          },
-          icon = { Icon(Icons.Default.ElectricMeter, null) },
-          label = if (isRailExpanded) {
-            { Text("Лічильники", fontSize = 11.sp, maxLines = 1, softWrap = false) }
-          } else null
-        )
-
-        NavigationRailItem(
-          selected = isAnnouncementsSelected,
-          enabled = true,
-          onClick = {
-            focusManager.clearFocus()
-            selectedApartmentFocusRequester.requestFocus()
-            onSubModuleChange("announcements")
-          },
-          icon = {
-            BadgedBox(
-              badge = {
-                if (unreadAnnouncements > 0) {
-                  Badge(containerColor = MaterialTheme.colorScheme.error) {
-                    Text(text = if (unreadAnnouncements > 9) "9+" else unreadAnnouncements.toString())
-                  }
-                }
-              }
-            ) {
-              Icon(Icons.Default.Campaign, null)
-            }
-          },
-          label = if (isRailExpanded) {
-            { Text("Оголошення", fontSize = 11.sp, maxLines = 1, softWrap = false) }
-          } else null
-        )
-
-        NavigationRailItem(
-          selected = isChatSelected,
-          onClick = {
-            focusManager.clearFocus()
-            selectedApartmentFocusRequester.requestFocus()
-            val targetRoute = if (baseUIState.userRole == UserRole.StandardUser) "chat_selector" else "chat_user_list"
-            onSubModuleChange(targetRoute)
-          },
-          icon = {
-            BadgedBox(
-              badge = {
-                if (totalUnread > 0) {
-                  Badge(containerColor = MaterialTheme.colorScheme.error) {
-                    Text(text = if (totalUnread > 9) "9+" else totalUnread.toString())
-                  }
-                }
-              }
-            ) {
-              Icon(Icons.AutoMirrored.Filled.Chat, null)
-            }
-          },
-          label = if (isRailExpanded) {
-            { Text("Чат", fontSize = 11.sp, maxLines = 1, softWrap = false) }
-          } else null
-        )
-
-        NavigationRailItem(
-          selected = activeSubModule == "SettingsScreenDest",
-          enabled = true,
-          onClick = {
-            focusManager.clearFocus()
-            selectedApartmentFocusRequester.requestFocus()
-            onSubModuleChange("SettingsScreenDest")
-          },
-          icon = { Icon(Icons.Default.Settings, null) },
-          label = if (isRailExpanded) {
-            { Text("Налаштування", fontSize = 11.sp, maxLines = 1, softWrap = false) }
-          } else null
-        )
       }
     }
   }

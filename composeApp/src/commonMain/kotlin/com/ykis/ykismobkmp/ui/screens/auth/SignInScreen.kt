@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -67,36 +68,54 @@ import ykismobkmp.composeapp.generated.resources.verify_code_button
 private const val className = "SignInScreen"
 
 @Composable
+fun AppleAuthButton(isLoading: Boolean, onStart: () -> Unit, onTokenReceived: (String) -> Unit) {
+    val platform = com.ykis.ykismobkmp.getPlatform().name
+    if (!platform.contains("iOS", true)) return
+
+    Button(
+        onClick = {
+            onStart()
+            // Нативный вызов Apple Sign In будет добавлен позже через expect/actual
+            SnackbarManager.showMessage("Авторизація Apple доступна тільки на пристроях iOS")
+        },
+        enabled = !isLoading,
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.onSurface,
+            contentColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Text("Увійти через Apple", style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+@Composable
 fun GoogleAuthButton(isLoading: Boolean, onStart: () -> Unit, onError: () -> Unit, onTokenReceived: (String) -> Unit) {
   val contextActivity = platformActivityContext()
   val platform = com.ykis.ykismobkmp.getPlatform().name
   
-  // ИСПРАВЛЕНО: Скрываем кнопку Google на iOS и Desktop, так как там нужен другой механизм
-  val isSupported = !platform.contains("Java", true) && 
-                    !platform.contains("JVM", true) && 
-                    !platform.contains("iOS", true)
+  // Кнопка Google видна на Android и iOS (через WebView или натив)
+  val isSupported = !platform.contains("Java", true) && !platform.contains("JVM", true)
 
-  if (!isSupported) return 
+  if (!isSupported) return
 
   Button(
     onClick = {
-      if (contextActivity == null) {
-        println("[YkisLogKMP.GoogleAuthButton]: [ERROR] Контекст Activity отсутствует")
-        return@Button
-      }
-      
       onStart()
-      println("[YkisLogKMP.GoogleAuthButton]: [START] Запуск системного окна выбора Google-аккаунтов")
+      println("[YkisLogKMP.GoogleAuthButton]: [START] Запуск вікна Google Auth для платформи: $platform")
       
       triggerNativeGoogleSignIn(
         activityContext = contextActivity,
         onTokenReceived = { realIdToken ->
-          println("[YkisLogKMP.GoogleAuthButton]: [SUCCESS] Токен получен")
+          println("[YkisLogKMP.GoogleAuthButton]: [SUCCESS] Токен отримано")
           onTokenReceived(realIdToken)
         },
         onError = { errorMsg ->
-          println("[YkisLogKMP.GoogleAuthButton]: [ERROR] Нативный сбой: $errorMsg")
-          SnackbarManager.showMessage(errorMsg)
+          println("[YkisLogKMP.GoogleAuthButton]: [ERROR] Сбій: $errorMsg")
+          if (errorMsg != "Canceled") {
+              SnackbarManager.showMessage(errorMsg)
+          }
           onError()
         }
       )
@@ -402,6 +421,11 @@ fun SignInScreenStateless(
             isLoading = isGoogleLoading,
             onStart = onGoogleStart,
             onError = onGoogleError,
+            onTokenReceived = onGoogleTokenReceived
+          )
+          AppleAuthButton(
+            isLoading = isGoogleLoading, // Используем тот же флаг загрузки для простоты
+            onStart = onGoogleStart,
             onTokenReceived = onGoogleTokenReceived
           )
         }

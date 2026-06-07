@@ -28,9 +28,9 @@ class SettingsScreenModel(
   private val _theme = MutableStateFlow("system")
   val theme: StateFlow<String> = _theme.asStateFlow()
 
-  val displayName: String get() = "Абонент ЮКІС (Офлайн)"
-  val photoUrl: String get() = ""
-  val email: String get() = "yuzhne.user@ykis.com"
+  val displayName: String get() = firebaseService.displayName
+  val photoUrl: String get() = firebaseService.photoUrl
+  val email: String get() = firebaseService.email
 
   init {
     println("[YkisLogKMP.$tag.init]: Ініціалізація моделі налаштувань. Читання параметрів з диска...")

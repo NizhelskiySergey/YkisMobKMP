@@ -11,7 +11,6 @@ import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
 import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
-import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterList
 import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterList
 
@@ -20,12 +19,10 @@ private const val className = "MeterListScreen"
 /**
  * [MeterListScreen] — Екран списків та перемикання приладів обліку Водоканалу та Тепломережі м. Южне.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeterListScreen(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
-  navigationType: NavigationType,
   onDrawerClick: () -> Unit,
   viewModel: MeterScreenModel,
   onWaterMeterClick: (WaterMeterEntity) -> Unit,
@@ -48,8 +45,7 @@ fun MeterListScreen(
         subtitle = baseUIState.address,
         onBackClick = {},
         onDrawerClick = onDrawerClick,
-        canNavigateBack = false,
-        navigationType = navigationType
+        canNavigateBack = false
       )
 
       // Переключатель вкладок биллинга (Вода / Тепло) ЮКІС г. Южный
@@ -95,12 +91,8 @@ fun MeterListScreen(
         }
       }
     }
-    if (navigationType == NavigationType.BOTTOM_NAVIGATION || navigationType == NavigationType.NAVIGATION_RAIL_EXPANDED) {
-      VerticalDivider(
-        color = MaterialTheme.colorScheme.outlineVariant,
-        thickness = 0.5.dp
-      )
-    }
+    // ИСПРАВЛЕНО: Убрана проверка navigationType, так как мы теперь всегда используем Drawer
+    // Если понадобится восстановить разделитель для планшетов, нужно будет прокинуть флаг.
   }
 }
 

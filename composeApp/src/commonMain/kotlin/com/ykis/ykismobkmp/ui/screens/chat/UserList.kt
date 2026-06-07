@@ -28,13 +28,6 @@ import com.ykis.ykismobkmp.ui.screens.chat.UserListItem
 
 private const val className = "UserList"
 
-data class UserWithLatestMessage(
-  val user: UserEntity,
-  val latestMessage: MessageEntity,
-  val unreadCount: Int,
-  val chatId: String
-)
-
 @Composable
 fun UserList(
   modifier: Modifier = Modifier,
@@ -48,6 +41,7 @@ fun UserList(
   val typingStatuses by chatScreenModel.globalTypingStatuses.collectAsState()
   val selectedPrefix by chatScreenModel.selectedServicePrefix.collectAsState()
 
+  // ОПТИМИЗАЦИЯ: Упрощаем логику формирования списка, чтобы не блокировать Main Thread
   val userWithMessages = remember(userList, latestMessages, unreadCounts, typingStatuses, selectedPrefix) {
     userList.map { user ->
       val chatId = when (baseUIState.userRole) {
@@ -71,26 +65,9 @@ fun UserList(
       val lastMsg = latestMessages[chatId]
       val count = unreadCounts[chatId] ?: 0
       val isTyping = typingStatuses[chatId] ?: false
-      val safeMsg = lastMsg ?: MessageEntity(text = "", timestamp = 0L)
-
-      val previewText = if (isTyping) "друкує..." else safeMsg.text
-
-      val stableDisplayName = if (safeMsg.senderAddress.isNotBlank()) {
-        safeMsg.senderAddress
-      } else {
-        user.displayName ?: "Користувач (о/р ${user.addressId})"
-      }
-
-      UserWithLatestMessage(
-        user = user.copy(displayName = stableDisplayName),
-        latestMessage = safeMsg.copy(text = previewText),
-        unreadCount = count,
-        chatId = chatId
-      )
-    }.sortedWith(
-      compareByDescending<UserWithLatestMessage> { it.unreadCount > 0 }
-        .thenByDescending { it.latestMessage.timestamp }
-    )
+      
+      Triple(user, lastMsg, Pair(count, isTyping))
+    }.sortedByDescending { it.second?.timestamp ?: 0L } // Сортируем только по времени последнего сообщения
   }
 
   LazyColumn(
@@ -114,24 +91,24 @@ fun UserList(
 
     items(
       items = userWithMessages,
-      key = { it.chatId }
-    ) { item ->
+      key = { it.first.uid + it.first.addressId } // ИСПРАВЛЕНО: Более стабильный ключ для предотвращения SIGSEGV
+    ) { (user, lastMsg, stats) ->
+      val (count, isTyping) = stats
+      
       Box(
         modifier = Modifier
           .fillMaxWidth()
           .padding(horizontal = 8.dp, vertical = 2.dp)
       ) {
         UserListItem(
-          user = item.user,
-          onUserClick = {
-            onUserClick(it)
-          },
-          lastMessage = if (item.latestMessage.timestamp > 0L) item.latestMessage else null,
+          user = user,
+          onUserClick = onUserClick,
+          lastMessage = lastMsg,
           currentUid = baseUIState.uid.toString(),
-          isTyping = typingStatuses[item.chatId] == true
+          isTyping = isTyping
         )
 
-        if (item.unreadCount > 0) {
+        if (count > 0) {
           Surface(
             modifier = Modifier
               .align(Alignment.CenterEnd)
@@ -141,7 +118,7 @@ fun UserList(
             tonalElevation = 6.dp
           ) {
             Text(
-              text = if (item.unreadCount > 99) "99+" else item.unreadCount.toString(),
+              text = if (count > 99) "99+" else count.toString(),
               modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
               style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
               color = MaterialTheme.colorScheme.onError,

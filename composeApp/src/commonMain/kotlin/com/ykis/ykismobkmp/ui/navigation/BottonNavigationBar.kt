@@ -55,11 +55,13 @@ fun BottomNavigationBar(
       val isAptSelected = baseUIState.addressId != 0L
       val isAdmin = baseUIState.userRole != UserRole.StandardUser
       
+      // Настройки, Чат и Объявления доступны всегда. Остальное только после выбора квартиры.
       val isSettingsRoute = destination.route == "SettingsScreen" || destination.route == "SettingsScreenDest"
       val isChatRoute = destination.route == "chat_user_list" || destination.route == "chat_selector"
+      val isAnnounceRoute = destination.route == "announcements"
 
       val isEnabled = if (isAdmin && !isAptSelected) {
-        isChatRoute || isSettingsRoute
+        isChatRoute || isSettingsRoute || isAnnounceRoute
       } else true
 
       val isSelected = when (destination.route) {

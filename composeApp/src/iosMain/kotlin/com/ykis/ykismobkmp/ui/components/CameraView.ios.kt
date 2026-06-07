@@ -99,20 +99,29 @@ actual fun CameraView(
       modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp),
       enabled = !isCapturing,
       onClick = {
-        isCapturing = true
+        // ПРОВЕРКА: Есть ли активное соединение с камерой?
+        // Это предотвращает краш "No active and enabled video connection"
+        val connection = photoOutput.connectionWithMediaType(AVMediaTypeVideo)
+        
+        if (connection != null && connection.isActive()) {
+          isCapturing = true
 
-        val photoSettings = AVCapturePhotoSettings.photoSettingsWithFormat(
-          mapOf(AVVideoCodecKey to AVVideoCodecJPEG)
-        )
-
-        // ИСПРАВЛЕНО: Первый параметр называется 'settings', второй — 'delegate'
-        photoOutput.capturePhotoWithSettings(
-          settings = photoSettings,
-          delegate = PhotoCaptureDelegate(
-            onCaptured = { path -> onImageCaptured(path) },
-            onFinished = { isCapturing = false }
+          val photoSettings = AVCapturePhotoSettings.photoSettingsWithFormat(
+            mapOf(AVVideoCodecKey to AVVideoCodecJPEG)
           )
-        )
+
+          photoOutput.capturePhotoWithSettings(
+            settings = photoSettings,
+            delegate = PhotoCaptureDelegate(
+              onCaptured = { path -> onImageCaptured(path) },
+              onFinished = { isCapturing = false }
+            )
+          )
+        } else {
+          println("[$tag.ios]: Камера ще не готова або недоступна (можливо, це симулятор)")
+          // Если это симулятор, можно добавить эмуляцию фото для тестов
+          // Но для реального устройства просто игнорируем нажатие, пока не появится картинка
+        }
       }
     ) {
       Text(if (isCapturing) "Зйомка..." else "Зробити фото")

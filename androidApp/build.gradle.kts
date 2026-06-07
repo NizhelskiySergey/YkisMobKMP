@@ -14,8 +14,8 @@ android {
         applicationId = "com.ykis.ykismobkmp"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 
     sourceSets {
@@ -62,5 +62,6 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.messaging.native)
-    implementation(libs.firebase.appcheck.debug) // ДОБАВЛЕНО: Для доверенной отправки Email/SMS
+    implementation(libs.firebase.appcheck.debug)
+    implementation("com.google.firebase:firebase-appcheck-playintegrity") // ДОБАВЛЕНО: Для релизных версий
 }
