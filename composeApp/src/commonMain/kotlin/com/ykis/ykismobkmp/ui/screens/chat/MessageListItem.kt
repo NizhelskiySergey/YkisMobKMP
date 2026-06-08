@@ -72,14 +72,16 @@ fun formatTime24H(timestamp: Long): String {
 @Composable
 fun MessageListItem(
   modifier: Modifier = Modifier,
-  uid: String,
   isUserAdmin: Boolean,
   messageEntity: MessageEntity,
   onLongClick: () -> Unit,
   onClick: () -> Unit,
   onFileClick: (String) -> Unit // Действие при клике на прикрепленный документ
 ) {
-  val isFromMe = remember(uid, messageEntity.senderUid) { uid == messageEntity.senderUid }
+  // ИСПРАВЛЕНО: Сообщение "свое" (справа), если роль отправителя (fromAdmin) совпадает с ролью зрителя (isUserAdmin)
+  val isFromMe = remember(isUserAdmin, messageEntity.fromAdmin) { 
+    isUserAdmin == messageEntity.fromAdmin 
+  }
 
   val shape = RoundedCornerShape(
     topStart = 16.dp,

@@ -452,6 +452,7 @@ class ChatScreenModel(
           senderDisplayedName = senderName,
           senderLogoUrl = firebaseService.photoUrl,
           senderAddress = if (isResident) (baseUIState.address) else (user?.address ?: ""),
+          fromAdmin = !isResident, // УСТАНАВЛИВАЕМ РОЛЬ ОТПРАВИТЕЛЯ
           imageUrl = null,
           fileUrl = null,
           fileName = null,
@@ -469,6 +470,7 @@ class ChatScreenModel(
     senderDisplayedName: String,
     senderLogoUrl: String?,
     senderAddress: String,
+    fromAdmin: Boolean,
     imageUrl: String?,
     fileUrl: String?,
     fileName: String?,
@@ -491,7 +493,8 @@ class ChatScreenModel(
             imageUrl = imageUrl,
             fileUrl = fileUrl,
             fileName = fileName,
-            timestamp = currentTimeMillis()
+            timestamp = currentTimeMillis(),
+            fromAdmin = fromAdmin // ФИКСИРУЕМ В БД
         )
         println("[YkisLogKMP]: [FIREBASE_WRITE] Путь: $chatId")
         chatRepo.sendMessage(chatId, message)
@@ -588,6 +591,7 @@ class ChatScreenModel(
                   senderDisplayedName = senderDisplayedName,
                   senderLogoUrl = senderLogoUrl,
                   senderAddress = senderAddress,
+                  fromAdmin = role != UserRole.StandardUser,
                   imageUrl = if (isImage) url else null,
                   fileUrl = if (!isImage) url else null,
                   fileName = fileName,

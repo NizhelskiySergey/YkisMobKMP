@@ -25,5 +25,6 @@ data class MessageEntity(
   val read: Boolean = false,
   val edited: Boolean = false,
   val deletedFor: List<String> = emptyList(),
-  @SerialName("forwarded") val isForwarded: Boolean = false
+  @SerialName("forwarded") val isForwarded: Boolean = false,
+  @SerialName("fromAdmin") val fromAdmin: Boolean = false
 )

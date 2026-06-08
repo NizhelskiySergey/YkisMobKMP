@@ -315,7 +315,6 @@ fun ChatScreenContent(
             val msg = chatItem.message
             item(key = "msg_${msg.id}") {
               MessageListItem(
-                uid = myUid,
                 isUserAdmin = baseUIState.userRole != UserRole.StandardUser,
                 messageEntity = msg,
                 onLongClick = { screenModel.showDeleteConfirmation(msg) },

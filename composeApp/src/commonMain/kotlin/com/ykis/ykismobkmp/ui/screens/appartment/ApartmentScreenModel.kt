@@ -1052,13 +1052,6 @@ class ApartmentScreenModel(
           )
         }
 
-        // ИСПРАВЛЕНО: Принудительно уведомляем навигационное ядро, что нужно сменить экран
-        try {
-            org.koin.mp.KoinPlatform.getKoin().get<com.ykis.ykismobkmp.ui.navigation.AppScreenModel>().evaluateStartDestination()
-        } catch (e: Exception) {
-            println("[YkisLogKMP.$className.$methodName]: Не удалось сбросить состояние навигации.")
-        }
-
         onNavigateToAddScreen()
       } else {
         // Если у жителя Южного остались другие квартиры — берем первую из оставшихся (ID 6314)
