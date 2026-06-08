@@ -176,7 +176,8 @@ class UserListScreen(
               osbbId = apt.osmdId ?: 0L,  // Чистый Long тип
               displayName = apt.address,
               userRole = UserRole.StandardUser,
-              nanim = apt.nanim ?: ""
+              nanim = apt.nanim ?: "",
+              fio = apt.nanim ?: ""
             )
           }.filter {
             it.address.contains(searchQuery, ignoreCase = true)

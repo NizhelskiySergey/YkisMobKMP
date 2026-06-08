@@ -168,8 +168,9 @@ class ChatScreenModel(
       UserEntity(
         uid = key, 
         addressId = addrIdFromKey,
-        displayName = "$finalAddress | $finalResidentName",
-        address = finalAddress
+        displayName = profile?.displayName ?: finalAddress,
+        address = finalAddress,
+        fio = profile?.fio ?: finalResidentName
       )
     }.distinctBy { it.addressId }
 
@@ -432,9 +433,7 @@ class ChatScreenModel(
       val isResident = role == UserRole.StandardUser
       val senderName = if (isResident) {
           val chatApt = baseUIState.apartments.find { it.addressId == (user?.addressId ?: baseUIState.addressId) }
-          val addr = chatApt?.address ?: baseUIState.address
-          val nanim = chatApt?.nanim ?: baseUIState.nanim ?: "Мешканець"
-          "$addr | $nanim"
+          chatApt?.address ?: baseUIState.address
       } else {
           when (role) {
             UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""

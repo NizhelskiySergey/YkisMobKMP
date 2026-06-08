@@ -342,7 +342,6 @@ class ApartmentScreenModel(
           }
 
           calculatedTarget = target
-          calculatedCombinedName = "${target.address} | ${target.nanim ?: ""}"
 
           val rawOsbb = target.osbb
           val finalOsbbName = if (rawOsbb.isNullOrBlank() || rawOsbb == "0") name ?: "Мій ОСББ" else rawOsbb
@@ -361,7 +360,7 @@ class ApartmentScreenModel(
             areaOtopl = target.areaOtopl.toString(),
             room = target.room.toString(),
             tenantTbo = target.tenantTbo.toString(),
-            displayName = calculatedCombinedName,
+            displayName = target.address,
             mainLoading = false
           )
         } else {
@@ -390,7 +389,8 @@ class ApartmentScreenModel(
           addressId = finalTarget.addressId,
           userRole = role,
           osbbId = osbbId,
-          displayName = name ?: calculatedCombinedName
+          displayName = finalTarget.address,
+          fio = finalTarget.nanim ?: ""
         )
       } catch (e: Exception) {
         println("[YkisLogKMP.$className.${methodName}_WARN]: Помилка синхронізації прав: ${e.message}")
@@ -410,7 +410,6 @@ class ApartmentScreenModel(
   ) {
     val methodName = "handleStandardUserResult"
     var calculatedTarget: ApartmentEntity? = null
-    var calculatedCombinedName = ""
     
     // ОПТИМИЗАЦИЯ: Выносим тяжелые вычисления и логирование за пределы блока update{}
     if (result is Resource.Success) {
@@ -438,7 +437,6 @@ class ApartmentScreenModel(
             }
           }
           calculatedTarget = target
-          calculatedCombinedName = "${target.address} | ${target.nanim ?: ""}"
           
           val rawOsbb = target.osbb
           val finalOsbbName = if (rawOsbb.isNullOrBlank() || rawOsbb == "0") "Мій ОСББ" else rawOsbb
@@ -461,7 +459,7 @@ class ApartmentScreenModel(
             areaOtopl = target.areaOtopl.toString(),
             room = target.room.toString(),
             tenantTbo = target.tenantTbo.toString(),
-            displayName = calculatedCombinedName,
+            displayName = target.address,
             email = finalEmail,
             phone = finalPhone,
             mainLoading = false
@@ -492,7 +490,8 @@ class ApartmentScreenModel(
           addressId = finalTarget.addressId,
           userRole = role,
           osbbId = finalTarget.osmdId,
-          displayName = calculatedCombinedName
+          displayName = finalTarget.address,
+          fio = finalTarget.nanim ?: ""
         )
       } catch (e: Exception) {
         println("[YkisLogKMP.$className.${methodName}_WARN]: Помилка фонової синхронізації прав у хмарі: ${e.message}")
@@ -627,10 +626,12 @@ class ApartmentScreenModel(
               addressId = newAddressId,
               apartment = initialApartmentEntity,
               address = newAddress,
+              nanim = data.nanim,
               osmdId = newOsbbId,
               osbbId = newOsbbId,
               osbb = finalOsbbName,
               userRole = UserRole.StandardUser,
+              displayName = newAddress,
               mainLoading = false
             )
           }
@@ -641,7 +642,8 @@ class ApartmentScreenModel(
             addressId = newAddressId,
             userRole = UserRole.StandardUser,
             osbbId = newOsbbId,
-            displayName = data.nanim ?: newAddress
+            displayName = newAddress,
+            fio = data.nanim ?: ""
           )
 
           // ИСПРАВЛЕНО НАМЕРТВО: Сразу активируем чаты по данным из сети, используя реальное имя
@@ -913,7 +915,6 @@ class ApartmentScreenModel(
           }
 
           if (isStandardUser) {
-            val combinedName = "${data.address} | ${data.nanim ?: ""}"
             println("[YkisLogKMP.$className.$methodName]: [RESIDENT_SYNC] Профіль та токен чатів мешканця успішно синхронізовано")
 
             firebaseService.updateUserRoleAndPermissions(
@@ -921,7 +922,8 @@ class ApartmentScreenModel(
               addressId = data.addressId,
               userRole = currentUserRole,
               osbbId = data.osmdId,
-              displayName = combinedName
+              displayName = data.address,
+              fio = data.nanim ?: ""
             )
           } else {
             println("[YkisLogKMP.$className.$methodName]: [ADMIN_VIEW] Перегляд о/р ${data.addressId} завершено. Особистий профіль голови ОСББ захищено.")
@@ -1114,7 +1116,8 @@ class ApartmentScreenModel(
           addressId = target.addressId,
           userRole = currentState.userRole,
           osbbId = finalOsbbId,
-          displayName = if (isResident) combinedName else currentState.displayName
+          displayName = target.address,
+          fio = target.nanim ?: ""
         )
       }
       

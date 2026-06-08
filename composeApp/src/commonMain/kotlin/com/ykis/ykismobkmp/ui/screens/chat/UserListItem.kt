@@ -52,14 +52,9 @@ fun UserListItem(
   currentUid: String = "",
   isTyping: Boolean = false
 ) {
-  // 1. ПАРСИНГ ИМЕНИ И АДРЕСА (Твой оригинальный Золотой фонд логики)
-  val displayName = user.displayName ?: lastMessage?.senderAddress ?: "Користувач"
-  val (displayAddress, residentName) = remember(displayName) {
-    val parts = displayName.split("|")
-    val address = parts.getOrNull(0)?.trim() ?: displayName
-    val name = parts.getOrNull(1)?.trim() ?: ""
-    address to name
-  }
+  // 1. ПАРСИНГ ИМЕНИ И АДРЕСА (Согласно новой структуре Firestore)
+  val displayAddress = user.displayName ?: lastMessage?.senderAddress ?: "Користувач"
+  val residentName = if (user.fio.isNotBlank()) user.fio else user.nanim
 
   Column(
     modifier = modifier
