@@ -1095,7 +1095,7 @@ class ApartmentScreenModel(
           address = target.address,
           osbb = finalOsbbDisplayName,
           houseId = target.houseId,
-          displayName = if (isResident) combinedName else state.displayName,
+          displayName = target.address,
           osbbId = finalOsbbId,
           osmdId = finalOsbbId,
           apartmentLoading = false
