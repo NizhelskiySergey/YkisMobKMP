@@ -60,9 +60,13 @@ class AnnouncementListScreen(
         val baseUIState by apartmentModel.uiState.collectAsState()
         val screenState by announcementModel.uiState.collectAsState()
 
-        LaunchedEffect(Unit) {
-            println("[AnnouncementListScreen]: Вхід у розділ, скидання бейджей.")
-            announcementModel.markAsRead()
+        // ІСПРАВЛЕНО: Скидаємо бейджі кожного разу, коли список оновлюється, 
+        // поки користувач знаходиться на цьому екрані.
+        LaunchedEffect(screenState.announcements) {
+            if (screenState.announcements.isNotEmpty()) {
+                println("[AnnouncementListScreen]: Список оновлено, скидання бейджей.")
+                announcementModel.markAsRead()
+            }
         }
 
         LaunchedEffect(baseUIState.osbbId) {

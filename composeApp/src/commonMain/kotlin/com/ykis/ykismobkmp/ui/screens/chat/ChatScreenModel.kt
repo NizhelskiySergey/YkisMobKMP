@@ -318,33 +318,33 @@ class ChatScreenModel(
         observeTypingStatus(targetPath)
         firebaseService.clearNotifications(targetPath)
 
-        if (role == UserRole.StandardUser && activeUid.isNotBlank()) {
-           screenModelScope.launch {
-              try {
-                val tokensId = if (osbbId != 0L) osbbId else (_selectedUser.value?.osbbId ?: 0L)
-                if (tokensId != 0L) {
-                    println("[ChatScreenModel]: Пошук адмінів для служби $tokensId")
-                    val admins = chatRepo.fetchAdminsByOsbb(tokensId)
-                    val tokens = admins.flatMap { it.tokens }.distinct()
-                    _recipientTokens.value = tokens
-                    _recipientUids.value = admins.map { it.uid }.distinct()
-                    println("[ChatScreenModel]: Знайдено адмінів: ${admins.size}, токенів: ${tokens.size}")
+        // СОБИРАЕМ ТОКЕНЫ ПОЛУЧАТЕЛЕЙ ПРИ ВХОДЕ В ЧАТ (УЛУЧШЕНО)
+        screenModelScope.launch {
+            try {
+                val targetUids = if (role == UserRole.StandardUser) {
+                    // Житель ищет админов
+                    chatRepo.fetchAdminsByOsbb(finalOsbbId).map { it.uid }
+                } else {
+                    // Админ ищет ВСЕХ жильцов этой квартиры
+                    // ІСПРАВЛЕНО: Ми беремо ТІЛЬКИ тих, хто реально приписаний до цієї квартири в Firestore,
+                    // і додаємо тих, хто є в chat_access, АЛЕ фільтруємо активних.
+                    val fromFirestore = chatRepo.fetchAllUsersByAddressId(addressId).map { it.uid }
+                    val fromAccess = chatRepo.realtime.reference("chat_access/$targetPath").valueEvents.first()
+                        .children.mapNotNull { it.key }
+
+                    (fromAccess + fromFirestore).distinct().filter { it != activeUid }
                 }
-              } catch (e: Exception) { }
-           }
-        } else {
-           // Якщо адмін відкрив чат, нам треба знайти ВСІ токени сім'ї для цієї квартири
-           screenModelScope.launch {
-              try {
-                val familyMembers = chatRepo.fetchAllUsersByAddressId(addressId)
-                val tokens = familyMembers.flatMap { it.tokens }.distinct()
-                _recipientTokens.value = tokens
-                _recipientUids.value = familyMembers.map { it.uid }.distinct()
-                println("[ChatScreenModel]: Знайдено учасників сім'ї: ${familyMembers.size}, токенів: ${tokens.size}")
-              } catch (e: Exception) {
-                println("[ChatScreenModel_ERROR]: Помилка фонового пошуку сім'ї: ${e.message}")
-              }
-           }
+                
+                if (targetUids.isNotEmpty()) {
+                    val users = chatRepo.fetchUsersByIds(targetUids)
+                    val tokens = users.flatMap { it.tokens }.distinct()
+                    _recipientTokens.value = tokens
+                    _recipientUids.value = targetUids
+                    println("[ChatScreenModel]: Сбор токенов завершен. Найдено получателей: ${targetUids.size}, токенов: ${tokens.size}")
+                }
+            } catch (e: Exception) {
+                println("[ChatScreenModel_ERROR]: Ошибка сбора токенов: ${e.message}")
+            }
         }
 
         chatRepo.observeMessages(targetPath)
@@ -485,10 +485,14 @@ class ChatScreenModel(
         println("[YkisLogKMP]: [FIREBASE_WRITE] Путь: $chatId")
         chatRepo.sendMessage(chatId, message)
         
-        // 1. Инкрементируем бэйджи
-        chatRepo.incrementUnreadForParticipants(chatId, senderUid)
-        if (recipientUids.isNotEmpty()) {
-            chatRepo.incrementUnreadForUids(chatId, recipientUids)
+        // 1. Инкрементируем бэйджи (ЕДИНЫЙ ВЫЗОВ для избежания дубликатов)
+        val allRecipientUids = (recipientUids).distinct()
+        if (allRecipientUids.isNotEmpty()) {
+            chatRepo.incrementUnreadForUids(chatId, allRecipientUids)
+        } else {
+            // Если список пуст (например, жилец еще не открывал чат), 
+            // пробуем инкрементировать для всех участников из chat_access
+            chatRepo.incrementUnreadForParticipants(chatId, senderUid)
         }
         
         // 2. ОТПРАВКА ПУША
@@ -533,8 +537,12 @@ class ChatScreenModel(
   ) {
       val path = _selectedImagePath.value ?: return
       
+      val user = _selectedUser.value
+      val baseUIState = uiState.value // Используем текущее состояние для восстановления
+
       val targetChatId = currentChatPath ?: run {
-          val recovered = getChatPath(role, osbbId, addressId)
+          val addrId = if (role == UserRole.StandardUser) addressId else (user?.addressId ?: 0L)
+          val recovered = getChatPath(role, osbbId, addrId)
           currentChatPath = recovered
           recovered
       }
@@ -769,9 +777,14 @@ class ChatScreenModel(
     unreadSubscriptionJob = launchCatching(snackbar = false) {
       chatRepo.observeUnreadCounts(myUid).collect { countMap ->
         _unreadCounts.value = countMap
-        val total = countMap.values.sum()
+        
+        // ІСПРАВЛЕНО: Рахуємо суму лише для валідних КМР-чатів (формат PREFIX_ID_ADDRESS)
+        // Це відфільтрує старі UID-базовані бейджі, які могли залишитись в базі.
+        val validChats = countMap.filter { (key, _) -> key.contains("_") }
+        val total = validChats.values.sum()
+        
         applyAppBadgeCount(total)
-        println("[ChatScreenModel]: Обновлено бэйджей: $total")
+        println("[ChatScreenModel]: Оновлено бейджів: $total (відфільтровано: ${countMap.size - validChats.size})")
       }
     }
   }

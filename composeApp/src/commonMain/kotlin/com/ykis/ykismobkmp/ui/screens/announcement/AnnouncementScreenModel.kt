@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * [AnnouncementScreenModel] — Модель управления объявлениями для жителей и администраторов.
+ * [AnnouncementScreenModel] — Модель управління оголошеннями для жителів та адміністраторів.
  */
 class AnnouncementScreenModel(
     private val chatRepo: ChatRepository,
@@ -34,7 +34,7 @@ class AnnouncementScreenModel(
     }
 
     /**
-     * [observeAnnouncements] — Запуск мониторинга ленты новостей.
+     * [observeAnnouncements] — Запуск моніторингу стрічки новин.
      */
     fun observeAnnouncements(osbbId: Long) {
         observeJob?.cancel()
@@ -42,18 +42,18 @@ class AnnouncementScreenModel(
         
         observeJob = screenModelScope.launch {
             try {
-                // Достаем свежий timestamp последнего чека из настроек
-                val lastCheck = appSettings.getLong(LAST_CHECK_KEY, 0L)
-                
                 chatRepo.observeAnnouncements(osbbId).collect { list ->
                     _uiState.update { state ->
-                        val unreadCount = list.count { it.timestamp > lastCheck }
-                        println("[AnnouncementScreenModel]: Оновлення списку. Непрочитано: $unreadCount")
+                        // Використовуємо актуальний lastCheck зі стейту
+                        val currentLastCheck = state.lastAnnouncementsCheck
+                        val unreadCount = list.count { it.timestamp > currentLastCheck }
+                        
+                        println("[AnnouncementScreenModel]: Оновлення списку. Непрочитано: $unreadCount | LastCheck: $currentLastCheck")
+                        
                         state.copy(
                             announcements = list,
                             unreadAnnouncementsCount = unreadCount,
-                            isAnnouncementsLoading = false,
-                            lastAnnouncementsCheck = lastCheck
+                            isAnnouncementsLoading = false
                         ) 
                     }
                 }
@@ -65,27 +65,28 @@ class AnnouncementScreenModel(
     }
 
     /**
-     * [markAsRead] — Сброс бейджа непрочитанных объявлений.
+     * [markAsRead] — Скидання бейджа непрочитаних оголошень.
+     * ІСПРАВЛЕНО: Тепер беремо таймстемп останнього наявного оголошення, щоб гарантовано очистити список.
      */
     fun markAsRead() {
-        val now = currentTimeMillis()
-        appSettings.putLong(LAST_CHECK_KEY, now)
+        val latestTimestamp = _uiState.value.announcements.firstOrNull()?.timestamp ?: currentTimeMillis()
+        
+        appSettings.putLong(LAST_CHECK_KEY, latestTimestamp)
         _uiState.update { 
             it.copy(
-                lastAnnouncementsCheck = now,
+                lastAnnouncementsCheck = latestTimestamp,
                 unreadAnnouncementsCount = 0
             ) 
         }
-        println("[AnnouncementScreenModel.markAsRead]: Бейджі оголошень обнулені.")
+        println("[AnnouncementScreenModel.markAsRead]: Бейджі оголошень обнулені до $latestTimestamp.")
     }
 
     /**
-     * [publishAnnouncement] — Публикация нового объявления.
-     * ИСПРАВЛЕНО: Теперь принимает два стейта для 100% точности данных.
+     * [publishAnnouncement] — Публікація нового оголошення.
      */
     fun publishAnnouncement(
-        baseState: BaseUIState,   // Главный стейт с UID и Ролью
-        screenState: BaseUIState, // Стейт этой модели с черновиком и путями к фото
+        baseState: BaseUIState,   // Головний стейт з UID та Роллю
+        screenState: BaseUIState, // Стейт цієї моделі з чернеткою та шляхами до фото
         onSuccess: () -> Unit
     ) {
         val title = screenState.announcementDraftTitle
@@ -99,85 +100,88 @@ class AnnouncementScreenModel(
         screenModelScope.launch {
             _uiState.update { it.copy(isAnnouncementUploading = true) }
             
-            val role = baseState.userRole
-            val targetOsbbId = when (role) {
-                UserRole.VodokanalUser, UserRole.YtkeUser, UserRole.TboUser -> 0L
-                UserRole.OsbbUser -> baseState.osbbId
-                else -> 0L
-            }
-
-            var imageUrl: String? = null
-            var fileUrl: String? = null
-            var fileName: String? = null
-
-            // 1. ЗАГРУЗКА ИЗОБРАЖЕНИЯ (если есть)
-            val imgPath = screenState.announcementImagePath
-            if (!imgPath.isNullOrBlank()) {
-                try {
-                    val fileData = chatRepo.compressImage(imgPath)
-                    // ИСПРАВЛЕНО: Используем путь chat_images, который уже разрешен в Storage Rules
-                    val storagePath = "chat_images/announcements/${targetOsbbId}_${currentTimeMillis()}.jpg"
-                    println("[AnnouncementScreenModel]: Загрузка фото в разрешенную ветку: $storagePath")
-                    imageUrl = chatRepo.uploadFile(fileData, storagePath)
-                    println("[AnnouncementScreenModel]: ФОТО УСПЕШНО ЗАГРУЖЕНО: $imageUrl")
-                } catch (e: Exception) {
-                    println("[AnnouncementScreenModel]: Критическая ошибка Storage: ${e.message}")
-                    SnackbarManager.showMessage("Помилка завантаження фото: ${e.message}")
+            try {
+                val role = baseState.userRole
+                val targetOsbbId = when (role) {
+                    UserRole.VodokanalUser, UserRole.YtkeUser, UserRole.TboUser -> 0L
+                    UserRole.OsbbUser -> baseState.osbbId
+                    else -> 0L
                 }
-            }
 
-            // 2. ЗАГРУЗКА ФАЙЛА (если есть)
-            val filePath = screenState.announcementFilePath
-            if (!filePath.isNullOrBlank()) {
-                try {
-                    val fileData = chatRepo.readFileAsBytes(filePath)
-                    val ext = filePath.substringAfterLast(".", "file")
-                    val name = filePath.substringAfterLast("/")
-                    fileName = name
-                    // ИСПРАВЛЕНО: Аналогично для файлов
-                    val storagePath = "chat_images/announcements/docs/${targetOsbbId}_${currentTimeMillis()}.$ext"
-                    fileUrl = chatRepo.uploadFile(fileData, storagePath)
-                } catch (e: Exception) {
-                    println("[AnnouncementScreenModel]: Помилка завантаження файлу: ${e.message}")
+                var imageUrl: String? = null
+                var fileUrl: String? = null
+                var fileName: String? = null
+
+                // 1. ЗАВАНТАЖЕННЯ ЗОБРАЖЕННЯ
+                val imgPath = screenState.announcementImagePath
+                if (!imgPath.isNullOrBlank()) {
+                    try {
+                        val fileData = chatRepo.compressImage(imgPath)
+                        val storagePath = "chat_images/announcements/${targetOsbbId}_${currentTimeMillis()}.jpg"
+                        imageUrl = chatRepo.uploadFile(fileData, storagePath)
+                    } catch (e: Exception) {
+                        println("[AnnouncementScreenModel]: Помилка завантаження фото: ${e.message}")
+                        SnackbarManager.showMessage("Помилка завантаження фото: ${e.message}")
+                    }
                 }
-            }
 
-            val announcement = AnnouncementEntity(
-                title = title,
-                message = message,
-                authorUid = baseState.uid ?: "",
-                authorName = when(role) {
-                   UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
-                   UserRole.YtkeUser      -> "КП тм \"ЮТКЕ\""
-                   UserRole.TboUser       -> "КП \"СПЕЦТРАНС\""
-                   UserRole.OsbbUser      -> baseState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "ОСББ"
-                   else -> "Адміністратор"
-                },
-                authorRole = role,
-                osbbId = targetOsbbId,
-                timestamp = currentTimeMillis(),
-                imageUrl = imageUrl,
-                fileUrl = fileUrl,
-                fileName = fileName
-            )
+                // 2. ЗАВАНТАЖЕННЯ ФАЙЛУ
+                val filePath = screenState.announcementFilePath
+                if (!filePath.isNullOrBlank()) {
+                    try {
+                        val fileData = chatRepo.readFileAsBytes(filePath)
+                        val ext = filePath.substringAfterLast(".", "file")
+                        val name = filePath.substringAfterLast("/")
+                        fileName = name
+                        val storagePath = "chat_images/announcements/docs/${targetOsbbId}_${currentTimeMillis()}.$ext"
+                        fileUrl = chatRepo.uploadFile(fileData, storagePath)
+                    } catch (e: Exception) {
+                        println("[AnnouncementScreenModel]: Помилка завантаження файлу: ${e.message}")
+                    }
+                }
 
-            val result = chatRepo.publishAnnouncement(announcement)
-            
-            _uiState.update { 
-                it.copy(
-                    isAnnouncementUploading = false,
-                    announcementImagePath = null,
-                    announcementFilePath = null,
-                    announcementDraftTitle = "",
-                    announcementDraftMessage = ""
-                ) 
-            }
+                val announcement = AnnouncementEntity(
+                    title = title,
+                    message = message,
+                    authorUid = baseState.uid ?: "",
+                    authorName = when(role) {
+                       UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
+                       UserRole.YtkeUser      -> "КП тм \"ЮТКЕ\""
+                       UserRole.TboUser       -> "КП \"СПЕЦТРАНС\""
+                       UserRole.OsbbUser      -> baseState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "ОСББ"
+                       else -> "Адміністратор"
+                    },
+                    authorRole = role,
+                    osbbId = targetOsbbId,
+                    timestamp = currentTimeMillis(),
+                    imageUrl = imageUrl,
+                    fileUrl = fileUrl,
+                    fileName = fileName
+                )
 
-            if (result.isSuccess) {
-                SnackbarManager.showMessage("Оголошення опубліковано")
-                onSuccess()
-            } else {
-                SnackbarManager.showMessage("Помилка публікації")
+                val result = chatRepo.publishAnnouncement(announcement)
+                
+                if (result.isSuccess) {
+                    _uiState.update { 
+                        it.copy(
+                            isAnnouncementUploading = false,
+                            announcementImagePath = null,
+                            announcementFilePath = null,
+                            announcementDraftTitle = "",
+                            announcementDraftMessage = ""
+                        ) 
+                    }
+                    SnackbarManager.showMessage("Оголошення опубліковано")
+                    onSuccess()
+                } else {
+                    _uiState.update { it.copy(isAnnouncementUploading = false) }
+                    SnackbarManager.showMessage("Помилка публікації")
+                }
+            } catch (e: Exception) {
+                println("[AnnouncementScreenModel]: Критична помилка публікації: ${e.message}")
+                _uiState.update { it.copy(isAnnouncementUploading = false) }
+                SnackbarManager.showMessage("Помилка: ${e.message}")
+                logService.logNonFatalCrash(e)
             }
         }
     }
@@ -199,12 +203,11 @@ class AnnouncementScreenModel(
     }
 
     /**
-     * [deleteAnnouncement] — Удаление новости (доступно только админам).
+     * [deleteAnnouncement] — Видалення новини (доступно тільки адмінам).
      */
     fun deleteAnnouncement(announcementId: String) {
         screenModelScope.launch {
             try {
-                // Прямое удаление документа из Firestore
                 val result = chatRepo.deleteAnnouncement(announcementId)
                 if (result.isSuccess) {
                     SnackbarManager.showMessage("Оголошення видалено")
@@ -220,7 +223,7 @@ class AnnouncementScreenModel(
     }
 
     /**
-     * [stopAllListeners] — Мгновенная остановка всех фоновых процессов.
+     * [stopAllListeners] — Миттєва зупинка всіх фонових процесів.
      */
     fun stopAllListeners() {
         println("[AnnouncementScreenModel]: Зупинка моніторингу оголошень.")

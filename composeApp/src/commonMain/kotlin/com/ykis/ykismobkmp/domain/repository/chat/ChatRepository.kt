@@ -24,7 +24,7 @@ import dev.gitlive.firebase.database.ChildEvent
 import dev.gitlive.firebase.database.FirebaseDatabase
 
 /**
- * [ChatRepository] — единственный источник данных для чатов и ИИ.
+ * [ChatRepository] — єдине джерело даних для чатів та ШІ.
  */
 class ChatRepository(
   private val _firestore: FirebaseFirestore?,
@@ -115,7 +115,6 @@ class ChatRepository(
     )
 
     return try {
-      // ИСПРАВЛЕНО: Двойная проверка osbbId (число и строка)
       val resNum = firestore.collection("users").where { "osbbId" equalTo osbbId }.get()
       val resStr = firestore.collection("users").where { "osbbId" equalTo osbbId.toString() }.get()
       
@@ -164,6 +163,7 @@ class ChatRepository(
   suspend fun incrementUnreadForUids(chatId: String, uids: List<String>) {
     if (_realtime == null || uids.isEmpty()) return
     try {
+      // ИСПРАВЛЕНО: Уникальный список UID гарантирует +1 даже если у юзера 5 телефонов
       uids.distinct().forEach { uid ->
         val presenceSnapshot = realtime.reference("presence/$chatId/$uid/online").valueEvents.first()
         val isUserInChatRightNow = presenceSnapshot.value<Boolean?>() ?: false
@@ -185,7 +185,10 @@ class ChatRepository(
     if (_realtime == null) return
     try {
       val participantsSnapshot = realtime.reference("chat_access/$chatId").valueEvents.first()
-      val uids = participantsSnapshot.children.mapNotNull { it.key }.filter { it != senderUid }
+      // ИСПРАВЛЕНО: Фильтруем и берем только уникальные UID получателей
+      val uids = participantsSnapshot.children.mapNotNull { it.key }
+        .filter { it != senderUid }
+        .distinct()
       
       if (uids.isNotEmpty()) {
         incrementUnreadForUids(chatId, uids)

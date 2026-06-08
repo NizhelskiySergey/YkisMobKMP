@@ -37,6 +37,9 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.ykis.ykismobkmp.domain.entity.MessageEntity
 import com.ykis.ykismobkmp.ui.components.UserImage
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.choose_raion
@@ -46,9 +49,21 @@ import ykismobkmp.composeapp.generated.resources.verify_email_title
 
 private const val tag = "MessageListItem"
 
-// Временные КМР-заглушки вспомогательных компонентов верстки
-@Composable fun UserImage(modifier: Modifier = Modifier, photoUrl: String) { Box(modifier.background(Color.Gray)) }
-fun formatTime24H(timestamp: Long): String = "12:00" // Твой КМР-форматтер времени kotlinx-datetime
+/**
+ * [formatTime24H] — Кроссплатформенный форматтер времени на базе kotlinx-datetime.
+ */
+fun formatTime24H(timestamp: Long): String {
+  if (timestamp <= 0L) return ""
+  return try {
+    val instant = Instant.fromEpochMilliseconds(timestamp)
+    val localDateTime = instant.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+    val hourStr = localDateTime.hour.toString().padStart(2, '0')
+    val minuteStr = localDateTime.minute.toString().padStart(2, '0')
+    "$hourStr:$minuteStr"
+  } catch (e: Exception) {
+    "00:00"
+  }
+}
 
 /**
  * [MessageListItem] — Кроссплатформенный элемент отображения сообщения чата ЖЭК / ОСМД.
