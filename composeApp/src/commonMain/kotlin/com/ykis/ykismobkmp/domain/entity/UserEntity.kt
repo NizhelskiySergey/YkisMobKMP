@@ -1,13 +1,14 @@
 package com.ykis.ykismobkmp.domain.entity
 
 import com.ykis.ykismobkmp.domain.services.UserRole
+import kotlinx.serialization.Serializable
 
 private const val tag = "UserEntity"
 
 /**
  * [UserEntity] — Монолитная КМР-модель пользователя/абонента ЮКИС г. Южный.
- * ИСПРАВЛЕНО: Согласно сквозному стандарту YkisMobKMP, osbbId и addressId переведены с Int на Long.
  */
+@Serializable
 data class UserEntity(
   val uid: String = "",
   val userRole: UserRole = UserRole.StandardUser,
@@ -17,6 +18,7 @@ data class UserEntity(
   val email: String? = "",
   val address: String = "",
   val nanim: String = "",
+  val fio: String = "",       // НОВОЕ ПОЛЕ: ФИО жильца
   val osbbId: Long? = null,   // ИСПРАВЛЕНО: Приведено к типу Long под каноны SQLDelight
   val addressId: Long = 0L,   // ИСПРАВЛЕНО: Приведено к типу Long под каноны SQLDelight
   val tokens: List<String> = emptyList()
@@ -32,15 +34,15 @@ fun mapToUserEntity(uid: String, map: Map<String, Any?>): UserEntity {
   return try {
     UserEntity(
       uid = uid,
-      userRole = UserRole.entries.find { it.name == map["userRole"] as? String }
-        ?: UserRole.StandardUser,
+      userRole = UserRole.fromString(map["userRole"] as? String),
       photoUrl = map["photoUrl"] as? String,
       // Безопасное получение временной метки создания аккаунта
       createdAt = map["createdAt"]?.let { (it as? Long) ?: (it as? Double)?.toLong() },
-      displayName = (map["name"] as? String)
-        ?: (map["displayName"] as? String)
+      displayName = (map["displayName"] as? String)
+        ?: (map["name"] as? String)
         ?: (map["email"] as? String),
       email = map["email"] as? String,
+      fio = map["fio"] as? String ?: "", // Парсинг нового поля ФИО
       // ИСПРАВЛЕНО: Извлечение ИД переведено на безопасный Long-парсер
       osbbId = map["osbbId"]?.toSafeLong(),
       addressId = map["addressId"]?.toSafeLong() ?: 0L,

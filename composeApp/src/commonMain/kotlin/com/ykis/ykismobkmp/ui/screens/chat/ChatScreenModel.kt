@@ -155,8 +155,13 @@ class ChatScreenModel(
       
       // ГАРАНТИРУЕМ ИМЯ ЖИЛЬЦА В ПОДЗАГОЛОВКЕ
       val finalResidentName = when {
-        profile != null && !profile.displayName.isNullOrBlank() -> profile.displayName
-        !lastMsg?.senderDisplayedName.isNullOrBlank() && lastMsg?.senderUid != firebaseService.uid -> lastMsg?.senderDisplayedName
+        profile != null && !profile.displayName.isNullOrBlank() -> {
+            // Если в профиле имя уже "Адрес | Фамилия", берем только Фамилию
+            profile.displayName.substringAfter("|").trim()
+        }
+        !lastMsg?.senderDisplayedName.isNullOrBlank() && lastMsg?.senderUid != firebaseService.uid -> {
+            lastMsg?.senderDisplayedName?.substringAfter("|")?.trim() ?: "Абонент"
+        }
         else -> "Абонент"
       }
 
@@ -321,9 +326,14 @@ class ChatScreenModel(
         // СОБИРАЕМ ТОКЕНЫ ПОЛУЧАТЕЛЕЙ ПРИ ВХОДЕ В ЧАТ (УЛУЧШЕНО)
         screenModelScope.launch {
             try {
+                // Извлекаем ID организации из пути чата (предпоследний элемент)
+                val parts = targetPath.split("_")
+                val effectiveOrgId = if (parts.size >= 3) parts[parts.size - 2].toLongOrNull() ?: 0L else 0L
+
                 val targetUids = if (role == UserRole.StandardUser) {
-                    // Житель ищет админов
-                    chatRepo.fetchAdminsByOsbb(finalOsbbId).map { it.uid }
+                    // Житель ищет админов КОНКРЕТНОЙ службы/ОСББ
+                    println("[ChatScreenModel]: Поиск админов для организации ID: $effectiveOrgId")
+                    chatRepo.fetchAdminsByOsbb(effectiveOrgId).map { it.uid }
                 } else {
                     // Админ ищет ВСЕХ жильцов этой квартиры
                     // ІСПРАВЛЕНО: Ми беремо ТІЛЬКИ тих, хто реально приписаний до цієї квартири в Firestore,
@@ -340,7 +350,9 @@ class ChatScreenModel(
                     val tokens = users.flatMap { it.tokens }.distinct()
                     _recipientTokens.value = tokens
                     _recipientUids.value = targetUids
-                    println("[ChatScreenModel]: Сбор токенов завершен. Найдено получателей: ${targetUids.size}, токенов: ${tokens.size}")
+                    println("[ChatScreenModel]: Сбор токенов завершен. Найдено получателей: ${targetUids.size} ($targetUids), токенов: ${tokens.size}")
+                } else {
+                    println("[ChatScreenModel]: Получатели не найдены для организации $effectiveOrgId")
                 }
             } catch (e: Exception) {
                 println("[ChatScreenModel_ERROR]: Ошибка сбора токенов: ${e.message}")
@@ -485,14 +497,20 @@ class ChatScreenModel(
         println("[YkisLogKMP]: [FIREBASE_WRITE] Путь: $chatId")
         chatRepo.sendMessage(chatId, message)
         
-        // 1. Инкрементируем бэйджи (ЕДИНЫЙ ВЫЗОВ для избежания дубликатов)
+        // 1. Инкрементируем бэйджи (С УЧЕТОМ РОЛИ)
         val allRecipientUids = (recipientUids).distinct()
         if (allRecipientUids.isNotEmpty()) {
             chatRepo.incrementUnreadForUids(chatId, allRecipientUids)
         } else {
-            // Если список пуст (например, жилец еще не открывал чат), 
-            // пробуем инкрементировать для всех участников из chat_access
-            chatRepo.incrementUnreadForParticipants(chatId, senderUid)
+            // Если список пуст, используем фильтрованный fallback
+            if (uiState.value.userRole != UserRole.StandardUser) {
+                // Если пишет АДМИН — уведомляем всех жильцов
+                chatRepo.incrementUnreadForParticipants(chatId, senderUid)
+            } else {
+                // Если пишет ЖИЛЕЦ — мы НЕ используем общий инкремент, 
+                // чтобы не спамить бэйджами другим членам семьи.
+                println("[YkisLogKMP]: [BADGE_SKIP] Жилец пишет в пустой чат, ждем входа админа.")
+            }
         }
         
         // 2. ОТПРАВКА ПУША
@@ -758,13 +776,20 @@ class ChatScreenModel(
 
     activeTrackerJob = screenModelScope.launch {
       chatRepo.observeChatKeys(targetPrefix).collect { chatKeys ->
-          println("[YkisLogKMP]: [FETCH_USERS] Знайдено ключів: ${chatKeys.size} -> $chatKeys")
+          println("[YkisLogKMP]: [FETCH_USERS] Знайдено ключів: ${chatKeys.size}")
           
           _userIdentifiersWithRole.value = chatKeys
 
           if (chatKeys.isNotEmpty()) {
             subscribeToLastMessages(chatKeys)
             getUsers(chatKeys)
+            
+            // ІСПРАВЛЕНО: Адмін автоматично реєструє себе як учасника у всіх знайдених чатах.
+            // Це дозволяє жильцям нараховувати йому бейджі через chat_access, 
+            // навіть якщо Firestore заблокований для пошуку.
+            chatKeys.forEach { chatId ->
+                launch { chatRepo.addChatParticipant(chatId, myUid) }
+            }
           } else {
             _rawFetchedProfiles.value = emptyList()
           }

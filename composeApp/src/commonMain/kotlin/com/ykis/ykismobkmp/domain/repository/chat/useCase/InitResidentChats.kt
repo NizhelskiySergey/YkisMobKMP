@@ -9,7 +9,7 @@ import kotlinx.coroutines.launch
 
 /**
  * [InitResidentChats] — Сценарій ініціалізації базових гілок чатів при додаванні квартири.
- * ІСПРАВЛЕНО: Використовується новий формат шляху без UID та перевірка на існуючий чат.
+ * ІСПРАВЛЕНО: Покращене логування та гарантований інкремент бейджів для адмінів.
  */
 class InitResidentChats(
   private val chatRepo: ChatRepository
@@ -36,11 +36,10 @@ class InitResidentChats(
 
     scope.launch(Dispatchers.Default) {
       serviceMap.forEach { (prefix, sysId) ->
-        // Новий формат шляху: PREFIX_SYSID_ADDRESSID
         val chatPath = "${prefix}_${sysId}_${addressId}"
         
         try {
-          // 1. Реєструємо користувача як учасника чату цієї квартири (для прав доступу)
+          // 1. Реєструємо користувача як учасника чату цієї квартири
           chatRepo.addChatParticipant(chatPath, uid)
 
           // 2. Перевіряємо, чи існує вже цей чат в базі
@@ -49,19 +48,32 @@ class InitResidentChats(
           if (!isExists) {
             println("[YkisLogKMP.$className.$methodName]: Чат $chatPath не знайдено. Створення вітального повідомлення.")
             
-            val welcomeText = "Вітаю! Чат активовано."
-            chatRepo.sendMessage(
-              path = chatPath,
-              message = MessageEntity(
+            val message = MessageEntity(
                 id = "",
                 senderUid = uid,
-                text = welcomeText,
+                text = "Вітаю! Чат активовано.",
                 senderDisplayedName = nanim,
                 senderAddress = addressText,
                 timestamp = com.ykis.ykismobkmp.core.utils.currentTimeMillis(),
                 read = false
-              )
             )
+            
+            // 3. Відправляємо повідомлення
+            chatRepo.sendMessage(path = chatPath, message = message)
+            
+            // 4. Інкремент бейджів для адмінів (без вкладених launch для надійності)
+            try {
+                val adminUids = chatRepo.fetchAdminsByOsbb(sysId).map { it.uid }.filter { it != uid }
+                if (adminUids.isNotEmpty()) {
+                    println("[YkisLogKMP.$className.$methodName]: Спроба інкременту для ${adminUids.size} адмінів служби $prefix")
+                    chatRepo.incrementUnreadForUids(chatPath, adminUids)
+                } else {
+                    println("[YkisLogKMP.$className.$methodName]: Адмінів для служби $prefix (ID: $sysId) не знайдено в Firestore.")
+                }
+            } catch (e: Exception) {
+                println("[YkisLogKMP.$className.$methodName]: Помилка сповіщення адмінів: ${e.message}")
+            }
+
           } else {
             println("[YkisLogKMP.$className.$methodName]: Чат $chatPath вже існує. Пропуск ініціалізації.")
           }

@@ -9,6 +9,7 @@ import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.google.firebase.messaging.FirebaseMessaging
+import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.android
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -16,7 +17,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
 actual suspend fun performPlatformSendSms(
-  auth: dev.gitlive.firebase.auth.FirebaseAuth,
+  auth: FirebaseAuth,
   phoneNumber: String,
   platformActivity: Any?
 ): Resource<String> = suspendCancellableCoroutine { continuation ->
@@ -86,7 +87,7 @@ actual suspend fun performPlatformSendSms(
 }
 
 actual suspend fun performPlatformSignInWithSms(
-  auth: dev.gitlive.firebase.auth.FirebaseAuth,
+  auth: FirebaseAuth,
   verificationId: String,
   smsCode: String
 ): Resource<Boolean> = suspendCancellableCoroutine { continuation ->
@@ -102,7 +103,7 @@ actual suspend fun performPlatformSignInWithSms(
       }
       .addOnFailureListener { e ->
         println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_AUTH_ERROR] ${e.message}")
-        continuation.resume(Resource.Error(e.message ?: "Невірний код підтвердження"))
+        continuation.resume(Resource.Error(e.message ?: "Невірний код подветрждения"))
       }
   } catch (e: Exception) {
     println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_AUTH_CRITICAL] ${e.message}")

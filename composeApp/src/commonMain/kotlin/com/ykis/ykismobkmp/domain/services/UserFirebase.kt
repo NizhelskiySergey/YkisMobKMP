@@ -1,4 +1,4 @@
-package com.ykis.ykismobkmp.domain.services // Укажи свой актуальный пакет сущностей
+package com.ykis.ykismobkmp.domain.services
 
 import com.ykis.ykismobkmp.domain.entity.UserEntity
 import kotlinx.serialization.SerialName
@@ -42,6 +42,9 @@ data class UserFirebase(
   @SerialName("addressId")
   val addressId: Long = 0L,
 
+  @SerialName("fio")
+  val fio: String = "",
+
   @SerialName("fcmTokens")
   val fcmTokens: List<String>? = emptyList()
 )
@@ -63,11 +66,10 @@ fun UserFirebase.toEntity(): UserEntity {
     userRole = UserRole.fromString(this.userRole),
     email = this.email,
     address = this.name ?: "",
+    fio = this.fio, // Пробрасываем новое поле ФИО
     // ИСПРАВЛЕНО: Никаких .toInt(). Пробрасываем чистые Long идентификаторы напрямую в UI Entity структуру
     osbbId = this.osbbId,
     addressId = this.addressId,
     tokens = this.fcmTokens ?: emptyList()
   )
 }
-
-

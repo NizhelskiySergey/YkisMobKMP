@@ -84,7 +84,7 @@ fun UserListItem(
           .padding(start = 12.dp),
         verticalArrangement = Arrangement.spacedBy(1.dp)
       ) {
-        // --- СТРОКА 1: АДРЕС ОБЪЕКТА НЕДВИЖИМОСТИ И ВРЕМЯ ---
+        // --- СТРОКА 1: АДРЕС ОБЪЕКТА НЕДВИЖИМОСТИ (TITLE) ---
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically
@@ -107,12 +107,23 @@ fun UserListItem(
           }
         }
 
-        // --- СТРОКА 2: ДИНАМИЧЕСКОЕ ПРЕВЬЮ ПОСЛЕДНЕГО СООБЩЕНИЯ ВЕТКИ ЧАТА ---
+        // --- СТРОКА 2: ФАМИЛИЯ ЖИЛЬЦА (SUBTITLE) ---
+        if (residentName.isNotBlank()) {
+          Text(
+            text = residentName,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
+
+        // --- СТРОКА 3: ДИНАМИЧЕСКОЕ ПРЕВЬЮ ТЕКСТА СООБЩЕНИЯ ---
         if (isTyping) {
           Text(
             text = "друкує...",
             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.primary, // Выделяем зеленым/основным цветом
+            color = MaterialTheme.colorScheme.primary,
             maxLines = 1
           )
         } else {
@@ -130,10 +141,7 @@ fun UserListItem(
           Text(
             text = displayText,
             style = MaterialTheme.typography.bodySmall,
-            color = if (lastMessage == null)
-              MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            else
-              MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
           )

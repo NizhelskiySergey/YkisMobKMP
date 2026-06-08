@@ -126,11 +126,12 @@ class FirebaseServiceImpl(
     }
   }
 
-  override suspend fun updateUserRoleAndPermissions(uid: String, addressId: Long?, userRole: UserRole, osbbId: Long?, displayName: String?) {
+  override suspend fun updateUserRoleAndPermissions(uid: String, addressId: Long?, userRole: UserRole, osbbId: Long?, displayName: String?, fio: String?) {
     try {
       val updates = mutableMapOf<String, Any>("userRole" to userRole.getSerialName(), "osbbId" to (osbbId ?: 0L))
       displayName?.let { updates["displayName"] = it }
       addressId?.let { updates["addressId"] = it }
+      fio?.let { updates["fio"] = it }
       db.collection("users").document(uid).set(data = updates, merge = true)
     } catch (e: Exception) { }
   }

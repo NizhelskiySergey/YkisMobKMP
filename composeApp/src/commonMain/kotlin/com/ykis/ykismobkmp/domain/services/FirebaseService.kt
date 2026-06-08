@@ -53,7 +53,8 @@ interface FirebaseService {
     addressId: Long?, // Переведено на Long под типы SQLDelight
     userRole: UserRole,
     osbbId: Long?,    // Переведено на Long под типы SQLDelight
-    displayName: String? = null
+    displayName: String? = null,
+    fio: String? = null
   )
   suspend fun getUid(): String
   suspend fun getEmail(): String

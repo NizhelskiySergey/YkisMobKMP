@@ -33,6 +33,9 @@ data class GetSimpleResponse(
 
   // ИСПРАВЛЕНО: Безопасное nullable-поле для защиты от пустых ответов бэкенда
   @SerialName("osbb")
-  val osbb: String? = null
+  val osbb: String? = null,
+
+  @SerialName("nanim")
+  val nanim: String? = null
 )
 
