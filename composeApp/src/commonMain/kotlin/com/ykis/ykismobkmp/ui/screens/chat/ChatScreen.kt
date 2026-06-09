@@ -147,13 +147,13 @@ fun ChatScreenContent(
 ) {
   val messageText by screenModel.messageText.collectAsState()
   val messageList by screenModel.firebaseTest.collectAsState()
-  val selectedService by screenModel.selectedService.collectAsState()
-  val isLoadingAfterSending by screenModel.isLoadingAfterSending.collectAsState()
   val aiAssistantResponse by screenModel.assistantResponse.collectAsState()
   val isOpponentTyping by screenModel.isOpponentTyping.collectAsState()
   val isForwardingMode by screenModel.isForwardingMode.collectAsState()
   val editingMessage by screenModel.editingMessage.collectAsState()
+  val selectedService by screenModel.selectedService.collectAsState()
   val selectedServicePrefix by screenModel.selectedServicePrefix.collectAsState()
+  val isLoadingAfterSending by screenModel.isLoadingAfterSending.collectAsState()
 
   val keyboardController = LocalSoftwareKeyboardController.current
   val focusManager = LocalFocusManager.current
@@ -161,21 +161,18 @@ fun ChatScreenContent(
   val myUid = baseUIState.uid.toString()
   val filePicker = rememberFilePicker()
 
+  // ИСПРАВЛЕНО: Группировка и ПРАВИЛЬНЫЙ разворот списка для reverseLayout
   val chatItems = remember(messageList, myUid) {
-    println("[YkisLogKMP.ChatScreen]: [RENDER_TRACE] Обробка ${messageList.size} повідомлень для LazyColumn")
-    messageList.filter { msg ->
-      !msg.deletedFor.contains(myUid)
-    }.groupBy { com.ykis.ykismobkmp.core.utils.formatDateFull(it.timestamp) }
-      .flatMap { (date, messages) ->
-        listOf(ChatItem.DateHeader(date)) + messages.map { ChatItem.MessageItem(it) }
-      }
-  }
-
-  val imeHeight = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-  LaunchedEffect(imeHeight) {
-    if (imeHeight > 0.dp && chatItems.isNotEmpty()) {
-      listState.animateScrollToItem(chatItems.size - 1)
+    val filtered = messageList.filter { !it.deletedFor.contains(myUid) }
+    val grouped = filtered.groupBy { com.ykis.ykismobkmp.core.utils.formatDateFull(it.timestamp) }
+    
+    val result = mutableListOf<ChatItem>()
+    grouped.forEach { (date, messages) ->
+        // Для reverseLayout: сначала сообщения (от старых к новым), потом заголовок даты
+        result.addAll(messages.map { ChatItem.MessageItem(it) })
+        result.add(ChatItem.DateHeader(date))
     }
+    result.reversed() // Теперь индекс 0 — самое новое сообщение внизу
   }
 
   LaunchedEffect(baseUIState.addressId, baseUIState.userRole, chatUid, userEntity.uid, baseUIState.osbbId) {
@@ -184,7 +181,6 @@ fun ChatScreenContent(
     val osbbId = baseUIState.osbbId ?: 0L
 
     if (role != UserRole.Unknown && addrId > 0L) {
-      println("[YkisLogKMP.ChatScreen]: Запуск підписки з UI. Role: $role, OSBB: $osbbId, Addr: $addrId")
       screenModel.readFromDatabase(role, osbbId, addrId)
     }
   }
@@ -196,9 +192,10 @@ fun ChatScreenContent(
     }
   }
 
+  // АВТО-СКРОЛЛ в режиме reverseLayout: всегда к индексу 0
   LaunchedEffect(chatItems.size) {
     if (chatItems.isNotEmpty()) {
-      listState.animateScrollToItem(chatItems.size - 1)
+      listState.animateScrollToItem(0)
     }
   }
 
@@ -206,7 +203,6 @@ fun ChatScreenContent(
     when {
       isForwardingMode -> "Переслати повідомлення"
       baseUIState.userRole == UserRole.StandardUser -> {
-        // ИСПРАВЛЕНО: Гарантируем название службы в заголовке для жителя
         selectedService?.name ?: when(selectedServicePrefix) {
             "WATER_SERVICE"   -> "КП \"ЮЖВОДОКАНАЛ\""
             "WARM_SERVICE"    -> "КП тм \"ЮТКЕ\""
@@ -229,7 +225,6 @@ fun ChatScreenContent(
   Scaffold(
     modifier = modifier.fillMaxSize(),
     containerColor = MaterialTheme.colorScheme.surfaceContainer,
-    contentWindowInsets = WindowInsets(0, 0, 0, 0),
     topBar = {
       Column {
         DefaultAppBar(
@@ -246,8 +241,12 @@ fun ChatScreenContent(
       }
     },
     bottomBar = {
-      Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth().imePadding()) {
+      Surface(
+        color = MaterialTheme.colorScheme.surface, 
+        tonalElevation = 3.dp, 
+        modifier = Modifier.fillMaxWidth().imePadding() // IME padding здесь поднимает всё меню
+      ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
           AnimatedVisibility(visible = !aiAssistantResponse.isNullOrBlank()) {
             AiHintCard(
               text = aiAssistantResponse ?: "",
@@ -301,15 +300,18 @@ fun ChatScreenContent(
     }
 
     LazyColumn(
-      modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding()),
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(innerPadding), // Ограничиваем список пространством между барами
       state = listState,
-      contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = innerPadding.calculateBottomPadding() + 16.dp),
+      reverseLayout = true, // ВКЛЮЧАЕМ ПРОФЕССИОНАЛЬНЫЙ РЕЖИМ ЧАТА
+      contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
       verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
       chatItems.forEach { chatItem ->
         when (chatItem) {
           is ChatItem.DateHeader -> {
-            stickyHeader(key = "date_${chatItem.date}") { DateChip(date = chatItem.date) }
+            item(key = "header_${chatItem.date}") { DateChip(date = chatItem.date) }
           }
           is ChatItem.MessageItem -> {
             val msg = chatItem.message
