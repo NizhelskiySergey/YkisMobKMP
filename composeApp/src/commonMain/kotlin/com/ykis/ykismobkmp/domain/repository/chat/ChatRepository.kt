@@ -239,19 +239,19 @@ class ChatRepository(
       .catch { emit(emptyList()) }
   }
 
-  fun observeMessages(chatUid: String, limit: Int = 20): Flow<List<MessageEntity>> {
+  fun observeMessages(chatUid: String, limit: Int = 15): Flow<List<MessageEntity>> {
     if (_realtime == null) return flow { emit(emptyList()) }
     return realtime.reference("chats/$chatUid")
       .limitToLast(limit)
-      .childEvents()
-      .scan(emptyList<MessageEntity>()) { accumulator, event ->
-        val message = try { event.snapshot.value<MessageEntity>() } catch (e: Exception) { return@scan accumulator }
-        when (event.type) {
-          ChildEvent.Type.ADDED -> (accumulator + message).sortedBy { it.timestamp }
-          ChildEvent.Type.CHANGED -> accumulator.map { if (it.id == message.id) message else it }
-          ChildEvent.Type.REMOVED -> accumulator.filter { it.id != message.id }
-          else -> accumulator
-        }
+      .valueEvents
+      .map { snapshot ->
+        snapshot.children.mapNotNull { child ->
+          try {
+            child.value<MessageEntity>()
+          } catch (e: Exception) {
+            null
+          }
+        }.sortedBy { it.timestamp }
       }
   }
 

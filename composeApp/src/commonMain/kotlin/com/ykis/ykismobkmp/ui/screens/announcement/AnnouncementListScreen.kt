@@ -123,6 +123,7 @@ class AnnouncementListScreen(
                         AnnouncementList(
                             groupedItems = groupedItems,
                             isAdmin = baseUIState.userRole != UserRole.StandardUser,
+                            currentUid = baseUIState.uid ?: "",
                             onDeleteClick = { id -> announcementModel.deleteAnnouncement(id) }
                         )
                     }
@@ -180,6 +181,7 @@ fun FilterChipsRow(
 fun AnnouncementList(
     groupedItems: List<GroupedAnnouncement>,
     isAdmin: Boolean,
+    currentUid: String,
     onDeleteClick: (String) -> Unit
 ) {
     if (groupedItems.isEmpty()) {
@@ -204,6 +206,7 @@ fun AnnouncementList(
                             AnnouncementItem(
                                 item = grouped.announcement,
                                 isAdmin = isAdmin,
+                                currentUid = currentUid,
                                 onDeleteClick = onDeleteClick
                             )
                         }
@@ -240,6 +243,7 @@ fun DateHeaderChip(date: String) {
 fun AnnouncementItem(
     item: AnnouncementEntity,
     isAdmin: Boolean,
+    currentUid: String,
     onDeleteClick: (String) -> Unit
 ) {
     val isGlobal = item.osbbId == 0L
@@ -270,7 +274,8 @@ fun AnnouncementItem(
                     )
                 }
 
-                if (isAdmin) {
+                // Кнопка удаления видна только если пользователь - админ И он автор объявления
+                if (isAdmin && item.authorUid == currentUid) {
                     IconButton(
                         onClick = { onDeleteClick(item.id) },
                         modifier = Modifier.size(24.dp)

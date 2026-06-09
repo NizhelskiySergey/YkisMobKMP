@@ -52,18 +52,22 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
         val chatId = message.data["chatId"]
         val imageUrl = message.data["image"] ?: message.data["imageUrl"] ?: message.notification?.imageUrl?.toString()
         
-        // Получаем число для бэйджа
+        // Получаем число для бэйджа (из блока data или notification)
         val badgeCount = (message.data["badge"]?.toIntOrNull()) 
                          ?: (message.notification?.notificationCount) 
                          ?: 0
 
         val activeChat = ChatScreenModel.activeChatIdForNotifications
-        println("[YkisLogKMP.MessagingService]: Чат: $chatId, Активен: $activeChat, Badge: $badgeCount")
+        println("[YkisLogKMP.MessagingService]: ПУШ ПОЛУЧЕН! Чат: $chatId, Бэйдж: $badgeCount")
 
         if (chatId != null && chatId == activeChat) {
             println("[YkisLogKMP.MessagingService]: Пуш подавлен (Чат уже открыт)")
+            // Сбрасываем бэйдж на иконке, раз мы уже в этом чате
+            updateLauncherBadge(0)
             return
         }
+
+        updateLauncherBadge(badgeCount)
 
         serviceScope.launch {
             val bitmap = if (!imageUrl.isNullOrBlank()) getBitmapFromUrl(imageUrl) else null
@@ -71,6 +75,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
                 sendNotification(title, body, chatId, bitmap, badgeCount)
             }
         }
+    }
+
+    private fun updateLauncherBadge(count: Int) {
+        try {
+            // Стандартный способ
+            val badgeIntent = Intent("android.intent.action.BADGE_COUNT_UPDATE")
+            badgeIntent.putExtra("badge_count", count)
+            badgeIntent.putExtra("badge_count_package_name", packageName)
+            badgeIntent.putExtra("badge_count_class_name", "com.ykis.ykismobkmp.MainActivity")
+            sendBroadcast(badgeIntent)
+            println("[YkisLogKMP.MessagingService]: Launcher Badge Update: $count")
+        } catch (e: Exception) { }
     }
 
     private fun sendNotification(title: String, body: String, chatId: String?, image: Bitmap? = null, badgeCount: Int = 0) {

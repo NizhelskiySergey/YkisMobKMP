@@ -397,6 +397,8 @@ class ApartmentScreenModel(
           displayName = finalTarget.address,
           fio = finalTarget.nanim ?: ""
         )
+        // ГАРАНТИЯ ПУШЕЙ: Регистрируем токен сразу после синхронизации прав
+        firebaseService.addFcmToken()
       } catch (e: Exception) {
         println("[YkisLogKMP.$className.${methodName}_WARN]: Помилка синхронізації прав: ${e.message}")
       }
@@ -498,6 +500,8 @@ class ApartmentScreenModel(
           displayName = finalTarget.address,
           fio = finalTarget.nanim ?: ""
         )
+        // ГАРАНТИЯ ПУШЕЙ: Регистрируем токен сразу после синхронизации прав
+        firebaseService.addFcmToken()
       } catch (e: Exception) {
         println("[YkisLogKMP.$className.${methodName}_WARN]: Помилка фонової синхронізації прав у хмарі: ${e.message}")
       }
