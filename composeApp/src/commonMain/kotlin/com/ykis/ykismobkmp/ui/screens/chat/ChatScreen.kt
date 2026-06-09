@@ -1,6 +1,7 @@
 package com.ykis.ykismobkmp.ui.screens.chat
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -39,6 +41,7 @@ import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.core.utils.rememberFilePicker
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
@@ -162,30 +165,21 @@ fun ChatScreenContent(
   val myUid = baseUIState.uid.toString()
   val filePicker = rememberFilePicker()
 
-  // ГРУППИРОВКА КАК В TELEGRAM (для reverseLayout)
   val chatItems = remember(messageList, myUid) {
     val filtered = messageList.filter { !it.deletedFor.contains(myUid) }
-    // Группируем по датам (даты идут в обычном порядке от старых к новым)
     val grouped = filtered.groupBy { com.ykis.ykismobkmp.core.utils.formatDateFull(it.timestamp) }
-    
     val result = mutableListOf<ChatItem>()
     grouped.forEach { (date, messages) ->
-        // 1. Сначала добавляем ЗАГОЛОВОК даты
         result.add(ChatItem.DateHeader(date))
-        // 2. Затем СООБЩЕНИЯ этого дня
         result.addAll(messages.map { ChatItem.MessageItem(it) })
     }
-    // 3. Разворачиваем весь список. 
-    // Теперь самое новое сообщение будет в индексе 0 (внизу), 
-    // а дата окажется ВЫШЕ своих сообщений (в большем индексе).
-    result.reversed()
+    result.reversed() 
   }
 
   LaunchedEffect(baseUIState.addressId, baseUIState.userRole, chatUid, userEntity.uid, baseUIState.osbbId) {
     val role = baseUIState.userRole
     val addrId = if (role == UserRole.StandardUser) baseUIState.addressId else userEntity.addressId
     val osbbId = baseUIState.osbbId ?: 0L
-
     if (role != UserRole.Unknown && addrId > 0L) {
       screenModel.readFromDatabase(role, osbbId, addrId)
     }
@@ -198,15 +192,12 @@ fun ChatScreenContent(
     }
   }
 
-  // ТРИГГЕР ПОДГРУЗКИ (Пагинация)
   LaunchedEffect(listState.canScrollForward, chatItems.size) {
-    // В reverseLayout: canScrollForward == false означает достижение верха экрана (прошлое)
     if (!listState.canScrollForward && chatItems.isNotEmpty() && !isFirstLoad) {
         screenModel.loadMoreMessages()
     }
   }
 
-  // АВТО-СКРОЛЛ К НИЗУ (Индекс 0)
   LaunchedEffect(chatItems.size) {
     if (chatItems.isNotEmpty()) {
       if (isFirstLoad) {
@@ -216,6 +207,27 @@ fun ChatScreenContent(
         kotlinx.coroutines.yield() 
         listState.animateScrollToItem(0)
       }
+    }
+  }
+
+  // ВЫЧИСЛЕНИЕ ТЕКУЩЕЙ ДАТЫ ДЛЯ ПЛАВАЮЩЕГО ЗАГОЛОВКА (Исправлено для reverseLayout)
+  val currentVisibleDate by remember {
+    derivedStateOf {
+      val info = listState.layoutInfo.visibleItemsInfo
+      if (info.isNotEmpty()) {
+        // В reverseLayout верхний элемент на экране имеет МАКСИМАЛЬНЫЙ индекс
+        val topItem = info.maxByOrNull { it.index }
+        topItem?.let { 
+           val dataIndex = it.index - 1 // Учитываем Spacer
+           if (dataIndex in chatItems.indices) {
+               val item = chatItems[dataIndex]
+               when (item) {
+                   is ChatItem.DateHeader -> item.date
+                   is ChatItem.MessageItem -> com.ykis.ykismobkmp.core.utils.formatDateFull(item.message.timestamp)
+               }
+           } else null
+        }
+      } else null
     }
   }
 
@@ -259,12 +271,90 @@ fun ChatScreenContent(
         )
         HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
       }
-    },
-    bottomBar = {
+    }
+  ) { innerPadding ->
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    val messageToDelete by screenModel.messageToDelete.collectAsState()
+
+    if (messageToDelete != null) {
+      MessageActionsDialog(
+        messageToDelete = messageToDelete,
+        myUid = myUid,
+        screenModel = screenModel,
+        navigateBack = { if (screenModel.forwardingMessage.value != null) navigateBack() }
+      )
+    }
+
+    Column(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(top = innerPadding.calculateTopPadding()) // Только от шапки
+    ) {
+      Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        // 1. СПИСОК СООБЩЕНИЙ
+        LazyColumn(
+          modifier = Modifier.fillMaxSize(),
+          state = listState,
+          reverseLayout = true,
+          contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+          verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+          // Невидимый элемент-прокладка над меню (индекс 0 внизу)
+          item { Spacer(modifier = Modifier.height(20.dp)) }
+
+          chatItems.forEach { chatItem ->
+            when (chatItem) {
+              is ChatItem.DateHeader -> {
+                item(key = "header_${chatItem.date}") { DateChip(date = chatItem.date) }
+              }
+              is ChatItem.MessageItem -> {
+                val msg = chatItem.message
+                item(key = "msg_${msg.id}") {
+                  MessageListItem(
+                    isUserAdmin = baseUIState.userRole != UserRole.StandardUser,
+                    messageEntity = msg,
+                    onLongClick = { screenModel.showDeleteConfirmation(msg) },
+                    onClick = {
+                      keyboardController?.hide()
+                      navigateToImageDetailScreen(msg)
+                    },
+                    onFileClick = { fileUrl -> try { uriHandler.openUri(fileUrl) } catch (e: Exception) {} }
+                  )
+                }
+              }
+            }
+          }
+        }
+
+        // 2. ПРОЗРАЧНЫЙ ПЛАВАЮЩИЙ ЗАГОЛОВОК (Telegram Style)
+        val showFloatingDate by remember {
+            derivedStateOf {
+                (listState.isScrollInProgress || listState.firstVisibleItemIndex > 1) && currentVisibleDate != null
+            }
+        }
+        val alpha by animateFloatAsState(if (showFloatingDate) 1f else 0f)
+
+        if (alpha > 0f) {
+           Surface(
+              color = Color.Black.copy(alpha = 0.4f * alpha), // Чуть темнее для видимости
+              shape = RoundedCornerShape(16.dp),
+              modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp)
+           ) {
+              Text(
+                  text = currentVisibleDate ?: "",
+                  modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                  style = MaterialTheme.typography.labelMedium,
+                  color = Color.White.copy(alpha = alpha)
+              )
+           }
+        }
+      }
+
+      // 3. МЕНЮ ВВОДА
       Surface(
         color = MaterialTheme.colorScheme.surface, 
         tonalElevation = 3.dp, 
-        modifier = Modifier.fillMaxWidth().imePadding()
+        modifier = Modifier.fillMaxWidth().imePadding() // Убрал navigationBarsPadding для плотного прилегания
       ) {
         Column(modifier = Modifier.fillMaxWidth()) {
           AnimatedVisibility(visible = !aiAssistantResponse.isNullOrBlank()) {
@@ -303,54 +393,6 @@ fun ChatScreenContent(
             isLoading = isLoadingAfterSending,
             canSend = messageText.isNotBlank() || editingMessage != null
           )
-        }
-      }
-    }
-  ) { innerPadding ->
-    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
-    val messageToDelete by screenModel.messageToDelete.collectAsState()
-
-    if (messageToDelete != null) {
-      MessageActionsDialog(
-        messageToDelete = messageToDelete,
-        myUid = myUid,
-        screenModel = screenModel,
-        navigateBack = { if (screenModel.forwardingMessage.value != null) navigateBack() }
-      )
-    }
-
-    LazyColumn(
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(innerPadding),
-      state = listState,
-      reverseLayout = true, // ПРОФЕССИОНАЛЬНЫЙ РЕЖИМ
-      contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-      verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-      chatItems.forEach { chatItem ->
-        when (chatItem) {
-          is ChatItem.DateHeader -> {
-            // Используем обычный item для даты в reverseLayout
-            item(key = "header_${chatItem.date}") { 
-                DateChip(date = chatItem.date) 
-            }
-          }
-          is ChatItem.MessageItem -> {
-            val msg = chatItem.message
-            item(key = "msg_${msg.id}") {
-              MessageListItem(
-                isUserAdmin = baseUIState.userRole != UserRole.StandardUser,
-                messageEntity = msg,
-                onLongClick = { screenModel.showDeleteConfirmation(msg) },
-                onClick = {
-                  keyboardController?.hide()
-                  navigateToImageDetailScreen(msg)
-                },
-                onFileClick = { fileUrl -> try { uriHandler.openUri(fileUrl) } catch (e: Exception) {} }
-              )
-            }
-          }
         }
       }
     }
