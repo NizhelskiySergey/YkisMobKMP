@@ -64,6 +64,11 @@ class ChatScreenModel(
   private val _selectedServicePrefix = MutableStateFlow("OSBB")
   val selectedServicePrefix: StateFlow<String> = _selectedServicePrefix.asStateFlow()
 
+  private val _messageLimit = MutableStateFlow(50)
+  val messageLimit: StateFlow<Int> = _messageLimit.asStateFlow()
+  
+  private var currentParams: Triple<UserRole, Long, Long>? = null
+
   private val _messageText = MutableStateFlow("")
   val messageText: StateFlow<String> = _messageText.asStateFlow()
 
@@ -292,6 +297,7 @@ class ChatScreenModel(
   }
 
   fun readFromDatabase(role: UserRole, osbbId: Long, addressId: Long) {
+    currentParams = Triple(role, osbbId, addressId)
     val finalOsbbId = if (osbbId == 0L) {
         when (role) {
             UserRole.VodokanalUser -> 9999L
@@ -385,6 +391,16 @@ class ChatScreenModel(
         }
       }
     }
+  }
+
+  fun loadMoreMessages() {
+    val methodName = "loadMoreMessages"
+    val params = currentParams ?: return
+    _messageLimit.value += 25
+    println("[YkisLogKMP.$tag.$methodName]: Лимит увеличен до ${_messageLimit.value}. Перезапуск подписки.")
+    
+    // Перезапускаем подписку с новым лимитом
+    readFromDatabase(params.first, params.second, params.third)
   }
 
   fun clearCurrentChatPath() {

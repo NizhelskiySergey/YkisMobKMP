@@ -239,7 +239,7 @@ class ChatRepository(
       .catch { emit(emptyList()) }
   }
 
-  fun observeMessages(chatUid: String, limit: Int = 15): Flow<List<MessageEntity>> {
+  fun observeMessages(chatUid: String, limit: Int = 50): Flow<List<MessageEntity>> {
     if (_realtime == null) return flow { emit(emptyList()) }
     return realtime.reference("chats/$chatUid")
       .limitToLast(limit)

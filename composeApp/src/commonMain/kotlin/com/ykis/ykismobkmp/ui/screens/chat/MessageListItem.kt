@@ -99,7 +99,7 @@ fun MessageListItem(
       .padding(vertical = 4.dp, horizontal = 12.dp), // Увеличил вертикальный отступ для четкости
     horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start,
     verticalAlignment = Alignment.Bottom
-  ) {gh
+  ) {
     if (!isFromMe) {
       UserImage(
         modifier = Modifier.size(32.dp).padding(bottom = 2.dp),

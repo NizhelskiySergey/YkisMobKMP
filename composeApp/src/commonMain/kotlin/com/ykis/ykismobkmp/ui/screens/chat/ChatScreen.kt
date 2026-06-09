@@ -158,21 +158,27 @@ fun ChatScreenContent(
   val keyboardController = LocalSoftwareKeyboardController.current
   val focusManager = LocalFocusManager.current
   val listState = rememberLazyListState()
+  var isFirstLoad by remember { mutableStateOf(true) } 
   val myUid = baseUIState.uid.toString()
   val filePicker = rememberFilePicker()
 
-  // ИСПРАВЛЕНО: Группировка и ПРАВИЛЬНЫЙ разворот списка для reverseLayout
+  // ГРУППИРОВКА КАК В TELEGRAM (для reverseLayout)
   val chatItems = remember(messageList, myUid) {
     val filtered = messageList.filter { !it.deletedFor.contains(myUid) }
+    // Группируем по датам (даты идут в обычном порядке от старых к новым)
     val grouped = filtered.groupBy { com.ykis.ykismobkmp.core.utils.formatDateFull(it.timestamp) }
     
     val result = mutableListOf<ChatItem>()
     grouped.forEach { (date, messages) ->
-        // Для reverseLayout: сначала сообщения (от старых к новым), потом заголовок даты
-        result.addAll(messages.map { ChatItem.MessageItem(it) })
+        // 1. Сначала добавляем ЗАГОЛОВОК даты
         result.add(ChatItem.DateHeader(date))
+        // 2. Затем СООБЩЕНИЯ этого дня
+        result.addAll(messages.map { ChatItem.MessageItem(it) })
     }
-    result.reversed() // Теперь индекс 0 — самое новое сообщение внизу
+    // 3. Разворачиваем весь список. 
+    // Теперь самое новое сообщение будет в индексе 0 (внизу), 
+    // а дата окажется ВЫШЕ своих сообщений (в большем индексе).
+    result.reversed()
   }
 
   LaunchedEffect(baseUIState.addressId, baseUIState.userRole, chatUid, userEntity.uid, baseUIState.osbbId) {
@@ -192,10 +198,24 @@ fun ChatScreenContent(
     }
   }
 
-  // АВТО-СКРОЛЛ в режиме reverseLayout: всегда к индексу 0
+  // ТРИГГЕР ПОДГРУЗКИ (Пагинация)
+  LaunchedEffect(listState.canScrollForward, chatItems.size) {
+    // В reverseLayout: canScrollForward == false означает достижение верха экрана (прошлое)
+    if (!listState.canScrollForward && chatItems.isNotEmpty() && !isFirstLoad) {
+        screenModel.loadMoreMessages()
+    }
+  }
+
+  // АВТО-СКРОЛЛ К НИЗУ (Индекс 0)
   LaunchedEffect(chatItems.size) {
     if (chatItems.isNotEmpty()) {
-      listState.animateScrollToItem(0)
+      if (isFirstLoad) {
+        listState.scrollToItem(0)
+        isFirstLoad = false
+      } else {
+        kotlinx.coroutines.yield() 
+        listState.animateScrollToItem(0)
+      }
     }
   }
 
@@ -244,7 +264,7 @@ fun ChatScreenContent(
       Surface(
         color = MaterialTheme.colorScheme.surface, 
         tonalElevation = 3.dp, 
-        modifier = Modifier.fillMaxWidth().imePadding() // IME padding здесь поднимает всё меню
+        modifier = Modifier.fillMaxWidth().imePadding()
       ) {
         Column(modifier = Modifier.fillMaxWidth()) {
           AnimatedVisibility(visible = !aiAssistantResponse.isNullOrBlank()) {
@@ -302,16 +322,19 @@ fun ChatScreenContent(
     LazyColumn(
       modifier = Modifier
         .fillMaxSize()
-        .padding(innerPadding), // Ограничиваем список пространством между барами
+        .padding(innerPadding),
       state = listState,
-      reverseLayout = true, // ВКЛЮЧАЕМ ПРОФЕССИОНАЛЬНЫЙ РЕЖИМ ЧАТА
+      reverseLayout = true, // ПРОФЕССИОНАЛЬНЫЙ РЕЖИМ
       contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
       verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
       chatItems.forEach { chatItem ->
         when (chatItem) {
           is ChatItem.DateHeader -> {
-            item(key = "header_${chatItem.date}") { DateChip(date = chatItem.date) }
+            // Используем обычный item для даты в reverseLayout
+            item(key = "header_${chatItem.date}") { 
+                DateChip(date = chatItem.date) 
+            }
           }
           is ChatItem.MessageItem -> {
             val msg = chatItem.message
