@@ -21,6 +21,7 @@ data class UserEntity(
   val fio: String = "",       // НОВОЕ ПОЛЕ: ФИО жильца
   val osbbId: Long? = null,   // ИСПРАВЛЕНО: Приведено к типу Long под каноны SQLDelight
   val addressId: Long = 0L,   // ИСПРАВЛЕНО: Приведено к типу Long под каноны SQLDelight
+  @kotlinx.serialization.SerialName("fcmTokens")
   val tokens: List<String> = emptyList()
 )
 

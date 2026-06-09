@@ -257,10 +257,22 @@ class FirebaseServiceImpl(
 
   override suspend fun addFcmToken() {
     try {
+      val currentUid = uid
+      if (currentUid.isBlank()) {
+          println("[YkisLogKMP.FirebaseServiceImpl]: UID пуст, отмена записи токена.")
+          return
+      }
+
       val token = getPlatformFcmToken() ?: return
+      println("[YkisLogKMP.FirebaseServiceImpl]: Регистрация токена для $currentUid: ${token.take(10)}...")
+      
       val updates = mapOf("fcmTokens" to dev.gitlive.firebase.firestore.FieldValue.arrayUnion(token))
-      db.collection("users").document(uid).update(updates)
-    } catch (e: Exception) { }
+      db.collection("users").document(currentUid).update(updates)
+      
+      println("[YkisLogKMP.FirebaseServiceImpl]: [SUCCESS] Токен успешно сохранен.")
+    } catch (e: Exception) {
+      println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: Ошибка сохранения токена: ${e.message}")
+    }
   }
 
   override suspend fun removeFcmToken() {

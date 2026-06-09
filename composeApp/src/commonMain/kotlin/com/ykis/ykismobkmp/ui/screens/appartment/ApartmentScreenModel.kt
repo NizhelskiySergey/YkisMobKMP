@@ -281,6 +281,11 @@ class ApartmentScreenModel(
           )
         }
 
+        // ГАРАНТИЯ ПУШЕЙ: Регистрируем токен устройства сразу после входа в профиль
+        screenModelScope.launch {
+            firebaseService.addFcmToken()
+        }
+
         // ИСПРАВЛЕНО: Принудительно регистрируем FCM токен при каждом запуске профиля
         firebaseService.addFcmToken()
 

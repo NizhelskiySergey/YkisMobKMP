@@ -9,8 +9,9 @@ import com.ykis.ykismobkmp.domain.services.UserRole
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import dev.gitlive.firebase.firestore.*
-import dev.gitlive.firebase.functions.FirebaseFunctions
+import dev.gitlive.firebase.functions.functions
 import dev.gitlive.firebase.storage.FirebaseStorage
+import dev.gitlive.firebase.storage.storage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
@@ -31,7 +32,6 @@ class ChatRepository(
   private val _firestore: FirebaseFirestore?,
   private val _realtime: FirebaseDatabase?,
   private val _storage: FirebaseStorage?,
-  private val _functions: FirebaseFunctions?,
   private val aiManager: GeminiAiManager
 ) {
   private val className = "ChatRepository"
@@ -39,20 +39,14 @@ class ChatRepository(
   private val firestore get() = _firestore ?: throw IllegalStateException("Firestore not available")
   val realtime get() = _realtime ?: throw IllegalStateException("Realtime Database not available")
   val storage get() = _storage ?: throw IllegalStateException("Storage not available")
-  private val functions get() = _functions ?: throw IllegalStateException("Functions not available")
 
   val currentUid: String?
     get() = try { Firebase.auth.currentUser?.uid } catch (e: Exception) { null }
 
-  /**
-   * [fetchUsersByIds] — Отримання списку профілів за списком UID.
-   * ІСПРАВЛЕНО: Замість запиту 'IN' (який викликав краш на iOS), використовуємо 
-   * паралельне отримання документів. Це на 100% безпечно для кросплатформи.
-   */
   suspend fun fetchUsersByIds(ids: List<String>): List<UserEntity> = coroutineScope {
     if (ids.isEmpty() || _firestore == null) return@coroutineScope emptyList()
     
-    val distinctIds = ids.distinct().take(20) // Лімітуємо для продуктивності
+    val distinctIds = ids.distinct().take(20)
     
     try {
       val deferreds = distinctIds.map { uid ->
@@ -60,18 +54,15 @@ class ChatRepository(
           try {
             val doc = firestore.collection("users").document(uid).get()
             if (doc.exists) {
-                // Використовуємо Serializable мапінг
                 doc.data<UserEntity>().copy(uid = doc.id)
             } else null
           } catch (e: Exception) {
-            println("[YkisLogKMP]: Помилка завантаження UID $uid: ${e.message}")
             null
           }
         }
       }
       deferreds.awaitAll().filterNotNull()
     } catch (e: Exception) {
-      println("[YkisLogKMP.$className.fetchUsersByIds_ERROR]: ${e.message}")
       emptyList()
     }
   }
@@ -85,14 +76,8 @@ class ChatRepository(
           val uid = child.key ?: ""
           val isTyping = try {
              val typingChild = child.child("typing")
-             if (typingChild.exists) {
-                 typingChild.value<Boolean?>() ?: false
-             } else {
-                 false
-             }
-          } catch (e: Exception) {
-             false
-          }
+             if (typingChild.exists) typingChild.value<Boolean?>() ?: false else false
+          } catch (e: Exception) { false }
           uid to isTyping
         }
       }
@@ -103,9 +88,7 @@ class ChatRepository(
     try {
       val updates = mapOf("typing" to isTyping)
       realtime.reference("presence/$chatId/$uid").updateChildren(updates)
-    } catch (e: Exception) {
-      println("[YkisLogKMP.$className.setTypingStatus]: ${e.message}")
-    }
+    } catch (e: Exception) { }
   }
 
   fun observeChatKeys(prefix: String): Flow<List<String>> {
@@ -120,35 +103,16 @@ class ChatRepository(
       }
   }
 
-  /**
-   * [fetchAdminsByOsbb] — Пошук адміністраторів за ID організації.
-   */
   suspend fun fetchAdminsByOsbb(osbbId: Long): List<UserEntity> {
     if (_firestore == null) return emptyList()
-
     return try {
-      println("[YkisLogKMP.$className.fetchAdminsByOsbb]: Запит адмінів для ID: $osbbId")
-      
       val q1 = firestore.collection("users").where { "osbbId" equalTo osbbId }.get()
       val q2 = firestore.collection("users").where { "osbbId" equalTo osbbId.toString() }.get()
-      
       val combined = (q1.documents + q2.documents).distinctBy { it.id }
-      
-      val admins = combined.mapNotNull { doc ->
-        try {
-            doc.data<UserEntity>().copy(uid = doc.id)
-        } catch (e: Exception) {
-            println("[YkisLogKMP.$className.fetchAdmins_ERROR]: Помилка парсингу профілю ${doc.id}: ${e.message}")
-            null
-        }
+      combined.mapNotNull { doc ->
+        try { doc.data<UserEntity>().copy(uid = doc.id) } catch (e: Exception) { null }
       }.filter { it.userRole != UserRole.StandardUser && it.userRole != UserRole.Unknown }
-      
-      println("[YkisLogKMP.$className.fetchAdminsByOsbb]: Знайдено адмінів: ${admins.size} -> ${admins.map { it.uid }}")
-      admins
-    } catch (e: Exception) {
-      println("[YkisLogKMP.$className.fetchAdminsByOsbb_ERROR]: ${e.message}")
-      emptyList()
-    }
+    } catch (e: Exception) { emptyList() }
   }
 
   suspend fun fetchUserByAddressId(addressId: Long): UserEntity? {
@@ -156,12 +120,9 @@ class ChatRepository(
     return try {
       val resultNum = firestore.collection("users").where { "addressId" equalTo addressId }.get()
       val resultStr = firestore.collection("users").where { "addressId" equalTo addressId.toString() }.get()
-      
       val doc = (resultNum.documents + resultStr.documents).firstOrNull()
       doc?.let { it.data<UserEntity>().copy(uid = it.id) }
-    } catch (e: Exception) {
-      null
-    }
+    } catch (e: Exception) { null }
   }
 
   fun observeUnreadCounts(myUid: String): Flow<Map<String, Int>> {
@@ -176,41 +137,37 @@ class ChatRepository(
   suspend fun resetUnreadCount(chatId: String, myUid: String) {
     if (_realtime == null) return
     try {
-      println("[YkisLogKMP.$className]: Скидання лічильника для $myUid у чаті $chatId")
       realtime.reference("unread_counters/$myUid/$chatId").setValue(0)
     } catch (e: Exception) { }
   }
 
-  /**
-   * [incrementUnreadForUids] — Інкремент бейджів для списку UID.
-   */
   suspend fun incrementUnreadForUids(chatId: String, uids: List<String>) {
-    if (_realtime == null || uids.isEmpty()) return
+    if (_realtime == null || uids.isEmpty()) {
+        println("[YkisLogKMP.ChatRepository]: Инкремент отменен (Realtime null или список UID пуст)")
+        return
+    }
     try {
       val distinctUids = uids.distinct()
-      println("[YkisLogKMP.$className.incrementUnread]: Запуск для ${distinctUids.size} осіб.")
+      println("[YkisLogKMP.ChatRepository]: [BADGE_START] Инкремент для чата $chatId. Получатели: $distinctUids")
       
       distinctUids.forEach { uid ->
         val userPresenceRef = realtime.reference("presence/$chatId/$uid")
         val snapshot = userPresenceRef.valueEvents.first()
-        
-        val isOnline = if (snapshot.exists) {
-            snapshot.child("online").value<Boolean?>() ?: false
-        } else false
+        val isOnline = if (snapshot.exists) snapshot.child("online").value<Boolean?>() ?: false else false
         
         if (!isOnline) {
             val unreadRef = realtime.reference("unread_counters/$uid/$chatId")
             val currentSnapshot = unreadRef.valueEvents.first()
             val current = if (currentSnapshot.exists) currentSnapshot.value<Int?>() ?: 0 else 0
             
+            println("[YkisLogKMP.ChatRepository]: [BADGE_WRITE] UID $uid: $current -> ${current + 1}")
             unreadRef.setValue(current + 1)
-            println("[YkisLogKMP.$className.incrementUnread]: UID $uid (+1). Нове значення: ${current + 1}")
         } else {
-            println("[YkisLogKMP.$className.incrementUnread]: UID $uid в мережі, бейдж пропущено.")
+            println("[YkisLogKMP.ChatRepository]: [BADGE_SKIP] UID $uid в сети, бэйдж не нужен.")
         }
       }
-    } catch (e: Exception) {
-      println("[YkisLogKMP.$className.incrementUnread_ERROR]: ${e.message}")
+    } catch (e: Exception) { 
+        println("[YkisLogKMP.ChatRepository_ERROR]: Ошибка инкремента: ${e.message}")
     }
   }
 
@@ -218,58 +175,28 @@ class ChatRepository(
     if (_realtime == null) return
     try {
       val participantsSnapshot = realtime.reference("chat_access/$chatId").valueEvents.first()
-      val uids = participantsSnapshot.children.mapNotNull { it.key }
-        .filter { it != senderUid }
-        .distinct()
-      
-      if (uids.isNotEmpty()) {
-        incrementUnreadForUids(chatId, uids)
-      }
-    } catch (e: Exception) { 
-       println("[YkisLogKMP.$className.incrementUnreadParticipants_ERROR]: ${e.message}")
-    }
+      val uids = participantsSnapshot.children.mapNotNull { it.key }.filter { it != senderUid }.distinct()
+      if (uids.isNotEmpty()) incrementUnreadForUids(chatId, uids)
+    } catch (e: Exception) { }
   }
 
   suspend fun fetchAllUsersByAddressId(addressId: Long): List<UserEntity> {
     if (_firestore == null) return emptyList()
     return try {
-      val resultNum = firestore.collection("users")
-        .where { "addressId" equalTo addressId }
-        .get()
-      val resultStr = firestore.collection("users")
-        .where { "addressId" equalTo addressId.toString() }
-        .get()
-        
+      val resultNum = firestore.collection("users").where { "addressId" equalTo addressId }.get()
+      val resultStr = firestore.collection("users").where { "addressId" equalTo addressId.toString() }.get()
       val combined = (resultNum.documents + resultStr.documents).distinctBy { it.id }
-      combined.mapNotNull { doc ->
-         try { doc.data<UserEntity>().copy(uid = doc.id) } catch (e: Exception) { null }
-      }
-    } catch (e: Exception) {
-      emptyList()
-    }
-  }
-
-  suspend fun sendChatNotification(data: Map<String, Any?>) {
-    if (_functions == null) return
-    try {
-      println("[YkisLogKMP.$className]: Cloud Function 'sendChatNotification'...")
-      functions.httpsCallable("sendChatNotification").invoke(data)
-    } catch (e: Exception) {
-      println("[YkisLogKMP.$className.sendChatNotification_ERROR]: ${e.message}")
-    }
+      combined.mapNotNull { doc -> try { doc.data<UserEntity>().copy(uid = doc.id) } catch (e: Exception) { null } }
+    } catch (e: Exception) { emptyList() }
   }
 
   suspend fun sendGlobalNotification(title: String, body: String, osbbId: Long = 0L, imageUrl: String? = null) {
-    if (_functions == null) return
     try {
       val data = mutableMapOf<String, Any?>(
-        "title" to title,
-        "body" to body,
-        "osbbId" to osbbId,
-        "type" to "ANNOUNCEMENT"
+        "title" to title, "body" to body, "osbbId" to osbbId, "type" to "ANNOUNCEMENT"
       )
       imageUrl?.let { data["imageUrl"] = it }
-      functions.httpsCallable("sendGlobalNotification").invoke(data)
+      Firebase.functions.httpsCallable("sendGlobalNotification")(data)
     } catch (e: Exception) {
       println("[YkisLogKMP.$className.sendGlobalNotification_ERROR]: ${e.message}")
     }
@@ -289,10 +216,7 @@ class ChatRepository(
         imageUrl = finalAnnouncement.imageUrl
       )
       Result.success(Unit)
-    } catch (e: Exception) {
-      println("[YkisLogKMP.$className.publishAnnouncement_ERROR]: ${e.message}")
-      Result.failure(e)
-    }
+    } catch (e: Exception) { Result.failure(e) }
   }
 
   suspend fun deleteAnnouncement(announcementId: String): Result<Unit> {
@@ -300,10 +224,7 @@ class ChatRepository(
     return try {
       firestore.collection("announcements").document(announcementId).delete()
       Result.success(Unit)
-    } catch (e: Exception) {
-      println("[YkisLogKMP.$className.deleteAnnouncement_ERROR]: ${e.message}")
-      Result.failure(e)
-    }
+    } catch (e: Exception) { Result.failure(e) }
   }
 
   fun observeAnnouncements(osbbId: Long): Flow<List<AnnouncementEntity>> {
@@ -313,14 +234,9 @@ class ChatRepository(
       .map { snapshot ->
         snapshot.documents.map { doc ->
           doc.data<AnnouncementEntity>().copy(id = doc.id)
-        }.filter { 
-          it.osbbId == 0L || it.osbbId == osbbId
-        }.sortedByDescending { it.timestamp }
+        }.filter { it.osbbId == 0L || it.osbbId == osbbId }.sortedByDescending { it.timestamp }
       }
-      .catch { e ->
-        println("[YkisLogKMP.$className.observeAnnouncements_ERROR]: ${e.message}")
-        emit(emptyList())
-      }
+      .catch { emit(emptyList()) }
   }
 
   fun observeMessages(chatUid: String, limit: Int = 20): Flow<List<MessageEntity>> {
@@ -329,11 +245,7 @@ class ChatRepository(
       .limitToLast(limit)
       .childEvents()
       .scan(emptyList<MessageEntity>()) { accumulator, event ->
-        val message = try {
-          event.snapshot.value<MessageEntity>()
-        } catch (e: Exception) {
-          return@scan accumulator
-        }
+        val message = try { event.snapshot.value<MessageEntity>() } catch (e: Exception) { return@scan accumulator }
         when (event.type) {
           ChildEvent.Type.ADDED -> (accumulator + message).sortedBy { it.timestamp }
           ChildEvent.Type.CHANGED -> accumulator.map { if (it.id == message.id) message else it }
@@ -348,9 +260,7 @@ class ChatRepository(
     return realtime.reference("chats/$chatUid")
       .limitToLast(1)
       .valueEvents
-      .map { snapshot ->
-        snapshot.children.lastOrNull()?.value<MessageEntity>()
-      }
+      .map { snapshot -> snapshot.children.lastOrNull()?.value<MessageEntity>() }
   }
 
   fun observePresence(chatId: String): Flow<Map<String, Boolean>> {
@@ -362,14 +272,8 @@ class ChatRepository(
           val uid = child.key ?: ""
           val isOnline = try {
             val onlineChild = child.child("online")
-            if (onlineChild.exists) {
-              onlineChild.value<Boolean?>() ?: false
-            } else {
-              false
-            }
-          } catch (e: Exception) {
-            false
-          }
+            if (onlineChild.exists) onlineChild.value<Boolean?>() ?: false else false
+          } catch (e: Exception) { false }
           uid to isOnline
         }
       }
@@ -379,16 +283,10 @@ class ChatRepository(
     if (_realtime == null) return Result.failure(Exception("Realtime not ready"))
     return try {
       val ref = realtime.reference("chats/$path")
-      val key = if (message.id.isBlank() || message.id == "init") {
-        ref.push().key ?: ""
-      } else {
-        message.id
-      }
+      val key = if (message.id.isBlank() || message.id == "init") ref.push().key ?: "" else message.id
       ref.child(key).setValue(message.copy(id = key))
       Result.success(Unit)
-    } catch (e: Exception) {
-      Result.failure(e)
-    }
+    } catch (e: Exception) { Result.failure(e) }
   }
 
   suspend fun isChatBranchExists(path: String): Boolean {
@@ -396,9 +294,7 @@ class ChatRepository(
     return try {
       val snapshot = realtime.reference("chats/$path").valueEvents.first()
       snapshot.exists
-    } catch (e: Exception) {
-      false
-    }
+    } catch (e: Exception) { false }
   }
 
   suspend fun markMessagesAsRead(chatId: String, myUid: String) {
@@ -412,9 +308,7 @@ class ChatRepository(
         val isRead = child.child("read").value<Boolean?>() ?: false
         if (!isRead && senderUid != myUid && senderUid != null) {
           val msgKey = child.key
-          if (msgKey != null) {
-            updates["$msgKey/read"] = true
-          }
+          if (msgKey != null) updates["$msgKey/read"] = true
         }
       }
       if (updates.isNotEmpty()) ref.updateChildren(updates)
@@ -430,9 +324,7 @@ class ChatRepository(
 
   suspend fun deleteFileFromStorage(url: String) {
     if (_storage == null) return
-    try {
-      storage.getReferenceFromUrl(url).delete()
-    } catch (e: Exception) { }
+    try { storage.reference(url).delete() } catch (e: Exception) { }
   }
 
   suspend fun setUserOnline(chatId: String, uid: String) {
@@ -467,27 +359,16 @@ class ChatRepository(
     realtime.reference("chat_access/$path").removeValue()
   }
 
-  /**
-   * [addChatParticipant] — Реєстрація користувача у списку доступу до чату квартири.
-   */
   suspend fun addChatParticipant(chatId: String, uid: String) {
     if (_realtime == null) return
     try {
       realtime.reference("chat_access/$chatId/$uid").setValue(true)
-      println("[YkisLogKMP.$className.addChatParticipant]: UID $uid додано до доступу чату $chatId")
-    } catch (e: Exception) {
-      println("[YkisLogKMP.$className.addChatParticipant_ERROR]: ${e.message}")
-    }
+    } catch (e: Exception) { }
   }
 
-  /**
-   * [removeChatParticipant] — Видалення користувача зі списку доступу.
-   */
   suspend fun removeChatParticipant(chatId: String, uid: String) {
     if (_realtime == null) return
-    try {
-      realtime.reference("chat_access/$chatId/$uid").removeValue()
-    } catch (e: Exception) { }
+    try { realtime.reference("chat_access/$chatId/$uid").removeValue() } catch (e: Exception) { }
   }
 
   suspend fun compressImage(path: String): ByteArray = platformCompressImage(path)
@@ -506,9 +387,7 @@ class ChatRepository(
         ref.setValue(newList)
       }
       Result.success(Unit)
-    } catch (e: Exception) {
-      Result.failure(e)
-    }
+    } catch (e: Exception) { Result.failure(e) }
   }
 }
 

@@ -81,13 +81,12 @@ val commonModule = module {
   }
   single<GeminiAiManager> { GeminiCloudProvider(model = get(), localEngine = get()) }
   
-  // ИСПРАВЛЕНО: Безопасное создание ChatRepository без использования get<T?>()
+  // ИСПРАВЛЕНО: Безопасное создание ChatRepository (Функции вызываются динамически в репозитории)
   single {
     ChatRepository(
       _firestore = try { Firebase.firestore } catch (t: Throwable) { null },
       _realtime = try { Firebase.database } catch (t: Throwable) { null },
       _storage = try { Firebase.storage } catch (t: Throwable) { null },
-      _functions = try { Firebase.functions } catch (t: Throwable) { null },
       aiManager = get()
     )
   }

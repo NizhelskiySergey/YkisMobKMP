@@ -43,33 +43,37 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        println("[YkisLogKMP.MessagingService]: Получено Push-уведомление от ${message.from}. Data: ${message.data}")
+        println("[YkisLogKMP.MessagingService]: ПРИШЕЛ ПУШ! От: ${message.from}")
+        println("[YkisLogKMP.MessagingService]: Данные: ${message.data}")
 
-        val title = message.notification?.title ?: message.data["title"] ?: "ЮКІС"
-        val body = message.notification?.body ?: message.data["body"] ?: "Нове повідомлення"
+        // Поддержка и блока notification, и блока data (для универсальности)
+        val title = message.data["title"] ?: message.notification?.title ?: "ЮКІС"
+        val body = message.data["body"] ?: message.notification?.body ?: "Нове повідомлення"
         val chatId = message.data["chatId"]
-        val imageUrl = message.data["imageUrl"] ?: message.notification?.imageUrl?.toString()
-        val activeChat = ChatScreenModel.activeChatIdForNotifications
+        val imageUrl = message.data["image"] ?: message.data["imageUrl"] ?: message.notification?.imageUrl?.toString()
+        
+        // Получаем число для бэйджа
+        val badgeCount = (message.data["badge"]?.toIntOrNull()) 
+                         ?: (message.notification?.notificationCount) 
+                         ?: 0
 
-        println("[YkisLogKMP.MessagingService]: Проверка подавления. В пуше chatId: $chatId, Сейчас открыт: $activeChat")
+        val activeChat = ChatScreenModel.activeChatIdForNotifications
+        println("[YkisLogKMP.MessagingService]: Чат: $chatId, Активен: $activeChat, Badge: $badgeCount")
 
         if (chatId != null && chatId == activeChat) {
-            println("[YkisLogKMP.MessagingService]: Пуш подавлен (Чат $chatId уже открыт)")
+            println("[YkisLogKMP.MessagingService]: Пуш подавлен (Чат уже открыт)")
             return
         }
 
         serviceScope.launch {
-            val bitmap = if (!imageUrl.isNullOrBlank()) {
-                getBitmapFromUrl(imageUrl)
-            } else null
-            
+            val bitmap = if (!imageUrl.isNullOrBlank()) getBitmapFromUrl(imageUrl) else null
             withContext(Dispatchers.Main) {
-                sendNotification(title, body, chatId, bitmap)
+                sendNotification(title, body, chatId, bitmap, badgeCount)
             }
         }
     }
 
-    private fun sendNotification(title: String, body: String, chatId: String?, image: Bitmap? = null) {
+    private fun sendNotification(title: String, body: String, chatId: String?, image: Bitmap? = null, badgeCount: Int = 0) {
         val intent = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             putExtra("chatId", chatId)
@@ -88,6 +92,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
             .setContentText(body)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setNumber(badgeCount) // Передаем число в систему
             .setPriority(NotificationCompat.PRIORITY_HIGH)
 
         if (image != null) {
@@ -106,12 +111,25 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
                 channelId,
                 "Чат повідомлення ЮКІС",
                 NotificationManager.IMPORTANCE_HIGH
-            )
+            ).apply {
+                setShowBadge(true)
+            }
             notificationManager.createNotificationChannel(channel)
         }
 
         val notificationId = chatId?.hashCode() ?: currentTimeMillis().toInt()
         notificationManager.notify(notificationId, notificationBuilder.build())
+
+        // Попытка отправить универсальный сигнал бэйджа для Samsung/Sony
+        if (badgeCount > 0) {
+            try {
+                val badgeIntent = Intent("android.intent.action.BADGE_COUNT_UPDATE")
+                badgeIntent.putExtra("badge_count", badgeCount)
+                badgeIntent.putExtra("badge_count_package_name", packageName)
+                badgeIntent.putExtra("badge_count_class_name", "com.ykis.ykismobkmp.MainActivity")
+                sendBroadcast(badgeIntent)
+            } catch (e: Exception) { }
+        }
     }
 
     private suspend fun getBitmapFromUrl(imageUrl: String): Bitmap? = withContext(Dispatchers.IO) {

@@ -515,21 +515,8 @@ class ChatScreenModel(
             }
         }
         
-        // 2. ОТПРАВКА ПУША
-        println("[YkisLogKMP]: [PUSH_ATTEMPT] Токенов получателей: ${recipientTokens.size}")
-        if (recipientTokens.isNotEmpty() && !_isOpponentOnline.value) {
-            val data = mapOf(
-                "tokens" to recipientTokens,
-                "title" to senderDisplayedName,
-                "body" to text,
-                "chatId" to chatId,
-                "imageUrl" to imageUrl
-            )
-            chatRepo.sendChatNotification(data)
-            println("[YkisLogKMP]: [PUSH_SENT_CALL_SUCCESS]")
-        } else {
-            println("[YkisLogKMP]: [PUSH_SKIP] Причина: ${if(recipientTokens.isEmpty()) "Нет токенов" else "Оппонент ОНЛАЙН"}")
-        }
+        // 2. ОТПРАВКА ПУША (Больше не требуется вызывать вручную - работает триггер в облаке)
+        println("[YkisLogKMP]: [PUSH_INFO] Доставка пуша инициирована триггером базы данных.")
         
         println("[YkisLogKMP]: [FIREBASE_SUCCESS]")
         _messageText.value = ""
