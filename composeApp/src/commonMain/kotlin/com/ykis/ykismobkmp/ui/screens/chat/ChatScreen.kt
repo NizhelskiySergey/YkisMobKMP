@@ -45,13 +45,8 @@ import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.apply_suggestion
-import ykismobkmp.composeapp.generated.resources.cancel
-import ykismobkmp.composeapp.generated.resources.delete_for_everyone
-import ykismobkmp.composeapp.generated.resources.delete_for_me
-import ykismobkmp.composeapp.generated.resources.edit
-import ykismobkmp.composeapp.generated.resources.forward
-import ykismobkmp.composeapp.generated.resources.message_actions_title
+import ykismobkmp.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 
 sealed class ChatItem {
   data class DateHeader(val date: String) : ChatItem()
@@ -231,19 +226,20 @@ fun ChatScreenContent(
     }
   }
 
-  val appBarTitle = remember(baseUIState.osbb, selectedService, selectedServicePrefix, isForwardingMode, baseUIState.userRole, userEntity) {
-    when {
-      isForwardingMode -> "Переслати повідомлення"
-      baseUIState.userRole == UserRole.StandardUser -> {
-        selectedService?.name ?: when(selectedServicePrefix) {
-            "WATER_SERVICE"   -> "КП \"ЮЖВОДОКАНАЛ\""
-            "WARM_SERVICE"    -> "КП тм \"ЮТКЕ\""
-            "GARBAGE_SERVICE" -> "КП \"СПЕЦТРАНС\""
-            else              -> if (baseUIState.osbb.isNotBlank()) baseUIState.osbb else "ОСББ"
+  val appBarTitle = when {
+    isForwardingMode -> "Переслати повідомлення"
+    baseUIState.userRole == UserRole.StandardUser -> {
+      when(selectedServicePrefix) {
+          "WATER_SERVICE"   -> stringResource(Res.string.vodokanal)
+          "WARM_SERVICE"    -> stringResource(Res.string.ytke)
+          "GARBAGE_SERVICE" -> stringResource(Res.string.yzhtrans)
+          else -> {
+              selectedService?.name?.takeIf { it.isNotBlank() } 
+                ?: if (baseUIState.osbb.isNotBlank()) baseUIState.osbb else "Чат"
           }
       }
-      else -> userEntity.displayName?.substringBefore("|")?.trim() ?: "Чат"
     }
+    else -> userEntity.displayName?.substringBefore("|")?.trim() ?: "Чат"
   }
 
   val appBarSubtitle = remember(baseUIState.address, userEntity, isOpponentTyping, baseUIState.userRole) {
@@ -326,27 +322,38 @@ fun ChatScreenContent(
           }
         }
 
-        // 2. ПРОЗРАЧНЫЙ ПЛАВАЮЩИЙ ЗАГОЛОВОК (Telegram Style)
-        val showFloatingDate by remember {
-            derivedStateOf {
-                (listState.isScrollInProgress || listState.firstVisibleItemIndex > 1) && currentVisibleDate != null
-            }
+        // 2. ПЛАВАЮЩИЙ ЗАГОЛОВОК ДАТЫ (Telegram Style)
+        val floatingDate by remember(chatItems) {
+          derivedStateOf {
+            val items = listState.layoutInfo.visibleItemsInfo
+            if (items.isNotEmpty() && chatItems.isNotEmpty()) {
+              val topVisible = items.maxByOrNull { it.index }
+              topVisible?.let { info ->
+                val actualIdx = info.index - 1
+                if (actualIdx in chatItems.indices) {
+                  when (val data = chatItems[actualIdx]) {
+                    is ChatItem.DateHeader -> data.date
+                    is ChatItem.MessageItem -> com.ykis.ykismobkmp.core.utils.formatDateFull(data.message.timestamp)
+                  }
+                } else null
+              }
+            } else null
+          }
         }
-        val alpha by animateFloatAsState(if (showFloatingDate) 1f else 0f)
 
-        if (alpha > 0f) {
-           Surface(
-              color = Color.Black.copy(alpha = 0.4f * alpha), // Чуть темнее для видимости
-              shape = RoundedCornerShape(16.dp),
-              modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp)
-           ) {
-              Text(
-                  text = currentVisibleDate ?: "",
-                  modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                  style = MaterialTheme.typography.labelMedium,
-                  color = Color.White.copy(alpha = alpha)
-              )
-           }
+        // 2. ПОСТОЯННО ВИДИМЫЙ ПЛАВАЮЩИЙ ЗАГОЛОВОК ДАТЫ
+        Surface(
+           color = Color.Black.copy(alpha = 0.4f), // Постоянная полупрозрачность
+           shape = RoundedCornerShape(16.dp),
+           modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
+           tonalElevation = 4.dp
+        ) {
+           Text(
+               text = floatingDate ?: "Загрузка...",
+               modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+               style = MaterialTheme.typography.labelSmall,
+               color = Color.White
+           )
         }
       }
 
