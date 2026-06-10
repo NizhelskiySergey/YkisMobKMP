@@ -233,6 +233,11 @@ fun ChatScreenContent(
           "WATER_SERVICE"   -> stringResource(Res.string.vodokanal)
           "WARM_SERVICE"    -> stringResource(Res.string.ytke)
           "GARBAGE_SERVICE" -> stringResource(Res.string.yzhtrans)
+          "OSBB" -> {
+              // ИСПРАВЛЕНО: Для жильца с несколькими квартирами всегда берем 
+              // название конкретного ОСББ из активного профиля квартиры
+              baseUIState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "Мій ОСББ"
+          }
           else -> {
               selectedService?.name?.takeIf { it.isNotBlank() } 
                 ?: if (baseUIState.osbb.isNotBlank()) baseUIState.osbb else "Чат"
