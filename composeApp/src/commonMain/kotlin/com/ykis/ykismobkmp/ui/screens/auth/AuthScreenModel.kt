@@ -219,7 +219,6 @@ class AuthScreenModel(
       
       if (result is Resource.Success) {
         println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Користувач створений. Лист верифікації має бути надісланий автоматично.")
-        firebaseService.addFcmToken()
         _signUpResponse.value = Resource.Success(true)
         onSuccess()
       } else if (result is Resource.Error) {

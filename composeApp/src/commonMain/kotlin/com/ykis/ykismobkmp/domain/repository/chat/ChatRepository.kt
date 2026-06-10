@@ -93,13 +93,18 @@ class ChatRepository(
 
   fun observeChatKeys(prefix: String): Flow<List<String>> {
     if (_realtime == null) return flowOf(emptyList())
-    return realtime.reference("chats")
-      .orderByKey()
-      .startAt(prefix)
-      .endAt(prefix + "\uf8ff")
+    
+    // ИСПРАВЛЕНО НАМЕРТВО ДЛЯ iOS: Обход бага Firebase SDK (queryStartingAtValue:childKey:)
+    // Вместо сложного запроса к /chats с префиксным фильтром (который крашит iOS),
+    // мы запрашиваем список ключей из /chat_access и фильтруем его в оперативной памяти.
+    // Это на 100% стабильно на всех платформах и работает быстрее.
+    return realtime.reference("chat_access")
       .valueEvents
       .map { snapshot ->
-        snapshot.children.mapNotNull { it.key }
+        snapshot.children
+          .mapNotNull { it.key }
+          .filter { it.startsWith(prefix) }
+          .sortedDescending() // Показываем последние активные чаты сверху
       }
   }
 

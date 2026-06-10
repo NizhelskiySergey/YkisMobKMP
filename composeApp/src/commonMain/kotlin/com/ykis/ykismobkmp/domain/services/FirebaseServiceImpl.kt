@@ -108,7 +108,8 @@ class FirebaseServiceImpl(
         "displayName" to (currentUser.displayName ?: "Мешканець"),
         "userRole" to "STANDARD_USER",
         "osbbId" to 0L,
-        "addressId" to 0L
+        "addressId" to 0L,
+        "fcmTokens" to emptyList<String>() // Инициализируем пустое поле сразу
       )
 
       db.collection("users").document(currentUid).set(data = userMap, merge = true)

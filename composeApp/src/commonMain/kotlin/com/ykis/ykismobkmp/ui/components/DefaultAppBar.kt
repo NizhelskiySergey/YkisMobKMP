@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 // ИМПОРТЫ НАШИХ УТВЕРЖДЕННЫХ КМР СТАНДАРТОВ YkisMobKMP
+import com.ykis.ykismobkmp.ui.navigation.LocalNavigationType
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
 
 private const val appBarClassName = "DefaultAppBar"
@@ -40,7 +41,7 @@ fun DefaultAppBar(
   onBackClick: () -> Unit = {},
   onDrawerClick: () -> Unit = {},
   canNavigateBack: Boolean = true,
-  navigationType: NavigationType = NavigationType.BOTTOM_NAVIGATION,
+  navigationType: NavigationType = LocalNavigationType.current,
   actionButton: @Composable (() -> Unit)? = null,
 ) {
   // ИСПРАВЛЕНО НАМЕРТВО: Принудительно зажали общую высоту верхнего тулбара до компактных 52.dp!

@@ -7,6 +7,7 @@ import com.ykis.ykismobkmp.core.utils.Resource
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.delay
 import kotlin.coroutines.resume
+
 import platform.UserNotifications.UNUserNotificationCenter
 
 actual suspend fun performPlatformSendSms(
@@ -40,6 +41,7 @@ actual suspend fun performPlatformSignInWithSms(
 }
 
 actual suspend fun getPlatformFcmToken(): String? {
+  // Пытаемся получить реальный токен с несколькими попытками
   repeat(3) { attempt ->
     try {
       println("[YkisLogKMP.FirebaseServiceImpl]: [IOS_FCM] Спроба ${attempt + 1}: Запит токена...")
@@ -50,6 +52,7 @@ actual suspend fun getPlatformFcmToken(): String? {
       val errorMsg = e.message ?: ""
       println("[YkisLogKMP.FirebaseServiceImpl_WARN]: [IOS_FCM] Спроба ${attempt + 1} невдала: $errorMsg")
       
+      // Если это ошибка APNS (505), ждем и пробуем еще раз
       if (errorMsg.contains("505") || errorMsg.contains("APNS")) {
         if (attempt < 2) {
             println("[YkisLogKMP.FirebaseServiceImpl]: [IOS_FCM] Чекаємо 2 сек на реєстрацію APNS...")
@@ -61,6 +64,7 @@ actual suspend fun getPlatformFcmToken(): String? {
     }
   }
 
+  // Если всё равно ошибка 505 (как на симуляторах), возвращаем тестовую метку
   val uid = Firebase.auth.currentUser?.uid?.takeLast(5) ?: "unknown"
   val fallbackToken = "ios_sim_token_$uid"
   println("[YkisLogKMP.FirebaseServiceImpl]: [IOS_FCM_FALLBACK] Симулятор не надав APNS. Використовуємо: $fallbackToken")
@@ -68,11 +72,7 @@ actual suspend fun getPlatformFcmToken(): String? {
 }
 
 actual fun performPlatformClearNotifications(chatId: String?) {
-  try {
-    val center = UNUserNotificationCenter.currentNotificationCenter()
-    center.removeAllDeliveredNotifications()
-    println("[YkisLogKMP.FirebaseServiceImpl]: [IOS_NOTIF_CLEAR] Уведомления очищены.")
-  } catch (e: Exception) {
-      println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: Ошибка очистки: ${e.message}")
-  }
+  val center = UNUserNotificationCenter.currentNotificationCenter()
+  center.removeAllDeliveredNotifications()
+  println("[YkisLogKMP.FirebaseServiceImpl]: [IOS_NOTIF_CLEAR] Уведомления очищены.")
 }

@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.components.EmailField
@@ -34,14 +35,16 @@ fun ContactsCard(
   BaseCard(
     modifier = modifier,
     label = stringResource(Res.string.contacts),
-    actionButton = {
-      IconButton(onClick = { openDialog.value = true }) {
-        Icon(
-          imageVector = Icons.Default.Edit,
-          contentDescription = "Редагувати контакти"
-        )
+    actionButton = if (baseUIState.userRole != UserRole.StandardUser) {
+      {
+        IconButton(onClick = { openDialog.value = true }) {
+          Icon(
+            imageVector = Icons.Default.Edit,
+            contentDescription = "Редагувати контакти"
+          )
+        }
       }
-    }
+    } else null
   ) {
     LabelTextWithTextAndIcon(
       modifier = Modifier.padding(vertical = 2.dp),
