@@ -472,7 +472,7 @@ class ChatScreenModel(
           // ИСПРАВЛЕНО: Теперь для ВСЕХ (и жильца, и админа) передаем пробел в senderAddress.
           // Это гарантирует, что заголовок Пуша будет состоять только из senderDisplayedName 
           // и не будет дублироваться или содержать "Абонент".
-          senderAddress = " ",
+//          senderAddress = " ",
           fromAdmin = !isResident,
           imageUrl = null,
           fileUrl = null,
@@ -490,7 +490,7 @@ class ChatScreenModel(
     senderUid: String,
     senderDisplayedName: String,
     senderLogoUrl: String?,
-    senderAddress: String,
+//    senderAddress: String,
     fromAdmin: Boolean,
     imageUrl: String?,
     fileUrl: String?,
@@ -509,7 +509,7 @@ class ChatScreenModel(
             senderUid = senderUid,
             senderDisplayedName = senderDisplayedName,
             senderLogoUrl = senderLogoUrl,
-            senderAddress = senderAddress,
+//            senderAddress = senderAddress,
             text = text,
             imageUrl = imageUrl,
             fileUrl = fileUrl,
@@ -598,7 +598,7 @@ class ChatScreenModel(
                   senderUid = senderUid,
                   senderDisplayedName = senderDisplayedName,
                   senderLogoUrl = senderLogoUrl,
-                  senderAddress = senderAddress,
+//                  senderAddress = senderAddress,
                   fromAdmin = role != UserRole.StandardUser,
                   imageUrl = if (isImage) url else null,
                   fileUrl = if (!isImage) url else null,
