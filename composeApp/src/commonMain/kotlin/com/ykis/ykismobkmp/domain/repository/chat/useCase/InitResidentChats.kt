@@ -37,17 +37,17 @@ class InitResidentChats(
     scope.launch(Dispatchers.Default) {
       serviceMap.forEach { (prefix, sysId) ->
         val chatPath = "${prefix}_${sysId}_${addressId}"
-        
+
         try {
           // 1. Реєструємо користувача як учасника чату цієї квартири
           chatRepo.addChatParticipant(chatPath, uid)
 
           // 2. Перевіряємо, чи існує вже цей чат в базі
           val isExists = chatRepo.isChatBranchExists(chatPath)
-          
+
           if (!isExists) {
             println("[YkisLogKMP.$className.$methodName]: Чат $chatPath не знайдено. Створення вітального повідомлення.")
-            
+
             val message = MessageEntity(
                 id = "",
                 senderUid = uid,
@@ -57,10 +57,10 @@ class InitResidentChats(
                 timestamp = com.ykis.ykismobkmp.core.utils.currentTimeMillis(),
                 read = false
             )
-            
+
             // 3. Відправляємо повідомлення
             chatRepo.sendMessage(path = chatPath, message = message)
-            
+
             // 4. Інкремент бейджів для адмінів (без вкладених launch для надійності)
             try {
                 val adminUids = chatRepo.fetchAdminsByOsbb(sysId).map { it.uid }.filter { it != uid }
