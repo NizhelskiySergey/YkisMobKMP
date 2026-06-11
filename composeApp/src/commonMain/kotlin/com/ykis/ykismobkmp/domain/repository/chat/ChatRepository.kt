@@ -104,8 +104,9 @@ class ChatRepository(
         snapshot.children
           .mapNotNull { it.key }
           .filter { it.startsWith(prefix) }
-          .sortedDescending() // Показываем последние активные чаты сверху
+          .sortedDescending()
       }
+      .catch { emit(emptyList()) }
   }
 
   suspend fun fetchAdminsByOsbb(osbbId: Long): List<UserEntity> {
@@ -147,32 +148,30 @@ class ChatRepository(
   }
 
   suspend fun incrementUnreadForUids(chatId: String, uids: List<String>) {
-    if (_realtime == null || uids.isEmpty()) {
-        println("[YkisLogKMP.ChatRepository]: Инкремент отменен (Realtime null или список UID пуст)")
-        return
-    }
+    if (_realtime == null || uids.isEmpty()) return
+    
     try {
       val distinctUids = uids.distinct()
-      println("[YkisLogKMP.ChatRepository]: [BADGE_START] Инкремент для чата $chatId. Получатели: $distinctUids")
-      
       distinctUids.forEach { uid ->
-        val userPresenceRef = realtime.reference("presence/$chatId/$uid")
-        val snapshot = userPresenceRef.valueEvents.first()
-        val isOnline = if (snapshot.exists) snapshot.child("online").value<Boolean?>() ?: false else false
+        val presenceRef = realtime.reference("presence/$chatId/$uid/online")
+        val isOnline = try {
+            val snap = presenceRef.valueEvents.first()
+            if (snap.exists) snap.value<Boolean?>() ?: false else false
+        } catch (e: Exception) { false }
         
         if (!isOnline) {
             val unreadRef = realtime.reference("unread_counters/$uid/$chatId")
-            val currentSnapshot = unreadRef.valueEvents.first()
-            val current = if (currentSnapshot.exists) currentSnapshot.value<Int?>() ?: 0 else 0
+            // Проверяем, не удалена ли ветка чата самим жильцом
+            val chatExists = try { realtime.reference("chat_access/$chatId").valueEvents.first().exists } catch(e: Exception) { false }
             
-            println("[YkisLogKMP.ChatRepository]: [BADGE_WRITE] UID $uid: $current -> ${current + 1}")
-            unreadRef.setValue(current + 1)
-        } else {
-            println("[YkisLogKMP.ChatRepository]: [BADGE_SKIP] UID $uid в сети, бэйдж не нужен.")
+            if (chatExists) {
+                unreadRef.setValue(dev.gitlive.firebase.database.ServerValue.increment(1.0))
+                println("[YkisLogKMP.Badge]: +1 для $uid в чаті $chatId")
+            }
         }
       }
     } catch (e: Exception) { 
-        println("[YkisLogKMP.ChatRepository_ERROR]: Ошибка инкремента: ${e.message}")
+        println("[YkisLogKMP.ChatRepository_ERROR]: Помилка атомарного інкременту: ${e.message}")
     }
   }
 
@@ -258,6 +257,7 @@ class ChatRepository(
           }
         }.sortedBy { it.timestamp }
       }
+      .catch { emit(emptyList()) }
   }
 
   fun observeLastMessage(chatUid: String): Flow<MessageEntity?> {
@@ -266,6 +266,7 @@ class ChatRepository(
       .limitToLast(1)
       .valueEvents
       .map { snapshot -> snapshot.children.lastOrNull()?.value<MessageEntity>() }
+      .catch { emit(null) }
   }
 
   fun observePresence(chatId: String): Flow<Map<String, Boolean>> {
@@ -282,6 +283,7 @@ class ChatRepository(
           uid to isOnline
         }
       }
+      .catch { emit(emptyMap()) }
   }
 
   suspend fun sendMessage(path: String, message: MessageEntity): Result<Unit> {

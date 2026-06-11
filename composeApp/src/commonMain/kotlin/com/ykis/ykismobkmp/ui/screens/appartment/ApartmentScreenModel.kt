@@ -271,13 +271,26 @@ class ApartmentScreenModel(
 
         println("[YkisLogKMP.$className.$methodName]: [PROFILE_LOADED] Role: $currentUserRole, ID: $currentOsbbId")
 
+        // ИСПРАВЛЕНО: Формируем официальное название организации для заголовков Пуш-уведомлений
+        val officialOrgName = when (currentUserRole) {
+            UserRole.VodokanalUser -> "KП \"ЮЖВОДОКАНАЛ\""
+            UserRole.YtkeUser      -> "КП тм \"ЮТКЕ\""
+            UserRole.TboUser       -> "КП \"СПЕЦТРАНС\""
+            UserRole.OsbbUser      -> {
+                val rawName = user.name ?: "ОСББ"
+                if (rawName.startsWith("ОСББ", ignoreCase = true)) rawName else "ОСББ \"$rawName\""
+            }
+            else -> user.name ?: ""
+        }
+
         _uiState.update {
           it.copy(
             uid = user.uid,
             userRole = currentUserRole,
             osbbId = currentOsbbId,
             osmdId = currentOsbbId,
-            displayName = user.name ?: ""
+            osbb = officialOrgName, // ГАРАНТИЯ ПРАВИЛЬНОГО ИМЕНИ В BaseUIState
+            displayName = if (officialOrgName.isNotEmpty()) officialOrgName else (user.name ?: "")
           )
         }
 
@@ -348,9 +361,6 @@ class ApartmentScreenModel(
 
           calculatedTarget = target
 
-          val rawOsbb = target.osbb
-          val finalOsbbName = if (rawOsbb.isNullOrBlank() || rawOsbb == "0") name ?: "Мій ОСББ" else rawOsbb
-
           state.copy(
             apartments = combinedApartments,
             apartment = target,
@@ -359,7 +369,9 @@ class ApartmentScreenModel(
             addressId = target.addressId,
             address = target.address,
             osbbId = target.osmdId,
-            osbb = finalOsbbName,
+            // ИСПРАВЛЕНО: Админ сохраняет свое системное имя из BaseUIState (например, ОСББ "Десанту 21"),
+            // не заменяя его на сырое значение из конкретной квартиры.
+            osbb = state.osbb,
             nanim = target.nanim ?: "Власник не вказаний",
             areaFull = target.areaFull.toString(),
             areaOtopl = target.areaOtopl.toString(),

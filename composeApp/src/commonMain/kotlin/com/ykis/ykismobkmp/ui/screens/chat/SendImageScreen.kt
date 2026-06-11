@@ -142,13 +142,21 @@ fun SendImageContent(
         val user = targetUser
 
         val curAddrId = if (role == UserRole.StandardUser) apartmentLiveUiState.addressId else (user?.addressId ?: 0L)
-        val curAddr = if (role == UserRole.StandardUser) (apartmentLiveUiState.address ?: "м. Южне") else (user?.address ?: "Абонент")
+        
+        // ИСПРАВЛЕНО: Убираем дублирование и лишние заглушки для Пуша при отправке фото
+        val senderDisplayName = if (role == UserRole.StandardUser) {
+            apartmentLiveUiState.address ?: ""
+        } else {
+            apartmentLiveUiState.osbb ?: ""
+        }
+        
+        val senderAddress = " " // Используем пробел для всех, чтобы убрать дублирование в заголовке Пуша
 
         chatScreenModel.uploadFileAndSendMessage(
           senderUid = myUid,
-          senderDisplayedName = apartmentLiveUiState.displayName ?: "Користувач",
+          senderDisplayedName = senderDisplayName,
           senderLogoUrl = apartmentLiveUiState.photoUrl,
-          senderAddress = curAddr,
+          senderAddress = senderAddress,
           addressId = curAddrId,
           osbbId = apartmentLiveUiState.osmdId ?: apartmentLiveUiState.osbbId ?: 0L,
           role = role,

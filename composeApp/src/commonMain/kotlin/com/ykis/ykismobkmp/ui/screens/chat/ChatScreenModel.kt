@@ -451,12 +451,14 @@ class ChatScreenModel(
           val chatApt = baseUIState.apartments.find { it.addressId == (user?.addressId ?: baseUIState.addressId) }
           chatApt?.address ?: baseUIState.address
       } else {
-          when (role) {
-            UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
-            UserRole.YtkeUser      -> "КП тм \"ЮТКЕ\""
-            UserRole.TboUser       -> "КП \"СПЕЦТРАНС\""
-            UserRole.OsbbUser      -> baseUIState.osbb.ifBlank { "ОСББ" }
-            else                   -> baseUIState.displayName ?: "Диспетчер"
+          // ИСПОЛЬЗУЕМ osbb ИЗ BaseUIState ДЛЯ АДМИНА
+          baseUIState.osbb.ifBlank {
+              when (role) {
+                UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
+                UserRole.YtkeUser      -> "КП тм \"ЮТКЕ\""
+                UserRole.TboUser       -> "КП \"СПЕЦТРАНС\""
+                else                   -> baseUIState.displayName ?: "ОСББ"
+              }
           }
       }
 
@@ -467,8 +469,11 @@ class ChatScreenModel(
           senderUid = myUid,
           senderDisplayedName = senderName,
           senderLogoUrl = firebaseService.photoUrl,
-          senderAddress = if (isResident) (baseUIState.address) else (user?.address ?: ""),
-          fromAdmin = !isResident, // УСТАНАВЛИВАЕМ РОЛЬ ОТПРАВИТЕЛЯ
+          // ИСПРАВЛЕНО: Теперь для ВСЕХ (и жильца, и админа) передаем пробел в senderAddress.
+          // Это гарантирует, что заголовок Пуша будет состоять только из senderDisplayedName 
+          // и не будет дублироваться или содержать "Абонент".
+          senderAddress = " ",
+          fromAdmin = !isResident,
           imageUrl = null,
           fileUrl = null,
           fileName = null,
@@ -789,13 +794,6 @@ class ChatScreenModel(
           if (chatKeys.isNotEmpty()) {
             subscribeToLastMessages(chatKeys)
             getUsers(chatKeys)
-            
-            // ІСПРАВЛЕНО: Адмін автоматично реєструє себе як учасника у всіх знайдених чатах.
-            // Це дозволяє жильцям нараховувати йому бейджі через chat_access, 
-            // навіть якщо Firestore заблокований для пошуку.
-            chatKeys.forEach { chatId ->
-                launch { chatRepo.addChatParticipant(chatId, myUid) }
-            }
           } else {
             _rawFetchedProfiles.value = emptyList()
           }
