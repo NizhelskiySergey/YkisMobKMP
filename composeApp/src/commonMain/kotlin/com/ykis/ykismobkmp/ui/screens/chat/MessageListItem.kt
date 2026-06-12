@@ -147,10 +147,30 @@ fun MessageListItem(
       // 2. АДРЕС И ИМЯ ОТПРАВИТЕЛЯ (Только для входящих сообщений)
       if (!isFromMe) {
         Column(modifier = Modifier.padding(bottom = 2.dp)) {
-          // АДРЕС ВВЕРХУ (Основной идентификатор)
-          if (!messageEntity.senderAddress.isNullOrBlank() && messageEntity.senderAddress != " ") {
+          val hasAddress = !messageEntity.senderAddress.isNullOrBlank() && messageEntity.senderAddress != " "
+          
+          if (hasAddress) {
+            // АДРЕС ВВЕРХУ (Для сообщений от жильца админу)
             Text(
-              text = messageEntity.senderAddress,
+              text = messageEntity.senderAddress!!,
+              style = MaterialTheme.typography.labelMedium,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.primary,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis
+            )
+            // ФАМИЛИЯ ВНИЗУ (Мелким шрифтом)
+            Text(
+              text = messageEntity.senderDisplayedName,
+              style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+              color = contentColor.copy(alpha = 0.7f),
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis
+            )
+          } else {
+            // ТОЛЬКО ИМЯ/ОРГАНИЗАЦИЯ (Для сообщений от админа жильцу) - ЖИРНЫМ ШРИФТОМ
+            Text(
+              text = messageEntity.senderDisplayedName,
               style = MaterialTheme.typography.labelMedium,
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.primary,
@@ -158,14 +178,6 @@ fun MessageListItem(
               overflow = TextOverflow.Ellipsis
             )
           }
-          // ФАМИЛИЯ ВНИЗУ (Мелким шрифтом)
-          Text(
-            text = messageEntity.senderDisplayedName,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-            color = contentColor.copy(alpha = 0.7f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-          )
         }
       }
 

@@ -43,16 +43,14 @@ data class BaseUIState(
   @SerialName("isApartmentsLoaded") val isApartmentsLoaded: Boolean = false,
   @SerialName("familyList") val familyList: List<FamilyEntity> = emptyList(),
 
-  // --- ИСПРАВЛЕНО НАМЕРТВО: ДОБАВЛЕНЫ ДЕТАЛЬНЫЕ АНКЕТНЫЕ ПОЛЯ БТИ ГИОЦ ---
+
   @SerialName("nanim") val nanim: String? = null,           // ФИО владельца/ответственного нанимателя
   @SerialName("fio") val fio: String = "",                  // НОВОЕ ПОЛЕ: Фамилия из профиля Firestore
   @SerialName("area_full") val areaFull: String? = null,     // Общая площадь жилого помещения в кв.м.
   @SerialName("area_otopl") val areaOtopl: String? = null,   // Отапливаемая площадь жилого помещения
   @SerialName("room") val room: String? = null,               // Количество зарегистрированных комнат
   @SerialName("tenant_tbo") val tenantTbo: String? = null,   // Число прописанных человек (норма ТБО/Воды)
-  // ====================================================================
 
-  // --- 3. ДАННЫЕ АДМИНИСТРАТОРА (ОСББ / Горслужбы г. Южного) ---
   @SerialName("osbbId") val osbbId: Long = 0L, // ID предприятия (9997L - ТБО, 9998L - ЮТКЕ, 9999L - Водоканал)
   @SerialName("osmdId") val osmdId: Long = 0L, // Совместимость со старым API биллинга
   @SerialName("houseId") val houseId: Long = 0L,
@@ -64,7 +62,6 @@ data class BaseUIState(
   @SerialName("searchMode") val searchMode: Boolean = false,
   @SerialName("listMode") val listMode: ListMode = ListMode.APARTMENTS,
 
-  // --- 4. ИНТЕГРАЦИЯ ЧАТ-СИСТЕМЫ И ПУШ-ВЕЛОСИПЕДОВ (YkisMobPAM) ---
   @SerialName("currentChatUid") val currentChatUid: String? = null,
   @SerialName("opponentUid") val opponentUid: String? = null,
   @SerialName("opponentName") val opponentName: String? = null,

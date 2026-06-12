@@ -121,6 +121,8 @@ class ChatScreenModel(
     .map { it != null }
     .stateIn(screenModelScope, SharingStarted.Lazily, false)
 
+  val activeChatPath: String? get() = currentChatPath
+
   private var currentChatPath: String? = null
   private var messageSubscriptionJob: Job? = null
   private var typingStatusJob: Job? = null
@@ -450,6 +452,7 @@ class ChatScreenModel(
     recipientUids: List<String> = emptyList(),
     onComplete: () -> Unit
   ) {
+    println("[YkisLogKMP]: [WRITE_START] Чат: $chatId, Msg: ${_messageText.value}")
     val text = _messageText.value
     _isLoadingAfterSending.value = true
     setUserTyping(false)
@@ -484,6 +487,8 @@ class ChatScreenModel(
   }
 
   fun uploadFileAndSendMessage(
+      filePath: String,
+      chatId: String? = null, // Добавляем необязательный параметр
       senderUid: String,
       senderDisplayedName: String,
       senderLogoUrl: String?,
@@ -494,20 +499,32 @@ class ChatScreenModel(
       recipientTokens: List<String>,
       onComplete: () -> Unit
   ) {
-      val path = _selectedImagePath.value ?: return
-      val targetChatId = currentChatPath ?: return
+      // ИСПРАВЛЕНО: Приоритетно используем переданный chatId, затем текущий, затем реконструируем
+      val targetChatId = chatId ?: currentChatPath ?: getChatPath(role, osbbId, addressId)
+      
+      println("[YkisLogKMP]: [UPLOAD_START] Файл: $filePath, Чат: $targetChatId, Role: $role")
 
       launchCatching {
           _isLoadingAfterSending.value = true
           try {
-              val bytes = chatRepo.readFileAsBytes(path)
-              val isImage = path.lowercase().let { 
+              val bytes = chatRepo.readFileAsBytes(filePath)
+              if (bytes.isEmpty()) {
+                  println("[YkisLogKMP_ERROR]: Файл пуст или не прочитан: $filePath")
+                  return@launchCatching
+              }
+              
+              val isImage = filePath.lowercase().let { 
                   it.endsWith(".jpg") || it.endsWith(".jpeg") || it.endsWith(".png") || it.endsWith(".webp") 
               }
-              val fileName = path.split("/").lastOrNull() ?: "file_${currentTimeMillis()}"
-              val ext = if (isImage) "jpg" else path.substringAfterLast(".", "bin")
+              val fileName = filePath.split("/").lastOrNull() ?: "file_${currentTimeMillis()}"
+              val ext = if (isImage) "jpg" else filePath.substringAfterLast(".", "bin")
+              
+              // Путь в Storage: /chat_files/ID_ОСББ/ID_Квартиры/время.расширение
               val storagePath = "chat_files/${osbbId}/${addressId}/${currentTimeMillis()}.$ext"
+              println("[YkisLogKMP]: [STORAGE_PATH] $storagePath")
+              
               val url = chatRepo.uploadFile(bytes, storagePath)
+              println("[YkisLogKMP]: [UPLOAD_SUCCESS] URL: $url")
 
               writeToDatabaseInternal(
                   chatId = targetChatId,
@@ -519,7 +536,7 @@ class ChatScreenModel(
                   imageUrl = if (isImage) url else null,
                   fileUrl = if (!isImage) url else null,
                   fileName = fileName,
-                  recipientTokens = _recipientTokens.value,
+                  recipientTokens = recipientTokens,
                   recipientUids = _recipientUids.value,
                   onComplete = { 
                       _selectedImagePath.value = null
@@ -527,6 +544,7 @@ class ChatScreenModel(
                   }
               )
           } catch (e: Exception) {
+              println("[YkisLogKMP_ERROR]: Ошибка при загрузке/отправке: ${e.message}")
               logService.logNonFatalCrash(e)
           } finally {
               _isLoadingAfterSending.value = false

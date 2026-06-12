@@ -27,7 +27,8 @@ private const val tag = "SendImageScreen"
 
 class SendImageScreen(
   private val imagePath: String,
-  private val address: String
+  private val address: String,
+  private val chatId: String? = null // Передаем ID чата напрямую
 ) : Screen {
   @Composable
   override fun Content() {
@@ -37,6 +38,7 @@ class SendImageScreen(
     SendImageContent(
       imagePath = imagePath,
       address = address,
+      chatId = chatId,
       navigateBack = {
         navigator.pop()
       },
@@ -49,6 +51,7 @@ class SendImageScreen(
 fun SendImageContent(
   imagePath: String,
   address: String,
+  chatId: String?,
   navigateBack: () -> Unit,
   chatScreenModel: ChatScreenModel
 ) {
@@ -142,7 +145,10 @@ fun SendImageContent(
         val user = targetUser
 
         val curAddrId = if (role == UserRole.StandardUser) apartmentLiveUiState.addressId else (user?.addressId ?: 0L)
-        
+        val curOsbbId = if (role == UserRole.StandardUser) (apartmentLiveUiState.osmdId) else apartmentLiveUiState.osbbId
+
+        println("[YkisLogKMP]: [SEND_IMAGE_CLICK] UID: $myUid, Role: $role, AddrID: $curAddrId, OsbbID: $curOsbbId, ChatID: $chatId")
+
         val (displayName, displayAddr) = if (role == UserRole.StandardUser) {
             val surname = apartmentLiveUiState.nanim ?: ""
             val cleanSurname = if (surname.isNotBlank() && surname != "Мешканець") surname else "Жилець"
@@ -152,12 +158,14 @@ fun SendImageContent(
         }
 
         chatScreenModel.uploadFileAndSendMessage(
+          filePath = imagePath,
+          chatId = chatId,
           senderUid = myUid,
           senderDisplayedName = displayName,
           senderLogoUrl = apartmentLiveUiState.photoUrl,
           senderAddress = displayAddr,
           addressId = curAddrId,
-          osbbId = apartmentLiveUiState.osmdId ?: apartmentLiveUiState.osbbId ?: 0L,
+          osbbId = curOsbbId,
           role = role,
           recipientTokens = user?.tokens ?: emptyList(),
           onComplete = {
