@@ -94,20 +94,21 @@ fun ServiceSelectorContent(
   val announcements = announcementState.announcements
 
   // Локальный чистый КМР-список коммунальных служб города Южного для чат-контура
-  val residentServices = remember {
+  val residentServices = remember(baseUIState.osbbId) {
     val list = mutableListOf<TotalServiceDebt>()
     
-    // ИСПРАВЛЕНО: Для единообразия используем только названия организаций ("ОСББ", "Водоканал" и т.д.)
-    // без привязки к конкретному имени ОСББ текущей квартиры, так как у пользователя может быть много квартир.
-    list.add(
-      TotalServiceDebt(
-        name = "ОСББ",
-        color = Color.Unspecified,
-        debt = 0.0,
-        icon = Icons.Default.CorporateFare,
-        contentDetail = ContentDetail.OSBB
-      )
-    )
+    // ИСПРАВЛЕНО: Кнопка ОСББ добавляется ТОЛЬКО если дом реально привязан к ОСББ (ID != 0)
+    if (baseUIState.osbbId != 0L) {
+        list.add(
+          TotalServiceDebt(
+            name = "ОСББ",
+            color = Color.Unspecified,
+            debt = 0.0,
+            icon = Icons.Default.CorporateFare,
+            contentDetail = ContentDetail.OSBB
+          )
+        )
+    }
     
     list.addAll(
       listOf(

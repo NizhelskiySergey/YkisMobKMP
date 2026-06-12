@@ -36,6 +36,12 @@ class InitResidentChats(
 
     scope.launch(Dispatchers.Default) {
       serviceMap.forEach { (prefix, sysId) ->
+        // ИСПРАВЛЕНО: Если это ОСББ и его ID равен 0, то ветку НЕ создаем
+        if (prefix == "OSBB" && sysId == 0L) {
+            println("[YkisLogKMP.$className.$methodName]: Пропуск ініціалізації чату ОСББ для будинку без ОСББ (ID=0)")
+            return@forEach 
+        }
+
         val chatPath = "${prefix}_${sysId}_${addressId}"
 
         try {
