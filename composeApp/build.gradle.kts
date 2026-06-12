@@ -27,6 +27,8 @@ kotlin {
     iosTarget.binaries.framework {
       baseName = "ComposeApp"
       isStatic = true
+      // ИСПРАВЛЕНО: Устанавливаем минимальную версию iOS для совместимости
+      freeCompilerArgs += listOf("-Xoverride-konan-properties=apple.sdk.iPhoneOS.targetSdkVersion=15.0;apple.sdk.iPhoneSimulator.targetSdkVersion=15.0")
     }
   }
 

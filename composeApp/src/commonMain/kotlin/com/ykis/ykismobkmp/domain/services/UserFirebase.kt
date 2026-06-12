@@ -45,6 +45,9 @@ data class UserFirebase(
   @SerialName("fio")
   val fio: String = "",
 
+  @SerialName("osbb")
+  val osbb: String? = null,
+
   @SerialName("fcmTokens")
   val fcmTokens: List<String>? = emptyList()
 )
@@ -70,6 +73,7 @@ fun UserFirebase.toEntity(): UserEntity {
     // ИСПРАВЛЕНО: Никаких .toInt(). Пробрасываем чистые Long идентификаторы напрямую в UI Entity структуру
     osbbId = this.osbbId,
     addressId = this.addressId,
+    osbb = this.osbb ?: "", // Пробрасываем новое поле название ОСББ
     tokens = this.fcmTokens ?: emptyList()
   )
 }

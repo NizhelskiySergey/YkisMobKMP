@@ -71,8 +71,7 @@ import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.add_appartment
+import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "ApartmentNavigationRail"
 
@@ -162,15 +161,14 @@ fun ApartmentNavigationRail(
           Icon(Icons.Default.Menu, contentDescription = "Menu")
         }
         if (isRailExpanded && isUserAdmin) {
-          val shortName = when (baseUIState.userRole) {
-            UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
-            UserRole.YtkeUser -> "КП тм \"ЮТКЕ\""
-            UserRole.TboUser -> "КП \"СПЕЦТРАНС\""
-            UserRole.OsbbUser -> baseUIState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "ОСББ"
-            else -> ""
+          val title = when (baseUIState.userRole) {
+            UserRole.VodokanalUser -> stringResource(Res.string.vodokanal)
+            UserRole.YtkeUser -> stringResource(Res.string.ytke)
+            UserRole.TboUser -> stringResource(Res.string.yzhtrans)
+            else -> baseUIState.osbb
           }
           Text(
-            text = shortName,
+            text = title,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,

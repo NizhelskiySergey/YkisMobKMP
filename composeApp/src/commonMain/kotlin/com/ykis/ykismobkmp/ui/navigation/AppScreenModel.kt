@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.russhwolf.settings.Settings
+import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
@@ -61,12 +62,21 @@ class AppScreenModel(
 
       // 2. ШАГ №2: Проверка сессии Firebase
       delay(300)
+      
+      // ИСПРАВЛЕНО: Принудительно обновляем статус пользователя через сервер (reload).
+      // Это гарантирует, что если пользователь был удален в консоли Firebase,
+      // приложение не будет использовать "зависший" локальный UID.
+      val reloadResult = firebaseService.reloadFirebaseUser()
       val currentUid = firebaseService.uid
-      val hasActiveUser = firebaseService.isUserAuthenticatedInFirebase && currentUid.isNotBlank()
+      val hasActiveUser = firebaseService.isUserAuthenticatedInFirebase && 
+                         currentUid.isNotBlank() && 
+                         reloadResult is Resource.Success
+
       println("[YkisLogKMP.$className.evaluateStartDestination]: Перевірка авторизації Firebase. Статус: $hasActiveUser, UID: ${currentUid.takeLast(5)}")
 
       if (!hasActiveUser) {
-        println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Сесія недійсна або порожня. Наказ на SignIn.")
+        println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Сесія недійсна, порожня або користувача видалено. Наказ на SignIn.")
+        firebaseService.signOut() // На всякий случай чистим остатки
         _startState.value = AppStartState.SignIn
         return@launch
       }

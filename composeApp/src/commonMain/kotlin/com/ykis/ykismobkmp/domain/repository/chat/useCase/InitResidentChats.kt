@@ -48,11 +48,14 @@ class InitResidentChats(
           if (!isExists) {
             println("[YkisLogKMP.$className.$methodName]: Чат $chatPath не знайдено. Створення вітального повідомлення.")
 
+            // ИСПРАВЛЕНО: senderDisplayedName = Фамилия, senderAddress = Адрес
+            val cleanNanim = if (nanim.isBlank() || nanim == "Мешканець" || nanim == addressText) "Жилець" else nanim
+
             val message = MessageEntity(
                 id = "",
                 senderUid = uid,
                 text = "Вітаю! Чат активовано.",
-                senderDisplayedName = nanim,
+                senderDisplayedName = cleanNanim,
                 senderAddress = addressText,
                 timestamp = com.ykis.ykismobkmp.core.utils.currentTimeMillis(),
                 read = false

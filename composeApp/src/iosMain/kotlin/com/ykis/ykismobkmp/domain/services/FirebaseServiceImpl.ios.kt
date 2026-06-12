@@ -44,8 +44,10 @@ actual suspend fun getPlatformFcmToken(): String? {
     try {
       println("[YkisLogKMP.FirebaseServiceImpl]: [IOS_FCM] Спроба ${attempt + 1}: Запит токена...")
       val token = Firebase.messaging.getToken()
-      println("[YkisLogKMP.FirebaseServiceImpl]: [IOS_FCM] Успіх! Токен отримано.")
-      return token
+      if (!token.isNullOrBlank()) {
+          println("[YkisLogKMP.FirebaseServiceImpl]: [IOS_FCM] Успіх! Токен отримано.")
+          return token
+      }
     } catch (e: Exception) {
       val errorMsg = e.message ?: ""
       println("[YkisLogKMP.FirebaseServiceImpl_WARN]: [IOS_FCM] Спроба ${attempt + 1} невдала: $errorMsg")
@@ -60,11 +62,7 @@ actual suspend fun getPlatformFcmToken(): String? {
       }
     }
   }
-
-  val uid = Firebase.auth.currentUser?.uid?.takeLast(5) ?: "unknown"
-  val fallbackToken = "ios_sim_token_$uid"
-  println("[YkisLogKMP.FirebaseServiceImpl]: [IOS_FCM_FALLBACK] Симулятор не надав APNS. Використовуємо: $fallbackToken")
-  return fallbackToken
+  return null
 }
 
 actual fun performPlatformClearNotifications(chatId: String?) {

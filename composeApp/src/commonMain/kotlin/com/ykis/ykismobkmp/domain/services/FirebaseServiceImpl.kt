@@ -127,12 +127,13 @@ class FirebaseServiceImpl(
     }
   }
 
-  override suspend fun updateUserRoleAndPermissions(uid: String, addressId: Long?, userRole: UserRole, osbbId: Long?, displayName: String?, fio: String?) {
+  override suspend fun updateUserRoleAndPermissions(uid: String, addressId: Long?, userRole: UserRole, osbbId: Long?, displayName: String?, fio: String?, osbb: String?) {
     try {
       val updates = mutableMapOf<String, Any>("userRole" to userRole.getSerialName(), "osbbId" to (osbbId ?: 0L))
       displayName?.let { updates["displayName"] = it }
       addressId?.let { updates["addressId"] = it }
       fio?.let { updates["fio"] = it }
+      osbb?.let { updates["osbb"] = it }
       db.collection("users").document(uid).set(data = updates, merge = true)
     } catch (e: Exception) { }
   }
@@ -148,10 +149,11 @@ class FirebaseServiceImpl(
         userRole = snapshot.get<String>("userRole") ?: UserRole.StandardUser.name,
         osbbId = snapshot.get<Long>("osbbId") ?: snapshot.get<Long>("osbb") ?: 0L,
         addressId = snapshot.get<Long>("addressId") ?: 0L,
-        fio = try { snapshot.get<String>("fio") ?: "" } catch (e: Exception) { "" }
+        fio = try { snapshot.get<String>("fio") ?: "" } catch (e: Exception) { "" },
+        osbb = try { snapshot.get<String>("osbb") ?: "" } catch (e: Exception) { "" }
       )
     } catch (e: Exception) {
-      UserFirebase(uid = uid, email = email, isEmailVerification = false, name = "", userRole = UserRole.StandardUser.name, osbbId = 0L, addressId = 0L)
+      UserFirebase(uid = uid, email = email, isEmailVerification = false, name = "", userRole = UserRole.StandardUser.name, osbbId = 0L, addressId = 0L, osbb = "")
     }
   }
 
@@ -189,8 +191,11 @@ class FirebaseServiceImpl(
           
           val announcementModel: com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementScreenModel = org.koin.mp.KoinPlatform.getKoin().get()
           announcementModel.stopAllListeners()
+
+          val apartmentModel: com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel = org.koin.mp.KoinPlatform.getKoin().get()
+          apartmentModel.clearAllData()
           
-          println("[FirebaseServiceImpl]: Всі слухачі КМР-моделей успішно зупинені.")
+          println("[FirebaseServiceImpl]: Всі слухачі та дані КМР-моделей успішно зупинені та очищені.")
       } catch (e: Exception) {
           println("[FirebaseServiceImpl_WARN]: Помилка при зупинці слухачів: ${e.message}")
       }

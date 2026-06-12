@@ -45,6 +45,7 @@ data class BaseUIState(
 
   // --- ИСПРАВЛЕНО НАМЕРТВО: ДОБАВЛЕНЫ ДЕТАЛЬНЫЕ АНКЕТНЫЕ ПОЛЯ БТИ ГИОЦ ---
   @SerialName("nanim") val nanim: String? = null,           // ФИО владельца/ответственного нанимателя
+  @SerialName("fio") val fio: String = "",                  // НОВОЕ ПОЛЕ: Фамилия из профиля Firestore
   @SerialName("area_full") val areaFull: String? = null,     // Общая площадь жилого помещения в кв.м.
   @SerialName("area_otopl") val areaOtopl: String? = null,   // Отапливаемая площадь жилого помещения
   @SerialName("room") val room: String? = null,               // Количество зарегистрированных комнат

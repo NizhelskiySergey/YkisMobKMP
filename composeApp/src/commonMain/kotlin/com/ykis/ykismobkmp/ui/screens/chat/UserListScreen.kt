@@ -37,9 +37,7 @@ import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.cancel
-import ykismobkmp.composeapp.generated.resources.select_recipient
+import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "UserListScreen"
 class UserListScreen(
@@ -69,17 +67,11 @@ class UserListScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-      val orgFullName = remember(baseUIState.userRole, baseUIState.osbb) {
-        when (baseUIState.userRole) {
-          UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
-          UserRole.YtkeUser -> "КП тм \"ЮТКЕ\""
-          UserRole.TboUser -> "КП \"СПЕЦТРАНС\""
-          UserRole.OsbbUser -> baseUIState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "ОСББ"
-          else -> ""
-        }
-      }
+      val vodokanalTitle = stringResource(Res.string.vodokanal)
+      val ytkeTitle = stringResource(Res.string.ytke)
+      val garbageTitle = stringResource(Res.string.yzhtrans)
 
-      val appBarTitle = remember(baseUIState.userRole, selectedService, orgFullName) {
+      val appBarTitle = remember(baseUIState.userRole, selectedService, baseUIState.osbb, vodokanalTitle, ytkeTitle, garbageTitle) {
         val role = baseUIState.userRole
         val serviceName = selectedService?.name ?: ""
         if (role == UserRole.StandardUser) {
@@ -89,7 +81,12 @@ class UserListScreen(
             serviceName
           }
         } else {
-          orgFullName
+          when (role) {
+            UserRole.VodokanalUser -> vodokanalTitle
+            UserRole.YtkeUser -> ytkeTitle
+            UserRole.TboUser -> garbageTitle
+            else -> baseUIState.osbb
+          }
         }
       }
 

@@ -19,6 +19,7 @@ data class UserEntity(
   val address: String = "",
   val nanim: String = "",
   val fio: String = "",       // НОВОЕ ПОЛЕ: ФИО жильца
+  val osbb: String = "",      // НОВОЕ ПОЛЕ: Название ОСББ / Организации
   val osbbId: Long? = null,   // ИСПРАВЛЕНО: Приведено к типу Long под каноны SQLDelight
   val addressId: Long = 0L,   // ИСПРАВЛЕНО: Приведено к типу Long под каноны SQLDelight
   @kotlinx.serialization.SerialName("fcmTokens")
@@ -44,6 +45,7 @@ fun mapToUserEntity(uid: String, map: Map<String, Any?>): UserEntity {
         ?: (map["email"] as? String),
       email = map["email"] as? String,
       fio = map["fio"] as? String ?: "", // Парсинг нового поля ФИО
+      osbb = map["osbb"] as? String ?: "", // Парсинг нового поля ОСББ
       // ИСПРАВЛЕНО: Извлечение ИД переведено на безопасный Long-парсер
       osbbId = map["osbbId"]?.toSafeLong(),
       addressId = map["addressId"]?.toSafeLong() ?: 0L,

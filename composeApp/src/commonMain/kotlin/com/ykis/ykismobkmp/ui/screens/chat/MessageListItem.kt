@@ -144,16 +144,29 @@ fun MessageListItem(
         }
       }
 
-      // 2. ИМЯ ОТПРАВИТЕЛЯ (Только для входящих сообщений жильцов / диспетчеров)
+      // 2. АДРЕС И ИМЯ ОТПРАВИТЕЛЯ (Только для входящих сообщений)
       if (!isFromMe) {
-        Text(
-          text = messageEntity.senderDisplayedName,
-          style = MaterialTheme.typography.labelMedium,
-          fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colorScheme.primary,
-          maxLines = 1,
-          overflow = TextOverflow.Ellipsis
-        )
+        Column(modifier = Modifier.padding(bottom = 2.dp)) {
+          // АДРЕС ВВЕРХУ (Основной идентификатор)
+          if (!messageEntity.senderAddress.isNullOrBlank() && messageEntity.senderAddress != " ") {
+            Text(
+              text = messageEntity.senderAddress,
+              style = MaterialTheme.typography.labelMedium,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.primary,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis
+            )
+          }
+          // ФАМИЛИЯ ВНИЗУ (Мелким шрифтом)
+          Text(
+            text = messageEntity.senderDisplayedName,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            color = contentColor.copy(alpha = 0.7f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
       }
 
       // 3. ИЗОБРАЖЕНИЕ (ПРИКРЕПЛЕННОЕ ФОТО ПОЛОМКИ / ЗАЯВКИ ГИОЦ)

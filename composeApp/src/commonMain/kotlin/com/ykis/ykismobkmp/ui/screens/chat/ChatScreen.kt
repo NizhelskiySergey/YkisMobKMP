@@ -70,7 +70,8 @@ class ChatScreen(
     LaunchedEffect(chatId, selectedUser?.addressId) {
       val isResident = baseUIState.userRole == UserRole.StandardUser
       val targetAddrId = if (!chatId.isNullOrBlank()) {
-         chatId.split("_").getOrNull(chatId.split("_").size - 2)?.toLongOrNull() ?: 0L
+         // Ключ чата: PREFIX_ID_ADDRESS. addressId - всегда последний элемент.
+         chatId.split("_").lastOrNull()?.toLongOrNull() ?: 0L
       } else {
          selectedUser?.addressId ?: 0L
       }

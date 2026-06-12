@@ -196,11 +196,24 @@ class MainApartmentScreen(
               onDrawerClicked = { if (baseUIState.userRole == UserRole.StandardUser) activeSubModule = "chat_selector" else coroutineScope.launch { drawerState.open() } },
               onUserClicked = { user ->
                 val role = baseUIState.userRole
-                if (role == UserRole.OsbbUser || role == UserRole.StandardUser) apartmentScreenModel.setAddressId(user.addressId)
-                else apartmentScreenModel.getApartment(user.addressId)
                 
-                if (role == UserRole.StandardUser) chatScreenModel.onServiceSelectedForResident(chatScreenModel.selectedServicePrefix.value)
-                chatScreenModel.openChatWithUser(user, role, baseUIState.osbbId ?: 0L)
+                // ШАГ 1: ПЕРЕКЛЮЧАЕМ КОНТЕКСТ ТОЛЬКО ДЛЯ ЖИЛЬЦА И ОСББ
+                // Для коммунальных служб (Водоканал и др.) мы НЕ вызываем setAddressId,
+                // чтобы не ломать их текущую навигацию в Drawer.
+                if (role == UserRole.OsbbUser || role == UserRole.StandardUser) {
+                    apartmentScreenModel.setAddressId(user.addressId)
+                }
+                
+                // ШАГ 2: ОБНОВЛЯЕМ ПРЕФИКС СЛУЖБЫ ДЛЯ ЖИЛЬЦА
+                if (role == UserRole.StandardUser) {
+                    chatScreenModel.onServiceSelectedForResident(chatScreenModel.selectedServicePrefix.value)
+                }
+                
+                // ШАГ 3: ОТКРЫВАЕМ ЧАТ
+                // Для коммунальных служб берем osbbId из стейта (там 9999, 9998 или 9997)
+                val currentOsbbId = apartmentScreenModel.uiState.value.osbbId
+                chatScreenModel.openChatWithUser(user, role, currentOsbbId)
+
                 activeSubModule = "chat_room_active"
               }
             ).Content()
