@@ -1,12 +1,16 @@
 package com.ykis.ykismobkmp.ui.navigation
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import cafe.adriel.voyager.core.annotation.InternalVoyagerApi
 import cafe.adriel.voyager.navigator.internal.BackHandler
 import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import com.ykis.ykismobkmp.core.utils.SnackbarMessage
 import com.ykis.ykismobkmp.core.utils.closeApplication
+import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreenModel
+import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -20,31 +24,41 @@ fun YkisPamApp(
   windowSize: WindowSizeClass,
   displayFeatures: List<Any>
 ) {
-  val (navigationType, contentType) = rememberAdaptiveLayoutType(
-    windowSize = windowSize,
-    displayFeatures = displayFeatures
-  )
-  var lastBackPressTime by remember { mutableStateOf(0L) }
-  val snackbarManager = koinInject<SnackbarManager>()
-  BackHandler(enabled = true) {
-    val currentTime = Clock.System.now().toEpochMilliseconds()
-    if (currentTime - lastBackPressTime < 2000) {
-      println("[YkisLogKMP.$className.BackHandler]: Повторне натискання зафіксовано. Вихід з системи.")
-      closeApplication()
-    } else {
-      lastBackPressTime = currentTime
-      println("[YkisLogKMP.$className.BackHandler]: Перше натискання кнопки Назад. Вивід сповіщення.")
-      snackbarManager.showMessage("Натисніть ще раз для виходу з програми")
+  val settingsModel = koinInject<SettingsScreenModel>()
+  val appTheme by settingsModel.theme.collectAsState()
+
+  YkisPAMTheme(appTheme = appTheme) {
+    Surface(
+      modifier = Modifier.fillMaxSize(),
+      color = MaterialTheme.colorScheme.background
+    ) {
+      val (navigationType, contentType) = rememberAdaptiveLayoutType(
+        windowSize = windowSize,
+        displayFeatures = displayFeatures
+      )
+      var lastBackPressTime by remember { mutableStateOf(0L) }
+      val snackbarManager = koinInject<SnackbarManager>()
+      BackHandler(enabled = true) {
+        val currentTime = Clock.System.now().toEpochMilliseconds()
+        if (currentTime - lastBackPressTime < 2000) {
+          println("[YkisLogKMP.$className.BackHandler]: Повторне натискання зафіксовано. Вихід з системи.")
+          closeApplication()
+        } else {
+          lastBackPressTime = currentTime
+          println("[YkisLogKMP.$className.BackHandler]: Перше натискання кнопки Назад. Вивід сповіщення.")
+          snackbarManager.showMessage("Натисніть ще раз для виходу з програми")
+        }
+      }
+      LaunchedEffect(navigationType, contentType) {
+        println("[YkisLogKMP.$className.YkisPamApp]: Конфігурація геометрії прийнята. Навігація=$navigationType, Контент=$contentType")
+      }
+      RootNavGraph(
+        appState = rememberAppState(),
+        contentType = contentType,
+        navigationType = navigationType
+      )
     }
   }
-  LaunchedEffect(navigationType, contentType) {
-    println("[YkisLogKMP.$className.YkisPamApp]: Конфігурація геометрії прийнята. Навігація=$navigationType, Контент=$contentType")
-  }
-  RootNavGraph(
-    appState = rememberAppState(),
-    contentType = contentType,
-    navigationType = navigationType
-  )
 }
 @Composable
 fun rememberAppState(

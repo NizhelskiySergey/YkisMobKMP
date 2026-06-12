@@ -54,15 +54,13 @@ class MainActivity : ComponentActivity() {
     // Это гарантированно уберет конфликт в SystemProperties
 
     setContent {
-      YkisPAMTheme {
-        // Замеряем окно без try-catch (Compose сам обработает это в рантайме)
-        val windowSizeClass = calculateWindowSizeClass(activity = this)
+      // Замеряем окно без try-catch (Compose сам обработает это в рантайме)
+      val windowSizeClass = calculateWindowSizeClass(activity = this)
 
-        YkisPamAppRoot(
-          windowSize = windowSizeClass,
-          displayFeatures = emptyList()
-        )
-      }
+      YkisPamAppRoot(
+        windowSize = windowSizeClass,
+        displayFeatures = emptyList()
+      )
     }
   }
 

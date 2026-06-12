@@ -4,14 +4,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.ykis.ykismobkmp.ui.navigation.YkisPamApp
+import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreenModel
 import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 import kotlinx.coroutines.delay
+import org.koin.compose.koinInject
 import org.koin.mp.KoinPlatform
 
 @Composable
@@ -32,22 +33,15 @@ fun YkisPamAppRoot(
     isCoreReady = true
   }
 
-  YkisPAMTheme(appTheme = "system") {
-    Surface(
-      modifier = Modifier.fillMaxSize(),
-      color = MaterialTheme.colorScheme.background
-    ) {
-      if (!isCoreReady) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-          CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-        }
-      } else {
-        // ЗАПУСК ОСНОВНОГО ПРИЛОЖЕНИЯ
-        YkisPamApp(
-          windowSize = windowSize,
-          displayFeatures = displayFeatures
-        )
-      }
+  if (!isCoreReady) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+      CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
+  } else {
+    // ЗАПУСК ОСНОВНОГО ПРИЛОЖЕНИЯ
+    YkisPamApp(
+      windowSize = windowSize,
+      displayFeatures = displayFeatures
+    )
   }
 }

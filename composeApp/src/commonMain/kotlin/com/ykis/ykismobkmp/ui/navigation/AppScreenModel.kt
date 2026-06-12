@@ -63,20 +63,29 @@ class AppScreenModel(
       // 2. ШАГ №2: Проверка сессии Firebase
       delay(300)
       
-      // ИСПРАВЛЕНО: Принудительно обновляем статус пользователя через сервер (reload).
-      // Это гарантирует, что если пользователь был удален в консоли Firebase,
-      // приложение не будет использовать "зависший" локальный UID.
-      val reloadResult = firebaseService.reloadFirebaseUser()
-      val currentUid = firebaseService.uid
-      val hasActiveUser = firebaseService.isUserAuthenticatedInFirebase && 
-                         currentUid.isNotBlank() && 
-                         reloadResult is Resource.Success
+      // ИСПРАВЛЕНО: Проверяем наличие локальной сессии ПЕРЕД сетевым запросом
+      val initialUid = firebaseService.uid
+      val isLocallyAuthenticated = firebaseService.isUserAuthenticatedInFirebase && initialUid.isNotBlank()
 
-      println("[YkisLogKMP.$className.evaluateStartDestination]: Перевірка авторизації Firebase. Статус: $hasActiveUser, UID: ${currentUid.takeLast(5)}")
+      if (!isLocallyAuthenticated) {
+          println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Локальна сесія відсутня. Наказ на SignIn.")
+          _startState.value = AppStartState.SignIn
+          return@launch
+      }
 
-      if (!hasActiveUser) {
-        println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Сесія недійсна, порожня або користувача видалено. Наказ на SignIn.")
-        firebaseService.signOut() // На всякий случай чистим остатки
+      // Если локальная сессия есть, пробуем обновить её по сети (для выявления удаленных аккаунтов)
+      println("[YkisLogKMP.$className.evaluateStartDestination]: Спроба оновлення сесії...")
+      firebaseService.reloadFirebaseUser() 
+      
+      // Теперь проверяем статус СНОВА после попытки обновления.
+      // Если аккаунт был удален в консоли, firebaseService.isUserAuthenticatedInFirebase станет false.
+      val isStillAuthenticated = firebaseService.isUserAuthenticatedInFirebase && firebaseService.uid.isNotBlank()
+
+      println("[YkisLogKMP.$className.evaluateStartDestination]: Перевірка після reload. Статус: $isStillAuthenticated")
+
+      if (!isStillAuthenticated) {
+        println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Аккаунт видалено або сесію анульовано сервером. Наказ на SignIn.")
+        firebaseService.signOut()
         _startState.value = AppStartState.SignIn
         return@launch
       }

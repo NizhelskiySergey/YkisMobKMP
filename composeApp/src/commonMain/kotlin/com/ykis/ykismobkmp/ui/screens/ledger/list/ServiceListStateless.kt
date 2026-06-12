@@ -146,13 +146,17 @@ fun <T> ServiceListStateless(
 
 /**
  * [formatDebtKmp] — Кроссплатформенное форматирование вывода копеек общего долга ГИОЦ.
+ * ИСПРАВЛЕНО: Корректная обработка отрицательных чисел (переплат).
  */
 private fun formatDebtKmp(debt: Double): String {
-  val rounded = (debt * 100.0).toLong()
+  val isNegative = debt < 0
+  val absDebt = kotlin.math.abs(debt)
+  val rounded = (absDebt * 100.0 + 0.5).toLong() // Добавляем 0.5 для правильного округления Double
   val mainPart = rounded / 100
   val kopecks = rounded % 100
   val kopecksStr = if (kopecks < 10) "0$kopecks" else "$kopecks"
-  return "$mainPart.$kopecksStr"
+  val sign = if (isNegative) "-" else ""
+  return "$sign$mainPart.$kopecksStr"
 }
 
 /**
