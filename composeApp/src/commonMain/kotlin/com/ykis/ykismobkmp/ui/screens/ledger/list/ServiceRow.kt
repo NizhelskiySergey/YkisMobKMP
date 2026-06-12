@@ -42,11 +42,14 @@ fun ServiceRow(
   icon: ImageVector,
   onClick: () -> Unit
 ) {
-  val rounded = (debt * 100.0).toLong()
+  val isNegative = debt < 0
+  val absDebt = kotlin.math.abs(debt)
+  val rounded = (absDebt * 100.0 + 0.5).toLong()
   val mainPart = rounded / 100
   val kopecks = rounded % 100
   val kopecksStr = if (kopecks < 10) "0$kopecks" else "$kopecks"
-  val formattedDebt = "$mainPart.$kopecksStr"
+  val sign = if (isNegative) "-" else ""
+  val formattedDebt = "$sign$mainPart.$kopecksStr"
 
   Box(
     modifier = modifier
