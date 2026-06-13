@@ -25,10 +25,10 @@ actual fun rememberAdaptiveLayoutType(
         NavigationType.BOTTOM_NAVIGATION to ContentType.SINGLE_PANE
       }
       widthClass == WindowWidthSizeClass.Medium -> {
-        NavigationType.NAVIGATION_RAIL_COMPACT to ContentType.SINGLE_PANE
+        NavigationType.NAVIGATION_RAIL_EXPANDED to ContentType.SINGLE_PANE
       }
       widthClass == WindowWidthSizeClass.Expanded -> {
-        NavigationType.PERMANENT_NAVIGATION_DRAWER to ContentType.DUAL_PANE
+        NavigationType.NAVIGATION_RAIL_EXPANDED to ContentType.DUAL_PANE
       }
       else -> NavigationType.BOTTOM_NAVIGATION to ContentType.SINGLE_PANE
     }

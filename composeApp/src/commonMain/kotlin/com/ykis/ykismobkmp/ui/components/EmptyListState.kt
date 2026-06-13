@@ -42,7 +42,8 @@ fun EmptyListState(
   modifier: Modifier = Modifier,
   useDarkTheme: Boolean = isSystemInDarkTheme(),
   title: String,
-  subtitle: String = ""
+  subtitle: String = "",
+  photoUrl: String? = null // НОВОЕ ПОЛЕ: Опциональный аватар пользователя
 ) {
   // КМР-выбор графической заглушки коробки в зависимости от темы оформления Mac/смартфона
   val paintRes = remember(useDarkTheme) {
@@ -71,14 +72,24 @@ fun EmptyListState(
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.Center
     ) {
-      // ИСПРАВЛЕНО: painterResource адаптирован под KMP-ресурсы JetBrains, удален дублирующийся modifier
-      Image(
-        painter = painterResource(paintRes),
-        contentDescription = "Список порожній",
-        modifier = Modifier
-          .size(140.dp) // Фиксируем красивый читаемый размер коробки на любой ОС
-          .padding(bottom = 16.dp)
-      )
+      if (!photoUrl.isNullOrBlank()) {
+          // ИСПРАВЛЕНО: Если передан URL аватара — показываем его вместо коробки
+          UserImage(
+            photoUrl = photoUrl,
+            modifier = Modifier
+              .size(140.dp)
+              .padding(bottom = 20.dp)
+          )
+      } else {
+          // ИСПРАВЛЕНО: painterResource адаптирован под KMP-ресурсы JetBrains, удален дублирующийся modifier
+          Image(
+            painter = painterResource(paintRes),
+            contentDescription = "Список порожній",
+            modifier = Modifier
+              .size(140.dp) // Фиксируем красивый читаемый размер коробки на любой ОС
+              .padding(bottom = 16.dp)
+          )
+      }
 
       Text(
         text = title,
@@ -106,4 +117,3 @@ fun EmptyListState(
     }
   }
 }
-

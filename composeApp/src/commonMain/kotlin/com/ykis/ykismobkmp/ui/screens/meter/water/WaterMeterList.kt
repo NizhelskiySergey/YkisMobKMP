@@ -33,20 +33,15 @@ import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
+import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
-private const val className = "WaterMeterList"
+import ykismobkmp.composeapp.generated.resources.no_meters
+import ykismobkmp.composeapp.generated.resources.no_water_meters
 
-@Composable
-private fun CenteredProgressIndicator(modifier: Modifier = Modifier) {
-  Box(
-    modifier = modifier.fillMaxSize(),
-    contentAlignment = Alignment.Center
-  ) {
-    CircularProgressIndicator(strokeWidth = 3.dp)
-  }
-}
+private const val className = "WaterMeterList"
 
 @Composable
 fun WaterMeterList(
@@ -60,7 +55,14 @@ fun WaterMeterList(
     label = "WaterMeterListFade"
   ) { isLoading ->
     if (isLoading) {
-      CenteredProgressIndicator()
+      com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator()
+    } else if (meterUIState.waterMeterList.isEmpty()) {
+      // ИСПРАВЛЕНО: Добавлено брендированное состояние с аватаром для пустых списков
+      EmptyListState(
+        title = stringResource(Res.string.no_meters),
+        subtitle = stringResource(Res.string.no_water_meters),
+        photoUrl = meterUIState.photoUrl
+      )
     } else {
       LazyColumn(
         modifier = modifier.fillMaxSize(),

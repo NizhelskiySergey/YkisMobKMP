@@ -111,6 +111,7 @@
   <string name="add_flat_authenticator_сode">За допомогою згенерованого коду</string>
   <string name="list_apartment">Мої квартири</string>
   <string name="list_family">Склад сім\'ї</string>
+  <string name="list_family_empty">У базі даних ЮКИС м.Південне відсутня інформація про зареєстрованих осіб за даною адресою</string>
   <string name="bti">БТІ</string>
   <string name="add_appartment">Прив'язка особового рахунку</string>
   <string name="pick_block">Район</string>
@@ -212,6 +213,7 @@
   //FragmentLabel
   <string name="water_meter">Водяний</string>
   <string name="water_meter_label">Водяний лічільник</string>
+  <string name="water_meter_placeholder">Виберіть лічильник для перегляду деталей споживання ЮКІС</string>
   <string name="heat_meter">Тепловий</string>
   <string name="heat_meter_label">Тепловий лічільник</string>
   <string name="info">Інфо</string>
@@ -344,7 +346,8 @@
   <string name="suspended">Призупинен</string>
   <string name="works">Працює</string>
   <string name="no_meters">Немає лічільників</string>
-  <string name="no_heat_meters">Теплові лічільникі не знайдено</string>
+  <string name="no_heat_meters">За вашою адресою у м.Південне не зафіксовано приладів обліку тепла"</string>
+  <string name="no_water_meters">За вашою адресою у м.Південне не зафіксовано приладів обліку води"</string>
   <string name="date_format">з %1$s до %2$s</string>
   <string name="add_reading_supporting_text">Якщо ви помилково додали показання, то ви зможете видалити їх протягом сьогоднішнього дня</string>
   <string name="log_out">Вийти з акаунту</string>

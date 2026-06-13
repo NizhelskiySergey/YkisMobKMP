@@ -15,16 +15,21 @@ actual fun rememberAdaptiveLayoutType(
 
   return remember(windowSize) {
     val widthClass = windowSize.widthSizeClass
+    val heightClass = windowSize.heightSizeClass
+
+    println("[YkisLogKMP.IOS_LAYOUT]: WidthClass=$widthClass, HeightClass=$heightClass")
 
     when {
       widthClass == WindowWidthSizeClass.Compact -> {
         NavigationType.BOTTOM_NAVIGATION to ContentType.SINGLE_PANE
       }
       widthClass == WindowWidthSizeClass.Medium -> {
-        NavigationType.NAVIGATION_RAIL_COMPACT to ContentType.SINGLE_PANE
+        // На iPad 7 это ПОРТРЕТ (810 dp). Показываем одну панель.
+        NavigationType.NAVIGATION_RAIL_EXPANDED to ContentType.SINGLE_PANE
       }
       widthClass == WindowWidthSizeClass.Expanded -> {
-        NavigationType.PERMANENT_NAVIGATION_DRAWER to ContentType.DUAL_PANE
+        // На iPad 7 это ЛАНДШАФТ (1080 dp). Показываем две панели.
+        NavigationType.NAVIGATION_RAIL_EXPANDED to ContentType.DUAL_PANE
       }
       else -> NavigationType.BOTTOM_NAVIGATION to ContentType.SINGLE_PANE
     }

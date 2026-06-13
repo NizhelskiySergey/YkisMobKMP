@@ -18,17 +18,20 @@ import com.ykis.ykismobkmp.ui.navigation.YkisPamApp
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class, ExperimentalForeignApi::class)
 fun MainViewController(): UIViewController {
     return ComposeUIViewController {
-        // Правильное извлечение размеров из нативной структуры CGRect
-        val dpSize = UIScreen.mainScreen.bounds.useContents {
-            DpSize(size.width.dp, size.height.dp)
+        // ИСПРАВЛЕНО: Используем BoxWithConstraints для реактивного отслеживания поворота экрана
+        androidx.compose.foundation.layout.BoxWithConstraints {
+            val dpSize = DpSize(maxWidth, maxHeight)
+            
+            // Этот код будет перезапускаться при каждом повороте устройства
+            val windowSizeClass = WindowSizeClass.calculateFromSize(dpSize)
+            
+            println("[YkisLogKMP.IOS_ROOT]: Recalculated size: width=${maxWidth}, height=${maxHeight} -> ${windowSizeClass.widthSizeClass}")
+            
+            YkisPamApp(
+                windowSize = windowSizeClass,
+                displayFeatures = emptyList()
+            )
         }
-        
-        val windowSizeClass = WindowSizeClass.calculateFromSize(dpSize)
-        
-        YkisPamApp(
-            windowSize = windowSizeClass,
-            displayFeatures = emptyList()
-        )
     }
 }
 

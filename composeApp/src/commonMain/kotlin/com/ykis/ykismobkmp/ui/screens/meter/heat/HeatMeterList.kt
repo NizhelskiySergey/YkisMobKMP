@@ -35,40 +35,15 @@ import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
+import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.no_heat_meters
+import ykismobkmp.composeapp.generated.resources.no_meters
+import ykismobkmp.composeapp.generated.resources.no_water_meters
+
 private const val className = "HeatMeterList"
-
-@Composable
-private fun CenteredProgressIndicator(modifier: Modifier = Modifier) {
-  Box(
-    modifier = modifier.fillMaxSize(),
-    contentAlignment = Alignment.Center
-  ) {
-    CircularProgressIndicator(strokeWidth = 3.dp)
-  }
-}
-
-@Composable
-private fun EmptyListState(title: String, subtitle: String) {
-  Column(
-    modifier = Modifier.fillMaxSize().padding(24.dp),
-    verticalArrangement = Arrangement.Center,
-    horizontalAlignment = Alignment.CenterHorizontally
-  ) {
-    Text(
-      text = title,
-      style = MaterialTheme.typography.titleMedium,
-      textAlign = TextAlign.Center
-    )
-    Spacer(Modifier.height(8.dp))
-    Text(
-      text = subtitle,
-      style = MaterialTheme.typography.bodyMedium,
-      color = MaterialTheme.colorScheme.outline,
-      textAlign = TextAlign.Center
-    )
-  }
-}
 
 @Composable
 fun HeatMeterList(
@@ -82,11 +57,13 @@ fun HeatMeterList(
     label = "HeatMeterListFade"
   ) { isLoading ->
     if (isLoading) {
-      CenteredProgressIndicator()
+      com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator()
     } else if (meterUIState.heatMeterList.isEmpty()) {
+      // ИСПРАВЛЕНО: Добавлен аватар в состояние пустого списка
       EmptyListState(
-        title = "Лічильники не знайдені",
-        subtitle = "За вашою адресою у місті Южне не зафіксовано приладів обліку тепла"
+        title = stringResource(Res.string.no_meters),
+        subtitle = stringResource(Res.string.no_heat_meters),
+        photoUrl = meterUIState.photoUrl
       )
     } else {
       LazyColumn(

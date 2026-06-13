@@ -21,10 +21,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ykis.ykismobkmp.domain.entity.FamilyEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
+import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.*
+
 private const val className = "FamilyContent"
 
 @Composable
@@ -66,10 +68,19 @@ fun FamilyContent(
       enter = fadeIn(tween(300)),
       exit = fadeOut(tween(300))
     ) {
-      FamilyList(
-        familyList = familyUIState.familyList,
-        modifier = Modifier.fillMaxSize()
-      )
+      if (familyUIState.familyList.isEmpty()) {
+        // ИСПРАВЛЕНО: Если список пуст — выводим брендированное состояние с аватаром ЮКІС
+        EmptyListState(
+          title = "Склад сім'ї не знайдено",
+          subtitle = stringResource(Res.string.list_family_empty),
+          photoUrl = baseUIState.photoUrl
+        )
+      } else {
+        FamilyList(
+          familyList = familyUIState.familyList,
+          modifier = Modifier.fillMaxSize()
+        )
+      }
     }
     if (familyUIState.mainLoading) {
       CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -188,5 +199,3 @@ fun FamilyListItem(
     }
   }
 }
-
-
