@@ -6,47 +6,55 @@ import com.ykis.ykismobkmp.db.DatabaseDriverFactory
 import com.ykis.ykismobkmp.domain.ai.LocalAiEngine
 import org.koin.core.module.Module
 import org.koin.dsl.module
-
-
-private const val className = "AndroidModules"
+import com.ykis.ykismobkmp.db.YkisDatabases
+import com.ykis.ykismobkmp.db.YkisDatabasesQueries
+import com.ykis.ykismobkmp.cash.sqlDelight.ApartmentDao
+import com.ykis.ykismobkmp.cash.sqlDelight.LedgerDao
+import com.ykis.ykismobkmp.cash.sqlDelight.MeterDao
+import com.ykis.ykismobkmp.cash.apartment.ApartmentCache
+import com.ykis.ykismobkmp.cash.apartment.ApartmentCacheImpl
+import com.ykis.ykismobkmp.cash.meter.MeterRepositoryCash
+import com.ykis.ykismobkmp.cash.meter.MeterRepositoryCashImpl
+import com.ykis.ykismobkmp.cash.ledger.LedgerRepositoryCash
+import com.ykis.ykismobkmp.cash.ledger.LedgerRepositoryCashImpl
 
 /**
  * [androidPlatformModule] — Специфический платформенный Android-модуль инжекции контекстов ОС.
- * имя аргумента AppSettingsRepositoryImpl выровнено в строгий стандарт settings = get().
  */
 val androidPlatformModule: Module = module {
+  single<AppSettingsRepository> { AppSettingsRepositoryImpl(settings = get()) }
+  single { LocalAiEngine() }
+}
 
-  // 1. ИСПРАВЛЕНО: Аргумент конструктора переведен на зафиксированный нами КМР-стандарт settings = get()
-  single<AppSettingsRepository> {
-    AppSettingsRepositoryImpl(settings = get())
+/**
+ * [databaseModule] — Android-реализация СУБД.
+ */
+actual val databaseModule: Module = module {
+  single { DatabaseDriverFactory(context = get()) }
+  
+  single<YkisDatabases> {
+    YkisDatabases(get<DatabaseDriverFactory>().createDriver())
   }
 
-  // 2. Нативный драйвер локального кэша СУБД SQLDelight для Android-устройств
-  single {
-    DatabaseDriverFactory(context = get())
-  }
+  single<YkisDatabasesQueries> { get<YkisDatabases>().ykisDatabasesQueries }
 
-  // 3. Локальный оффлайн-движок искусственного интеллекта
-  single {
-    LocalAiEngine()
-  }
+  single { ApartmentDao(get<YkisDatabasesQueries>()) }
+  single { MeterDao(get<YkisDatabasesQueries>()) }
+  single { LedgerDao(get<YkisDatabasesQueries>()) }
+
+  single<ApartmentCache> { ApartmentCacheImpl(apartmentDao = get()) }
+  single<MeterRepositoryCash> { MeterRepositoryCashImpl(meterDao = get()) }
+  single<LedgerRepositoryCash> { LedgerRepositoryCashImpl(ledgerDao = get()) }
 }
 
 /**
  * [initAndroidKoin] — Точка нативного пускового старта DI-графа на уровне MainActivity.kt.
- * ИСПРАВЛЕНО: Контекст приложения регистрируется в первую очередь, предотвращая NoDefinitionFoundException.
  */
 fun initAndroidKoin(context: Context) {
-  println("[$className.initAndroidKoin]: Сборка платформенного Android-модуля и инкапсуляция контекстов ОС")
-
   initKoin(
     platformModule = module {
-      // Регистрируем нативный контекст операционной системы Android
       single<Context> { context }
-
-      // Безопасно включаем дочерний андроид-модуль репозиториев
       includes(androidPlatformModule)
     }
   )
 }
-

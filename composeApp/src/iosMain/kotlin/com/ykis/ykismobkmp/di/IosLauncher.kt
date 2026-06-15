@@ -13,6 +13,17 @@ import org.koin.dsl.module
 import platform.Foundation.NSUserDefaults
 import kotlin.experimental.ExperimentalObjCName
 import kotlin.native.ObjCName
+import com.ykis.ykismobkmp.db.YkisDatabases
+import com.ykis.ykismobkmp.db.YkisDatabasesQueries
+import com.ykis.ykismobkmp.cash.sqlDelight.ApartmentDao
+import com.ykis.ykismobkmp.cash.sqlDelight.LedgerDao
+import com.ykis.ykismobkmp.cash.sqlDelight.MeterDao
+import com.ykis.ykismobkmp.cash.apartment.ApartmentCache
+import com.ykis.ykismobkmp.cash.apartment.ApartmentCacheImpl
+import com.ykis.ykismobkmp.cash.meter.MeterRepositoryCash
+import com.ykis.ykismobkmp.cash.meter.MeterRepositoryCashImpl
+import com.ykis.ykismobkmp.cash.ledger.LedgerRepositoryCash
+import com.ykis.ykismobkmp.cash.ledger.LedgerRepositoryCashImpl
 
 /**
  * [iosPlatformModule] — Граф нативных зависимостей для iPhone и Симуляторов.
@@ -22,12 +33,30 @@ val iosPlatformModule: Module = module {
     NSUserDefaultsSettings(NSUserDefaults.standardUserDefaults)
   }
   single<AppSettingsRepository> {
-    AppSettingsRepositoryImpl( get())
+    AppSettingsRepositoryImpl(get())
   }
+  single { LocalAiEngine() }
+}
+
+/**
+ * [databaseModule] — iOS-реализация СУБД.
+ */
+actual val databaseModule: Module = module {
   single { DatabaseDriverFactory() }
   
-  // ИСПРАВЛЕНО: Добавляем локальный AI движок Apple Core ML
-  single { LocalAiEngine() }
+  single<YkisDatabases> {
+    YkisDatabases(get<DatabaseDriverFactory>().createDriver())
+  }
+
+  single<YkisDatabasesQueries> { get<YkisDatabases>().ykisDatabasesQueries }
+
+  single { ApartmentDao(get<YkisDatabasesQueries>()) }
+  single { MeterDao(get<YkisDatabasesQueries>()) }
+  single { LedgerDao(get<YkisDatabasesQueries>()) }
+
+  single<ApartmentCache> { ApartmentCacheImpl(apartmentDao = get()) }
+  single<MeterRepositoryCash> { MeterRepositoryCashImpl(meterDao = get()) }
+  single<LedgerRepositoryCash> { LedgerRepositoryCashImpl(ledgerDao = get()) }
 }
 
 /**
@@ -37,11 +66,7 @@ val iosPlatformModule: Module = module {
 @ObjCName("AppInitializer")
 class AppInitializer {
     fun run() {
-        // Инициализируем Napier для логов в Xcode
         Napier.base(DebugAntilog())
-
-        initKoin(
-            platformModule = iosPlatformModule
-        )
+        initKoin(platformModule = iosPlatformModule)
     }
 }

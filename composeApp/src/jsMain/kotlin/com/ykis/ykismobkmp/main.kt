@@ -8,7 +8,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import kotlinx.browser.document // Прямой доступ к DOM-дереву браузера
 import org.khronos.webgl.WebGLRenderingContext
-import com.ykis.ykismobkmp.di.initKoin
+import com.ykis.ykismobkmp.di.initJsKoin
 
 /**
  * [main] — Пусковая точка входа JavaScript-движка для браузерной Web-версии ЮКИС.
@@ -16,8 +16,8 @@ import com.ykis.ykismobkmp.di.initKoin
  */
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
 fun main() {
-  // 1. Аппаратно инициализируем Koin на холодном старте браузерной вкладки
-  initKoin()
+  // 1. Аппаратно инициализируем Koin через специализированный Web-инициализатор
+  initJsKoin()
 
   // Находим HTML-элемент холста на веб-странице твоегоindex.html (например, <body id="ykis-app-body">)
   // РЕШЕНИЕ: Нативно передаем DOM-элемент напрямую внутрь ComposeViewport API
@@ -32,8 +32,7 @@ fun main() {
       // Вызываем наше зафиксированное корневое ядро интерфейса ЮКИС г. Южный
       YkisPamAppRoot(
         windowSize = webWindowSizeClass,
-        displayFeatures = emptyList(),
-        initialChatId = null // В веб-интерфейсе глубокая пуш-навигация отсутствует
+        displayFeatures = emptyList()
       )
     }
   } else {

@@ -36,6 +36,7 @@ kotlin {
 
   js(IR) {
     outputModuleName.set("composeApp")
+    useEsModules()
 
     browser {
       commonWebpackConfig {
@@ -45,7 +46,6 @@ kotlin {
           open = true,
           port = 8081
         )
-
       }
     }
     binaries.executable()
@@ -179,12 +179,19 @@ kotlin {
     // Блок для обычного JS (раз Wasm отключен)
     val jsMain by getting {
       dependencies {
+        implementation(kotlin("stdlib"))
         // Официальный JS-клиент Ktor для сетевых запросов ГИОЦ
         implementation(libs.ktor.client.js)
 
-        // Обязательные UI-компоненты Skiko для запуска Compose Multiplatform в браузере
-        implementation(compose.runtime)
-        implementation(compose.html.core)
+        // Обязательные UI-компоненты для запуска Compose Multiplatform в браузере
+        implementation(libs.compose.runtime)
+        implementation(libs.compose.foundation)
+        implementation(libs.compose.material3)
+        implementation(libs.compose.ui)
+
+        // SQLDelight драйвер для Web
+        implementation(libs.sqldelight.web)
+        implementation(npm("sql.js", "1.10.3"))
       }
     }
   }
@@ -224,7 +231,7 @@ sqldelight {
   databases {
     create("YkisDatabases") {
       packageName.set("com.ykis.ykismobkmp.db")
-//      generateAsync.set(false)
+      generateAsync.set(true)
     }
   }
 }

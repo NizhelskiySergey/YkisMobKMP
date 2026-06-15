@@ -21,3 +21,7 @@ actual class DatabaseDriverFactory {
     return driver
   }
 }
+
+actual fun getInternalDriver(queries: Any): SqlDriver {
+    error("Not used on JVM")
+}

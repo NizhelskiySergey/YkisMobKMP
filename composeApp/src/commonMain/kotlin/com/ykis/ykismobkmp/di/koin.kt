@@ -60,7 +60,14 @@ val commonModule = module {
   single {
     HttpClient {
       install(ContentNegotiation) {
-        json(Json { ignoreUnknownKeys = true; isLenient = true; encodeDefaults = true; prettyPrint = true })
+        json(Json { 
+          ignoreUnknownKeys = true 
+          isLenient = true 
+          encodeDefaults = true 
+          prettyPrint = true
+          coerceInputValues = true
+          allowSpecialFloatingPointValues = true
+        })
       }
       install(Logging) {
         logger = object : Logger { override fun log(message: String) { println("[YkisLogKMP.Network]: $message") } }
@@ -73,7 +80,6 @@ val commonModule = module {
   single { KtorApiService(get()) }
   single { SnackbarManager }
   single { LogService() }
-  single<com.russhwolf.settings.Settings> { com.russhwolf.settings.Settings() }
 
   // Инициализация Gemini
   single {
@@ -81,7 +87,7 @@ val commonModule = module {
   }
   single<GeminiAiManager> { GeminiCloudProvider(model = get(), localEngine = get()) }
   
-  // ИСПРАВЛЕНО: Безопасное создание ChatRepository (Функции вызываются динамически в репозитории)
+  // Безопасное создание ChatRepository
   single {
     ChatRepository(
       _firestore = try { Firebase.firestore } catch (t: Throwable) { null },
@@ -91,7 +97,8 @@ val commonModule = module {
     )
   }
 
-  single<FirebaseService> { FirebaseServiceImpl(settings = get()) }
+  // РЕШЕНИЕ: FirebaseService регистрируется в платформенных модулях (actual)
+  // для гибкости настроек Auth.
 
   // Репозитории
   single<ApartmentRemote> { ApartmentRemoteImpl(ktorApiService = get()) }
@@ -103,24 +110,9 @@ val commonModule = module {
 }
 
 /**
- * [databaseModule] — СУБД SQLDelight.
+ * [databaseModule] — Ожидаемый модуль СУБД для платформенной реализации.
  */
-val databaseModule = module {
-  single<YkisDatabases> {
-    val driverFactory = get<com.ykis.ykismobkmp.db.DatabaseDriverFactory>()
-    YkisDatabases(driverFactory.createDriver())
-  }
-
-  single<YkisDatabasesQueries> { get<YkisDatabases>().ykisDatabasesQueries }
-
-  single { ApartmentDao(get<YkisDatabasesQueries>()) }
-  single { MeterDao(get<YkisDatabasesQueries>()) }
-  single { LedgerDao(get<YkisDatabasesQueries>()) }
-
-  single<ApartmentCache> { ApartmentCacheImpl(apartmentDao = get()) }
-  single<MeterRepositoryCash> { MeterRepositoryCashImpl(meterDao = get()) }
-  single<LedgerRepositoryCash> { LedgerRepositoryCashImpl(ledgerDao = get()) }
-}
+expect val databaseModule: Module
 
 fun initKoin(platformModule: Module = module {}, appDeclaration: KoinAppDeclaration = {}) {
   if (KoinPlatform.getKoinOrNull() != null) return

@@ -1,6 +1,8 @@
 package com.ykis.ykismobkmp.cash.sqlDelight
 
 import com.ykis.ykismobkmp.db.YkisDatabasesQueries
+import app.cash.sqldelight.async.coroutines.awaitAsList
+import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
 import com.ykis.ykismobkmp.domain.entity.HeatReadingEntity
 import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
@@ -15,14 +17,11 @@ import com.ykis.ykismobkmp.domain.mapper.toDomainWaterMeter
 import com.ykis.ykismobkmp.domain.mapper.toDomainWaterReading
 
 /**
- * [MeterDao] — КМР-класс доступа к сгенерированному интерфейсу запросов SQLDelight 2.x для счетчиков тепла и воды.
- * ИСПРАВЛЕНО: Префикс логирования изменен на YkisLogKMP.
+ * [MeterDao] — КМР-класс доступа к запросам SQLDelight.
  */
 class MeterDao(
   private val dbQueries: YkisDatabasesQueries
 ) {
-  private val className = "MeterDao"
-
   suspend fun insertHeatMeter(heatMeters: List<HeatMeterEntity>) {
     dbQueries.transaction {
       heatMeters.forEach { meter ->
@@ -32,7 +31,9 @@ class MeterDao(
   }
 
   suspend fun getHeatMetersByApartment(addressId: Long): List<HeatMeterEntity> {
-    return dbQueries.getHeatMetersByApartment(addressId).executeAsList().map { it.toDomainHeatMeter() }
+    return dbQueries.getHeatMetersByApartment(addressId)
+      .awaitAsList()
+      .map { it.toDomainHeatMeter() }
   }
 
   suspend fun deleteHeatMetersByApartment(addressId: Long) {
@@ -54,11 +55,15 @@ class MeterDao(
   }
 
   suspend fun getHeatReadingsByMeter(teplomerId: Long): List<HeatReadingEntity> {
-    return dbQueries.getHeatReadingsByMeter(teplomerId).executeAsList().map { it.toDomainHeatReading() }
+    return dbQueries.getHeatReadingsByMeter(teplomerId)
+      .awaitAsList()
+      .map { it.toDomainHeatReading() }
   }
 
   suspend fun getLastHeatReadingByMeter(pokId: Long): HeatReadingEntity? {
-    return dbQueries.getLastHeatReadingByMeter(pokId).executeAsOneOrNull()?.toDomainHeatReading()
+    return dbQueries.getLastHeatReadingByMeter(pokId)
+      .awaitAsOneOrNull()
+      ?.toDomainHeatReading()
   }
 
   suspend fun deleteHeatReadingsByMeter(teplomerId: Long) {
@@ -82,7 +87,9 @@ class MeterDao(
   }
 
   suspend fun getWaterMetersByApartment(addressId: Long): List<WaterMeterEntity> {
-    return dbQueries.getWaterMetersByApartment(addressId).executeAsList().map { it.toDomainWaterMeter() }
+    return dbQueries.getWaterMetersByApartment(addressId)
+      .awaitAsList()
+      .map { it.toDomainWaterMeter() }
   }
 
   suspend fun deleteWaterMetersByApartment(addressId: Long) {
@@ -104,11 +111,15 @@ class MeterDao(
   }
 
   suspend fun getWaterReadingsByMeter(vodomerId: Long): List<WaterReadingEntity> {
-    return dbQueries.getWaterReadingsByMeter(vodomerId).executeAsList().map { it.toDomainWaterReading() }
+    return dbQueries.getWaterReadingsByMeter(vodomerId)
+      .awaitAsList()
+      .map { it.toDomainWaterReading() }
   }
 
   suspend fun getLastWaterReadingByMeter(pokId: Long): WaterReadingEntity? {
-    return dbQueries.getLastWaterReadingByMeter(pokId).executeAsOneOrNull()?.toDomainWaterReading()
+    return dbQueries.getLastWaterReadingByMeter(pokId)
+      .awaitAsOneOrNull()
+      ?.toDomainWaterReading()
   }
 
   suspend fun deleteWaterReadingsByMeter(vodomerId: Long) {
@@ -126,7 +137,6 @@ class MeterDao(
   suspend fun deleteWaterReadingByApartment(addressId: Long) {
     dbQueries.transaction {
       dbQueries.deleteWaterMetersByApartment(addressId)
-      println("[YkisLogKMP.$className.deleteWaterReadingByApartment]: Кэш счётчиков воды очищен для ID: $addressId")
     }
   }
 

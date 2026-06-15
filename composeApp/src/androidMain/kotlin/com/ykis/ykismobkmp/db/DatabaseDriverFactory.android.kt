@@ -19,3 +19,7 @@ actual class DatabaseDriverFactory(private val context: Context) {
     )
   }
 }
+
+actual fun getInternalDriver(queries: Any): SqlDriver {
+    error("Not used on Android")
+}

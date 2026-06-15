@@ -1,6 +1,8 @@
 package com.ykis.ykismobkmp.cash.sqlDelight
 
 import com.ykis.ykismobkmp.db.YkisDatabasesQueries
+import app.cash.sqldelight.async.coroutines.awaitAsList
+import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.entity.FamilyEntity
 import com.ykis.ykismobkmp.domain.entity.RaionEntity
@@ -15,14 +17,12 @@ import com.ykis.ykismobkmp.domain.mapper.toDomainHouse
 import com.ykis.ykismobkmp.domain.mapper.toDomainRaion
 
 /**
- * [ApartmentDao] — КМР-класс доступа к сгенерированному интерфейсу запросов SQLDelight 2.x.
- * ИСПРАВЛЕНО: Префикс логирования изменен на YkisLogKMP.
+ * [ApartmentDao] — КМР-класс доступа к запросам SQLDelight.
+ * ИСПРАВЛЕНО: Полная поддержка асинхронного режима для всех платформ.
  */
 class ApartmentDao(
   private val dbQueries: YkisDatabasesQueries
 ) {
-  private val className = "ApartmentDao"
-
   suspend fun insertApartments(apartments: List<ApartmentEntity>) {
     dbQueries.transaction {
       apartments.forEach { apartment ->
@@ -57,15 +57,21 @@ class ApartmentDao(
   }
 
   suspend fun getFlatById(addressId: Long): ApartmentEntity? {
-    return dbQueries.getFlatById(addressId).executeAsOneOrNull()?.toDomainApartment()
+    return dbQueries.getFlatById(addressId)
+      .awaitAsOneOrNull()
+      ?.toDomainApartment()
   }
 
   suspend fun getApartmentList(): List<ApartmentEntity> {
-    return dbQueries.getApartmentList().executeAsList().map { it.toDomainApartment() }
+    return dbQueries.getApartmentList()
+      .awaitAsList()
+      .map { it.toDomainApartment() }
   }
 
   suspend fun getRaionList(): List<RaionEntity> {
-    return dbQueries.getRaionList().executeAsList().map { it.toDomainRaion() }
+    return dbQueries.getRaionList()
+      .awaitAsList()
+      .map { it.toDomainRaion() }
   }
 
   suspend fun syncRaionList(raions: List<RaionEntity>) {
@@ -78,7 +84,9 @@ class ApartmentDao(
   }
 
   suspend fun getHousesByRaion(raionId: Long): List<HouseEntity> {
-    return dbQueries.getHousesByRaion(raionId).executeAsList().map { it.toDomainHouse() }
+    return dbQueries.getHousesByRaion(raionId)
+      .awaitAsList()
+      .map { it.toDomainHouse() }
   }
 
   suspend fun syncHouseList(houses: List<HouseEntity>) {
@@ -94,24 +102,19 @@ class ApartmentDao(
   }
 
   suspend fun getFamilyByApartment(addressId: Long): List<FamilyEntity> {
-    return dbQueries.getFamilyByApartment(addressId).executeAsList().map { it.toDomainFamily() }
+    return dbQueries.getFamilyByApartment(addressId)
+      .awaitAsList()
+      .map { it.toDomainFamily() }
   }
 
   suspend fun syncFamilyList(addressId: Long, familyList: List<FamilyEntity>) {
-    if (addressId <= 0L) {
-      println("[YkisLogKMP.$className.syncFamilyList]: [ABORT] Попытка вызова с невалидным addressId=$addressId")
-      return
-    }
-
+    if (addressId <= 0L) return
     dbQueries.transaction {
       dbQueries.deleteFamilyByAddressId(addressId)
-      println("[YkisLogKMP.$className.syncFamilyList]: Локальный кэш семьи зачищен для квартиры ID=$addressId")
-
       if (familyList.isNotEmpty()) {
         familyList.forEach { member ->
           dbQueries.insertFamily(member.toDbFamily())
         }
-        println("[YkisLogKMP.$className.syncFamilyList]: Записано ${familyList.size} новых членов семьи в SQLDelight")
       }
     }
   }
@@ -133,7 +136,6 @@ class ApartmentDao(
       addressIds.forEach { id ->
         dbQueries.deleteFamilyByAddressId(id)
       }
-      println("[YkisLogKMP.$className.deleteFamilyByApartment]: Успешно зачищен кэш семей для пачки ID: $addressIds")
     }
   }
 }

@@ -11,6 +11,11 @@ expect class DatabaseDriverFactory {
 }
 
 /**
+ * [getInternalDriver] — Вспомогательная функция для доступа к защищенному драйверу SQLDelight.
+ */
+expect fun getInternalDriver(queries: Any): SqlDriver
+
+/**
  * [LocalAiEngine] — Локальный автономный движок искусственного интеллекта.
  */
 class LocalAiEngine {

@@ -26,3 +26,7 @@ actual class DatabaseDriverFactory {
     }
   }
 }
+
+actual fun getInternalDriver(queries: Any): SqlDriver {
+    error("Not used on iOS")
+}
