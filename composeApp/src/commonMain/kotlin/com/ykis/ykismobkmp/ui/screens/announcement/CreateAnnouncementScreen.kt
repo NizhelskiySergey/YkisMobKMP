@@ -3,6 +3,7 @@ package com.ykis.ykismobkmp.ui.screens.announcement
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CameraAlt
@@ -16,6 +17,7 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.core.utils.rememberFilePicker
+import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.CameraScreenDest
 import com.ykis.ykismobkmp.ui.navigation.CameraTarget
@@ -65,6 +67,26 @@ class CreateAnnouncementScreen : Screen {
                     label = { Text("Текст оголошення") },
                     modifier = Modifier.fillMaxWidth().height(200.dp)
                 )
+
+                // ДОДАНО: Візуалізація адресата перед публікацією
+                val recipientText = when (baseUIState.userRole) {
+                    UserRole.OsbbUser -> "🏠 Одержувачі: Мешканці вашого ОСББ (${baseUIState.osbb})"
+                    UserRole.VodokanalUser, UserRole.YtkeUser, UserRole.TboUser -> "📍 Одержувачі: Усі мешканці міста (Глобально)"
+                    else -> "Одержувачі: Невизначено"
+                }
+
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = recipientText,
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
 
                 // БЛОК ВЛОЖЕНИЙ
                 Row(

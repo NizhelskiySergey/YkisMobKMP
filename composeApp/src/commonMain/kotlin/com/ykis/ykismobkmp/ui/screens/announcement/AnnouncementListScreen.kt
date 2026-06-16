@@ -261,6 +261,16 @@ fun AnnouncementItem(
         }
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
+            // ДОДАНО: Інформація про адресата оголошення
+            Text(
+                text = if (item.osbbId == 0L) "📍 Усім мешканцям міста" else "🏠 Мешканцям ${item.authorName}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                fontWeight = FontWeight.Medium
+            )
+            
+            Spacer(modifier = Modifier.height(6.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

@@ -229,14 +229,19 @@ class ChatRepository(
           announcement.copy(timestamp = timestamp)
       }
       
-      // На самом деле, лучше просто передать Map в add() для Web
+      // На самой деле, лучше просто передать Map в add() для Web
       val dataMap = mapOf(
           "title" to announcement.title,
           "message" to announcement.message,
           "osbbId" to safeId(announcement.osbbId),
           "timestamp" to timestamp,
           "imageUrl" to announcement.imageUrl,
-          "authorUid" to announcement.authorUid
+          "authorUid" to announcement.authorUid,
+          "authorName" to announcement.authorName,
+          "authorRole" to announcement.authorRole.getSerialName(),
+          "fileUrl" to announcement.fileUrl,
+          "fileName" to announcement.fileName,
+          "isPriority" to announcement.isPriority
       )
       col.add(dataMap)
       
