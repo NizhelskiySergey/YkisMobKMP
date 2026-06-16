@@ -24,26 +24,41 @@ class GetFamilyList(
     try {
       emit(Resource.Loading())
 
-      // 1. БЫСТРЫЙ СТАРТ: Сначала показываем то, что уже есть в базе данных SQLDelight
-      val cached = cache.getFamilyByApartment(addressId)
-      if (cached.isNotEmpty()) {
-        println("[$className.$methodName]: [LOCAL_HIT] Найдено ${cached.size} членов семьи в кэше")
-        emit(Resource.Success(cached))
+      // 1. БЫСТРЫЙ СТАРТ: Безопасно для Web (с таймаутом)
+      var cached: List<FamilyEntity> = emptyList()
+      try {
+        if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+            kotlinx.coroutines.withTimeoutOrNull(500) {
+                cached = cache.getFamilyByApartment(addressId)
+            }
+        } else {
+            cached = cache.getFamilyByApartment(addressId)
+        }
+
+        if (cached.isNotEmpty()) {
+          println("[$className.$methodName]: [LOCAL_HIT] Найдено ${cached.size} членов семьи")
+          emit(Resource.Success(cached))
+        }
+      } catch (e: Exception) {
+        println("[$className.$methodName]: Локальна БД недоступна або зависла, йдемо в мережу")
       }
 
       // 2. ОБНОВЛЕНИЕ: Запрашиваем свежий список через репозиторий (Ktor)
       println("[$className.$methodName]: [NETWORK_START] ID: $addressId")
-
-      // Метод возвращает GetFamilyResponse вместо сырого списка
       val response = repository.getFamilyList(uid, addressId)
       val remoteFamily = response.family ?: emptyList()
 
       // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ КЭША
       if (response.success == 1) {
-        // ИСПРАВЛЕНО НАМЕРТВО: Вызываем одну безопасную транзакцию синхронизации с адресным якорем!
-        cache.syncFamilyList(addressId = addressId, familyList = remoteFamily)
+        try {
+            if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+                cache.syncFamilyList(addressId = addressId, familyList = remoteFamily)
+            }
+        } catch (dbEx: Exception) {
+            println("[$className.$methodName]: Помилка запису в кеш: ${dbEx.message}")
+        }
 
-        println("[$className.$methodName]: [SUCCESS] Локальная база успешно синхронизирована для квартиры ID=$addressId")
+        println("[$className.$methodName]: [SUCCESS] Отримано ${remoteFamily.size} мешканців")
         emit(Resource.Success(remoteFamily))
       } else {
         // Если сервер вернул success = 0 или список пуст, но локально что-то было — мы это уже отдали.

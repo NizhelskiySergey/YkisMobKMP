@@ -102,14 +102,18 @@ class FirebaseServiceImpl(
       }
 
       println("[FirebaseServiceImpl]: Створення НОВОГО профілю для $userEmail")
+      
+      // ИСПРАВЛЕНО ДЛЯ WEB: Конвертируем Long в Double, так как JS SDK не принимает Kotlin Long
+      val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
+      
       val userMap = mapOf(
         "uid" to currentUid,
         "email" to userEmail,
         "displayName" to (currentUser.displayName ?: "Мешканець"),
         "userRole" to "STANDARD_USER",
-        "osbbId" to 0L,
-        "addressId" to 0L,
-        "fcmTokens" to emptyList<String>() // Инициализируем пустое поле сразу
+        "osbbId" to (if (isWeb) 0.0 else 0L),
+        "addressId" to (if (isWeb) 0.0 else 0L),
+        "fcmTokens" to emptyList<String>()
       )
 
       db.collection("users").document(currentUid).set(data = userMap, merge = true)
@@ -129,9 +133,16 @@ class FirebaseServiceImpl(
 
   override suspend fun updateUserRoleAndPermissions(uid: String, addressId: Long?, userRole: UserRole, osbbId: Long?, displayName: String?, fio: String?, osbb: String?) {
     try {
-      val updates = mutableMapOf<String, Any>("userRole" to userRole.getSerialName(), "osbbId" to (osbbId ?: 0L))
+      val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
+      
+      val updates = mutableMapOf<String, Any>(
+          "userRole" to userRole.getSerialName(), 
+          "osbbId" to (if (isWeb) (osbbId ?: 0L).toDouble() else (osbbId ?: 0L))
+      )
       displayName?.let { updates["displayName"] = it }
-      addressId?.let { updates["addressId"] = it }
+      addressId?.let { 
+          updates["addressId"] = if (isWeb) it.toDouble() else it
+      }
       fio?.let { updates["fio"] = it }
       osbb?.let { updates["osbb"] = it }
       db.collection("users").document(uid).set(data = updates, merge = true)

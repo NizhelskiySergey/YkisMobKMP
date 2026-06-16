@@ -26,27 +26,42 @@ class GetApartment(
     try {
       emit(Resource.Loading())
 
-      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША (SQLDelight транслируется через кэш)
-      // Приводим Long к Int для соответствия сигнатуре твоего ApartmentCache.getApartmentById
-      val cached = cache.getApartmentById(addressId)
-      if (cached != null) {
-        println("[$className.$methodName]: [LOCAL_HIT] Загружено из локальной БД для ID: $addressId")
-        emit(Resource.Success(cached))
+      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША - Безопасно для Web (с таймаутом)
+      var cached: ApartmentEntity? = null
+      try {
+        if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+            kotlinx.coroutines.withTimeoutOrNull(500) {
+                cached = cache.getApartmentById(addressId)
+            }
+        } else {
+            cached = cache.getApartmentById(addressId)
+        }
+
+        if (cached != null) {
+          println("[$className.$methodName]: [LOCAL_HIT] Загружено из кэша")
+          emit(Resource.Success(cached!!))
+        }
+      } catch (e: Exception) {
+        println("[$className.$methodName]: Локальна БД недоступна або зависла, йдемо в мережу")
       }
 
       // 2. ЗАПРОС В СЕТЬ (Ktor HTTP Client)
-      println("[$className.$methodName]: [NETWORK_START] Запрос ID: $addressId, UID: ${uid.takeLast(5)}")
+      println("[$className.$methodName]: [NETWORK_START] ID: $addressId")
       val response = repository.getApartment(uid, addressId)
 
       if (response.success == 1 && response.apartment != null) {
-        // Прошиваем актуальный UID пользователя для связки данных
         val remoteApartment = response.apartment.copy(uid = uid)
 
-        // Обновляем локальный кэш: удаляем старую запись (если была) и пишем свежую
-        cache.deleteFlat(addressId)
-        cache.insertApartmentList(listOf(remoteApartment))
+        // 3. ПЕРЕЗАПИСЬ КЭША
+        try {
+          if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+              cache.deleteFlat(addressId)
+              cache.insertApartmentList(listOf(remoteApartment))
+          }
+        } catch (dbEx: Exception) {
+          println("[$className.$methodName]: Помилка запису в кеш: ${dbEx.message}")
+        }
 
-        println("[$className.$methodName]: [NETWORK_SUCCESS] Данные обновлены в локальной БД")
         emit(Resource.Success(remoteApartment))
       } else {
         println("[$className.$methodName]: [SERVER_ERROR] Сервер вернул ошибку или пустой объект: ${response.message}")

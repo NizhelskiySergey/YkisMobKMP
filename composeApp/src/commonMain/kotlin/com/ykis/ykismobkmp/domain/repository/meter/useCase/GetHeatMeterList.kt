@@ -28,32 +28,43 @@ class GetHeatMeterList(
     try {
       emit(Resource.Loading())
 
-      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША (Вызов выровнен по новому имени MeterRepositoryCash)
-      val localMeters = meterCache.getHeatMetersByApartment(addressId)
-      if (localMeters.isNotEmpty()) {
-        println("[$className.$methodName]: [LOCAL_HIT] Загружено из кэша для адреса: $addressId")
-        emit(Resource.Success(localMeters))
+      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША - Безопасно для Web (с таймаутом)
+      var localMeters: List<HeatMeterEntity> = emptyList()
+      try {
+        if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+            kotlinx.coroutines.withTimeoutOrNull(500) {
+                localMeters = meterCache.getHeatMetersByApartment(addressId)
+            }
+        } else {
+            localMeters = meterCache.getHeatMetersByApartment(addressId)
+        }
+
+        if (localMeters.isNotEmpty()) {
+          println("[$className.$methodName]: [LOCAL_HIT] Загружено из кэша")
+          emit(Resource.Success(localMeters))
+        }
+      } catch (e: Exception) {
+        println("[$className.$methodName]: Локальна БД недоступна або зависла, йдемо в мережу")
       }
 
       // 2. ЗАПРОС В СЕТЬ (Через Ktor репозиторий)
-      println("[$className.$methodName]: [NETWORK_START] Запрос ID: $addressId, UID: ${uid.takeLast(5)}")
+      println("[$className.$methodName]: [NETWORK_START] ID: $addressId")
       val response = repository.getHeatMeterList(uid, addressId)
 
       if (response.success == 1) {
         val remoteMeters = response.heatMeters ?: emptyList()
-        println("[$className.$methodName]: [NETWORK_SUCCESS] Сеть вернула ${remoteMeters.size} счетчиков")
+        println("[$className.$methodName]: [NETWORK_SUCCESS] Отримано ${remoteMeters.size} лічильників")
 
-        // Перезаписываем локальный кэш через атомарные транзакции базы данных
+        // 3. ПЕРЕЗАПИСЬ КЭША
         try {
-          // ИСПРАВЛЕНО НАМЕРТВО: Передаём чистый одиночный Long напрямую без listOf()!
-          meterCache.deleteHeatMetersByApartment(addressId)
-          meterCache.insertHeatMeter(remoteMeters)
-          println("[$className.$methodName]: Локальная база данных счетчиков тепла успешно синхронизирована")
+          if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+              meterCache.deleteHeatMetersByApartment(addressId)
+              meterCache.insertHeatMeter(remoteMeters)
+          }
         } catch (dbEx: Exception) {
-          println("[$className.${methodName}_WARN]: Ошибка записи счетчиков в СУБД: ${dbEx.message}")
+          println("[$className.${methodName}_WARN]: Помилка запису в кеш: ${dbEx.message}")
         }
 
-        // Отдаем финальный актуальный список в UI
         emit(Resource.Success(remoteMeters))
       } else {
         println("[$className.$methodName]: [NETWORK_REJECT] Сервер вернул ошибку: ${response.message}")

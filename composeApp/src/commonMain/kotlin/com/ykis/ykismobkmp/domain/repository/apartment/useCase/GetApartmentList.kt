@@ -31,35 +31,48 @@ class GetApartmentList(
       // ЕТАП 1: Виставляємо стейт завантаження для UI
       emit(Resource.Loading())
 
-      // ЕТАП 2: ШВИДКИЙ СТАРТ — Витягуємо з SQLDelight кЕш та фільтруємо по UID користувача
-      localList = cache.getApartmentsByUser().filter { it.uid == uid }
-      if (localList.isNotEmpty()) {
-        println("[YkisLogKMP.$className.$methodName]: [LOCAL_HIT] Виведено ${localList.size} квартир з локального кЕшу")
-        emit(Resource.Success(localList))
+      // ЕТАП 2: ШВИДКИЙ СТАРТ — Безопасно для Web
+      try {
+        if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+            kotlinx.coroutines.withTimeoutOrNull(500) {
+                localList = cache.getApartmentsByUser().filter { it.uid == uid }
+            }
+        } else {
+            localList = cache.getApartmentsByUser().filter { it.uid == uid }
+        }
+
+        if (localList.isNotEmpty()) {
+          println("[YkisLogKMP.$className.$methodName]: [LOCAL_HIT] Виведено ${localList.size} квартир")
+          emit(Resource.Success(localList))
+        }
+      } catch (e: Exception) {
+        println("[YkisLogKMP.$className.$methodName]: Локальна БД недоступна, йдемо в мережу")
       }
 
       // ЕТАП 3: ОБНОВЛЕННЯ — Йдемо через Ktor HTTP-клієнт на видалений сервер ЮКІС
-      println("[YkisLogKMP.$className.$methodName]: [NETWORK_START] Запит свіжих даних для UID: ${uid.takeLast(5)}")
+      println("[YkisLogKMP.$className.$methodName]: [NETWORK_START] Запит для UID: ${uid.takeLast(5)}")
 
       val response: GetApartmentsResponse = try {
         repository.getApartmentList(uid)
       } catch (parseException: Exception) {
-        println("[YkisLogKMP.$className.$methodName]: [PARSER_WARN] БЕКЕНД ПОВЕРНУВ НЕВАЛІДНИЙ JSON (text/html або порожнеча). Спрацював локальний запобіжник. Error: ${parseException.message}")
-        // Створюємо штучну успішну відповідь з порожнім списком, щоб обійти NoTransformationFoundException
+        println("[YkisLogKMP.$className.$methodName]: [PARSER_WARN] Помилка мережі: ${parseException.message}")
         GetApartmentsResponse(success = 1, apartments = emptyList(), message = "Empty fallback by error")
       }
 
       if (response.success == 1) {
         val remoteApartments = response.apartments ?: emptyList()
-
-        // Прошиваємо UID користувача для кожної отриманої квартири
         val apartmentsWithUid = remoteApartments.map { it.copy(uid = uid) }
 
-        // ЕТАП 4: АТОМАРНА СИНХРОНІЗАЦІЯ — Перезаписуємо локальну БД SQLDelight 2.x
-        cache.deleteAllApartments()
-        cache.insertApartmentList(apartmentsWithUid)
+        // ЕТАП 4: АТОМАРНА СИНХРОНІЗАЦІЯ
+        try {
+            if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+                cache.deleteAllApartments()
+                cache.insertApartmentList(apartmentsWithUid)
+            }
+        } catch (dbEx: Exception) {
+            println("[YKISLOGKMP.$className.$methodName]: Помилка запису в кеш: ${dbEx.message}")
+        }
 
-        println("[YKISLOGKMP.$className.$methodName]: [SYNC_SUCCESS] КЕш СУБД успішно оновлено (${apartmentsWithUid.size} кв.)")
         emit(Resource.Success(apartmentsWithUid))
       } else {
         println("[YkisLogKMP.$className.$methodName]: [NETWORK_REJECT] Сервер повернув статус помилки: ${response.message}")
