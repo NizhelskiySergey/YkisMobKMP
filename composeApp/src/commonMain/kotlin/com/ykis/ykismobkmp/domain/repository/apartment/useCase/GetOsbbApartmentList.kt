@@ -28,29 +28,36 @@ class GetOsbbApartmentsList(
       println("[$className.$methodName]: [START] TargetID: $targetId")
       emit(Resource.Loading())
 
-      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША (SQLDelight через КМР-кэш)
-      val localList = cache.getApartmentsByUser()
-      if (localList.isNotEmpty()) {
-        println("[$className.$methodName]: [LOCAL_HIT] Найдено ${localList.size} кв. в локальной базе данных")
-        emit(Resource.Success(localList))
+      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША - Безопасно для Web
+      var localList: List<ApartmentEntity> = emptyList()
+      try {
+        localList = cache.getApartmentsByUser()
+        if (localList.isNotEmpty()) {
+          println("[$className.$methodName]: [LOCAL_HIT] Найдено ${localList.size} кв. в локальной базе данных")
+          emit(Resource.Success(localList))
+        }
+      } catch (e: Exception) {
+        println("[$className.$methodName]: Локальна БД недоступна (Web mode), завантажуємо з мережі")
       }
 
       // 2. ЗАПРОС В СЕТЬ (Ktor HTTP Client через Репозиторий)
       val response = repository.getOsbbApartmentsList(targetId, isHouseSearch)
       val remoteApartments = response.apartments ?: emptyList()
+      println("[$className.$methodName]: Парсинг успішно завершено: ${remoteApartments.size} квартир")
 
-      // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ БАЗЫ ДАННЫХ
+      // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ
       if (remoteApartments.isNotEmpty()) {
         try {
-          // Очищаем старые хвосты и массово накатываем свежий список в транзакции СУБД
-          cache.deleteAllApartments()
-          cache.insertApartmentList(remoteApartments)
-          println("[$className.$methodName]: Локальные таблицы СУБД успешно перезаписаны")
+          // ИСПРАВЛЕНО: В Web-версии пока пропускаем запись в БД, так как воркер - заглушка
+          if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+              cache.deleteAllApartments()
+              cache.insertApartmentList(remoteApartments)
+          } else {
+              println("[$className.$methodName]: Web mode: пропуск запису в БД (працюємо в ОЗУ)")
+          }
         } catch (dbEx: Exception) {
-          println("[$className.$methodName]: Ошибка перезаписи кэша СУБД, но сеть отдала данные: ${dbEx.message}")
+          println("[$className.$methodName]: Ошибка перезаписи кэша: ${dbEx.message}")
         }
-
-        println("[$className.$methodName]: [NETWORK_SUCCESS] Список успешно синхронизирован")
         emit(Resource.Success(remoteApartments))
       } else {
         println("[$className.$methodName]: [NETWORK_EMPTY] Получен пустой ответ от сервера")

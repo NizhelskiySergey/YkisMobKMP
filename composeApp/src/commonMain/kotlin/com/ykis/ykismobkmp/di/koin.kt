@@ -19,6 +19,7 @@ import com.ykis.ykismobkmp.data.remote.meter.MeterRemoteRepository
 import com.ykis.ykismobkmp.data.remote.meter.MeterRemoteRepositoryImpl
 import com.ykis.ykismobkmp.db.YkisDatabases
 import com.ykis.ykismobkmp.db.YkisDatabasesQueries
+import com.ykis.ykismobkmp.db.DatabaseSchemaInitializer
 import com.ykis.ykismobkmp.domain.ai.GeminiAiManager
 import com.ykis.ykismobkmp.domain.ai.GeminiCloudProvider
 import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentRepository
@@ -32,10 +33,9 @@ import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.domain.services.FirebaseServiceImpl
 import com.ykis.ykismobkmp.domain.services.LogService
 import dev.gitlive.firebase.Firebase
-import dev.gitlive.firebase.database.database
-import dev.gitlive.firebase.firestore.firestore
-import dev.gitlive.firebase.functions.functions
-import dev.gitlive.firebase.storage.storage
+import dev.gitlive.firebase.database.FirebaseDatabase
+import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.storage.FirebaseStorage
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -87,18 +87,17 @@ val commonModule = module {
   }
   single<GeminiAiManager> { GeminiCloudProvider(model = get(), localEngine = get()) }
   
-  // Безопасное создание ChatRepository
+  // Кроссплатформенное создание ChatRepository (GitLive)
   single {
     ChatRepository(
-      _firestore = try { Firebase.firestore } catch (t: Throwable) { null },
-      _realtime = try { Firebase.database } catch (t: Throwable) { null },
-      _storage = try { Firebase.storage } catch (t: Throwable) { null },
+      _firestore = getOrNull<FirebaseFirestore>(),
+      _realtime = getOrNull<FirebaseDatabase>(),
+      _storage = getOrNull<FirebaseStorage>(),
       aiManager = get()
     )
   }
 
-  // РЕШЕНИЕ: FirebaseService регистрируется в платформенных модулях (actual)
-  // для гибкости настроек Auth.
+  single<FirebaseService> { FirebaseServiceImpl(settings = get()) }
 
   // Репозитории
   single<ApartmentRemote> { ApartmentRemoteImpl(ktorApiService = get()) }
@@ -114,10 +113,17 @@ val commonModule = module {
  */
 expect val databaseModule: Module
 
+/**
+ * [databaseCommonModule] — Общие компоненты БД для всех платформ.
+ */
+val databaseCommonModule = module {
+    single<DatabaseSchemaInitializer> { DatabaseSchemaInitializer() }
+}
+
 fun initKoin(platformModule: Module = module {}, appDeclaration: KoinAppDeclaration = {}) {
   if (KoinPlatform.getKoinOrNull() != null) return
   startKoin {
     appDeclaration()
-    modules(listOf(commonModule, databaseModule, domainModule, navigationModule, platformModule))
+    modules(listOf(commonModule, databaseCommonModule, databaseModule, domainModule, navigationModule, platformModule))
   }
 }

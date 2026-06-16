@@ -43,6 +43,15 @@ class ChatRepository(
   val currentUid: String?
     get() = try { Firebase.auth.currentUser?.uid } catch (e: Exception) { null }
 
+  // Вспомогательная функция для конвертации Long в Double для Web
+  private fun safeId(id: Long): Any {
+    return if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+        id.toDouble() // В JS это станет обычным Number
+    } else {
+        id
+    }
+  }
+
   suspend fun fetchUsersByIds(ids: List<String>): List<UserEntity> = coroutineScope {
     if (ids.isEmpty() || _firestore == null) return@coroutineScope emptyList()
     
@@ -94,10 +103,6 @@ class ChatRepository(
   fun observeChatKeys(prefix: String): Flow<List<String>> {
     if (_realtime == null) return flowOf(emptyList())
     
-    // ИСПРАВЛЕНО НАМЕРТВО ДЛЯ iOS: Обход бага Firebase SDK (queryStartingAtValue:childKey:)
-    // Вместо сложного запроса к /chats с префиксным фильтром (который крашит iOS),
-    // мы запрашиваем список ключей из /chat_access и фильтруем его в оперативной памяти.
-    // Это на 100% стабильно на всех платформах и работает быстрее.
     return realtime.reference("chat_access")
       .valueEvents
       .map { snapshot ->
@@ -112,7 +117,8 @@ class ChatRepository(
   suspend fun fetchAdminsByOsbb(osbbId: Long): List<UserEntity> {
     if (_firestore == null) return emptyList()
     return try {
-      val q1 = firestore.collection("users").where { "osbbId" equalTo osbbId }.get()
+      val targetId = safeId(osbbId)
+      val q1 = firestore.collection("users").where { "osbbId" equalTo targetId }.get()
       val q2 = firestore.collection("users").where { "osbbId" equalTo osbbId.toString() }.get()
       val combined = (q1.documents + q2.documents).distinctBy { it.id }
       combined.mapNotNull { doc ->
@@ -124,7 +130,8 @@ class ChatRepository(
   suspend fun fetchUserByAddressId(addressId: Long): UserEntity? {
     if (_firestore == null) return null
     return try {
-      val resultNum = firestore.collection("users").where { "addressId" equalTo addressId }.get()
+      val targetId = safeId(addressId)
+      val resultNum = firestore.collection("users").where { "addressId" equalTo targetId }.get()
       val resultStr = firestore.collection("users").where { "addressId" equalTo addressId.toString() }.get()
       val doc = (resultNum.documents + resultStr.documents).firstOrNull()
       doc?.let { it.data<UserEntity>().copy(uid = it.id) }
@@ -187,7 +194,8 @@ class ChatRepository(
   suspend fun fetchAllUsersByAddressId(addressId: Long): List<UserEntity> {
     if (_firestore == null) return emptyList()
     return try {
-      val resultNum = firestore.collection("users").where { "addressId" equalTo addressId }.get()
+      val targetId = safeId(addressId)
+      val resultNum = firestore.collection("users").where { "addressId" equalTo targetId }.get()
       val resultStr = firestore.collection("users").where { "addressId" equalTo addressId.toString() }.get()
       val combined = (resultNum.documents + resultStr.documents).distinctBy { it.id }
       combined.mapNotNull { doc -> try { doc.data<UserEntity>().copy(uid = doc.id) } catch (e: Exception) { null } }
@@ -197,7 +205,7 @@ class ChatRepository(
   suspend fun sendGlobalNotification(title: String, body: String, osbbId: Long = 0L, imageUrl: String? = null) {
     try {
       val data = mutableMapOf<String, Any?>(
-        "title" to title, "body" to body, "osbbId" to osbbId, "type" to "ANNOUNCEMENT"
+        "title" to title, "body" to body, "osbbId" to safeId(osbbId), "type" to "ANNOUNCEMENT"
       )
       imageUrl?.let { data["imageUrl"] = it }
       Firebase.functions.httpsCallable("sendGlobalNotification")(data)
@@ -211,13 +219,32 @@ class ChatRepository(
     return try {
       val col = firestore.collection("announcements")
       val timestamp = currentTimeMillis()
-      val finalAnnouncement = announcement.copy(timestamp = timestamp)
-      col.add(finalAnnouncement)
+      // Конвертируем Long в Double для Web перед сохранением
+      val finalAnnouncement = if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+          announcement.copy(timestamp = timestamp, osbbId = announcement.osbbId.toDouble() as? Long ?: 0L)
+          // Wait, casting Double to Long back won't help. 
+          // We should probably use a Map or a serializable class that handles this.
+          announcement.copy(timestamp = timestamp)
+      } else {
+          announcement.copy(timestamp = timestamp)
+      }
+      
+      // На самом деле, лучше просто передать Map в add() для Web
+      val dataMap = mapOf(
+          "title" to announcement.title,
+          "message" to announcement.message,
+          "osbbId" to safeId(announcement.osbbId),
+          "timestamp" to timestamp,
+          "imageUrl" to announcement.imageUrl,
+          "authorUid" to announcement.authorUid
+      )
+      col.add(dataMap)
+      
       sendGlobalNotification(
-        title = finalAnnouncement.title,
-        body = finalAnnouncement.message.take(100),
-        osbbId = finalAnnouncement.osbbId,
-        imageUrl = finalAnnouncement.imageUrl
+        title = announcement.title,
+        body = announcement.message.take(100),
+        osbbId = announcement.osbbId,
+        imageUrl = announcement.imageUrl
       )
       Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
@@ -238,7 +265,10 @@ class ChatRepository(
       .map { snapshot ->
         snapshot.documents.map { doc ->
           doc.data<AnnouncementEntity>().copy(id = doc.id)
-        }.filter { it.osbbId == 0L || it.osbbId == osbbId }.sortedByDescending { it.timestamp }
+        }.filter { 
+            val itemOsbbId = it.osbbId.toLong()
+            itemOsbbId == 0L || itemOsbbId == osbbId 
+        }.sortedByDescending { it.timestamp }
       }
       .catch { emit(emptyList()) }
   }

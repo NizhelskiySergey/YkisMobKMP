@@ -8,13 +8,21 @@
 </head>
 <body style="text-align: center; align-content: center">
 <!-- Инициализация Firebase App Check (reCAPTCHA) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-standalone.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
 <script>
     window.initializeFirebaseAppCheck = function(siteKey) {
         try {
-            // Инициализация App Check через глобальный SDK
+            // Инициализируем минимальное compat-приложение, если оно еще не создано
+            if (!firebase.apps.length) {
+                firebase.initializeApp({
+                    apiKey: "AIzaSyDZUPgZSs5RMcQFtt2DjcoZoYTi9wdI37k",
+                    projectId: "ykis-mob",
+                    appId: "1:1062920014188:web:cd8ced095f943b9d088b49"
+                });
+            }
             const appCheck = firebase.appCheck();
-            appCheck.activate(siteKey, true); // true для автоматического обновления токена
+            appCheck.activate(siteKey, true);
             console.log("Firebase App Check (reCAPTCHA v3) успешно активирован.");
         } catch (e) {
             console.warn("Ошибка активации App Check:", e.message);

@@ -143,6 +143,9 @@ class AuthScreenModel(
         // Канонический позиционный вызов GitLive SDK без именованных параметров
         Firebase.auth.signInWithEmailAndPassword(currentEmail, currentPassword)
 
+        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Синхронізація профілю Firestore/MySQL...")
+        firebaseService.addUserFirestore()
+
         // Шаг 2. Регистрируем FCM-токен устройства в облаке Google Cloud для пуш-сообщений
         println("[YkisLogKMP.$className.$methodName]: [PROCESS] Шаг 2: Регистрация FCM токена уведомлений...")
         firebaseService.addFcmToken()
