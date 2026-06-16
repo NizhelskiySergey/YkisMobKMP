@@ -9,7 +9,6 @@ import kotlinx.coroutines.launch
 
 /**
  * [InitResidentChats] — Сценарій ініціалізації базових гілок чатів при додаванні квартири.
- * ІСПРАВЛЕНО: Покращене логування та гарантований інкремент бейджів для адмінів.
  */
 class InitResidentChats(
   private val chatRepo: ChatRepository
@@ -25,7 +24,7 @@ class InitResidentChats(
     nanim: String
   ) {
     val methodName = "invoke"
-    println("[YkisLogKMP.$className.$methodName]: [START] Перевірка та активація 4 ліній чату для л/с: $addressId")
+    println("[YkisLogKMP.$className.$methodName]: [START] Активація 4-х ліній чату для о/р: $addressId")
 
     val serviceMap = mapOf(
       "OSBB"            to osbbId,
@@ -36,58 +35,48 @@ class InitResidentChats(
 
     scope.launch(Dispatchers.Default) {
       serviceMap.forEach { (prefix, sysId) ->
-        // ИСПРАВЛЕНО: Если это ОСББ и его ID равен 0, то ветку НЕ создаем
         if (prefix == "OSBB" && sysId == 0L) {
-            println("[YkisLogKMP.$className.$methodName]: Пропуск ініціалізації чату ОСББ для будинку без ОСББ (ID=0)")
+            println("[YkisLogKMP.$className.$methodName]: Пропуск чату ОСББ (ID=0)")
             return@forEach 
         }
 
         val chatPath = "${prefix}_${sysId}_${addressId}"
+        println("[YkisLogKMP.$className.$methodName]: Перевірка гілки: $chatPath")
 
         try {
-          // 1. Реєструємо користувача як учасника чату цієї квартири
+          // 1. Реєструємо користувача
           chatRepo.addChatParticipant(chatPath, uid)
 
-          // 2. Перевіряємо, чи існує вже цей чат в базі
+          // 2. Перевіряємо існування
           val isExists = chatRepo.isChatBranchExists(chatPath)
 
           if (!isExists) {
-            println("[YkisLogKMP.$className.$methodName]: Чат $chatPath не знайдено. Створення вітального повідомлення.")
+            println("[YkisLogKMP.$className.$methodName]: Створення НОВОГО чату $chatPath")
 
-            // ИСПРАВЛЕНО: senderDisplayedName = Фамилия, senderAddress = Адрес
-            val cleanNanim = if (nanim.isBlank() || nanim == "Мешканець" || nanim == addressText) "Жилець" else nanim
+            val cleanNanim = if (nanim.isBlank() || nanim == "Мешканець") "Жилець" else nanim
 
             val message = MessageEntity(
                 id = "",
                 senderUid = uid,
-                text = "Вітаю! Чат активовано.",
+                text = "Вітаю! Чат з ${if (prefix == "OSBB") "ОСББ" else "службою"} активовано.",
                 senderDisplayedName = cleanNanim,
                 senderAddress = addressText,
                 timestamp = com.ykis.ykismobkmp.core.utils.currentTimeMillis(),
                 read = false
             )
 
-            // 3. Відправляємо повідомлення
             chatRepo.sendMessage(path = chatPath, message = message)
-
-            // 4. Інкремент бейджів для адмінів (без вкладених launch для надійності)
-            try {
-                val adminUids = chatRepo.fetchAdminsByOsbb(sysId).map { it.uid }.filter { it != uid }
-                if (adminUids.isNotEmpty()) {
-                    println("[YkisLogKMP.$className.$methodName]: Спроба інкременту для ${adminUids.size} адмінів служби $prefix")
-                    chatRepo.incrementUnreadForUids(chatPath, adminUids)
-                } else {
-                    println("[YkisLogKMP.$className.$methodName]: Адмінів для служби $prefix (ID: $sysId) не знайдено в Firestore.")
-                }
-            } catch (e: Exception) {
-                println("[YkisLogKMP.$className.$methodName]: Помилка сповіщення адмінів: ${e.message}")
+            
+            // 3. Сповіщення адмінів
+            val adminUids = chatRepo.fetchAdminsByOsbb(sysId).map { it.uid }.filter { it != uid }
+            if (adminUids.isNotEmpty()) {
+                chatRepo.incrementUnreadForUids(chatPath, adminUids)
             }
-
           } else {
-            println("[YkisLogKMP.$className.$methodName]: Чат $chatPath вже існує. Пропуск ініціалізації.")
+            println("[YkisLogKMP.$className.$methodName]: Чат $chatPath вже активовано.")
           }
         } catch (e: Exception) {
-          println("[YkisLogKMP.$className.$methodName]: Помилка активації гілки $chatPath: ${e.message}")
+          println("[YkisLogKMP.$className.$methodName]: Помилка для $chatPath: ${e.message}")
         }
       }
     }

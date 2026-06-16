@@ -13,6 +13,7 @@ import org.koin.dsl.module
 import platform.Foundation.NSUserDefaults
 import kotlin.experimental.ExperimentalObjCName
 import kotlin.native.ObjCName
+import app.cash.sqldelight.db.SqlDriver
 import com.ykis.ykismobkmp.db.YkisDatabases
 import com.ykis.ykismobkmp.db.YkisDatabasesQueries
 import com.ykis.ykismobkmp.cash.sqlDelight.ApartmentDao
@@ -24,9 +25,16 @@ import com.ykis.ykismobkmp.cash.meter.MeterRepositoryCash
 import com.ykis.ykismobkmp.cash.meter.MeterRepositoryCashImpl
 import com.ykis.ykismobkmp.cash.ledger.LedgerRepositoryCash
 import com.ykis.ykismobkmp.cash.ledger.LedgerRepositoryCashImpl
+import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.database.database
+import dev.gitlive.firebase.firestore.firestore
+import dev.gitlive.firebase.storage.storage
+import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.database.FirebaseDatabase
+import dev.gitlive.firebase.storage.FirebaseStorage
 
 /**
- * [iosPlatformModule] — Граф нативных зависимостей для iPhone и Симуляторов.
+ * [iosPlatformModule] — Граф нативних залежностей для iOS.
  */
 val iosPlatformModule: Module = module {
   single<Settings> {
@@ -36,23 +44,29 @@ val iosPlatformModule: Module = module {
     AppSettingsRepositoryImpl(get())
   }
   single { LocalAiEngine() }
+
+  // Реєстрація Firebase під-сервісів для ChatRepository (Common)
+  single<FirebaseFirestore> { Firebase.firestore }
+  single<FirebaseDatabase> { Firebase.database }
+  single<FirebaseStorage> { Firebase.storage }
 }
 
 /**
- * [databaseModule] — iOS-реализация СУБД.
+ * [databaseModule] — iOS-реалізація СУБД.
  */
 actual val databaseModule: Module = module {
-  single { DatabaseDriverFactory() }
+  single<SqlDriver> { DatabaseDriverFactory().createDriver() }
   
   single<YkisDatabases> {
-    YkisDatabases(get<DatabaseDriverFactory>().createDriver())
+    YkisDatabases(get<SqlDriver>())
   }
 
   single<YkisDatabasesQueries> { get<YkisDatabases>().ykisDatabasesQueries }
 
-  single { ApartmentDao(get<YkisDatabasesQueries>()) }
-  single { MeterDao(get<YkisDatabasesQueries>()) }
-  single { LedgerDao(get<YkisDatabasesQueries>()) }
+  // ИСПРАВЛЕНО: Передаем 3 параметра для соответствия новому конструктору
+  single { ApartmentDao(get(), get(), get()) }
+  single { MeterDao(get(), get(), get()) }
+  single { LedgerDao(get(), get(), get()) }
 
   single<ApartmentCache> { ApartmentCacheImpl(apartmentDao = get()) }
   single<MeterRepositoryCash> { MeterRepositoryCashImpl(meterDao = get()) }
@@ -60,7 +74,7 @@ actual val databaseModule: Module = module {
 }
 
 /**
- * [AppInitializer] — Точка входа для Swift.
+ * [AppInitializer] — Точка входу для Swift.
  */
 @OptIn(ExperimentalObjCName::class)
 @ObjCName("AppInitializer")

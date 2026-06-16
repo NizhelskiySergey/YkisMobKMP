@@ -47,15 +47,28 @@ class GetFlatServices(
     try {
       emit(Resource.Loading())
 
-      // 1. БЫСТРЫЙ СТАРТ: Сначала мгновенно выдаем то, что уже закэшировано в локальной базе данных SQLDelight
-      val cached: List<ServiceEntity> = ledgerCache.getServiceDetail(addressId, currentServiceType, year)
-      if (cached.isNotEmpty()) {
-        println("[$className.$methodName]: [LOCAL_HIT] Найдено ${cached.size} записей начислений в кэше")
-        emit(Resource.Success(cached))
+      // 1. БЫСТРЫЙ СТАРТ: Безопасно для Web (с таймаутом)
+      var cached: List<ServiceEntity> = emptyList()
+      try {
+        if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+            kotlinx.coroutines.withTimeoutOrNull(500) {
+                cached = ledgerCache.getServiceDetail(addressId, currentServiceType, year)
+            }
+        } else {
+            cached = ledgerCache.getServiceDetail(addressId, currentServiceType, year)
+        }
+
+        if (cached.isNotEmpty()) {
+          println("[$className.$methodName]: [LOCAL_HIT] Знайдено ${cached.size} записів")
+          emit(Resource.Success(cached))
+        }
+      } catch (e: Exception) {
+        println("[$className.$methodName]: Локальна БД недоступна або зависла, йдемо в мережу")
       }
 
       // 2. ОБНОВЛЕНИЕ: Запрашиваем свежий список через репозиторий (Ktor-клиент напрямую)
-      println("[$className.$methodName]: [NETWORK_START] Запрос начислений для квартиры ID: $addressId")
+      println("[$className.$methodName]: [NETWORK_START] ID: $addressId")
+
       val response =
         repository.getFlatDetailService(
           uid = uid,
@@ -75,14 +88,16 @@ class GetFlatServices(
         // пустые экраны, а фоновое сохранение SQLite выполнится параллельно в пуле потоков!
         emit(Resource.Success(remoteServices))
 
-        if (remoteServices.isNotEmpty()) {
-          // Очищаем старый кэш по данному лицевому счету и массово сохраняем новые квитанции ГИОЦ
-          try {
-            ledgerCache.deleteServiceByApartment(addressId)
-            ledgerCache.addService(remoteServices)
-            println("[$className.$methodName]: [SUCCESS] Локальный кэш услуг успешно обновлен в SQLDelight")
-          } catch (dbEx: Exception) {
-            println("[$className.${methodName}_WARN]: Ошибка перезаписи кэша начислений в СУБД: ${dbEx.message}")
+        // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ
+        if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+          if (remoteServices.isNotEmpty()) {
+            try {
+              ledgerCache.deleteServiceByApartment(addressId)
+              ledgerCache.addService(remoteServices)
+              println("[$className.$methodName]: [SUCCESS] Локальний кэш оновлено")
+            } catch (dbEx: Exception) {
+              println("[$className.${methodName}_WARN]: Помилка запису в кеш: ${dbEx.message}")
+            }
           }
         }
       } else {

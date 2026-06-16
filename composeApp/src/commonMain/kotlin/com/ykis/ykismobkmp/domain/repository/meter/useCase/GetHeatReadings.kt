@@ -23,31 +23,42 @@ class GetHeatReadings(
     try {
       emit(Resource.Loading())
 
-      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША (Вызов выровнен по новому имени контракта)
-      val localReadings = meterCache.getHeatReadingsByMeter(teplomerId)
-      if (localReadings.isNotEmpty()) {
-        println("[$className.$methodName]: [LOCAL_HIT] Загружено из кэша для счетчика: $teplomerId")
-        emit(Resource.Success(localReadings))
+      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША - Безопасно для Web (с таймаутом)
+      var localReadings: List<HeatReadingEntity> = emptyList()
+      try {
+        if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+            kotlinx.coroutines.withTimeoutOrNull(500) {
+                localReadings = meterCache.getHeatReadingsByMeter(teplomerId)
+            }
+        } else {
+            localReadings = meterCache.getHeatReadingsByMeter(teplomerId)
+        }
+
+        if (localReadings.isNotEmpty()) {
+          println("[$className.$methodName]: [LOCAL_HIT] Загружено из кэша")
+          emit(Resource.Success(localReadings))
+        }
+      } catch (e: Exception) {
+        println("[$className.$methodName]: Локальна БД недоступна або зависла, йдемо в мережу")
       }
 
       // 2. ЗАПРОС В СЕТЬ (Через очищенный репозиторий Ktor)
-      println("[$className.$methodName]: [NETWORK_START] Запрос счетчика: $teplomerId, UID: ${uid.takeLast(5)}")
+      println("[$className.$methodName]: [NETWORK_START] ID: $teplomerId")
       val response = repository.getHeatReadings(uid, teplomerId)
 
       if (response.success == 1) {
         val remoteReadings = response.heatReadings ?: emptyList()
 
-        // Перезаписываем локальный кэш через атомарные транзакции базы данных
+        // 3. ПЕРЕЗАПИСЬ КЭША
         try {
-          // ИСПРАВЛЕНО НАМЕРТВО: Передаём чистый одиночный Long напрямую без listOf()!
-          meterCache.deleteHeatReadingsByMeter(teplomerId)
-          meterCache.insertHeatReadings(remoteReadings)
-          println("[$className.$methodName]: Локальные показания тепла успешно синхронизированы в СУБД")
+          if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+              meterCache.deleteHeatReadingsByMeter(teplomerId)
+              meterCache.insertHeatReadings(remoteReadings)
+          }
         } catch (dbEx: Exception) {
-          println("[$className.${methodName}_WARN]: Ошибка записи показаний в СУБД: ${dbEx.message}")
+          println("[$className.${methodName}_WARN]: Помилка запису в кеш: ${dbEx.message}")
         }
 
-        println("[$className.$methodName]: [NETWORK_SUCCESS] Показания тепла обновлены в СУБД")
         emit(Resource.Success(remoteReadings))
       } else {
         println("[$className.$methodName]: [NETWORK_REJECT] Server rejected request: ${response.message}")

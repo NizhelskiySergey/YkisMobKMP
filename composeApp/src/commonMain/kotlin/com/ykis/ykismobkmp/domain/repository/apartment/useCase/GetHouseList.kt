@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * [GetHouseList] — Доменный сценарий получения списка домов по району ЮКИС.
@@ -26,40 +27,40 @@ class GetHouseList(
     try {
       emit(Resource.Loading())
 
-      // ЭТАП 1: ПРОВЕРКА ЛОКАЛЬНОГО КЭША (Запрашиваем дома из SQLDelight через ApartmentCache)
-      // Примечание: Если в твоем ApartmentCache еще нет методов для домов, этот блок вернет пустой список,
-      // и приложение пойдет в сеть без падения!
-      val localHouses = try {
-        cache.getHousesByRaion(raionId)
+      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША - Безопасно для Web (с таймаутом)
+      var localHouses: List<HouseEntity> = emptyList()
+      try {
+        if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+            withTimeoutOrNull(500) {
+                localHouses = cache.getHousesByRaion(raionId)
+            }
+        } else {
+            localHouses = cache.getHousesByRaion(raionId)
+        }
+
+        if (localHouses.isNotEmpty()) {
+          println("[$className.$methodName]: [LOCAL_HIT] Знайдено ${localHouses.size} будинків")
+          emit(Resource.Success(localHouses))
+        }
       } catch (e: Exception) {
-        println("[$className.$methodName]: Ошибка чтения кэша домов: ${e.message}")
-        emptyList()
+        println("[$className.$methodName]: Локальна БД недоступна або зависла, йдемо в мережу")
       }
 
-      if (localHouses.isNotEmpty()) {
-        println("[$className.$methodName]: [LOCAL_HIT] Найдено ${localHouses.size} домов в локальном кэше")
-        emit(Resource.Success(localHouses))
-      }
-
-      // ЭТАП 2: ЗАПРОС В СЕТЬ (Ktor HTTP Client через Репозиторий)
-      println("[$className.$methodName]: [NETWORK_START] Запрос списка домов для района ID: $raionId")
+      // 2. ЗАПРОС В СЕТЬ (Ktor HTTP Client через Репозиторий)
+      println("[$className.$methodName]: [NETWORK_START] ID: $raionId")
       val response = repository.getHouseByRaionList(raionId)
       val remoteHouses = response.houses ?: emptyList()
 
-      // ЭТАП 3: ОБНОВЛЕНИЕ БАЗЫ ДАННЫХ И СИНХРОНИЗАЦИЯ
+      // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ
       if (remoteHouses.isNotEmpty()) {
-        // Прошиваем актуальный raionId для каждого дома перед сохранением на диск
         val housesWithRaion = remoteHouses.map { it.copy(raionId = raionId) }
-
         try {
-          // Атомарно сохраняем новые дома в кэш SQLDelight
-          cache.syncHouseList(housesWithRaion)
-          println("[$className.$methodName]: Локальная база данных успешно синхронизирована")
+          if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+              cache.syncHouseList(housesWithRaion)
+          }
         } catch (dbEx: Exception) {
-          println("[$className.$methodName]: Ошибка записи домов в СУБД: ${dbEx.message}")
+          println("[$className.$methodName]: Помилка запису в кеш: ${dbEx.message}")
         }
-
-        println("[$className.$methodName]: [NETWORK_SUCCESS] Список домов успешно обновлен с сервера")
         emit(Resource.Success(housesWithRaion))
       } else if (localHouses.isEmpty()) {
         println("[$className.$methodName]: [EMPTY] Домов для района $raionId на сервере не найдено")
@@ -70,8 +71,7 @@ class GetHouseList(
       println("[$className.$methodName]: [FATAL_ERROR] Сбой загрузки справочника домов: ${ex.message}")
       ex.printStackTrace()
 
-      // ЭТАП 4: OFFLINE RECOVERY — Если сеть упала (нет интернета), аварийно выдаем локальный кэш
-      // Чтобы интерфейс администратора не остался пустым во время аварии в городе Южном
+      // ЭТАП 4: OFFLINE RECOVERY
       val fallback = try {
         cache.getHousesByRaion(raionId)
       } catch (e: Exception) {
@@ -85,5 +85,5 @@ class GetHouseList(
         emit(Resource.Error(message = "Сервіс недоступний. Список будинків недоступний."))
       }
     }
-  }.flowOn(Dispatchers.Default) // Все фоновые операции и фильтрация выполняются на пуле корутин
+  }.flowOn(Dispatchers.Default)
 }

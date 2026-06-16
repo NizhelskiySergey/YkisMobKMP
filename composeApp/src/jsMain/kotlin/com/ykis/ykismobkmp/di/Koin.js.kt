@@ -12,6 +12,9 @@ import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.FirebaseApp
 import dev.gitlive.firebase.FirebaseOptions
 import dev.gitlive.firebase.initialize
+import dev.gitlive.firebase.database.database
+import dev.gitlive.firebase.firestore.firestore
+import dev.gitlive.firebase.storage.storage
 import kotlinx.browser.window
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -27,9 +30,12 @@ import com.ykis.ykismobkmp.cash.meter.MeterRepositoryCash
 import com.ykis.ykismobkmp.cash.meter.MeterRepositoryCashImpl
 import com.ykis.ykismobkmp.cash.ledger.LedgerRepositoryCash
 import com.ykis.ykismobkmp.cash.ledger.LedgerRepositoryCashImpl
+import dev.gitlive.firebase.database.FirebaseDatabase
+import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.storage.FirebaseStorage
 
 /**
- * [jsPlatformModule] — Нативный DI-граф для Web ЮКИС.
+ * [jsPlatformModule] — Нативний DI-граф для Web ЮКІС.
  */
 val jsPlatformModule: Module = module {
   single<Settings> { StorageSettings() }
@@ -54,8 +60,12 @@ val jsPlatformModule: Module = module {
     app
   }
 
+  // Реєстрація Firebase під-сервісів для ChatRepository (Common)
+  single<FirebaseFirestore> { Firebase.firestore(get<FirebaseApp>()) }
+  single<FirebaseDatabase> { Firebase.database(get<FirebaseApp>()) }
+  single<FirebaseStorage> { Firebase.storage(get<FirebaseApp>()) }
+
   single<FirebaseService> { 
-    get<FirebaseApp>() 
     FirebaseServiceImpl(settings = get()) 
   }
 }

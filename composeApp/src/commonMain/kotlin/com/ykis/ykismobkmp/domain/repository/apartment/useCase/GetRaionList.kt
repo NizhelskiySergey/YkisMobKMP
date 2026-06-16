@@ -26,36 +26,38 @@ class GetRaionList(
     try {
       emit(Resource.Loading())
 
-      // ЭТАП 1: ПРОВЕРКА ЛОКАЛЬНОГО КЭША (Запрашиваем районы из SQLDelight через ApartmentCache)
-      val localRaions = try {
-        cache.getRaionList()
+      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША - Безопасно для Web (с таймаутом)
+      var localRaions: List<RaionEntity> = emptyList()
+      try {
+        if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+            kotlinx.coroutines.withTimeoutOrNull(500) {
+                localRaions = cache.getRaionList()
+            }
+        } else {
+            localRaions = cache.getRaionList()
+        }
+
+        if (localRaions.isNotEmpty()) {
+          println("[$className.$methodName]: [LOCAL_HIT] Знайдено ${localRaions.size} районів")
+          emit(Resource.Success(localRaions))
+        }
       } catch (e: Exception) {
-        println("[$className.$methodName]: Ошибка чтения кэша районов: ${e.message}")
-        emptyList()
+        println("[$className.$methodName]: Локальна БД недоступна або зависла, йдемо в мережу")
       }
 
-      if (localRaions.isNotEmpty()) {
-        println("[$className.$methodName]: [LOCAL_HIT] Найдено ${localRaions.size} районов в кэше")
-        emit(Resource.Success(localRaions))
-      }
-
-      // ЭТАП 2: ЗАПРОС В СЕТЬ (Ktor HTTP Client через Репозиторий)
-      println("[$className.$methodName]: [NETWORK_START] Запрос списка районов для UID: ${uid.takeLast(5)}")
-
-      // Получаем полноценный GetRaionsResponse вместо сырого списка
+      // 2. ЗАПРОС В СЕТЬ (Ktor HTTP Client через Репозиторий)
+      println("[$className.$methodName]: [NETWORK_START] ID: ${uid.takeLast(5)}")
       val response = repository.getRaionList(uid)
       val remoteRaions = response.raions ?: emptyList()
 
-      // ЭТАП 3: ОБНОВЛЕНИЕ БАЗЫ ДАННЫХ И СИНХРОНИЗАЦИЯ
+      // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ
       if (response.success == 1 && remoteRaions.isNotEmpty()) {
-        println("[$className.$methodName]: [DB_WRITE] Синхронизация данных в локальной БД")
-
         try {
-          // Атомарно сохраняем новые районы в кэш SQLDelight
-          cache.syncRaionList(remoteRaions)
-          println("[$className.$methodName]: Локальная база данных районов успешно синхронизирована")
+          if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+              cache.syncRaionList(remoteRaions)
+          }
         } catch (dbEx: Exception) {
-          println("[$className.$methodName]: Ошибка записи районов в СУБД: ${dbEx.message}")
+          println("[$className.$methodName]: Помилка запису в кеш: ${dbEx.message}")
         }
 
         emit(Resource.Success(remoteRaions))

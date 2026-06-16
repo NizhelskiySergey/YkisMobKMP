@@ -29,30 +29,42 @@ class GetLastHeatReading(
       try {
         emit(Resource.Loading())
 
-        // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША (Вызов выровнен по новому точечному методу СУБД)
-        val cachedReading = meterCache.getLastHeatReadingByMeter(teplomerId)
-        if (cachedReading != null) {
-          println("[$className.$methodName]: [LOCAL_HIT] Загружено последнее показание тепла для счетчика: $teplomerId")
-          emit(Resource.Success<HeatReadingEntity?>(cachedReading))
+        // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША - Безопасно для Web (с таймаутом)
+        var cachedReading: HeatReadingEntity? = null
+        try {
+          if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+              kotlinx.coroutines.withTimeoutOrNull(500) {
+                  cachedReading = meterCache.getLastHeatReadingByMeter(teplomerId)
+              }
+          } else {
+              cachedReading = meterCache.getLastHeatReadingByMeter(teplomerId)
+          }
+
+          if (cachedReading != null) {
+            println("[$className.$methodName]: [LOCAL_HIT] Завантажено з кешу")
+            emit(Resource.Success<HeatReadingEntity?>(cachedReading))
+          }
+        } catch (e: Exception) {
+          println("[$className.$methodName]: Локальна БД недоступна або зависла, йдемо в мережу")
         }
 
         // 2. ЗАПРОС В СЕТЬ (Через Ktor репозиторий напрямую)
-        println("[$className.$methodName]: [NETWORK_START] Запрос по ID: $teplomerId, UID: ${uid.takeLast(5)}")
+        println("[$className.$methodName]: [NETWORK_START] ID: $teplomerId")
         val response = repository.getLastHeatReading(uid, teplomerId)
 
         if (response.success == 1) {
-          val remoteReading = response.heatReading // Тип из Ktor модели: HeatReadingEntity?
+          val remoteReading = response.heatReading 
 
-          // Явно типизируем фабрику успеха nullable-аргументом
           emit(Resource.Success<HeatReadingEntity?>(remoteReading))
 
-          // 3. ПЕРЕЗАПИСЬ КЭША (Выполняется атомарно через кэш при наличии объекта)
+          // 3. ПЕРЕЗАПИСЬ КЭША
           if (remoteReading != null) {
             try {
-              meterCache.insertHeatReadings(listOf(remoteReading))
-              println("[$className.$methodName]: [NETWORK_SUCCESS] База данных SQLDelight синхронизирована с сетью")
+              if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+                  meterCache.insertHeatReadings(listOf(remoteReading))
+              }
             } catch (dbEx: Exception) {
-              println("[$className.${methodName}_WARN]: Помилка кешування останнього показання: ${dbEx.message}")
+              println("[$className.${methodName}_WARN]: Помилка запису в кеш: ${dbEx.message}")
             }
           }
         } else {

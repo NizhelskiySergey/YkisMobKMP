@@ -3,6 +3,7 @@ package com.ykis.ykismobkmp.cash.sqlDelight
 import com.ykis.ykismobkmp.db.YkisDatabasesQueries
 import app.cash.sqldelight.async.coroutines.awaitAsList
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
+import app.cash.sqldelight.db.SqlDriver
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.entity.FamilyEntity
 import com.ykis.ykismobkmp.domain.entity.RaionEntity
@@ -15,15 +16,22 @@ import com.ykis.ykismobkmp.domain.mapper.toDomainApartment
 import com.ykis.ykismobkmp.domain.mapper.toDomainFamily
 import com.ykis.ykismobkmp.domain.mapper.toDomainHouse
 import com.ykis.ykismobkmp.domain.mapper.toDomainRaion
+import com.ykis.ykismobkmp.db.DatabaseSchemaInitializer
 
 /**
  * [ApartmentDao] — КМР-класс доступа к запросам SQLDelight.
- * ИСПРАВЛЕНО: Полная поддержка асинхронного режима для всех платформ.
  */
 class ApartmentDao(
-  private val dbQueries: YkisDatabasesQueries
+  private val dbQueries: YkisDatabasesQueries,
+  private val driver: SqlDriver,
+  private val schemaInitializer: DatabaseSchemaInitializer
 ) {
+  private suspend fun ensureSchema() {
+    schemaInitializer.ensureSchema(driver)
+  }
+
   suspend fun insertApartments(apartments: List<ApartmentEntity>) {
+    ensureSchema()
     dbQueries.transaction {
       apartments.forEach { apartment ->
         dbQueries.insertApartment(apartment.toDbApartment())
@@ -32,6 +40,7 @@ class ApartmentDao(
   }
 
   suspend fun syncFullDatabase(apartments: List<ApartmentEntity>) {
+    ensureSchema()
     dbQueries.transaction {
       dbQueries.deleteAllApartments()
       dbQueries.deleteAllFamily()
@@ -49,32 +58,42 @@ class ApartmentDao(
   }
 
   suspend fun deleteAllApartments() {
-    dbQueries.deleteAllApartments()
+    ensureSchema()
+    dbQueries.transaction {
+      dbQueries.deleteAllApartments()
+    }
   }
 
   suspend fun deleteFlat(addressId: Long) {
-    dbQueries.deleteFlat(addressId = addressId)
+    ensureSchema()
+    dbQueries.transaction {
+      dbQueries.deleteFlat(addressId = addressId)
+    }
   }
 
   suspend fun getFlatById(addressId: Long): ApartmentEntity? {
+    ensureSchema()
     return dbQueries.getFlatById(addressId)
       .awaitAsOneOrNull()
       ?.toDomainApartment()
   }
 
   suspend fun getApartmentList(): List<ApartmentEntity> {
+    ensureSchema()
     return dbQueries.getApartmentList()
       .awaitAsList()
       .map { it.toDomainApartment() }
   }
 
   suspend fun getRaionList(): List<RaionEntity> {
+    ensureSchema()
     return dbQueries.getRaionList()
       .awaitAsList()
       .map { it.toDomainRaion() }
   }
 
   suspend fun syncRaionList(raions: List<RaionEntity>) {
+    ensureSchema()
     dbQueries.transaction {
       dbQueries.deleteAllRaions()
       raions.forEach { raion ->
@@ -84,12 +103,14 @@ class ApartmentDao(
   }
 
   suspend fun getHousesByRaion(raionId: Long): List<HouseEntity> {
+    ensureSchema()
     return dbQueries.getHousesByRaion(raionId)
       .awaitAsList()
       .map { it.toDomainHouse() }
   }
 
   suspend fun syncHouseList(houses: List<HouseEntity>) {
+    ensureSchema()
     dbQueries.transaction {
       val currentRaionId = houses.firstOrNull()?.raionId
       if (currentRaionId != null && currentRaionId != 0L) {
@@ -102,6 +123,7 @@ class ApartmentDao(
   }
 
   suspend fun getFamilyByApartment(addressId: Long): List<FamilyEntity> {
+    ensureSchema()
     return dbQueries.getFamilyByApartment(addressId)
       .awaitAsList()
       .map { it.toDomainFamily() }
@@ -109,6 +131,7 @@ class ApartmentDao(
 
   suspend fun syncFamilyList(addressId: Long, familyList: List<FamilyEntity>) {
     if (addressId <= 0L) return
+    ensureSchema()
     dbQueries.transaction {
       dbQueries.deleteFamilyByAddressId(addressId)
       if (familyList.isNotEmpty()) {
@@ -120,6 +143,7 @@ class ApartmentDao(
   }
 
   suspend fun addFamilyByUser(family: List<FamilyEntity>) {
+    ensureSchema()
     dbQueries.transaction {
       family.forEach { member ->
         dbQueries.insertFamily(member.toDbFamily())
@@ -128,10 +152,14 @@ class ApartmentDao(
   }
 
   suspend fun deleteAllFamily() {
-    dbQueries.deleteAllFamily()
+    ensureSchema()
+    dbQueries.transaction {
+      dbQueries.deleteAllFamily()
+    }
   }
 
   suspend fun deleteFamilyByApartment(addressIds: List<Long>) {
+    ensureSchema()
     dbQueries.transaction {
       addressIds.forEach { id ->
         dbQueries.deleteFamilyByAddressId(id)

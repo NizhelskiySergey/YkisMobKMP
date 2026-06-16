@@ -28,32 +28,43 @@ class GetWaterReadings(
     try {
       emit(Resource.Loading())
 
-      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША (Вызов выровнен по новому имени контракта)
-      val localReadings = meterCache.getWaterReadingsByMeter(vodomerId)
-      if (localReadings.isNotEmpty()) {
-        println("[$className.$methodName]: [LOCAL_HIT] Загружено из кэша для водомера: $vodomerId")
-        emit(Resource.Success(localReadings))
+      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША - Безопасно для Web (с таймаутом)
+      var localReadings: List<WaterReadingEntity> = emptyList()
+      try {
+        if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+            kotlinx.coroutines.withTimeoutOrNull(500) {
+                localReadings = meterCache.getWaterReadingsByMeter(vodomerId)
+            }
+        } else {
+            localReadings = meterCache.getWaterReadingsByMeter(vodomerId)
+        }
+
+        if (localReadings.isNotEmpty()) {
+          println("[$className.$methodName]: [LOCAL_HIT] Загружено из кэша")
+          emit(Resource.Success(localReadings))
+        }
+      } catch (e: Exception) {
+        println("[$className.$methodName]: Локальна БД недоступна або зависла, йдемо в мережу")
       }
 
       // 2. ЗАПРОС В СЕТЬ (Через Ktor репозиторий напрямую)
-      println("[$className.$methodName]: [NETWORK_START] Запрос истории по ID: $vodomerId, UID: ${uid.takeLast(5)}")
+      println("[$className.$methodName]: [NETWORK_START] ID: $vodomerId")
       val response = repository.getWaterReadings(uid, vodomerId)
 
       if (response.success == 1) {
         val remoteReadings = response.waterReadings ?: emptyList()
-        println("[$className.$methodName]: [NETWORK_SUCCESS] Сеть вернула ${remoteReadings.size} записей истории")
+        println("[$className.$methodName]: [NETWORK_SUCCESS] Отримано ${remoteReadings.size} записів")
 
-        // 3. ПЕРЕЗАПИСЬ КЭША (Выполняется атомарно через транзакции базы данных)
+        // 3. ПЕРЕЗАПИСЬ КЭША
         try {
-          // ИСПРАВЛЕНО НАМЕРТВО: Передаём чистый одиночный Long напрямую без listOf()!
-          meterCache.deleteWaterReadingsByMeter(vodomerId)
-          meterCache.insertWaterReadings(remoteReadings)
-          println("[$className.$methodName]: Локальные показания воды успешно синхронизированы в СУБД")
+          if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+              meterCache.deleteWaterReadingsByMeter(vodomerId)
+              meterCache.insertWaterReadings(remoteReadings)
+          }
         } catch (dbEx: Exception) {
-          println("[$className.${methodName}_WARN]: Ошибка записи показаний воды в СУБД: ${dbEx.message}")
+          println("[$className.${methodName}_WARN]: Помилка запису в кеш: ${dbEx.message}")
         }
 
-        // Отдаем финальный актуальный список в UI
         emit(Resource.Success(remoteReadings))
       } else {
         println("[$className.$methodName]: [NETWORK_REJECT] Сервер вернул ошибку: ${response.message}")

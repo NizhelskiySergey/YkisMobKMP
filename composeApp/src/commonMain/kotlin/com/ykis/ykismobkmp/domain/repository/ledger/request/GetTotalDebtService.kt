@@ -39,7 +39,7 @@ class GetTotalDebtServices(
   ): Flow<Resource<ServiceEntity>> = flow {
     val methodName = "GetTotalDebt"
     try {
-      println("[$className.$methodName]: [START] AddrID: $addressId, UID: ${uid.takeLast(5)}")
+      println("[$className.$methodName]: [START] AddrID: $addressId")
       emit(Resource.Loading())
 
       // 1. ЗАПРОС В СЕТЬ (Через Ktor клиент репозитория биллинга г. Южного)
@@ -56,45 +56,62 @@ class GetTotalDebtServices(
         val serviceData = response.services[0]
         println("[$className.$methodName]: [NETWORK_SUCCESS] Debt: ${serviceData.dolg}")
 
-        // Вызываем атомарное кэширование пакета в СУБД через LedgerRepositoryCash
+        // 2. АТОМАРНАЯ СИНХРОНИЗАЦИЯ
         try {
-          ledgerCache.addService(response.services)
-          println("[$className.$methodName]: Итоговый баланс успешно обновлен в SQLDelight")
+          if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+              ledgerCache.addService(response.services)
+              println("[$className.$methodName]: Баланс оновлено в кеші")
+          }
         } catch (dbEx: Exception) {
-          println("[$className.${methodName}_WARN]: Ошибка записи баланса в СУБД: ${dbEx.message}")
+          println("[$className.${methodName}_WARN]: Помилка запису в кеш: ${dbEx.message}")
         }
 
         emit(Resource.Success(serviceData))
       } else {
-        println("[$className.$methodName]: [SERVER_REJECT] Success=0 или список пуст")
-        // Пытаемся взять из локального SQLite кэша, если сеть ответила отказом
-        val totalDebt = ledgerCache.getTotalDebt(addressId)
+        println("[$className.$methodName]: [SERVER_REJECT] Success=0 або список порожній")
+        
+        // 3. FALLBACK НА КЕШ (Безопасно для Web)
+        var totalDebt: ServiceEntity? = null
+        try {
+            if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+                kotlinx.coroutines.withTimeoutOrNull(500) {
+                    totalDebt = ledgerCache.getTotalDebt(addressId)
+                }
+            } else {
+                totalDebt = ledgerCache.getTotalDebt(addressId)
+            }
+        } catch (e: Exception) { }
+
         if (totalDebt != null) {
-          println("[$className.$methodName]: [DB_FALLBACK] Найдено в базе после отказа сети")
-          emit(Resource.Success(totalDebt))
+          println("[$className.$methodName]: [DB_FALLBACK] Знайдено в базі")
+          emit(Resource.Success(totalDebt!!))
         } else {
-          // Позиционный аргумент без именованного префикса message =
           emit(Resource.Error<ServiceEntity>("Дані відсутні"))
         }
       }
 
     } catch (e: ResponseException) {
       val errorDescription = e.response.status.description
-      println("[$className.$methodName]: [HTTP_ERROR] Код статуса Ktor: ${e.response.status}")
-      SnackbarManager.showMessage(errorDescription)
+      println("[$className.$methodName]: [HTTP_ERROR] $errorDescription")
       emit(Resource.Error<ServiceEntity>("Помилка сервера: $errorDescription"))
 
     } catch (e: Exception) {
-      // Универсальный КМР-перехват, нативно отрабатывающий оффлайн-режим на Mac, Android и iOS
-      println("[$className.$methodName]: [EXCEPTION_OR_OFFLINE] Сбой связи Ktor: ${e.message}. Проверка локального кэша.")
+      println("[$className.$methodName]: [OFFLINE] ${e.message}. Перевірка кешу.")
 
-      // Чтение из локальной базы данных SQLDelight при отсутствии интернета
-      val totalDebt = ledgerCache.getTotalDebt(addressId)
+      var totalDebt: ServiceEntity? = null
+      try {
+          if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+              kotlinx.coroutines.withTimeoutOrNull(500) {
+                  totalDebt = ledgerCache.getTotalDebt(addressId)
+              }
+          } else {
+              totalDebt = ledgerCache.getTotalDebt(addressId)
+          }
+      } catch (ex: Exception) { }
+
       if (totalDebt != null) {
-        println("[$className.$methodName]: [OFFLINE_MODE] Выведены оффлайн данные из SQLite кэша")
-        emit(Resource.Success(totalDebt))
+        emit(Resource.Success(totalDebt!!))
       } else {
-        // Позиционный аргумент без именованного префикса message =
         emit(Resource.Error<ServiceEntity>("Перевірте підключення до інтернету"))
       }
     }

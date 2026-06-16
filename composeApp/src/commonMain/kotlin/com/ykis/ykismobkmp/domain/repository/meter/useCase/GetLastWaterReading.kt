@@ -29,30 +29,42 @@ class GetLastWaterReading(
       try {
         emit(Resource.Loading())
 
-        // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША (Вызов выровнен по новому точечному механизму СУБД)
-        val cachedReading = meterCache.getLastWaterReadingByMeter(vodomerId)
-        if (cachedReading != null) {
-          println("[$className.$methodName]: [LOCAL_HIT] Загружено последнее показание для водомера: $vodomerId")
-          emit(Resource.Success<WaterReadingEntity?>(cachedReading))
+        // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША - Безопасно для Web (с таймаутом)
+        var cachedReading: WaterReadingEntity? = null
+        try {
+          if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+              kotlinx.coroutines.withTimeoutOrNull(500) {
+                  cachedReading = meterCache.getLastWaterReadingByMeter(vodomerId)
+              }
+          } else {
+              cachedReading = meterCache.getLastWaterReadingByMeter(vodomerId)
+          }
+
+          if (cachedReading != null) {
+            println("[$className.$methodName]: [LOCAL_HIT] Завантажено з кешу")
+            emit(Resource.Success<WaterReadingEntity?>(cachedReading))
+          }
+        } catch (e: Exception) {
+          println("[$className.$methodName]: Локальна БД недоступна або зависла, йдемо в мережу")
         }
 
         // 2. ЗАПРОС В СЕТЬ (Через Ktor репозиторий напрямую)
-        println("[$className.$methodName]: [NETWORK_START] Запрос по ID: $vodomerId, UID: ${uid.takeLast(5)}")
+        println("[$className.$methodName]: [NETWORK_START] ID: $vodomerId")
         val response = repository.getLastWaterReading(uid, vodomerId)
 
         if (response.success == 1) {
-          val remoteReading = response.waterReading // Тип из Ktor модели: WaterReadingEntity?
+          val remoteReading = response.waterReading 
 
-          // Явно типизируем фабрику успеха nullable-аргументом
           emit(Resource.Success<WaterReadingEntity?>(remoteReading))
 
-          // 3. ПЕРЕЗАПИСЬ КЭША (Выполняется атомарно через кэш при наличии объекта)
+          // 3. ПЕРЕЗАПИСЬ КЭША
           if (remoteReading != null) {
             try {
-              meterCache.insertWaterReadings(listOf(remoteReading))
-              println("[$className.$methodName]: [NETWORK_SUCCESS] База данных SQLDelight синхронизирована с сетью")
+              if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+                  meterCache.insertWaterReadings(listOf(remoteReading))
+              }
             } catch (dbEx: Exception) {
-              println("[$className.${methodName}_WARN]: Помилка кешування останнього показання води: ${dbEx.message}")
+              println("[$className.${methodName}_WARN]: Помилка запису в кеш: ${dbEx.message}")
             }
           }
         } else {
