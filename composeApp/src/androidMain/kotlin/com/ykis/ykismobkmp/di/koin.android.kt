@@ -27,6 +27,7 @@ import dev.gitlive.firebase.storage.storage
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.database.FirebaseDatabase
 import dev.gitlive.firebase.storage.FirebaseStorage
+import com.ykis.ykismobkmp.db.DatabaseSchemaInitializer
 
 /**
  * [androidPlatformModule] — Специфічний платформенний Android-модуль.
@@ -54,10 +55,28 @@ actual val databaseModule: Module = module {
 
   single<YkisDatabasesQueries> { get<YkisDatabases>().ykisDatabasesQueries }
 
-  // Передаємо 3 параметри для відповідності новому конструктору DAO
-  single { ApartmentDao(get(), get(), get()) }
-  single { MeterDao(get(), get(), get()) }
-  single { LedgerDao(get(), get(), get()) }
+  // Явно вказуємо параметри для уникнення помилок компіляції
+  single { 
+    ApartmentDao(
+        dbQueries = get<YkisDatabasesQueries>(),
+        driver = get<SqlDriver>(),
+        schemaInitializer = get<DatabaseSchemaInitializer>()
+    ) 
+  }
+  single { 
+    MeterDao(
+        dbQueries = get<YkisDatabasesQueries>(),
+        driver = get<SqlDriver>(),
+        schemaInitializer = get<DatabaseSchemaInitializer>()
+    ) 
+  }
+  single { 
+    LedgerDao(
+        dbQueries = get<YkisDatabasesQueries>(),
+        driver = get<SqlDriver>(),
+        schemaInitializer = get<DatabaseSchemaInitializer>()
+    ) 
+  }
 
   single<ApartmentCache> { ApartmentCacheImpl(apartmentDao = get()) }
   single<MeterRepositoryCash> { MeterRepositoryCashImpl(meterDao = get()) }

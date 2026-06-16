@@ -32,6 +32,7 @@ import dev.gitlive.firebase.storage.storage
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.database.FirebaseDatabase
 import dev.gitlive.firebase.storage.FirebaseStorage
+import com.ykis.ykismobkmp.db.DatabaseSchemaInitializer
 
 /**
  * [iosPlatformModule] — Граф нативних залежностей для iOS.
@@ -63,10 +64,28 @@ actual val databaseModule: Module = module {
 
   single<YkisDatabasesQueries> { get<YkisDatabases>().ykisDatabasesQueries }
 
-  // ИСПРАВЛЕНО: Передаем 3 параметра для соответствия новому конструктору
-  single { ApartmentDao(get(), get(), get()) }
-  single { MeterDao(get(), get(), get()) }
-  single { LedgerDao(get(), get(), get()) }
+  // Явно вказуємо параметри для уникнення помилок конструктора
+  single { 
+    ApartmentDao(
+        dbQueries = get<YkisDatabasesQueries>(),
+        driver = get<SqlDriver>(),
+        schemaInitializer = get<DatabaseSchemaInitializer>()
+    ) 
+  }
+  single { 
+    MeterDao(
+        dbQueries = get<YkisDatabasesQueries>(),
+        driver = get<SqlDriver>(),
+        schemaInitializer = get<DatabaseSchemaInitializer>()
+    ) 
+  }
+  single { 
+    LedgerDao(
+        dbQueries = get<YkisDatabasesQueries>(),
+        driver = get<SqlDriver>(),
+        schemaInitializer = get<DatabaseSchemaInitializer>()
+    ) 
+  }
 
   single<ApartmentCache> { ApartmentCacheImpl(apartmentDao = get()) }
   single<MeterRepositoryCash> { MeterRepositoryCashImpl(meterDao = get()) }

@@ -33,6 +33,7 @@ import com.ykis.ykismobkmp.cash.ledger.LedgerRepositoryCashImpl
 import dev.gitlive.firebase.database.FirebaseDatabase
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
+import com.ykis.ykismobkmp.db.DatabaseSchemaInitializer
 
 /**
  * [jsPlatformModule] — Нативний DI-граф для Web ЮКІС.
@@ -80,18 +81,34 @@ actual val databaseModule: Module = module {
   // 2. Создаем базу данных
   single<YkisDatabases> {
     val driver = get<SqlDriver>()
-    // В асинхронном режиме SQLDelight Web создание схемы делается один раз
-    // Мы вызываем его, но не ждем здесь (DAO сами разрулят через suspend)
     YkisDatabases.Schema.create(driver) 
     YkisDatabases(driver)
   }
 
   single<YkisDatabasesQueries> { get<YkisDatabases>().ykisDatabasesQueries }
 
-  // 3. Регистрируем DAO
-  single { ApartmentDao(get<YkisDatabasesQueries>()) }
-  single { MeterDao(get<YkisDatabasesQueries>()) }
-  single { LedgerDao(get<YkisDatabasesQueries>()) }
+  // 3. Регистрируем DAO (Явно указываем параметры для фикса ошибки компиляции JS)
+  single { 
+    ApartmentDao(
+        dbQueries = get<YkisDatabasesQueries>(),
+        driver = get<SqlDriver>(),
+        schemaInitializer = get<DatabaseSchemaInitializer>()
+    ) 
+  }
+  single { 
+    MeterDao(
+        dbQueries = get<YkisDatabasesQueries>(),
+        driver = get<SqlDriver>(),
+        schemaInitializer = get<DatabaseSchemaInitializer>()
+    ) 
+  }
+  single { 
+    LedgerDao(
+        dbQueries = get<YkisDatabasesQueries>(),
+        driver = get<SqlDriver>(),
+        schemaInitializer = get<DatabaseSchemaInitializer>()
+    ) 
+  }
 
   // 4. Регистрируем Cache
   single<ApartmentCache> { ApartmentCacheImpl(apartmentDao = get()) }
