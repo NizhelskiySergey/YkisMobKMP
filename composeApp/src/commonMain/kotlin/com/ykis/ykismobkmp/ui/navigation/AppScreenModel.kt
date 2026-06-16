@@ -38,40 +38,46 @@ class AppScreenModel(
 
   fun evaluateStartDestination() {
     screenModelScope.launch {
-      // ИСПРАВЛЕНО: Ставим Loading только если мы ЕЩЕ НЕ определились с состоянием.
-      // Это предотвратит уничтожение навигатора и корутин чата при обновлении профиля.
-      if (_startState.value == AppStartState.Loading) {
-          delay(1200)
+      println("[YkisLogKMP.$className.evaluateStartDestination]: >>> ЗАПУСК ПЕРЕВІРКИ (v.1.0.6) <<<")
+      
+      // 0. ТЕХНІЧНА ПАУЗА ДЛЯ WEB (щоб Firebase встиг прокинутись)
+      if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+          delay(1000)
       }
 
       // 1. ШАГ №1: Перевірка ліцензійної угоди (Оферти ГІОЦ)
       val isTermsAccepted = appCache.getBoolean(key = TERMS_ACCEPTED_KEY, defaultValue = false)
 
       if (!isTermsAccepted) {
-        println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 1] Оферта не прийнята. Запуск завантаження Remote Config...")
-
+        println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 1] Оферта не прийнята.")
         val isSuccess = firebaseService.fetchConfiguration()
         cachedTermsText = firebaseService.agreementText
-        println("[YkisLogKMP.$className.evaluateStartDestination]: Remote Config завантажено ($isSuccess). Довжина: ${cachedTermsText.length}")
-
         _startState.value = AppStartState.TermsAndConditions
         return@launch
-      } else {
-        println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 1] Оферта прийнята.")
       }
 
       // 2. ШАГ №2: Проверка сессии Firebase
-      delay(300)
+      println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Перевірка Auth стейту...")
       
-      // ИСПРАВЛЕНО: Проверяем наличие локальной сессии ПЕРЕД сетевым запросом
-      val initialUid = firebaseService.uid
-      val isLocallyAuthenticated = firebaseService.isUserAuthenticatedInFirebase && initialUid.isNotBlank()
+      // ИСПРАВЛЕНО: Ждем появления UID до 4 секунд
+      var attempts = 0
+      while (firebaseService.uid.isBlank() && attempts < 20) {
+          delay(200)
+          attempts++
+          if (attempts % 5 == 0) {
+              println("[YkisLogKMP.$className.evaluateStartDestination]: Очікування Firebase... (${attempts*200}ms)")
+          }
+      }
 
-      if (!isLocallyAuthenticated) {
-          println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Локальна сесія відсутня. Наказ на SignIn.")
+      val finalUid = firebaseService.uid
+      if (finalUid.isBlank()) {
+          println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Сесія НЕ знайдена за 4 сек. Перехід на SignIn.")
           _startState.value = AppStartState.SignIn
           return@launch
       }
+
+      println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Сесія відновлена: ${finalUid.takeLast(5)}")
+
 
       // Если локальная сессия есть, пробуем обновить её по сети (для выявления удаленных аккаунтов)
       println("[YkisLogKMP.$className.evaluateStartDestination]: Спроба оновлення сесії...")
@@ -106,12 +112,17 @@ class AppScreenModel(
       firebaseService.addFcmToken()
 
       // 3. ШАГ №3: ПОЛЬЗОВАТЕЛЬ АВТОРИЗОВАН
-      println("[YkisLogKMP.$className.evaluateStartDestination]: [SESSION_OK] Запуск моніторингу профілю...")
+      println("[YkisLogKMP.$className.evaluateStartDestination]: [SESSION_OK] Завантаження профілю...")
+      
+      // ИСПРАВЛЕНО: Перед переходом принудительно получаем свежий профиль из Firestore
+      val profile = firebaseService.getUserProfile()
+      println("[YkisLogKMP.$className.evaluateStartDestination]: Профіль отримано. Роль: ${profile.userRole}")
+      
       apartmentScreenModel.observeUserProfile()
 
-      // ИСПРАВЛЕНО: Ждем загрузки, но следим за UID. Если он пропал (авто-выход Firebase) — прерываемся.
+      // Ждем загрузки стейта, где роль совпадает с полученной из профиля
       val finalUIState = apartmentScreenModel.uiState.first { state ->
-        (state.userRole != UserRole.Unknown && !state.mainLoading) || firebaseService.uid.isBlank()
+        (state.userRole.getSerialName() == profile.userRole && !state.mainLoading) || firebaseService.uid.isBlank()
       }
 
       if (firebaseService.uid.isBlank()) {

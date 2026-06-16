@@ -217,6 +217,7 @@ class ApartmentScreenModel(
           }
           UserRole.OsbbUser -> {
             apartmentService.getOsbbApartmentsList(currentOsbbId).collect { result ->
+              if (result is Resource.Error) _uiState.update { it.copy(mainLoading = false) }
               handleOsbbAdminResult(result, user.uid, currentUserRole, currentOsbbId, user.osbb)
             }
           }

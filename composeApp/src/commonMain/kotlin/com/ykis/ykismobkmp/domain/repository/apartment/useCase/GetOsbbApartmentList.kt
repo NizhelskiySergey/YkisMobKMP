@@ -28,16 +28,24 @@ class GetOsbbApartmentsList(
       println("[$className.$methodName]: [START] TargetID: $targetId")
       emit(Resource.Loading())
 
-      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША - Безопасно для Web
+      // 1. ПРОВЕРКА ЛОКАЛЬНОГО КЭША - Безопасно для Web (с таймаутом)
       var localList: List<ApartmentEntity> = emptyList()
       try {
-        localList = cache.getApartmentsByUser()
+        if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+            // В вебе ограничиваем ожидание БД, чтобы не вешать UI
+            kotlinx.coroutines.withTimeoutOrNull(500) {
+                localList = cache.getApartmentsByUser()
+            }
+        } else {
+            localList = cache.getApartmentsByUser()
+        }
+
         if (localList.isNotEmpty()) {
-          println("[$className.$methodName]: [LOCAL_HIT] Найдено ${localList.size} кв. в локальной базе данных")
+          println("[$className.$methodName]: [LOCAL_HIT] Найдено ${localList.size} кв.")
           emit(Resource.Success(localList))
         }
       } catch (e: Exception) {
-        println("[$className.$methodName]: Локальна БД недоступна (Web mode), завантажуємо з мережі")
+        println("[$className.$methodName]: Локальна БД недоступна або зависла, йдемо в мережу")
       }
 
       // 2. ЗАПРОС В СЕТЬ (Ktor HTTP Client через Репозиторий)

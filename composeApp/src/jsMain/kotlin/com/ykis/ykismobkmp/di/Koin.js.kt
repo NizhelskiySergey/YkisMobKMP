@@ -37,6 +37,7 @@ val jsPlatformModule: Module = module {
   single { LocalAiEngine() }
 
   single<FirebaseApp> {
+    println("[YkisLogKMP.Koin]: Ініціалізація Firebase App (Web)...")
     val options = FirebaseOptions(
         applicationId = "1:1062920014188:web:cd8ced095f943b9d088b49",
         apiKey = "AIzaSyDZUPgZSs5RMcQFtt2DjcoZoYTi9wdI37k",
@@ -46,6 +47,7 @@ val jsPlatformModule: Module = module {
         authDomain = "ykis-mob.firebaseapp.com"
     )
     val app = Firebase.initialize(options = options)
+    println("[YkisLogKMP.Koin]: Firebase успішно ініціалізовано.")
     if (RECAPTCHA_SITE_KEY != "ТВОЙ_КЛЮЧ_ЗДЕСЬ") {
         initializeRecaptcha(RECAPTCHA_SITE_KEY)
     }
