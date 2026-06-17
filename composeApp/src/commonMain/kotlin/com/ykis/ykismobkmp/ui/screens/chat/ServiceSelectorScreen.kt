@@ -169,10 +169,10 @@ fun ServiceSelectorContent(
             
             val announcementUnread = announcements.count { 
                 it.timestamp > lastCheck && when(service.contentDetail) {
-                    ContentDetail.WATER_SERVICE -> it.authorRole == UserRole.VodokanalUser
-                    ContentDetail.WARM_SERVICE -> it.authorRole == UserRole.YtkeUser
-                    ContentDetail.GARBAGE_SERVICE -> it.authorRole == UserRole.TboUser
-                    ContentDetail.OSBB -> it.authorRole == UserRole.OsbbUser
+                    ContentDetail.WATER_SERVICE -> it.authorRole.contains("Vodokanal", true)
+                    ContentDetail.WARM_SERVICE -> it.authorRole.contains("Ytke", true)
+                    ContentDetail.GARBAGE_SERVICE -> it.authorRole.contains("Tbo", true)
+                    ContentDetail.OSBB -> it.authorRole.contains("Osbb", true)
                     else -> false
                 }
             }

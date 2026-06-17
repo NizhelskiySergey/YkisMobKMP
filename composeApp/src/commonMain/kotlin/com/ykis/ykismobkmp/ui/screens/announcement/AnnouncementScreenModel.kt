@@ -151,7 +151,7 @@ class AnnouncementScreenModel(
                        UserRole.OsbbUser      -> baseState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "ОСББ"
                        else -> "Адміністратор"
                     },
-                    authorRole = role,
+                    authorRole = role.getSerialName(),
                     osbbId = targetOsbbId,
                     timestamp = currentTimeMillis(),
                     imageUrl = imageUrl,

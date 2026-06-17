@@ -29,15 +29,21 @@ import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
+import com.ykis.ykismobkmp.ui.navigation.ContentType
+import com.ykis.ykismobkmp.ui.navigation.LocalContentType
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.accrued_text
+import ykismobkmp.composeapp.generated.resources.accrued_text_full
 import ykismobkmp.composeapp.generated.resources.end_debt
+import ykismobkmp.composeapp.generated.resources.end_debt_full
 import ykismobkmp.composeapp.generated.resources.no_payment
 import ykismobkmp.composeapp.generated.resources.no_payment_year
 import ykismobkmp.composeapp.generated.resources.paid
+import ykismobkmp.composeapp.generated.resources.paid_full
 import ykismobkmp.composeapp.generated.resources.payment_list
 import ykismobkmp.composeapp.generated.resources.services
 import ykismobkmp.composeapp.generated.resources.start_debt
+import ykismobkmp.composeapp.generated.resources.start_debt_full
 import ykismobkmp.composeapp.generated.resources.summary
 import ykismobkmp.composeapp.generated.resources.vodokanal
 import ykismobkmp.composeapp.generated.resources.ytke
@@ -254,6 +260,9 @@ fun ServiceDetailItem(
   modifier: Modifier = Modifier,
   serviceEntity: ServiceEntity = ServiceEntity()
 ) {
+  val contentType = LocalContentType.current
+  val isDualPane = contentType == ContentType.DUAL_PANE
+
   val scrollState = rememberScrollState()
   val formattedMonthHeader = remember(serviceEntity.data) { formatUkMonth(serviceEntity.data) }
 
@@ -292,11 +301,36 @@ fun ServiceDetailItem(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
       ) {
-        TableCell(text = stringResource(Res.string.services), weight = 1.3f, isHeader = true)
-        TableCell(text = stringResource(Res.string.start_debt), isHeader = true)
-        TableCell(text = stringResource(Res.string.accrued_text), isHeader = true)
-        TableCell(text = stringResource(Res.string.paid), isHeader = true)
-        TableCell(text = stringResource(Res.string.end_debt), isHeader = true)
+        TableCell(
+          text = stringResource(Res.string.services), 
+          weight = 1.3f, 
+          isHeader = true, 
+          textAlign = TextAlign.Center // Заголовок "Послуги" тепер по центру
+        )
+        TableCell(
+          text = stringResource(if (isDualPane) Res.string.start_debt_full else Res.string.start_debt),
+          isHeader = true,
+          textAlign = TextAlign.End,
+//          weight = if (isDualPane) 1.2f else 1f // Даем чуть больше места длинным заголовкам
+        )
+        TableCell(
+          text = stringResource(if (isDualPane) Res.string.accrued_text_full else Res.string.accrued_text),
+          isHeader = true,
+          textAlign = TextAlign.End,
+//          weight = if (isDualPane) 1.2f else 1f
+        )
+        TableCell(
+          text = stringResource(if (isDualPane) Res.string.paid_full else Res.string.paid),
+          isHeader = true,
+          textAlign = TextAlign.End,
+//          weight = if (isDualPane) 1.2f else 1f
+        )
+        TableCell(
+          text = stringResource(if (isDualPane) Res.string.end_debt_full else Res.string.end_debt),
+          isHeader = true,
+          textAlign = TextAlign.End,
+//          weight = if (isDualPane) 1.2f else 1f
+        )
       }
       TableDivider()
 

@@ -28,7 +28,7 @@ import kotlinx.coroutines.withTimeout
 private const val className = "FirebaseServiceImpl"
 
 /**
- * [FirebaseServiceImpl] — Реалізація сервісу авторизації з гарантованим використанням Koin-інстансів.
+ * [FirebaseServiceImpl] — Реалізація сервісу авторизації з покращеною стійкістю до затримок мережі.
  */
 class FirebaseServiceImpl(
   private val settings: Settings
@@ -112,24 +112,25 @@ class FirebaseServiceImpl(
           userMap["fcmTokens"] = emptyList<String>()
       }
 
-      println("[FirebaseServiceImpl]: [FIRESTORE] Спроба запису...")
+      println("[FirebaseServiceImpl]: [FIRESTORE_WAIT] Спроба запису (Timeout 15s)...")
       
-      withTimeout(5000) {
+      // ИСПРАВЛЕНО: Увеличиваем таймаут до 15 секунд для стабильности на Android
+      withTimeout(15000) {
           db.collection("users").document(currentUid).set(data = userMap, merge = true)
       }
       
-      println("[FirebaseServiceImpl]: [FIRESTORE_OK] Дані успішно збережені")
+      println("[FirebaseServiceImpl]: [FIRESTORE_OK] Дані збережені")
 
       try {
           apartmentService.saveUserUid(currentUid, userEmail).filter { it !is Resource.Loading }.first()
           println("[FirebaseServiceImpl]: [MySQL_OK] UID передано")
       } catch (e: Exception) {
-          println("[FirebaseServiceImpl]: [MySQL_WARN] Збій MySQL: ${e.message}")
+          println("[FirebaseServiceImpl]: [MySQL_WARN] MySQL: ${e.message}")
       }
       
       return Resource.Success(true)
     } catch (e: Exception) {
-      println("[FirebaseServiceImpl_ERROR]: ПомилкаaddUserFirestore: ${e.message}")
+      println("[FirebaseServiceImpl_ERROR]: $e")
       return Resource.Error(message = e.message ?: "Process error")
     }
   }
@@ -146,7 +147,7 @@ class FirebaseServiceImpl(
       fio?.let { updates["fio"] = it }
       osbb?.let { updates["osbb"] = it }
       
-      withTimeout(3000) {
+      withTimeout(10000) {
           db.collection("users").document(uid).set(data = updates, merge = true)
       }
     } catch (e: Exception) { }
@@ -154,7 +155,11 @@ class FirebaseServiceImpl(
 
   override suspend fun getUserProfile(): UserFirebase = withContext(Dispatchers.Default) {
     try {
-      val snapshot = db.collection("users").document(uid).get()
+      // ИСПРАВЛЕНО: Добавляем таймаут и на чтение профиля
+      val snapshot = withTimeout(10000) {
+          db.collection("users").document(uid).get()
+      }
+      
       UserFirebase(
         uid = uid,
         email = auth.currentUser?.email ?: "",
@@ -167,6 +172,7 @@ class FirebaseServiceImpl(
         osbb = try { snapshot.get<String>("osbb") ?: "" } catch (e: Exception) { "" }
       )
     } catch (e: Exception) {
+      println("[FirebaseServiceImpl]: Помилка читання профілю, fallback до StandardUser: ${e.message}")
       UserFirebase(uid = uid, email = email, userRole = "StandardUser")
     }
   }

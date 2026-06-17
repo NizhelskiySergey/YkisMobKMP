@@ -222,7 +222,7 @@ class ChatRepository(
           "imageUrl" to announcement.imageUrl,
           "authorUid" to announcement.authorUid,
           "authorName" to announcement.authorName,
-          "authorRole" to announcement.authorRole.getSerialName(),
+          "authorRole" to announcement.authorRole,
           "fileUrl" to announcement.fileUrl,
           "fileName" to announcement.fileName,
           "isPriority" to announcement.isPriority
@@ -247,14 +247,23 @@ class ChatRepository(
     return firestore.collection("announcements")
       .snapshots()
       .map { snapshot ->
-        snapshot.documents.map { doc ->
-          doc.data<AnnouncementEntity>().copy(id = doc.id)
+        snapshot.documents.mapNotNull { doc ->
+          try {
+            // ИСПРАВЛЕНО: Защищенный парсинг каждого отдельного объявления
+            doc.data<AnnouncementEntity>().copy(id = doc.id)
+          } catch (e: Exception) {
+            println("[ChatRepository_WARN]: Пропуск некоректного оголошення ${doc.id}: ${e.message}")
+            null
+          }
         }.filter { 
             val itemOsbbId = it.osbbId.toLong()
             itemOsbbId == 0L || itemOsbbId == osbbId 
         }.sortedByDescending { it.timestamp }
       }
-      .catch { emit(emptyList()) }
+      .catch { e -> 
+        println("[ChatRepository_ERROR]: Помилка потоку оголошень: ${e.message}")
+        emit(emptyList()) 
+      }
   }
 
   fun observeMessages(chatUid: String, limit: Int = 50): Flow<List<MessageEntity>> {

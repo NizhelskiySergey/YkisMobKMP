@@ -29,23 +29,23 @@ fun RowScope.TableCell(
     text = text,
     modifier = modifier
       .weight(weight)
+      .fillMaxWidth() // ДОДАНО: Гарантуємо, що текст займає всю ширину комірки для коректного TextAlign
       .padding(horizontal = 2.dp, vertical = 6.dp),
     style = when {
       isHeader -> MaterialTheme.typography.labelSmall.copy(
         fontWeight = FontWeight.Bold, 
-        fontSize = 11.sp,
-        textAlign = TextAlign.Center // Заголовки по центру
+        fontSize = 11.sp
       )
       isSummary -> MaterialTheme.typography.bodySmall.copy(
         fontWeight = FontWeight.Bold, 
         fontSize = 12.sp
       )
       else -> MaterialTheme.typography.bodySmall.copy(
-        fontWeight = FontWeight.Normal, // Цифры не жирные
+        fontWeight = FontWeight.Normal, 
         fontSize = 12.sp
       )
     },
-    textAlign = if (isHeader) TextAlign.Center else textAlign,
+    textAlign = textAlign, // Пряме застосування вирівнювання
     color = if (isHeader) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
     maxLines = 2,
     softWrap = true,

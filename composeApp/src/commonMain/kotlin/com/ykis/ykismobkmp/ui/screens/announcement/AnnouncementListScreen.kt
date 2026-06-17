@@ -109,8 +109,9 @@ class AnnouncementListScreen(
                         }
                     } else {
                         val filteredAnnouncements = remember(screenState.announcements, screenState.announcementFilterRole) {
-                            if (screenState.announcementFilterRole == null) screenState.announcements
-                            else screenState.announcements.filter { it.authorRole == screenState.announcementFilterRole }
+                            val filter = screenState.announcementFilterRole
+                            if (filter == null) screenState.announcements
+                            else screenState.announcements.filter { it.authorRole.contains(filter.getSerialName(), true) }
                         }
 
                         val groupedItems = remember(filteredAnnouncements) {
@@ -252,9 +253,9 @@ fun AnnouncementItem(
     BaseCard(
         modifier = Modifier.fillMaxWidth(),
         label = when {
-            item.authorRole == UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
-            item.authorRole == UserRole.YtkeUser -> "КП тм \"ЮТКЕ\""
-            item.authorRole == UserRole.TboUser -> "КП \"СПЕЦТРАНС\""
+            item.authorRole.contains("Vodokanal", true) -> "КП \"ЮЖВОДОКАНАЛ\""
+            item.authorRole.contains("Ytke", true) -> "КП тм \"ЮТКЕ\""
+            item.authorRole.contains("Tbo", true) -> "КП \"СПЕЦТРАНС\""
             !item.authorName.isNullOrBlank() -> item.authorName
             isGlobal -> "Міське оголошення"
             else -> "ОСББ"

@@ -1,12 +1,11 @@
 package com.ykis.ykismobkmp.domain.entity
 
-import com.ykis.ykismobkmp.domain.services.UserRole
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
  * [AnnouncementEntity] — Модель объявления/новости от коммунальных служб или ОСББ.
- * ИСПРАВЛЕНО: Поля синхронизированы со структурой Firestore (camelCase).
+ * ИСПРАВЛЕНО: authorRole теперь String для предотвращения падений десериализации в Web.
  */
 @Serializable
 data class AnnouncementEntity(
@@ -15,7 +14,7 @@ data class AnnouncementEntity(
     @SerialName("message") val message: String = "",
     @SerialName("authorUid") val authorUid: String = "",
     @SerialName("authorName") val authorName: String = "",
-    @SerialName("authorRole") val authorRole: UserRole = UserRole.Unknown,
+    @SerialName("authorRole") val authorRole: String = "Unknown",
     @SerialName("osbbId") val osbbId: Long = 0L,
     @SerialName("timestamp") val timestamp: Long = 0L,
     @SerialName("isPriority") val isPriority: Boolean = false,

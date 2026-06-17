@@ -202,11 +202,15 @@
   <string name="summary">Усього:</string>
   <!--      <string name="payment_text">Платіж від:</string>  -->
   <string name="start_debt">Борг на\nпочаток</string>
+  <string name="start_debt_full">Борг на початок</string>
   <string name="accrued_text">Нара -\nховано</string>
+  <string name="accrued_text_full">Нараховано</string>
   <string name="end_debt">Борг на\nкінець</string>
+  <string name="end_debt_full">Борг на кінець</string>
   <string name="services">Послуги</string>
   <string name="refund">Відшкодування</string>
   <string name="paid">Спла-\nчено</string>
+  <string name="paid_full">Сплачено</string>
   <string name="tbo">Управління ПВ:</string>
   <string name="prixod">Приход:</string>
   <string name="add">Додати</string>

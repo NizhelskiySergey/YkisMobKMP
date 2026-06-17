@@ -140,20 +140,21 @@ class AuthScreenModel(
         // Взводим доменный статус загрузки: кнопка заблокируется, закрутится CircularProgressIndicator
         _signInResponse.value = Resource.Loading()
 
-        // Канонический позиционный вызов GitLive SDK без именованных параметров
+        // Канонический позиционный вызов GitLive SDK
         Firebase.auth.signInWithEmailAndPassword(currentEmail, currentPassword)
 
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Синхронізація профілю Firestore/MySQL...")
-        firebaseService.addUserFirestore()
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Авторизація пройдена. Запуск фонових процесів...")
 
-        // Шаг 2. Регистрируем FCM-токен устройства в облаке Google Cloud для пуш-сообщений
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Шаг 2: Регистрация FCM токена уведомлений...")
-        firebaseService.addFcmToken()
-
-        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Авторизация успешна. Verified: $isEmailVerified")
-
-        // Переключаем доменный стейт в Успех
+        // КРИТИЧНИЙ ФІКС: Віддаємо успіх ВІДРАЗУ
         _signInResponse.value = Resource.Success(true)
+
+        // Фонова синхронізація (не блокує перехід)
+        screenModelScope.launch {
+            println("[YkisLogKMP.$className.$methodName]: [BACKGROUND] Синхронізація профілю та FCM...")
+            firebaseService.addUserFirestore()
+            firebaseService.addFcmToken()
+        }
+
         appScreenModel.evaluateStartDestination()
         onSuccessNavigate()
 
@@ -317,29 +318,19 @@ class AuthScreenModel(
         println("[YkisLogKMP.$className.$methodName]: [PROCESS] Шаг 1: Авторизация Firebase Auth...")
         signInAndLinkWithGoogle(idToken)
 
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Шаг 2: Синхронизация СУБД и создание профиля Firestore...")
-        val dbResult = firebaseService.addUserFirestore()
+        // КРИТИЧНИЙ ФІКС: Віддаємо успіх Auth ВІДРАЗУ, не чекаючи синхронізації БД
+        _signInWithGoogleResponse.value = Resource.Success(true)
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Авторизація пройдена. Перехід до додатку...")
 
-        // Принудительно передаем финальный статус ответа БД в стейт ответа интерфейса
-        _signInWithGoogleResponse.value = dbResult
-
-        if (dbResult is Resource.Error) {
-          println("[YkisLogKMP.$className.$methodName]: [ERROR] Ошибка при сохранении профиля в Firestore: ${dbResult.message}")
-          SnackbarManager.showMessage(Res.string.error_db_sync)
-          return@launch // Легитимный выход из корутины scope при ошибке Firestore
+        // Запускаємо фонову синхронізацію без блокування UI
+        screenModelScope.launch {
+            println("[YkisLogKMP.$className.$methodName]: [BACKGROUND] Запуск синхронізації профілю та FCM...")
+            firebaseService.addUserFirestore()
+            firebaseService.addFcmToken()
         }
 
-        // Шаг 3. Регистрируем FCM-токен устройства в облаке Google Cloud для пуш-сообщений биллинга
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Шаг 3: Регистрация FCM токена уведомлений...")
-        firebaseService.addFcmToken()
-
-        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Все шлюзы безопасности пройдены. Запуск пересчета стартовой траектории.")
-        _signInWithGoogleResponse.value = Resource.Success(true)
-
-        // Пересчитываем стейт-машину, чтобы КМР-рантайм бесшовно зафиксировал вход жильца
+        // Миттєво оновлюємо навігаційний стейт та переходимо
         appScreenModel.evaluateStartDestination()
-
-        // Вызываем нативную лямбду навигации Voyager для replaceAll перехода на MainApartmentScreen
         onFinishedNavigate()
 
       } catch (e: Exception) {
@@ -347,9 +338,6 @@ class AuthScreenModel(
         _signInWithGoogleResponse.value = Resource.Error(messageRes = Res.string.error_unknown)
         SnackbarManager.showMessage(Res.string.error_unknown)
       } finally {
-        // ИСПРАВЛЕНО НАМЕРТВО: Блок finally сработает ВСЕГДА, пробивая любые сетевые лаги Google Cloud!
-        // Кнопка в интерфейсе гарантированно разблокируется, а крутилка погаснет.
-        println("[YkisLogKMP.$className.$methodName]: [FINISH] Транзакция завершена. Снятие блокировки кнопки.")
         _isGoogleLoading.value = false
       }
     }
@@ -432,34 +420,23 @@ class AuthScreenModel(
       val result = firebaseService.signInWithSmsCode(verificationId, state.smsCode)
 
       if (result is Resource.Success) {
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Вход одобрен. Синхронизация Firestore...")
+        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Вхід схвалено. Запуск фонових процесів...")
 
-        // Создаем запись пользователя в Firestore
-        val dbResult = firebaseService.addUserFirestore()
-
-        if (dbResult is Resource.Error) {
-          println("[YkisLogKMP.$className.$methodName]: [ERROR] Ошибка Firestore: ${dbResult.message}")
-          _signInResponse.value = Resource.Error(messageRes = Res.string.error_db_sync)
-          SnackbarManager.showMessage(Res.string.error_db_sync)
-          return@launchCatching
-        }
-
-        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Профиль создан. Принудительное обновление ID-токена сессии...")
-
-        // КРИТИЧЕСКИЙ ФИКС: Заставляем нативное ядро Firebase обновить защищенные токены в памяти смартфона!
-        try {
-          // Прямой вызов обновления токена GitLive Auth, который нативно зафиксирует права пользователя в ОС
-          Firebase.auth.currentUser?.getIdToken(forceRefresh = true)
-          println("[YkisLogKMP.$className.$methodName]: [TOKEN_SUCCESS] Локальный токен обновлен успешно")
-        } catch (e: Exception) {
-          println("[YkisLogKMP.$className.$methodName]: [TOKEN_WARN] Ошибка обновления токена: ${e.message}")
-        }
-
-        // Принудительно гасим лоадер в UI-слое перед вызовом навигации!
+        // КРИТИЧНИЙ ФІКС: Віддаємо успіх ВІДРАЗУ
         _signInResponse.value = Resource.Success(true)
 
-        println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Все готово. Запуск колбека onSuccess().")
-        firebaseService.addFcmToken()
+        // Фонова синхронізація (не блокує перехід)
+        screenModelScope.launch {
+            println("[YkisLogKMP.$className.$methodName]: [BACKGROUND] Синхронізація Firestore та FCM...")
+            firebaseService.addUserFirestore()
+            firebaseService.addFcmToken()
+            
+            // Оновлення токена для надійності
+            try {
+              Firebase.auth.currentUser?.getIdToken(forceRefresh = true)
+            } catch (e: Exception) { }
+        }
+
         appScreenModel.evaluateStartDestination()
         onSuccess() // Бесшовно перенаправляет на MainApartmentScreen через replaceAll
 
