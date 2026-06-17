@@ -182,18 +182,26 @@ fun MessageListItem(
       }
 
       // 3. ИЗОБРАЖЕНИЕ (ПРИКРЕПЛЕННОЕ ФОТО ПОЛОМКИ / ЗАЯВКИ ГИОЦ)
-      if (messageEntity.imageUrl != null) {
+      if (!messageEntity.imageUrl.isNullOrBlank()) {
+        val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
+        if (isWeb) println("[$tag]: Рендерю картинку Web: ${messageEntity.imageUrl}")
+        
         AsyncImage(
           model = messageEntity.imageUrl,
           contentDescription = null,
           modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).fillMaxWidth(),
-          contentScale = ContentScale.FillWidth
+          contentScale = ContentScale.FillWidth,
+          onError = { error ->
+              if (isWeb) println("[${tag}_ERROR]: Ошибка загрузки картинки в браузере: ${error.result.throwable.message}")
+          }
         )
+      } else if (messageEntity.type == "IMAGE") {
+        println("[${tag}_WARN]: Получено сообщение типа IMAGE, но imageUrl пуст!")
       }
 
       // 4. ОТОБРАЖЕНИЕ ДОКУМЕНТА (АКТЫ ВЫПОЛНЕНИЯ РАБОТ / СМЕТЫ ОСМД)
-      if (messageEntity.fileUrl != null) {
-        println("[$tag.MessageListItem]: Rendering FILE bubble: ${messageEntity.fileUrl}")
+      if (!messageEntity.fileUrl.isNullOrBlank()) {
+        println("[$tag]: Rendering FILE bubble: ${messageEntity.fileUrl}")
 
         Row(
           modifier = Modifier

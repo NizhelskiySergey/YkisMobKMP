@@ -50,16 +50,17 @@ class GetFamilyList(
 
       // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ КЭША
       if (response.success == 1) {
+        println("[$className.$methodName]: [SUCCESS] Отримано ${remoteFamily.size} мешканців")
+        
+        // Спочатку UI
+        emit(Resource.Success(remoteFamily))
+
+        // Потім кеш
         try {
-            if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
-                cache.syncFamilyList(addressId = addressId, familyList = remoteFamily)
-            }
+            cache.syncFamilyList(addressId = addressId, familyList = remoteFamily)
         } catch (dbEx: Exception) {
             println("[$className.$methodName]: Помилка запису в кеш: ${dbEx.message}")
         }
-
-        println("[$className.$methodName]: [SUCCESS] Отримано ${remoteFamily.size} мешканців")
-        emit(Resource.Success(remoteFamily))
       } else {
         // Если сервер вернул success = 0 или список пуст, но локально что-то было — мы это уже отдали.
         // Ошибку кидаем только если в базе пусто и сеть не вернула данные.

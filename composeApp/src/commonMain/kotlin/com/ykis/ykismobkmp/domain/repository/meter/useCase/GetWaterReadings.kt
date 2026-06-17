@@ -55,17 +55,16 @@ class GetWaterReadings(
         val remoteReadings = response.waterReadings ?: emptyList()
         println("[$className.$methodName]: [NETWORK_SUCCESS] Отримано ${remoteReadings.size} записів")
 
+        // Спочатку UI
+        emit(Resource.Success(remoteReadings))
+
         // 3. ПЕРЕЗАПИСЬ КЭША
         try {
-          if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
-              meterCache.deleteWaterReadingsByMeter(vodomerId)
-              meterCache.insertWaterReadings(remoteReadings)
-          }
+          meterCache.deleteWaterReadingsByMeter(vodomerId)
+          meterCache.insertWaterReadings(remoteReadings)
         } catch (dbEx: Exception) {
           println("[$className.${methodName}_WARN]: Помилка запису в кеш: ${dbEx.message}")
         }
-
-        emit(Resource.Success(remoteReadings))
       } else {
         println("[$className.$methodName]: [NETWORK_REJECT] Сервер вернул ошибку: ${response.message}")
         // Если сеть ответила ошибкой, но у нас уже есть локальный кэш — мы его отдали выше.

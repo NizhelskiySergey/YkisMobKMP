@@ -387,16 +387,14 @@ fun ChatScreenContent(
               else screenModel.handleSendMessage(baseUIState)
             },
             onImageSent = { path ->
-              if (path.isBlank()) {
-                filePicker.pickFile { pickedPath ->
-                  screenModel.setSelectedImagePath(pickedPath)
-                  navigateToSendImageScreen()
+                if (path.isNotBlank()) {
+                    println("[YkisLogKMP.ChatScreen]: Знімок з камери або файл отримано")
+                    screenModel.setSelectedImagePath(path)
+                    if (baseUIState.userRole == UserRole.StandardUser && path.contains("image")) {
+                        screenModel.analyzePhotoWithGemini(path, baseUIState.address)
+                    }
+                    navigateToSendImageScreen()
                 }
-              } else {
-                screenModel.setSelectedImagePath(path)
-                if (baseUIState.userRole == UserRole.StandardUser) screenModel.analyzePhotoWithGemini(path, baseUIState.address)
-                navigateToSendImageScreen()
-              }
             },
             onAiClick = {
               if (messageText.isNotBlank()) {
@@ -405,7 +403,8 @@ fun ChatScreenContent(
             },
             onCameraClick = { navigateToCameraScreen() },
             isLoading = isLoadingAfterSending,
-            canSend = messageText.isNotBlank() || editingMessage != null
+            canSend = messageText.isNotBlank() || editingMessage != null,
+            filePicker = filePicker // Пряма передача об'єкта для Web-сумісності
           )
         }
       }

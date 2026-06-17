@@ -18,16 +18,22 @@ class LedgerDao(
   private val driver: SqlDriver,
   private val schemaInitializer: DatabaseSchemaInitializer
 ) {
+  private val className = "LedgerDao"
+
   private suspend fun ensureSchema() {
     schemaInitializer.ensureSchema(driver)
   }
 
   suspend fun insertService(services: List<ServiceEntity>) {
     ensureSchema()
-    dbQueries.transaction {
-      services.forEach { service ->
-        dbQueries.insertService(service.toDbService())
-      }
+    try {
+        dbQueries.transaction {
+          services.forEach { service ->
+            dbQueries.insertService(service.toDbService())
+          }
+        }
+    } catch (e: Exception) {
+        println("[${className}_ERROR]: Помилка запису послуг: ${e.message}")
     }
   }
 

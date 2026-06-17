@@ -27,6 +27,8 @@ import dev.gitlive.firebase.storage.storage
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.database.FirebaseDatabase
 import dev.gitlive.firebase.storage.FirebaseStorage
+import com.ykis.ykismobkmp.domain.services.FirebaseService
+import com.ykis.ykismobkmp.domain.services.FirebaseServiceImpl
 import com.ykis.ykismobkmp.db.DatabaseSchemaInitializer
 
 /**
@@ -41,6 +43,9 @@ val androidPlatformModule: Module = module {
   single<FirebaseFirestore> { Firebase.firestore }
   single<FirebaseDatabase> { Firebase.database }
   single<FirebaseStorage> { Firebase.storage }
+
+  // Платформенна реєстрація сервісу авторизації
+  single<FirebaseService> { FirebaseServiceImpl(settings = get()) }
 }
 
 /**

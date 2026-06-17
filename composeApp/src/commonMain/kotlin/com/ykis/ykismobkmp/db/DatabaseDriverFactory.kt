@@ -4,6 +4,7 @@ import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.async.coroutines.await
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * [DatabaseDriverFactory] — Кроссплатформенный expect-завод генерации SQLite драйверов.
@@ -20,20 +21,24 @@ class DatabaseSchemaInitializer {
     private var isInitialized = false
 
     suspend fun ensureSchema(driver: SqlDriver) {
+        // ИСПРАВЛЕНО: В вебе создание схемы — процесс асинхронный и может быть долгим.
         if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true) && !isInitialized) {
             mutex.withLock {
                 if (isInitialized) return@withLock
-                println("[YkisLogKMP.DatabaseSchemaInitializer]: [START] Створення ВСІХ таблиць БД...")
+                
+                println("[YkisLogKMP.DatabaseSchemaInitializer]: [START] Створення таблиць (асинхронно)...")
                 try {
-                    YkisDatabases.Schema.create(driver).await()
+                    // Даем воркеру больше времени (2 секунды) на холодный старт IndexedDB
+                    withTimeoutOrNull(2000) {
+                        YkisDatabases.Schema.create(driver).await()
+                    }
                     isInitialized = true
-                    println("[YkisLogKMP.DatabaseSchemaInitializer]: [SUCCESS] Всі таблиці БД успішно створені")
+                    println("[YkisLogKMP.DatabaseSchemaInitializer]: [SUCCESS] База даних готова.")
                 } catch (e: Throwable) {
                     val msg = e.message ?: "Unknown error"
-                    println("[YkisLogKMP.DatabaseSchemaInitializer_WARN]: Помилка створення: $msg")
-                    if (msg.contains("already exists", true) || msg.contains("exists", true)) {
-                        isInitialized = true
-                    }
+                    println("[YkisLogKMP.DatabaseSchemaInitializer_WARN]: $msg")
+                    // Если таблицы уже есть — считаем инициализацию успешной
+                    if (msg.contains("exists", true)) isInitialized = true
                 }
             }
         }

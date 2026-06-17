@@ -48,27 +48,26 @@ class GetOsbbApartmentsList(
         println("[$className.$methodName]: Локальна БД недоступна або зависла, йдемо в мережу")
       }
 
-      // 2. ЗАПРОС В СЕТЬ (Ktor HTTP Client через Репозиторий)
+      // 2. ЗАПРОС В СЕТЬ
       val response = repository.getOsbbApartmentsList(targetId, isHouseSearch)
       val remoteApartments = response.apartments ?: emptyList()
       println("[$className.$methodName]: Парсинг успішно завершено: ${remoteApartments.size} квартир")
 
-      // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ
       if (remoteApartments.isNotEmpty()) {
-        try {
-          // ИСПРАВЛЕНО: В Web-версии пока пропускаем запись в БД, так как воркер - заглушка
-          if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
-              cache.deleteAllApartments()
-              cache.insertApartmentList(remoteApartments)
-          } else {
-              println("[$className.$methodName]: Web mode: пропуск запису в БД (працюємо в ОЗУ)")
-          }
-        } catch (dbEx: Exception) {
-          println("[$className.$methodName]: Ошибка перезаписи кэша: ${dbEx.message}")
-        }
+        // КРИТИЧНИЙ ФІКС: Спочатку віддаємо дані в UI, щоб загасити лоадер!
         emit(Resource.Success(remoteApartments))
+
+        println("[$className.$methodName]: Початок фонової синхронізації...")
+        // Потім фоново оновлюємо кеш
+        try {
+          cache.deleteAllApartments()
+          cache.insertApartmentList(remoteApartments)
+          println("[$className.$methodName]: Локальна база даних успішно оновлена")
+        } catch (dbEx: Exception) {
+          println("[$className.$methodName]: Помилка кешування: ${dbEx.message}")
+        }
       } else {
-        println("[$className.$methodName]: [NETWORK_EMPTY] Получен пустой ответ от сервера")
+        println("[$className.$methodName]: [NETWORK_EMPTY] Порожня відповідь")
         if (localList.isEmpty()) emit(Resource.Success(emptyList()))
       }
 

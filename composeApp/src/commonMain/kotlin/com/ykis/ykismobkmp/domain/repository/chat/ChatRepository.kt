@@ -364,7 +364,10 @@ class ChatRepository(
     if (_storage == null) throw Exception("Storage not ready")
     val ref = storage.reference(storagePath)
     ref.putData(imageData.wrapForFirebase())
-    return ref.getDownloadUrl()
+    val downloadUrl = ref.getDownloadUrl()
+    println("[YkisLogKMP.Storage]: Файл завантажено! Шлях у консолі: $storagePath")
+    println("[YkisLogKMP.Storage]: Пряме посилання: $downloadUrl")
+    return downloadUrl
   }
 
   suspend fun deleteFileFromStorage(url: String) {

@@ -26,16 +26,22 @@ class MeterDao(
   private val driver: SqlDriver,
   private val schemaInitializer: DatabaseSchemaInitializer
 ) {
+  private val className = "MeterDao"
+
   private suspend fun ensureSchema() {
     schemaInitializer.ensureSchema(driver)
   }
 
   suspend fun insertHeatMeter(heatMeters: List<HeatMeterEntity>) {
     ensureSchema()
-    dbQueries.transaction {
-      heatMeters.forEach { meter ->
-        dbQueries.insertHeatMeter(meter.toDbHeatMeter())
-      }
+    try {
+        dbQueries.transaction {
+          heatMeters.forEach { meter ->
+            dbQueries.insertHeatMeter(meter.toDbHeatMeter())
+          }
+        }
+    } catch (e: Exception) {
+        println("[${className}_ERROR]: Помилка запису лічильників тепла: ${e.message}")
     }
   }
 
@@ -62,10 +68,14 @@ class MeterDao(
 
   suspend fun insertHeatReadings(heatReadings: List<HeatReadingEntity>) {
     ensureSchema()
-    dbQueries.transaction {
-      heatReadings.forEach { reading ->
-        dbQueries.insertHeatReading(reading.toDbHeatReading())
-      }
+    try {
+        dbQueries.transaction {
+          heatReadings.forEach { reading ->
+            dbQueries.insertHeatReading(reading.toDbHeatReading())
+          }
+        }
+    } catch (e: Exception) {
+        println("[${className}_ERROR]: Помилка запису показників тепла: ${e.message}")
     }
   }
 
@@ -85,16 +95,12 @@ class MeterDao(
 
   suspend fun deleteHeatReadingsByMeter(teplomerId: Long) {
     ensureSchema()
-    dbQueries.transaction {
-      dbQueries.deleteHeatReadingsByMeter(teplomerId)
-    }
+    dbQueries.deleteHeatReadingsByMeter(teplomerId)
   }
 
   suspend fun deleteHeatReadingByPokId(pokId: Long) {
     ensureSchema()
-    dbQueries.transaction {
-      dbQueries.deleteHeatReadingByPokId(pokId)
-    }
+    dbQueries.deleteHeatReadingByPokId(pokId)
   }
 
   suspend fun deleteAllHeatReadings() {
@@ -106,10 +112,14 @@ class MeterDao(
 
   suspend fun insertWaterMeter(waterMeters: List<WaterMeterEntity>) {
     ensureSchema()
-    dbQueries.transaction {
-      waterMeters.forEach { meter ->
-        dbQueries.insertWaterMeter(meter.toDbWaterMeter())
-      }
+    try {
+        dbQueries.transaction {
+          waterMeters.forEach { meter ->
+            dbQueries.insertWaterMeter(meter.toDbWaterMeter())
+          }
+        }
+    } catch (e: Exception) {
+        println("[${className}_ERROR]: Помилка запису водомірів: ${e.message}")
     }
   }
 
@@ -136,10 +146,14 @@ class MeterDao(
 
   suspend fun insertWaterReadings(waterReadings: List<WaterReadingEntity>) {
     ensureSchema()
-    dbQueries.transaction {
-      waterReadings.forEach { reading ->
-        dbQueries.insertWaterReading(reading.toDbWaterReading())
-      }
+    try {
+        dbQueries.transaction {
+          waterReadings.forEach { reading ->
+            dbQueries.insertWaterReading(reading.toDbWaterReading())
+          }
+        }
+    } catch (e: Exception) {
+        println("[${className}_ERROR]: Помилка запису показників води: ${e.message}")
     }
   }
 
@@ -159,16 +173,12 @@ class MeterDao(
 
   suspend fun deleteWaterReadingsByMeter(vodomerId: Long) {
     ensureSchema()
-    dbQueries.transaction {
-      dbQueries.deleteWaterReadingsByMeter(vodomerId)
-    }
+    dbQueries.deleteWaterReadingsByMeter(vodomerId)
   }
 
   suspend fun deleteWaterReadingByPokId(pokId: Long) {
     ensureSchema()
-    dbQueries.transaction {
-      dbQueries.deleteWaterReadingByPokId(pokId)
-    }
+    dbQueries.deleteWaterReadingByPokId(pokId)
   }
 
   suspend fun deleteAllWaterReadings() {

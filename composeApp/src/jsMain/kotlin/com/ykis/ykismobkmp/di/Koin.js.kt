@@ -75,13 +75,16 @@ val jsPlatformModule: Module = module {
  * [databaseModule] — Web-реализация СУБД.
  */
 actual val databaseModule: Module = module {
-  // 1. Создаем драйвер
-  single<SqlDriver> { DatabaseDriverFactory().createDriver() }
+  // 1. Создаем драйвер с ЯВНЫМ именем файла
+  single<SqlDriver> { 
+    app.cash.sqldelight.driver.worker.WebWorkerDriver(
+        org.w3c.dom.Worker("sqldelight-worker.js")
+    )
+  }
   
   // 2. Создаем базу данных
   single<YkisDatabases> {
     val driver = get<SqlDriver>()
-    YkisDatabases.Schema.create(driver) 
     YkisDatabases(driver)
   }
 

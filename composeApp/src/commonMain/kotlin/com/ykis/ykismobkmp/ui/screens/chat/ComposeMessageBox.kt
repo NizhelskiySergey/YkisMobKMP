@@ -20,24 +20,25 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.Log
+import com.ykis.ykismobkmp.core.utils.FilePicker
 
 private const val className = "ComposeMessageBox"
 
 /**
  * [ComposeMessageBox] — мультиплатформенное поле ввода сообщений.
- * Поддерживает текст, AI-помощника, вложения и камеру.
  */
 @Composable
 fun ComposeMessageBox(
   onSent: () -> Unit,
-  onImageSent: (String) -> Unit, // В KMP передаем путь String вместо Uri
+  onImageSent: (String) -> Unit, 
   onCameraClick: () -> Unit,
   onAiClick: () -> Unit,
   text: String,
   onTextChanged: (String) -> Unit,
   showAttachIcon: Boolean = true,
   isLoading: Boolean,
-  canSend: Boolean
+  canSend: Boolean,
+  filePicker: FilePicker? = null // ДОДАНО: Прямий доступ до пікера
 ) {
   val keyboardController = LocalSoftwareKeyboardController.current
   val textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface)
@@ -68,9 +69,11 @@ fun ComposeMessageBox(
       IconButton(
         onClick = {
           println("[YkisLogKMP.$className.onAttach]: Виклик системного FilePicker.")
-          // Передаем фиксированный тестовый маркер пути для КМР-слоя,
-          // либо вызываем expect/actual функцию выбора изображений из галереи смартфона
-          onImageSent("")
+          if (filePicker != null) {
+              filePicker.pickFile { onImageSent(it) }
+          } else {
+              onImageSent("")
+          }
         },
         enabled = !isLoading
       ) {

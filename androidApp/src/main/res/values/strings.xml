@@ -307,7 +307,7 @@
   <string name="no_payment_year">За цей рік платежів не знайдено</string>
   <string name="update_bti">Змінити контактні дані?</string>
   <string name="change">Змінити</string>
-  <string name="uah">₴</string>
+  <string name="uah">грн.</string>
   <string name="written_off">Списан</string>
   <string name="on_the_test">На перевірці</string>
   <string name="suspended">Призупинен</string>

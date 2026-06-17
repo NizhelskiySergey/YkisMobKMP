@@ -89,15 +89,13 @@ class GetFlatServices(
         emit(Resource.Success(remoteServices))
 
         // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ
-        if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
-          if (remoteServices.isNotEmpty()) {
-            try {
-              ledgerCache.deleteServiceByApartment(addressId)
-              ledgerCache.addService(remoteServices)
-              println("[$className.$methodName]: [SUCCESS] Локальний кэш оновлено")
-            } catch (dbEx: Exception) {
-              println("[$className.${methodName}_WARN]: Помилка запису в кеш: ${dbEx.message}")
-            }
+        if (remoteServices.isNotEmpty()) {
+          try {
+            ledgerCache.deleteServiceByApartment(addressId)
+            ledgerCache.addService(remoteServices)
+            println("[$className.$methodName]: [SUCCESS] Локальний кэш оновлено")
+          } catch (dbEx: Exception) {
+            println("[$className.${methodName}_WARN]: Помилка запису в кеш: ${dbEx.message}")
           }
         }
       } else {

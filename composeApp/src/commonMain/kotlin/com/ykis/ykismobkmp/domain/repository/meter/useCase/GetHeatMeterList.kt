@@ -55,17 +55,16 @@ class GetHeatMeterList(
         val remoteMeters = response.heatMeters ?: emptyList()
         println("[$className.$methodName]: [NETWORK_SUCCESS] Отримано ${remoteMeters.size} лічильників")
 
+        // КРИТИЧНИЙ ФІКС ДЛЯ WEB: Спочатку UI!
+        emit(Resource.Success(remoteMeters))
+
         // 3. ПЕРЕЗАПИСЬ КЭША
         try {
-          if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
-              meterCache.deleteHeatMetersByApartment(addressId)
-              meterCache.insertHeatMeter(remoteMeters)
-          }
+          meterCache.deleteHeatMetersByApartment(addressId)
+          meterCache.insertHeatMeter(remoteMeters)
         } catch (dbEx: Exception) {
           println("[$className.${methodName}_WARN]: Помилка запису в кеш: ${dbEx.message}")
         }
-
-        emit(Resource.Success(remoteMeters))
       } else {
         println("[$className.$methodName]: [NETWORK_REJECT] Сервер вернул ошибку: ${response.message}")
         // Если сеть вернула ошибку, но у нас уже есть локальный кэш — мы его уже отдали выше.

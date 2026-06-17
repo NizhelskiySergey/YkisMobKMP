@@ -63,17 +63,19 @@ class GetApartmentList(
         val remoteApartments = response.apartments ?: emptyList()
         val apartmentsWithUid = remoteApartments.map { it.copy(uid = uid) }
 
-        // ЕТАП 4: АТОМАРНА СИНХРОНІЗАЦІЯ
-        try {
-            if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+        // КРИТИЧНИЙ ФІКС: Якщо квартир 0, теж віддаємо Success, щоб загасити лоадер!
+        emit(Resource.Success(apartmentsWithUid))
+
+        // ЕТАП 4: АТОМАРНА СИНХРОНІЗАЦІЯ (тільки якщо є що записувати)
+        if (apartmentsWithUid.isNotEmpty()) {
+            try {
                 cache.deleteAllApartments()
                 cache.insertApartmentList(apartmentsWithUid)
+                println("[YKISLOGKMP.$className.$methodName]: КЕш СУБД успішно оновлено")
+            } catch (dbEx: Exception) {
+                println("[YKISLOGKMP.$className.$methodName]: Помилка запису в кеш: ${dbEx.message}")
             }
-        } catch (dbEx: Exception) {
-            println("[YKISLOGKMP.$className.$methodName]: Помилка запису в кеш: ${dbEx.message}")
         }
-
-        emit(Resource.Success(apartmentsWithUid))
       } else {
         println("[YkisLogKMP.$className.$methodName]: [NETWORK_REJECT] Сервер повернув статус помилки: ${response.message}")
 

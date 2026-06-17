@@ -56,17 +56,16 @@ class GetTotalDebtServices(
         val serviceData = response.services[0]
         println("[$className.$methodName]: [NETWORK_SUCCESS] Debt: ${serviceData.dolg}")
 
+        // КРИТИЧНИЙ ФІКС: Спочатку UI!
+        emit(Resource.Success(serviceData))
+
         // 2. АТОМАРНАЯ СИНХРОНИЗАЦИЯ
         try {
-          if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
-              ledgerCache.addService(response.services)
-              println("[$className.$methodName]: Баланс оновлено в кеші")
-          }
+          ledgerCache.addService(response.services)
+          println("[$className.$methodName]: Баланс оновлено в кеші")
         } catch (dbEx: Exception) {
           println("[$className.${methodName}_WARN]: Помилка запису в кеш: ${dbEx.message}")
         }
-
-        emit(Resource.Success(serviceData))
       } else {
         println("[$className.$methodName]: [SERVER_REJECT] Success=0 або список порожній")
         

@@ -8,6 +8,8 @@ import dev.gitlive.firebase.auth.FirebaseUser
 import dev.gitlive.firebase.auth.GoogleAuthProvider
 import dev.gitlive.firebase.auth.auth
 import dev.gitlive.firebase.firestore.firestore
+import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.remoteconfig.remoteConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,22 +23,22 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 private const val className = "FirebaseServiceImpl"
 
 /**
- * [FirebaseServiceImpl] — Очищенная реализация сервиса авторизации.
- * УБРАНЫ: ApartmentService и ChatRepository для разрыва круговых зависимостей.
+ * [FirebaseServiceImpl] — Реалізація сервісу авторизації з гарантованим використанням Koin-інстансів.
  */
 class FirebaseServiceImpl(
   private val settings: Settings
 ) : FirebaseService {
 
-  // РЕШЕНИЕ: Разрываем круговую зависимость через ленивый инжект внутри методов
-  private val apartmentService: com.ykis.ykismobkmp.domain.repository.apartment.ApartmentService get() = org.koin.mp.KoinPlatform.getKoin().get()
-
-  private val auth get() = Firebase.auth
-  private val db get() = Firebase.firestore
+  private val koin get() = org.koin.mp.KoinPlatform.getKoin()
+  
+  private val apartmentService: com.ykis.ykismobkmp.domain.repository.apartment.ApartmentService get() = koin.get()
+  private val auth: FirebaseAuth get() = try { koin.get() } catch (e: Exception) { Firebase.auth }
+  private val db: FirebaseFirestore get() = try { koin.get() } catch (e: Exception) { Firebase.firestore }
   private val remoteConfig get() = Firebase.remoteConfig
 
   override val isUserAuthenticatedInFirebase: Boolean get() = auth.currentUser != null
@@ -89,44 +91,45 @@ class FirebaseServiceImpl(
   }
 
   override suspend fun addUserFirestore(): addUserFirestoreResponse {
+    val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
     try {
       val currentUser = auth.currentUser ?: return Resource.Error(message = "No user")
       val currentUid = currentUser.uid
       val userEmail = currentUser.email?.takeIf { it.isNotBlank() } ?: currentUser.phoneNumber ?: ""
       
-      // ИСПРАВЛЕНО: Если пользователь уже есть — полностью выходим, ничего не меняя
-      val userDoc = db.collection("users").document(currentUid).get()
-      if (userDoc.exists) {
-          println("[FirebaseServiceImpl]: Профіль $userEmail вже існує. Пропуск створення.")
-          return Resource.Success(true)
-      }
+      println("[FirebaseServiceImpl]: [START] Синхронізація профілю для $userEmail")
 
-      println("[FirebaseServiceImpl]: Створення НОВОГО профілю для $userEmail")
-      
-      // ИСПРАВЛЕНО ДЛЯ WEB: Конвертируем Long в Double, так как JS SDK не принимает Kotlin Long
-      val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
-      
-      val userMap = mapOf(
+      val userMap = mutableMapOf<String, Any?>(
         "uid" to currentUid,
         "email" to userEmail,
         "displayName" to (currentUser.displayName ?: "Мешканець"),
-        "userRole" to "STANDARD_USER",
+        "userRole" to "StandardUser", 
         "osbbId" to (if (isWeb) 0.0 else 0L),
-        "addressId" to (if (isWeb) 0.0 else 0L),
-        "fcmTokens" to emptyList<String>()
+        "addressId" to (if (isWeb) 0.0 else 0L)
       )
 
-      db.collection("users").document(currentUid).set(data = userMap, merge = true)
+      if (!isWeb) {
+          userMap["fcmTokens"] = emptyList<String>()
+      }
+
+      println("[FirebaseServiceImpl]: [FIRESTORE] Спроба запису...")
       
-      // Синхронизация с MySQL Южного (только для новых пользователей)
+      withTimeout(5000) {
+          db.collection("users").document(currentUid).set(data = userMap, merge = true)
+      }
+      
+      println("[FirebaseServiceImpl]: [FIRESTORE_OK] Дані успішно збережені")
+
       try {
           apartmentService.saveUserUid(currentUid, userEmail).filter { it !is Resource.Loading }.first()
+          println("[FirebaseServiceImpl]: [MySQL_OK] UID передано")
       } catch (e: Exception) {
-          println("[FirebaseServiceImpl]: MySQL sync failed: ${e.message}")
+          println("[FirebaseServiceImpl]: [MySQL_WARN] Збій MySQL: ${e.message}")
       }
       
       return Resource.Success(true)
     } catch (e: Exception) {
+      println("[FirebaseServiceImpl_ERROR]: ПомилкаaddUserFirestore: ${e.message}")
       return Resource.Error(message = e.message ?: "Process error")
     }
   }
@@ -134,18 +137,18 @@ class FirebaseServiceImpl(
   override suspend fun updateUserRoleAndPermissions(uid: String, addressId: Long?, userRole: UserRole, osbbId: Long?, displayName: String?, fio: String?, osbb: String?) {
     try {
       val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
-      
       val updates = mutableMapOf<String, Any>(
           "userRole" to userRole.getSerialName(), 
           "osbbId" to (if (isWeb) (osbbId ?: 0L).toDouble() else (osbbId ?: 0L))
       )
       displayName?.let { updates["displayName"] = it }
-      addressId?.let { 
-          updates["addressId"] = if (isWeb) it.toDouble() else it
-      }
+      addressId?.let { updates["addressId"] = if (isWeb) it.toDouble() else it }
       fio?.let { updates["fio"] = it }
       osbb?.let { updates["osbb"] = it }
-      db.collection("users").document(uid).set(data = updates, merge = true)
+      
+      withTimeout(3000) {
+          db.collection("users").document(uid).set(data = updates, merge = true)
+      }
     } catch (e: Exception) { }
   }
 
@@ -157,14 +160,14 @@ class FirebaseServiceImpl(
         email = auth.currentUser?.email ?: "",
         isEmailVerification = auth.currentUser?.isEmailVerified ?: false,
         name = snapshot.get<String>("displayName") ?: auth.currentUser?.displayName,
-        userRole = snapshot.get<String>("userRole") ?: UserRole.StandardUser.name,
-        osbbId = snapshot.get<Long>("osbbId") ?: snapshot.get<Long>("osbb") ?: 0L,
+        userRole = snapshot.get<String>("userRole") ?: "StandardUser",
+        osbbId = snapshot.get<Long>("osbbId") ?: 0L,
         addressId = snapshot.get<Long>("addressId") ?: 0L,
         fio = try { snapshot.get<String>("fio") ?: "" } catch (e: Exception) { "" },
         osbb = try { snapshot.get<String>("osbb") ?: "" } catch (e: Exception) { "" }
       )
     } catch (e: Exception) {
-      UserFirebase(uid = uid, email = email, isEmailVerification = false, name = "", userRole = UserRole.StandardUser.name, osbbId = 0L, addressId = 0L, osbb = "")
+      UserFirebase(uid = uid, email = email, userRole = "StandardUser")
     }
   }
 
@@ -195,21 +198,16 @@ class FirebaseServiceImpl(
   }
 
   override fun stopAllListeners() {
-      // ИСПРАВЛЕНО: Теперь этот метод вызывает закрытие во всех моделях через Koin
       try {
-          val chatModel: com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel = org.koin.mp.KoinPlatform.getKoin().get()
+          val chatModel: com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel = koin.get()
           chatModel.stopAllListeners()
           
-          val announcementModel: com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementScreenModel = org.koin.mp.KoinPlatform.getKoin().get()
+          val announcementModel: com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementScreenModel = koin.get()
           announcementModel.stopAllListeners()
 
-          val apartmentModel: com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel = org.koin.mp.KoinPlatform.getKoin().get()
+          val apartmentModel: com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel = koin.get()
           apartmentModel.clearAllData()
-          
-          println("[FirebaseServiceImpl]: Всі слухачі та дані КМР-моделей успішно зупинені та очищені.")
-      } catch (e: Exception) {
-          println("[FirebaseServiceImpl_WARN]: Помилка при зупинці слухачів: ${e.message}")
-      }
+      } catch (e: Exception) { }
   }
 
   override suspend fun reloadFirebaseUser(): Resource<Boolean> = try {
@@ -232,31 +230,21 @@ class FirebaseServiceImpl(
   override suspend fun firebaseSignUpWithEmailAndPassword(email: String, password: String): SignUpResponse = try {
     auth.createUserWithEmailAndPassword(email, password)
     addUserFirestore()
-    
-    // ИСПРАВЛЕНО: Только одна попытка отправки
     try {
-        println("[FirebaseServiceImpl]: Запит на відправку верифікації для $email...")
         auth.currentUser?.sendEmailVerification()
-        println("[FirebaseServiceImpl]: Верифікація успішно ініційована.")
-    } catch (e: Exception) {
-        println("[FirebaseServiceImpl_ERROR]: Помилка відправки листа: ${e.message}")
-    }
-
+    } catch (e: Exception) { }
     Resource.Success(true)
   } catch (e: Exception) {
-    println("[FirebaseServiceImpl_ERROR]: Помилка реєстрації: ${e.message}")
     Resource.Error(message = e.message ?: "Registration Failed")
   }
 
   override suspend fun sendEmailVerification(): SendEmailVerificationResponse = try {
     auth.currentUser?.let { 
-        println("[FirebaseServiceImpl]: Ручний перезапит верифікації...")
         it.reload()
         it.sendEmailVerification()
         Resource.Success(true) 
     } ?: Resource.Error(message = "No user")
   } catch (e: Exception) {
-    println("[FirebaseServiceImpl_ERROR]: ${e.message}")
     Resource.Error(message = e.message ?: "Error")
   }
 
@@ -275,21 +263,11 @@ class FirebaseServiceImpl(
   override suspend fun addFcmToken() {
     try {
       val currentUid = uid
-      if (currentUid.isBlank()) {
-          println("[YkisLogKMP.FirebaseServiceImpl]: UID пуст, отмена записи токена.")
-          return
-      }
-
+      if (currentUid.isBlank()) return
       val token = getPlatformFcmToken() ?: return
-      println("[YkisLogKMP.FirebaseServiceImpl]: Регистрация токена для $currentUid: ${token.take(10)}...")
-      
       val updates = mapOf("fcmTokens" to dev.gitlive.firebase.firestore.FieldValue.arrayUnion(token))
       db.collection("users").document(currentUid).update(updates)
-      
-      println("[YkisLogKMP.FirebaseServiceImpl]: [SUCCESS] Токен успешно сохранен.")
-    } catch (e: Exception) {
-      println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: Ошибка сохранения токена: ${e.message}")
-    }
+    } catch (e: Exception) { }
   }
 
   override suspend fun removeFcmToken() {
@@ -305,5 +283,5 @@ class FirebaseServiceImpl(
 
 expect suspend fun getPlatformFcmToken(): String?
 expect fun performPlatformClearNotifications(chatId: String?)
-expect suspend fun performPlatformSendSms(auth: dev.gitlive.firebase.auth.FirebaseAuth, phoneNumber: String, platformActivity: Any?): Resource<String>
-expect suspend fun performPlatformSignInWithSms(auth: dev.gitlive.firebase.auth.FirebaseAuth, verificationId: String, smsCode: String): Resource<Boolean>
+expect suspend fun performPlatformSendSms(auth: FirebaseAuth, phoneNumber: String, platformActivity: Any?): Resource<String>
+expect suspend fun performPlatformSignInWithSms(auth: FirebaseAuth, verificationId: String, smsCode: String): Resource<Boolean>

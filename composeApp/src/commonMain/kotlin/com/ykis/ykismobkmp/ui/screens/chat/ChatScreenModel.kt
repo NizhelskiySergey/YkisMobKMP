@@ -465,6 +465,7 @@ class ChatScreenModel(
             senderLogoUrl = senderLogoUrl,
             senderAddress = senderAddress,
             text = text,
+            type = if (imageUrl != null) "IMAGE" else if (fileUrl != null) "FILE" else "TEXT",
             imageUrl = imageUrl,
             fileUrl = fileUrl,
             fileName = fileName,
@@ -513,15 +514,18 @@ class ChatScreenModel(
                   return@launchCatching
               }
               
-              val isImage = filePath.lowercase().let { 
-                  it.endsWith(".jpg") || it.endsWith(".jpeg") || it.endsWith(".png") || it.endsWith(".webp") 
-              }
-              val fileName = filePath.split("/").lastOrNull() ?: "file_${currentTimeMillis()}"
-              val ext = if (isImage) "jpg" else filePath.substringAfterLast(".", "bin")
+              // ИСПРАВЛЕНО: Улучшенное определение типа для Web (Base64) и мобилок
+              val isImage = filePath.startsWith("data:image", ignoreCase = true) || 
+                            filePath.lowercase().let { 
+                                it.endsWith(".jpg") || it.endsWith(".jpeg") || it.endsWith(".png") || it.endsWith(".webp") 
+                            }
+                            
+              val fileName = if (filePath.startsWith("data:")) "photo_${currentTimeMillis()}.jpg" 
+                             else filePath.split("/").lastOrNull() ?: "file_${currentTimeMillis()}"
               
-              // Путь в Storage: /chat_files/ID_ОСББ/ID_Квартиры/время.расширение
-              val storagePath = "chat_files/${osbbId}/${addressId}/${currentTimeMillis()}.$ext"
-              println("[YkisLogKMP]: [STORAGE_PATH] $storagePath")
+              // Унифицированный путь в Storage
+              val storagePath = "chat_images/chats/${osbbId}/${addressId}/${currentTimeMillis()}_$fileName"
+              println("[YkisLogKMP]: [UPLOAD_START] Тип: ${if(isImage) "IMAGE" else "FILE"}, Путь: $storagePath")
               
               val url = chatRepo.uploadFile(bytes, storagePath)
               println("[YkisLogKMP]: [UPLOAD_SUCCESS] URL: $url")

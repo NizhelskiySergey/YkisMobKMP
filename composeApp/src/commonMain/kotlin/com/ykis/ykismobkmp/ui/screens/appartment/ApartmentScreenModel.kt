@@ -217,7 +217,9 @@ class ApartmentScreenModel(
           }
           UserRole.OsbbUser -> {
             apartmentService.getOsbbApartmentsList(currentOsbbId).collect { result ->
-              if (result is Resource.Error) _uiState.update { it.copy(mainLoading = false) }
+              if (result is Resource.Success || result is Resource.Error) {
+                  _uiState.update { it.copy(mainLoading = false) }
+              }
               handleOsbbAdminResult(result, user.uid, currentUserRole, currentOsbbId, user.osbb)
             }
           }
@@ -321,6 +323,7 @@ class ApartmentScreenModel(
             mainLoading = false
           )
         } else {
+          // ИСПРАВЛЕНО: Устанавливаем флаг загрузки, даже если квартир нет!
           state.copy(mainLoading = false, isApartmentsLoaded = true)
         }
       }
@@ -341,6 +344,9 @@ class ApartmentScreenModel(
               )
           }
       }
+    } else if (result is Resource.Error) {
+       // ИСПРАВЛЕНО: На ошибке тоже разблокируем навигатор
+       _uiState.update { it.copy(mainLoading = false, isApartmentsLoaded = true) }
     }
   }
 

@@ -97,7 +97,8 @@ val commonModule = module {
     )
   }
 
-  single<FirebaseService> { FirebaseServiceImpl(settings = get()) }
+  // РЕШЕНИЕ: FirebaseService реєструється ТІЛЬКИ в платформенних модулях (actual)
+  // для коректної ініціалізації специфічних Auth-провайдерів на кожній ОС.
 
   // Репозитории
   single<ApartmentRemote> { ApartmentRemoteImpl(ktorApiService = get()) }

@@ -26,16 +26,26 @@ class ApartmentDao(
   private val driver: SqlDriver,
   private val schemaInitializer: DatabaseSchemaInitializer
 ) {
+  private val className = "ApartmentDao"
+
   private suspend fun ensureSchema() {
     schemaInitializer.ensureSchema(driver)
   }
 
   suspend fun insertApartments(apartments: List<ApartmentEntity>) {
+    println("[$className]: Старт insertApartments. Кількість: ${apartments.size}")
     ensureSchema()
-    dbQueries.transaction {
-      apartments.forEach { apartment ->
-        dbQueries.insertApartment(apartment.toDbApartment())
-      }
+    try {
+        println("[$className]: Відкриття транзакції СУБД...")
+        dbQueries.transaction {
+          apartments.forEach { apartment ->
+            dbQueries.insertApartment(apartment.toDbApartment())
+          }
+        }
+        println("[$className]: Запис завершено успішно.")
+    } catch (e: Exception) {
+        println("[${className}_ERROR]: Помилка: ${e.message}")
+        throw e
     }
   }
 
@@ -79,6 +89,13 @@ class ApartmentDao(
   }
 
   suspend fun getApartmentList(): List<ApartmentEntity> {
+    ensureSchema()
+    return dbQueries.getApartmentList()
+      .awaitAsList()
+      .map { it.toDomainApartment() }
+  }
+
+  suspend fun getApartmentsByUser(): List<ApartmentEntity> {
     ensureSchema()
     return dbQueries.getApartmentList()
       .awaitAsList()
