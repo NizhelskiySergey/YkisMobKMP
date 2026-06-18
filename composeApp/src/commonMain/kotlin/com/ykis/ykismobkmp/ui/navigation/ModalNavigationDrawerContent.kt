@@ -110,23 +110,21 @@ fun ModalNavigationDrawerContent(
       }
 
       Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        // ПОШУК (Тільки в режимі квартир, як у списку чатів)
+        // ПОШУК (Тільки в режимі квартир)
         if (isUserAdmin && listMode == ListMode.APARTMENTS) {
-          var localSearchQuery by remember { mutableStateOf(searchQuery) }
           
+          // ФІКС: Пряме використання OutlinedTextField з мінімальними побічними ефектами
           OutlinedTextField(
-            value = localSearchQuery,
+            value = searchQuery,
             onValueChange = { 
-              localSearchQuery = it
               apartmentScreenModel.onSearchQueryChanged(it) 
             },
-            modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
+            modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("Пошук о/р чи адреси", fontSize = 14.sp) },
             leadingIcon = { Icon(Icons.Default.Search, null) },
             trailingIcon = {
-              if (localSearchQuery.isNotEmpty()) {
+              if (searchQuery.isNotEmpty()) {
                 IconButton(onClick = {
-                  localSearchQuery = ""
                   apartmentScreenModel.onSearchQueryChanged("")
                 }) { Icon(Icons.Default.Close, null) }
               }

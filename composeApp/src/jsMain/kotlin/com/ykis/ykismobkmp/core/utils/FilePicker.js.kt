@@ -8,14 +8,11 @@ import org.w3c.dom.HTMLInputElement
 @Composable
 actual fun rememberFilePicker(): FilePicker = remember {
     object : FilePicker {
-        override fun pickFile(onFilePicked: (String) -> Unit) {
-            println("[YkisLogKMP.FilePicker]: Спроба відкрити діалог вибору файлу...")
-            
-            // Створюємо елемент приховано, але додаємо в DOM для кращої сумісності
+        override fun pickFile(onFilePicked: (String, String?) -> Unit) {
             val input = document.createElement("input") as HTMLInputElement
             input.type = "file"
             input.style.display = "none"
-            input.accept = "image/*,application/pdf"
+            input.accept = "image/*,application/pdf,.doc,.docx,.xls,.xlsx"
             
             document.body?.appendChild(input)
             
@@ -24,11 +21,12 @@ actual fun rememberFilePicker(): FilePicker = remember {
                 if (files != null && files.length > 0) {
                     val file = files.item(0)
                     if (file != null) {
+                        val fileName = file.name
                         val reader = org.w3c.files.FileReader()
                         reader.onload = { loadEvent ->
                             val result = loadEvent.target.asDynamic().result as String
-                            println("[YkisLogKMP.FilePicker]: Файл отримано. Розмір: ${file.size}")
-                            onFilePicked(result)
+                            println("[FilePicker.js]: Файл обрано: $fileName")
+                            onFilePicked(result, fileName)
                             document.body?.removeChild(input)
                         }
                         reader.readAsDataURL(file)
@@ -37,7 +35,6 @@ actual fun rememberFilePicker(): FilePicker = remember {
                     document.body?.removeChild(input)
                 }
             }
-            
             input.click()
         }
     }

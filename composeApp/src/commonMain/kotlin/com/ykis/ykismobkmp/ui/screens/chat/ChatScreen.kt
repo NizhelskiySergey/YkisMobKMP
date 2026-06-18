@@ -1,7 +1,6 @@
 package com.ykis.ykismobkmp.ui.screens.chat
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,7 +45,6 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 sealed class ChatItem {
   data class DateHeader(val date: String) : ChatItem()
@@ -68,14 +66,12 @@ class ChatScreen(
     val selectedUser by chatScreenModel.selectedUser.collectAsState()
     val pendingPushId by chatScreenModel.pendingPushChatId.collectAsState()
 
-    // ДОДАНО: Реакція на клік по пушу
     LaunchedEffect(pendingPushId) {
         if (!pendingPushId.isNullOrBlank()) {
-            println("[ChatScreen]: Виявлено запит на відкриття чату через пуш: $pendingPushId")
             val addrId = pendingPushId!!.split("_").lastOrNull()?.toLongOrNull() ?: 0L
             if (addrId != 0L) {
                 chatScreenModel.selectUserByAddressId(addrId)
-                chatScreenModel.setPendingPushChatId(null) // Очищуємо, щоб не спрацювало повторно
+                chatScreenModel.setPendingPushChatId(null)
             }
         }
     }
@@ -83,7 +79,6 @@ class ChatScreen(
     LaunchedEffect(chatId, selectedUser?.addressId) {
       val isResident = baseUIState.userRole == UserRole.StandardUser
       val targetAddrId = if (!chatId.isNullOrBlank()) {
-         // Ключ чата: PREFIX_ID_ADDRESS. addressId - всегда последний элемент.
          chatId.split("_").lastOrNull()?.toLongOrNull() ?: 0L
       } else {
          selectedUser?.addressId ?: 0L
@@ -220,22 +215,19 @@ fun ChatScreenContent(
     }
   }
 
-  // ВЫЧИСЛЕНИЕ ТЕКУЩЕЙ ДАТЫ ДЛЯ ПЛАВАЮЩЕГО ЗАГОЛОВКА (Исправлено для reverseLayout)
-  val currentVisibleDate by remember {
+  val floatingDate by remember(chatItems) {
     derivedStateOf {
-      val info = listState.layoutInfo.visibleItemsInfo
-      if (info.isNotEmpty()) {
-        // В reverseLayout верхний элемент на экране имеет МАКСИМАЛЬНЫЙ индекс
-        val topItem = info.maxByOrNull { it.index }
-        topItem?.let { 
-           val dataIndex = it.index - 1 // Учитываем Spacer
-           if (dataIndex in chatItems.indices) {
-               val item = chatItems[dataIndex]
-               when (item) {
-                   is ChatItem.DateHeader -> item.date
-                   is ChatItem.MessageItem -> com.ykis.ykismobkmp.core.utils.formatDateFull(item.message.timestamp)
-               }
-           } else null
+      val items = listState.layoutInfo.visibleItemsInfo
+      if (items.isNotEmpty() && chatItems.isNotEmpty()) {
+        val topVisible = items.maxByOrNull { it.index }
+        topVisible?.let { info ->
+          val actualIdx = info.index - 1
+          if (actualIdx in chatItems.indices) {
+            when (val data = chatItems[actualIdx]) {
+              is ChatItem.DateHeader -> data.date
+              is ChatItem.MessageItem -> com.ykis.ykismobkmp.core.utils.formatDateFull(data.message.timestamp)
+            }
+          } else null
         }
       } else null
     }
@@ -248,15 +240,8 @@ fun ChatScreenContent(
           "WATER_SERVICE"   -> stringResource(Res.string.vodokanal)
           "WARM_SERVICE"    -> stringResource(Res.string.ytke)
           "GARBAGE_SERVICE" -> stringResource(Res.string.yzhtrans)
-          "OSBB" -> {
-              // ИСПРАВЛЕНО: Для жильца с несколькими квартирами всегда берем 
-              // название конкретного ОСББ из активного профиля квартиры
-              baseUIState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "Мій ОСББ"
-          }
-          else -> {
-              selectedService?.name?.takeIf { it.isNotBlank() } 
-                ?: if (baseUIState.osbb.isNotBlank()) baseUIState.osbb else "Чат"
-          }
+          "OSBB" -> baseUIState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "Мій ОСББ"
+          else -> selectedService?.name?.takeIf { it.isNotBlank() } ?: "Чат"
       }
     }
     else -> userEntity.displayName?.substringBefore("|")?.trim() ?: "Чат"
@@ -301,13 +286,8 @@ fun ChatScreenContent(
       )
     }
 
-    Column(
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(top = innerPadding.calculateTopPadding()) // Только от шапки
-    ) {
+    Column(modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding())) {
       Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-        // 1. СПИСОК СООБЩЕНИЙ
         LazyColumn(
           modifier = Modifier.fillMaxSize(),
           state = listState,
@@ -315,14 +295,10 @@ fun ChatScreenContent(
           contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
           verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-          // Невидимый элемент-прокладка над меню (индекс 0 внизу)
           item { Spacer(modifier = Modifier.height(20.dp)) }
-
           chatItems.forEach { chatItem ->
             when (chatItem) {
-              is ChatItem.DateHeader -> {
-                item(key = "header_${chatItem.date}") { DateChip(date = chatItem.date) }
-              }
+              is ChatItem.DateHeader -> { item(key = "header_${chatItem.date}") { DateChip(date = chatItem.date) } }
               is ChatItem.MessageItem -> {
                 val msg = chatItem.message
                 item(key = "msg_${msg.id}") {
@@ -330,10 +306,7 @@ fun ChatScreenContent(
                     isUserAdmin = baseUIState.userRole != UserRole.StandardUser,
                     messageEntity = msg,
                     onLongClick = { screenModel.showDeleteConfirmation(msg) },
-                    onClick = {
-                      keyboardController?.hide()
-                      navigateToImageDetailScreen(msg)
-                    },
+                    onClick = { keyboardController?.hide(); navigateToImageDetailScreen(msg) },
                     onFileClick = { fileUrl -> try { uriHandler.openUri(fileUrl) } catch (e: Exception) {} }
                   )
                 }
@@ -342,28 +315,8 @@ fun ChatScreenContent(
           }
         }
 
-        // 2. ПЛАВАЮЩИЙ ЗАГОЛОВОК ДАТЫ (Telegram Style)
-        val floatingDate by remember(chatItems) {
-          derivedStateOf {
-            val items = listState.layoutInfo.visibleItemsInfo
-            if (items.isNotEmpty() && chatItems.isNotEmpty()) {
-              val topVisible = items.maxByOrNull { it.index }
-              topVisible?.let { info ->
-                val actualIdx = info.index - 1
-                if (actualIdx in chatItems.indices) {
-                  when (val data = chatItems[actualIdx]) {
-                    is ChatItem.DateHeader -> data.date
-                    is ChatItem.MessageItem -> com.ykis.ykismobkmp.core.utils.formatDateFull(data.message.timestamp)
-                  }
-                } else null
-              }
-            } else null
-          }
-        }
-
-        // 2. ПОСТОЯННО ВИДИМЫЙ ПЛАВАЮЩИЙ ЗАГОЛОВОК ДАТЫ
         Surface(
-           color = Color.Black.copy(alpha = 0.4f), // Постоянная полупрозрачность
+           color = Color.Black.copy(alpha = 0.4f),
            shape = RoundedCornerShape(16.dp),
            modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
            tonalElevation = 4.dp
@@ -377,11 +330,10 @@ fun ChatScreenContent(
         }
       }
 
-      // 3. МЕНЮ ВВОДА
       Surface(
         color = MaterialTheme.colorScheme.surface, 
         tonalElevation = 3.dp, 
-        modifier = Modifier.fillMaxWidth().imePadding() // Убрал navigationBarsPadding для плотного прилегания
+        modifier = Modifier.fillMaxWidth().imePadding()
       ) {
         Column(modifier = Modifier.fillMaxWidth()) {
           AnimatedVisibility(visible = !aiAssistantResponse.isNullOrBlank()) {
@@ -399,10 +351,10 @@ fun ChatScreenContent(
               if (editingMessage != null) screenModel.updateMessage(messageText)
               else screenModel.handleSendMessage(baseUIState)
             },
-            onImageSent = { path ->
+            onImageSent = { path, fileName ->
                 if (path.isNotBlank()) {
-                    println("[YkisLogKMP.ChatScreen]: Знімок з камери або файл отримано")
-                    screenModel.setSelectedImagePath(path)
+                    println("[YkisLogKMP.ChatScreen]: Файл отримано: $fileName")
+                    screenModel.setSelectedImagePath(path, fileName)
                     if (baseUIState.userRole == UserRole.StandardUser && path.contains("image")) {
                         screenModel.analyzePhotoWithGemini(path, baseUIState.address)
                     }
@@ -414,10 +366,14 @@ fun ChatScreenContent(
                 screenModel.askAssistant(messageText, baseUIState.userRole, baseUIState.address ?: "Южне")
               }
             },
-            onCameraClick = { navigateToCameraScreen() },
+            onCameraClick = { 
+              if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+                  navigateToCameraScreen() 
+              }
+            },
             isLoading = isLoadingAfterSending,
             canSend = messageText.isNotBlank() || editingMessage != null,
-            filePicker = filePicker // Пряма передача об'єкта для Web-сумісності
+            filePicker = filePicker
           )
         }
       }
@@ -429,7 +385,6 @@ fun ChatScreenContent(
 fun MessageActionsDialog(messageToDelete: MessageEntity?, myUid: String, screenModel: ChatScreenModel, navigateBack: () -> Unit) {
   if (messageToDelete == null) return
   val isMyMessage = messageToDelete.senderUid == myUid
-
   AlertDialog(
     onDismissRequest = { screenModel.dismissDeleteDialog() },
     title = { Text(text = stringResource(Res.string.message_actions_title)) },

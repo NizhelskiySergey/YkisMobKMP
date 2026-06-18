@@ -1,6 +1,7 @@
 package com.ykis.ykismobkmp.ui.screens.chat
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -184,17 +186,47 @@ fun MessageListItem(
       // 3. ИЗОБРАЖЕНИЕ (ПРИКРЕПЛЕННОЕ ФОТО ПОЛОМКИ / ЗАЯВКИ ГИОЦ)
       if (!messageEntity.imageUrl.isNullOrBlank()) {
         val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
-        if (isWeb) println("[$tag]: Рендерю картинку Web: ${messageEntity.imageUrl}")
         
-        AsyncImage(
-          model = messageEntity.imageUrl,
-          contentDescription = null,
-          modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).fillMaxWidth(),
-          contentScale = ContentScale.FillWidth,
-          onError = { error ->
-              if (isWeb) println("[${tag}_ERROR]: Ошибка загрузки картинки в браузере: ${error.result.throwable.message}")
-          }
-        )
+        Column(modifier = Modifier.fillMaxWidth()) {
+            AsyncImage(
+              model = messageEntity.imageUrl,
+              contentDescription = null,
+              modifier = Modifier
+                .padding(vertical = 4.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .fillMaxWidth()
+                .heightIn(max = 400.dp), // ФІКС: Гнучка висота з обмеженням
+              contentScale = ContentScale.Fit, // ФІКС: Зберігаємо пропорції без обрізки
+              onError = { error ->
+                  if (isWeb) println("[${tag}_ERROR]: Ошибка загрузки картинки: ${error.result.throwable.message}")
+              }
+            )
+            
+            // ДОДАНО: Чітка назва файлу з посиланням на скачування (для всіх сторін)
+            val fileName = messageEntity.fileName ?: "image.jpg"
+            Row(
+                modifier = Modifier
+                    .padding(bottom = 4.dp)
+                    .clickable { onFileClick(messageEntity.imageUrl!!) },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Description,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                  text = fileName,
+                  style = MaterialTheme.typography.labelSmall,
+                  color = MaterialTheme.colorScheme.primary,
+                  textDecoration = TextDecoration.Underline,
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
       } else if (messageEntity.type == "IMAGE") {
         println("[${tag}_WARN]: Получено сообщение типа IMAGE, но imageUrl пуст!")
       }

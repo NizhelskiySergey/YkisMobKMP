@@ -173,7 +173,7 @@ fun SendImageContent(
           }
         )
       },
-      onImageSent = { },
+      onImageSent = { _, _ -> },
       onCameraClick = {},
       onAiClick = {
         if (isImage) {

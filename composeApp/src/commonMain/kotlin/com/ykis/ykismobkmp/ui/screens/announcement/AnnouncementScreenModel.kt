@@ -131,8 +131,10 @@ class AnnouncementScreenModel(
                     try {
                         val fileData = chatRepo.readFileAsBytes(filePath)
                         val ext = filePath.substringAfterLast(".", "file")
-                        val name = filePath.substringAfterLast("/")
-                        fileName = name
+                        
+                        // ФІКС: Використовуємо реальне ім'я файлу зі стейту
+                        fileName = screenState.announcementFileName ?: filePath.substringAfterLast("/")
+
                         val storagePath = "chat_images/announcements/docs/${targetOsbbId}_${currentTimeMillis()}.$ext"
                         fileUrl = chatRepo.uploadFile(fileData, storagePath)
                     } catch (e: Exception) {
@@ -167,6 +169,7 @@ class AnnouncementScreenModel(
                             isAnnouncementUploading = false,
                             announcementImagePath = null,
                             announcementFilePath = null,
+                            announcementFileName = null,
                             announcementDraftTitle = "",
                             announcementDraftMessage = ""
                         ) 
@@ -198,8 +201,8 @@ class AnnouncementScreenModel(
         _uiState.update { it.copy(announcementImagePath = path) }
     }
 
-    fun setAnnouncementFilePath(path: String?) {
-        _uiState.update { it.copy(announcementFilePath = path) }
+    fun setAnnouncementFilePath(path: String?, fileName: String? = null) {
+        _uiState.update { it.copy(announcementFilePath = path, announcementFileName = fileName) }
     }
 
     /**

@@ -104,8 +104,8 @@ class CreateAnnouncementScreen : Screen {
 
                     Button(
                         onClick = {
-                            filePicker.pickFile { path ->
-                                announcementModel.setAnnouncementFilePath(path)
+                            filePicker.pickFile { path, name ->
+                                announcementModel.setAnnouncementFilePath(path, name)
                             }
                         },
                         modifier = Modifier.weight(1f)

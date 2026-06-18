@@ -12,15 +12,16 @@ import java.io.FileOutputStream
 @Composable
 actual fun rememberFilePicker(): FilePicker {
     val context = LocalContext.current
-    var lastCallback by remember { mutableStateOf<((String) -> Unit)?>(null) }
+    var lastCallback by remember { mutableStateOf<((String, String?) -> Unit)?>(null) }
     
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            val path = getFilePathFromUri(context, it)
+            val fileName = getFileName(context, it)
+            val path = getFilePathFromUri(context, it, fileName)
             if (path != null) {
-                lastCallback?.invoke(path)
+                lastCallback?.invoke(path, fileName)
                 lastCallback = null
             }
         }
@@ -28,7 +29,7 @@ actual fun rememberFilePicker(): FilePicker {
     
     return remember(launcher) { 
         object : FilePicker {
-            override fun pickFile(onFilePicked: (String) -> Unit) {
+            override fun pickFile(onFilePicked: (String, String?) -> Unit) {
                 lastCallback = onFilePicked
                 launcher.launch("*/*")
             }
@@ -36,15 +37,11 @@ actual fun rememberFilePicker(): FilePicker {
     }
 }
 
-/**
- * [getFilePathFromUri] — Вспомогательный метод для копирования Uri во временный файл.
- * Это необходимо, так как современные Android не дают прямого пути к файлу.
- */
-private fun getFilePathFromUri(context: Context, uri: Uri): String? {
+private fun getFilePathFromUri(context: Context, uri: Uri, fileName: String?): String? {
     return try {
         val inputStream = context.contentResolver.openInputStream(uri) ?: return null
-        val fileName = getFileName(context, uri) ?: "temp_file_${System.currentTimeMillis()}"
-        val tempFile = File(context.cacheDir, fileName)
+        val finalName = fileName ?: "temp_file_${System.currentTimeMillis()}"
+        val tempFile = File(context.cacheDir, finalName)
         val outputStream = FileOutputStream(tempFile)
         
         inputStream.use { input ->

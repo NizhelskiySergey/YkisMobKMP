@@ -114,6 +114,7 @@ data class BaseUIState(
   @SerialName("lastAnnouncementsCheck") val lastAnnouncementsCheck: Long = 0L,
   @SerialName("announcementImagePath") val announcementImagePath: String? = null,
   @SerialName("announcementFilePath") val announcementFilePath: String? = null,
+  @SerialName("announcementFileName") val announcementFileName: String? = null,
   @SerialName("isAnnouncementUploading") val isAnnouncementUploading: Boolean = false,
   @SerialName("announcementDraftTitle") val announcementDraftTitle: String = "",
   @SerialName("announcementDraftMessage") val announcementDraftMessage: String = "",

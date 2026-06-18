@@ -30,7 +30,7 @@ private const val className = "ComposeMessageBox"
 @Composable
 fun ComposeMessageBox(
   onSent: () -> Unit,
-  onImageSent: (String) -> Unit, 
+  onImageSent: (String, String?) -> Unit,
   onCameraClick: () -> Unit,
   onAiClick: () -> Unit,
   text: String,
@@ -70,9 +70,9 @@ fun ComposeMessageBox(
         onClick = {
           println("[YkisLogKMP.$className.onAttach]: Виклик системного FilePicker.")
           if (filePicker != null) {
-              filePicker.pickFile { onImageSent(it) }
+              filePicker.pickFile { path, name -> onImageSent(path, name) }
           } else {
-              onImageSent("")
+              onImageSent("", null)
           }
         },
         enabled = !isLoading
@@ -80,15 +80,17 @@ fun ComposeMessageBox(
         Icon(imageVector = Icons.Default.AttachFile, contentDescription = "Прикріпити")
       }
 
-      // Кнопка камеры смартфона для фиксации показаний водомеров Водоканала
-      IconButton(
-        onClick = {
-          println("[YkisLogKMP.$className.onCamera]: Ініціалізація апаратної камери.")
-          onCameraClick()
-        },
-        enabled = !isLoading
-      ) {
-        Icon(imageVector = Icons.Default.CameraAlt, contentDescription = "Камера")
+      // Кнопка камери (прихована для Web)
+      if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+          IconButton(
+            onClick = {
+              println("[YkisLogKMP.$className.onCamera]: Ініціалізація апаратної камери.")
+              onCameraClick()
+            },
+            enabled = !isLoading
+          ) {
+            Icon(imageVector = Icons.Default.CameraAlt, contentDescription = "Камера")
+          }
       }
     }
 
