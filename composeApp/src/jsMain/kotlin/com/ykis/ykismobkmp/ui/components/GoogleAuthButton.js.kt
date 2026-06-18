@@ -1,15 +1,15 @@
 package com.ykis.ykismobkmp.ui.components
 
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.ykis.ykismobkmp.core.utils.SnackbarManager
+import com.ykis.ykismobkmp.di.WEB_GOOGLE_CLIENT_ID
+import kotlinx.browser.window
 import org.jetbrains.compose.resources.painterResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.ic_google_logo
@@ -20,10 +20,21 @@ actual fun GoogleAuthButton(
   isLoading: Boolean,
   onTokenReceived: (String) -> Unit
 ) {
+  // Регистрируем коллбек в объекте window, чтобы JS мог его вызвать
+  LaunchedEffect(Unit) {
+    (window.asDynamic()).onGoogleTokenReceived = { credential: String ->
+      onTokenReceived(credential)
+    }
+  }
+
   OutlinedButton(
     onClick = {
-      println("[GoogleAuthButton.js]: Клік у браузерній версії.")
-      SnackbarManager.showMessage("Авторизація через Google у веб-версії тимчасово недоступна.")
+      println("[GoogleAuthButton.js]: Запуск Google Auth (GIS)...")
+      try {
+        (window.asDynamic()).triggerGoogleAuth(WEB_GOOGLE_CLIENT_ID)
+      } catch (e: Exception) {
+        println("[GoogleAuthButton.js_ERROR]: Не вдалося викликати JS міст: ${e.message}")
+      }
     },
     modifier = Modifier.fillMaxWidth(),
     enabled = !isLoading,

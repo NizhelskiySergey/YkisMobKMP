@@ -40,6 +40,26 @@
     };
 </script>
 
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+    window.triggerGoogleAuth = function(clientId) {
+        google.accounts.id.initialize({
+            client_id: clientId,
+            ux_mode: 'popup',
+            callback: (response) => {
+                if (response.credential) {
+                    console.log("Google ID Token received");
+                    if (window.onGoogleTokenReceived) {
+                        window.onGoogleTokenReceived(response.credential);
+                    }
+                }
+            }
+        });
+        google.accounts.id.prompt();
+    };
+</script>
+
 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 50 50" role="presentation">
     <circle cx="25" cy="25" r="20" stroke="#ccc" stroke-width="4" fill="none"/>
     <circle cx="25" cy="25" r="20" stroke="#333" stroke-width="4" fill="none" stroke-linecap="round"
