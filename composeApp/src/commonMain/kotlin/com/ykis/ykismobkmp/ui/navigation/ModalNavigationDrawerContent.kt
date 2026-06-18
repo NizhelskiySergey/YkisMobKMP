@@ -76,12 +76,6 @@ fun ModalNavigationDrawerContent(
     }
   }
 
-  DisposableEffect(activeSubModule) {
-    onDispose {
-      focusManager.clearFocus()
-    }
-  }
-
   val apartmentBadges = remember(unreadCounts) {
     unreadCounts.map { (fullKey, count) ->
       val parts = fullKey.split("_")
@@ -110,74 +104,41 @@ fun ModalNavigationDrawerContent(
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.SpaceBetween
         ) {
-          Text(
-            text = shortName,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
-          )
-          IconButton(onClick = { onMenuClick() }) {
-            Icon(Icons.Default.Close, contentDescription = "Закрити")
-          }
+          Text(text = shortName, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+          IconButton(onClick = { onMenuClick() }) { Icon(Icons.Default.Close, contentDescription = "Закрити") }
         }
       }
 
-      Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = if (isUserAdmin) 8.dp else 16.dp)) {
-        if (isUserAdmin) {
-          var isSearchEditingActive by remember { mutableStateOf(false) }
-
-          if (!isSearchEditingActive && searchQuery.isEmpty()) {
-            Box(
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-                .clickable { isSearchEditingActive = true }
-                .padding(horizontal = 16.dp),
-              contentAlignment = Alignment.CenterStart
-            ) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
-                Spacer(Modifier.width(12.dp))
-                Text(text = "Пошук адреси чи о/р", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-              }
-            }
-          } else {
-            OutlinedTextField(
-              value = searchQuery,
-              onValueChange = { apartmentScreenModel.onSearchQueryChanged(it) },
-              modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
-              placeholder = { Text("Пошук адреси чи о/р", fontSize = 14.sp) },
-              leadingIcon = { Icon(Icons.Default.Search, null) },
-              trailingIcon = {
+      Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        // ПОШУК (Тільки в режимі квартир, як у списку чатів)
+        if (isUserAdmin && listMode == ListMode.APARTMENTS) {
+          var localSearchQuery by remember { mutableStateOf(searchQuery) }
+          
+          OutlinedTextField(
+            value = localSearchQuery,
+            onValueChange = { 
+              localSearchQuery = it
+              apartmentScreenModel.onSearchQueryChanged(it) 
+            },
+            modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
+            placeholder = { Text("Пошук о/р чи адреси", fontSize = 14.sp) },
+            leadingIcon = { Icon(Icons.Default.Search, null) },
+            trailingIcon = {
+              if (localSearchQuery.isNotEmpty()) {
                 IconButton(onClick = {
+                  localSearchQuery = ""
                   apartmentScreenModel.onSearchQueryChanged("")
-                  isSearchEditingActive = false
-                  focusManager.clearFocus()
-                  selectedDrawerApartmentFocusRequester.requestFocus()
-                }) {
-                  Icon(Icons.Default.Close, null)
-                }
-              },
-              singleLine = true,
-              shape = RoundedCornerShape(12.dp),
-              keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-              keyboardActions = KeyboardActions(onDone = {
-                isSearchEditingActive = false
-                focusManager.clearFocus()
-                selectedDrawerApartmentFocusRequester.requestFocus()
-              })
-            )
-            LaunchedEffect(Unit) { searchFocusRequester.requestFocus() }
-          }
-        } else {
-          Text(text = stringResource(Res.string.list_apartment), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-          Spacer(modifier = Modifier.height(12.dp))
+                }) { Icon(Icons.Default.Close, null) }
+              }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() })
+          )
+        } else if (!isUserAdmin) {
           Button(
             onClick = {
-              keyboardController?.hide()
-              focusManager.clearFocus()
-              selectedDrawerApartmentFocusRequester.requestFocus()
               onMenuClick()
               onSubModuleChange("AddApartmentScreen")
             },
@@ -199,101 +160,66 @@ fun ModalNavigationDrawerContent(
             label = { Text("Назад", fontWeight = FontWeight.Bold) },
             selected = false,
             icon = { Icon(Icons.Default.ArrowBackIosNew, null, Modifier.size(18.dp)) },
-            onClick = {
-              focusManager.clearFocus()
-              selectedDrawerApartmentFocusRequester.requestFocus()
-              apartmentScreenModel.goBackLevel()
-            },
+            onClick = { apartmentScreenModel.goBackLevel() },
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
           )
           HorizontalDivider()
         }
 
-        LazyColumn(
-          modifier = Modifier.fillMaxSize(),
-          contentPadding = PaddingValues(vertical = 8.dp)
-        ) {
+        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
           if (searchQuery.isNotEmpty()) {
             items(filteredResults, key = { "search_${it.addressId}" }) { item ->
               val isSelected = baseUIState.addressId == item.addressId
-              Box(modifier = Modifier.fillMaxWidth().then(if (isSelected) Modifier.focusRequester(selectedDrawerApartmentFocusRequester).focusTarget() else Modifier)) {
-                DrawerItemContent(
-                  apartment = item,
-                  isSelected = isSelected,
-                  listMode = listMode,
-                  badgeCount = 0,
-                  onClick = {
-                    focusManager.clearFocus()
-                    selectedDrawerApartmentFocusRequester.requestFocus()
+              DrawerItemContent(
+                apartment = item, isSelected = isSelected, listMode = listMode, badgeCount = 0,
+                onClick = {
                     keyboardController?.hide()
                     if (listMode == ListMode.HOUSES) apartmentScreenModel.onHouseSelected(item.addressId)
                     else {
-                      onSubModuleChange("InfoApartmentScreen")
                       navigateToApartment(item.addressId)
+                      onSubModuleChange("InfoApartmentScreen")
                       onMenuClick()
                     }
-                  }
-                )
-              }
+                }
+              )
             }
           } else {
             when (listMode) {
               ListMode.RAIONS -> {
                 items(baseUIState.raions, key = { "r_${it.raionId}" }) { raion ->
-                  val isSelected = baseUIState.selectedRaionId == raion.raionId
-                  Box(modifier = Modifier.fillMaxWidth().then(if (isSelected) Modifier.focusRequester(selectedDrawerApartmentFocusRequester).focusTarget() else Modifier)) {
-                    NavigationDrawerItem(
-                      label = { Text(raion.raion ?: "") },
-                      selected = isSelected,
-                      icon = { Icon(Icons.Default.Map, null) },
-                      onClick = {
-                        focusManager.clearFocus()
-                        selectedDrawerApartmentFocusRequester.requestFocus()
-                        apartmentScreenModel.onRaionSelected(raion)
-                      },
-                      modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                  }
+                  NavigationDrawerItem(
+                    label = { Text(raion.raion ?: "") },
+                    selected = baseUIState.selectedRaionId == raion.raionId,
+                    icon = { Icon(Icons.Default.Map, null) },
+                    onClick = { apartmentScreenModel.onRaionSelected(raion) },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                  )
                 }
               }
               ListMode.HOUSES -> {
                 items(houses, key = { "h_${it.houseId}" }) { house ->
-                  val isSelected = baseUIState.selectedHouseId == house.houseId
-                  Box(modifier = Modifier.fillMaxWidth().then(if (isSelected) Modifier.focusRequester(selectedDrawerApartmentFocusRequester).focusTarget() else Modifier)) {
-                    NavigationDrawerItem(
-                      label = { Text(house.house ?: "") },
-                      selected = isSelected,
-                      icon = { Icon(Icons.Default.Domain, null) },
-                      onClick = {
-                        focusManager.clearFocus()
-                        selectedDrawerApartmentFocusRequester.requestFocus()
-                        apartmentScreenModel.onHouseSelected(house.houseId)
-                      },
-                      modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                  }
+                  NavigationDrawerItem(
+                    label = { Text(house.house ?: "") },
+                    selected = baseUIState.selectedHouseId == house.houseId,
+                    icon = { Icon(Icons.Default.Domain, null) },
+                    onClick = { apartmentScreenModel.onHouseSelected(house.houseId) },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                  )
                 }
               }
               ListMode.APARTMENTS -> {
                 val aptList = if (isOrgAdmin) drawerApartments else baseUIState.apartments
                 items(aptList, key = { "a_${it.addressId}" }) { apt ->
                   val isSelected = baseUIState.addressId == apt.addressId
-                  val badgeCount = apartmentBadges[apt.addressId.toString()] ?: 0
-                  Box(modifier = Modifier.fillMaxWidth().then(if (isSelected) Modifier.focusRequester(selectedDrawerApartmentFocusRequester).focusTarget() else Modifier)) {
-                    DrawerItemContent(
-                      apartment = apt,
-                      isSelected = isSelected,
-                      listMode = ListMode.APARTMENTS,
-                      badgeCount = badgeCount,
-                      onClick = {
-                        focusManager.clearFocus()
-                        selectedDrawerApartmentFocusRequester.requestFocus()
+                  DrawerItemContent(
+                    apartment = apt, isSelected = isSelected, listMode = ListMode.APARTMENTS,
+                    badgeCount = apartmentBadges[apt.addressId.toString()] ?: 0,
+                    onClick = {
                         keyboardController?.hide()
                         navigateToApartment(apt.addressId)
                         onMenuClick()
-                      }
-                    )
-                  }
+                    }
+                  )
                 }
               }
             }
@@ -306,22 +232,20 @@ fun ModalNavigationDrawerContent(
 
 @Composable
 fun DrawerItemContent(
-  modifier: Modifier = Modifier,
   apartment: ApartmentEntity,
   isSelected: Boolean,
   listMode: ListMode,
   badgeCount: Int,
   onClick: () -> Unit
 ) {
-  val focusManager = LocalFocusManager.current
   NavigationDrawerItem(
     label = {
       Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
-          Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Start) {
+          Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text = apartment.address, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(modifier = Modifier.width(4.dp))
-            Text(text = "| ${apartment.addressId}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+            Text(text = "| ${apartment.addressId}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           }
           if (listMode == ListMode.APARTMENTS) {
             apartment.nanim?.let { Text(text = it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis) }
@@ -337,8 +261,8 @@ fun DrawerItemContent(
       }
     },
     selected = isSelected,
-    onClick = { focusManager.clearFocus(); onClick() },
+    onClick = onClick,
     icon = { Icon(imageVector = if (listMode == ListMode.HOUSES) Icons.Default.Domain else Icons.Default.Home, contentDescription = null) },
-    modifier = modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
   )
 }

@@ -47,7 +47,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -189,11 +191,16 @@ fun ApartmentNavigationRail(
 
       if (isRailExpanded) {
         Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-          if (isUserAdmin) {
+          // ПОШУК доступний тільки для адмінів і ТІЛЬКИ в режимі списку квартир
+          if (isUserAdmin && listMode == ListMode.APARTMENTS) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+              // ФІКС: Локальний стейт для усунення стрибків курсору
+              var localSearchQuery by remember { mutableStateOf(searchQuery) }
+
               OutlinedTextField(
-                value = searchQuery,
+                value = localSearchQuery,
                 onValueChange = { query ->
+                  localSearchQuery = query
                   apartmentViewModel.onSearchQueryChanged(query)
                 },
                 modifier = Modifier
@@ -203,8 +210,9 @@ fun ApartmentNavigationRail(
                 placeholder = { Text("Пошук...", fontSize = 11.sp) },
                 leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(16.dp)) },
                 trailingIcon = {
-                  if (searchQuery.isNotEmpty()) {
+                  if (localSearchQuery.isNotEmpty()) {
                     IconButton(onClick = {
+                      localSearchQuery = ""
                       apartmentViewModel.onSearchQueryChanged("")
                       focusManager.clearFocus()
                       selectedApartmentFocusRequester.requestFocus()
@@ -218,7 +226,7 @@ fun ApartmentNavigationRail(
                 textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
               )
             }
-          } else {
+          } else if (!isUserAdmin) {
             FloatingActionButton(
               onClick = {
                 keyboardController?.hide()

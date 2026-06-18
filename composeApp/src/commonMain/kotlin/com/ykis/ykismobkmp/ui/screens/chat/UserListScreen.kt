@@ -18,11 +18,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -106,10 +102,13 @@ class UserListScreen(
       )
 
       if (baseUIState.userRole != UserRole.StandardUser && !isForwardingMode) {
+        // ФІКС: Локальний стейт для запобігання перемішуванню цифр при швидкому введенні
+        var localSearchQuery by remember { mutableStateOf(searchQuery) }
+
         OutlinedTextField(
-          value = searchQuery,
+          value = localSearchQuery,
           onValueChange = { query ->
-            println("[YkisLogKMP.$className.Content.Search]: Введення пошукового запиту абонента -> $query")
+            localSearchQuery = query
             chatScreenModel.onSearchQueryChanged(query)
           },
           modifier = Modifier
@@ -118,8 +117,11 @@ class UserListScreen(
           placeholder = { Text("Пошук за адресою або о/р...", fontSize = 14.sp) },
           leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
           trailingIcon = {
-            if (searchQuery.isNotEmpty()) {
-              IconButton(onClick = { chatScreenModel.onSearchQueryChanged("") }) {
+            if (localSearchQuery.isNotEmpty()) {
+              IconButton(onClick = { 
+                localSearchQuery = ""
+                chatScreenModel.onSearchQueryChanged("") 
+              }) {
                 Icon(Icons.Default.Close, contentDescription = null)
               }
             }

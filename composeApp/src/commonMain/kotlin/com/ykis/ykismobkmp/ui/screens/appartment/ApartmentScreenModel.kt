@@ -83,26 +83,22 @@ class ApartmentScreenModel(
     _apartmentFilterData,
     _drawerHouses,
     _drawerApartments
-  ) { query, filterData, houses, drApts ->
+  ) { query, filterData, _, drApts ->
     val (listMode, userRole, apartments) = filterData
-    if (query.isEmpty()) return@combine emptyList()
+    
+    // ПОШУК працює ТІЛЬКИ в режимі APARTMENTS
+    if (query.isEmpty() || listMode != ListMode.APARTMENTS) return@combine emptyList()
 
-    when (listMode) {
-      ListMode.HOUSES -> {
-        houses.asSequence()
-          .filter { it.house.contains(query, ignoreCase = true) }
-          .map { ApartmentEntity(address = it.house, addressId = it.houseId) }
-          .toList()
-      }
-      ListMode.APARTMENTS -> {
-        val source = if (userRole != UserRole.StandardUser && userRole != UserRole.OsbbUser) drApts else apartments
-        source.filter {
-          it.address.contains(query, ignoreCase = true) ||
-            (it.nanim.contains(query, ignoreCase = true)) ||
-            it.addressId.toString().contains(query)
-        }
-      }
-      ListMode.RAIONS -> emptyList()
+    val source = if (userRole != UserRole.StandardUser && userRole != UserRole.OsbbUser) {
+        if (drApts.isNotEmpty()) drApts else apartments
+    } else {
+        apartments
+    }
+
+    source.filter {
+      it.address.contains(query, ignoreCase = true) ||
+        (it.nanim?.contains(query, ignoreCase = true) == true) ||
+        it.addressId.toString().contains(query)
     }
   }.stateIn(screenModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
