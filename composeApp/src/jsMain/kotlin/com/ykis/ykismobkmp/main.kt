@@ -9,18 +9,51 @@ import androidx.compose.ui.unit.dp
 import kotlinx.browser.document // Прямой доступ к DOM-дереву браузера
 import org.khronos.webgl.WebGLRenderingContext
 import com.ykis.ykismobkmp.di.initJsKoin
+import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
+import com.ykis.ykismobkmp.core.utils.SnackbarManager
+import kotlinx.browser.window
+import org.koin.mp.KoinPlatform
 
 /**
  * [main] — Пусковая точка входа JavaScript-движка для браузерной Web-версии ЮКИС.
- * ИСПРАВЛЕНО НАМЕРТВО: Устаревший депрекейт-вызов CanvasBasedWindow заменен на каноничный ComposeViewport API!
  */
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
 fun main() {
-  // 1. Аппаратно инициализируем Koin через специализированный Web-инициализатор
   initJsKoin()
 
-  // Находим HTML-элемент холста на веб-странице твоегоindex.html (например, <body id="ykis-app-body">)
-  // РЕШЕНИЕ: Нативно передаем DOM-элемент напрямую внутрь ComposeViewport API
+  // 1. Обробка переходу до чату при старті (з URL)
+  fun handleUrlParams() {
+    val urlParams = window.location.search
+    if (urlParams.contains("chatId=")) {
+      val chatId = urlParams.substringAfter("chatId=").substringBefore("&")
+      println("[Main.js]: Знайдено chatId в URL: $chatId. Налаштування редиректу...")
+      try {
+          val chatModel: ChatScreenModel = KoinPlatform.getKoin().get()
+          chatModel.setPendingPushChatId(chatId)
+      } catch (e: Exception) { }
+    }
+  }
+
+  handleUrlParams()
+  // Слухаємо зміни історії (якщо SW оновить URL у відкритій вкладці)
+  window.addEventListener("popstate", { handleUrlParams() })
+
+  // 2. Обробка повідомлень, коли додаток ВІДКРИТИЙ (Foreground)
+  (window.asDynamic()).onForegroundMessage = { payload: dynamic ->
+      println("[Main.js]: Foreground push received")
+      val data = payload.data
+      val title = data?.title?.toString() ?: payload.notification?.title?.toString() ?: "ЮКІС"
+      val body = data?.body?.toString() ?: payload.notification?.body?.toString() ?: "Нове повідомлення"
+      val chatId = data?.chatId?.toString()
+      
+      SnackbarManager.showMessage("$title: $body")
+      
+      if (!chatId.isNullOrBlank()) {
+          println("[Main.js]: Foreground chatId detected: $chatId")
+          // Можна додати логіку автоматичного переходу, якщо це доречно
+      }
+  }
+
   val htmlBodyElement = document.getElementById("ComposeTarget") ?: document.body
 
   if (htmlBodyElement != null) {

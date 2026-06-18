@@ -1,6 +1,9 @@
 package com.ykis.ykismobkmp.domain.services
 
 import com.ykis.ykismobkmp.core.utils.Resource
+import com.ykis.ykismobkmp.di.VAPID_KEY
+import kotlinx.browser.window
+import kotlinx.coroutines.await
 
 // ИСПРАВЛЕНО: Сигнатура синхронизирована по параметрам
 actual suspend fun performPlatformSendSms(
@@ -20,7 +23,20 @@ actual suspend fun performPlatformSignInWithSms(
   return Resource.Error("Функція авторизації за номером телефону недоступна у Веб-версії.")
 }
 
-actual suspend fun getPlatformFcmToken(): String? = null
+actual suspend fun getPlatformFcmToken(): String? {
+  println("[YkisLogKMP.FirebaseServiceImpl]: [JS_WEB] Запит FCM токена...")
+  return try {
+    val promise = window.asDynamic().getWebFcmToken(VAPID_KEY)
+    if (promise != null) {
+      val token = (promise as kotlin.js.Promise<String?>).await()
+      println("[YkisLogKMP.FirebaseServiceImpl]: [SUCCESS] Web Push Token отримано")
+      token
+    } else null
+  } catch (e: Exception) {
+    println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: Не вдалося отримати Web Push Token: ${e.message}")
+    null
+  }
+}
 
 actual fun performPlatformClearNotifications(chatId: String?) {
   println("[YkisLogKMP.FirebaseServiceImpl]: [JS_NOTIF_CLEAR] (Заглушка)")

@@ -8,25 +8,29 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link type="text/css" rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
 </head>
 <body style="text-align: center; align-content: center">
 <!-- Инициализация Firebase App Check (reCAPTCHA) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDZUPgZSs5RMcQFtt2DjcoZoYTi9wdI37k",
+        projectId: "ykis-mob",
+        appId: "1:1062920014188:web:cd8ced095f943b9d088b49",
+        messagingSenderId: "1062920014188"
+    };
+
     window.initializeFirebaseAppCheck = function(siteKey) {
         const checkFirebase = () => {
             if (typeof firebase !== 'undefined' && firebase.appCheck) {
                 try {
                     if (!firebase.apps.length) {
-                        firebase.initializeApp({
-                            apiKey: "AIzaSyDZUPgZSs5RMcQFtt2DjcoZoYTi9wdI37k",
-                            projectId: "ykis-mob",
-                            appId: "1:1062920014188:web:cd8ced095f943b9d088b49"
-                        });
+                        firebase.initializeApp(firebaseConfig);
                     }
                     const appCheck = firebase.appCheck();
-                    // Использование ReCaptchaV3Provider
                     appCheck.activate(siteKey, true);
                     console.log("Firebase App Check bridge initialized with key:", siteKey);
                 } catch (e) {
@@ -37,6 +41,72 @@
             }
         };
         checkFirebase();
+    };
+
+    window.getWebFcmToken = async function(vapidKey) {
+        console.log("[JS] Запит Web Push токена з VAPID:", vapidKey);
+
+        if (Notification.permission === 'default') {
+            console.log("[JS] Запит дозволу на сповіщення...");
+            await Notification.requestPermission();
+        }
+
+        if (!('serviceWorker' in navigator)) {
+            console.error("[JS] Service Workers не підтримуються цим браузером");
+            return null;
+        }
+
+        try {
+            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+                scope: '/'
+            });
+            console.log("[JS] Service Worker зареєстрований:", registration.scope);
+
+            const messaging = firebase.messaging();
+            const token = await messaging.getToken({
+                vapidKey: vapidKey,
+                serviceWorkerRegistration: registration
+            });
+
+            // Обробка Foreground повідомлень
+            messaging.onMessage((payload) => {
+                console.log("[JS] Отримано повідомлення:", payload);
+
+                if (document.visibilityState === 'visible') {
+                    if (window.onForegroundMessage) {
+                        window.onForegroundMessage(payload);
+                    }
+                } else {
+                    // Показуємо через реєстрацію SW для кращої підтримки
+                    const title = payload.data?.title || payload.notification?.title || 'ЮКІС';
+                    const body = payload.data?.body || payload.notification?.body || 'Нове повідомлення';
+                    const chatId = payload.data?.chatId;
+                    const iconUrl = '/ykis.png';
+
+                    registration.showNotification(title, {
+                        body: body,
+                        icon: iconUrl,
+                        badge: iconUrl,
+                        data: { chatId: chatId }
+                    });
+                }
+            });
+
+            // Слухач кліків від SW
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'NAVIGATE_TO_CHAT') {
+                    console.log("[JS] Навігація до чату:", event.data.chatId);
+                    const newUrl = window.location.origin + "/?chatId=" + event.data.chatId;
+                    window.history.pushState({}, '', newUrl);
+                    window.dispatchEvent(new Event('popstate'));
+                }
+            });
+
+            return token;
+        } catch (e) {
+            console.error("[JS] Помилка FCM:", e);
+            return null;
+        }
     };
 </script>
 

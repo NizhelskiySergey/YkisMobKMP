@@ -94,6 +94,12 @@ class AppScreenModel(
       val currentRole = finalUIState.userRole
       println("[YkisLogKMP.$className.evaluateStartDestination]: [NAV_RESOLVE] Стейт запечатано! Роль: $currentRole")
 
+      // ДОДАНО: Примусова реєстрація Web Push токена при кожному старті
+      screenModelScope.launch {
+          println("[YkisLogKMP.$className]: Фонова перевірка Web Push токена...")
+          firebaseService.addFcmToken()
+      }
+
       // ШАГ №4: Навигация
       if (currentRole == UserRole.StandardUser) {
         if (finalUIState.apartments.isEmpty()) {

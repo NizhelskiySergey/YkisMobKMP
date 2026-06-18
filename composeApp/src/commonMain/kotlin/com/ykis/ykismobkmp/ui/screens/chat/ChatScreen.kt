@@ -66,6 +66,19 @@ class ChatScreen(
 
     val baseUIState by apartmentScreenModel.uiState.collectAsState()
     val selectedUser by chatScreenModel.selectedUser.collectAsState()
+    val pendingPushId by chatScreenModel.pendingPushChatId.collectAsState()
+
+    // ДОДАНО: Реакція на клік по пушу
+    LaunchedEffect(pendingPushId) {
+        if (!pendingPushId.isNullOrBlank()) {
+            println("[ChatScreen]: Виявлено запит на відкриття чату через пуш: $pendingPushId")
+            val addrId = pendingPushId!!.split("_").lastOrNull()?.toLongOrNull() ?: 0L
+            if (addrId != 0L) {
+                chatScreenModel.selectUserByAddressId(addrId)
+                chatScreenModel.setPendingPushChatId(null) // Очищуємо, щоб не спрацювало повторно
+            }
+        }
+    }
 
     LaunchedEffect(chatId, selectedUser?.addressId) {
       val isResident = baseUIState.userRole == UserRole.StandardUser

@@ -62,14 +62,11 @@ fun RootNavGraph(
         snapshotFlow { currentStartState }.first { it != AppStartState.Loading }
         snapshotFlow { baseUIState }.first { it.userRole != UserRole.Unknown && !it.mainLoading }
         
-        val parts = pendingChatId!!.split("_")
-        if (parts.size >= 3) {
-          val addrId = parts[parts.size - 2].toLongOrNull() ?: 0L
-          if (addrId != 0L) {
-            apartmentScreenModel.setAddressId(addrId)
-            snapshotFlow { baseUIState }.first { it.addressId == addrId }
-            chatScreenModel.selectUserByAddressId(addrId)
-          }
+        val addrId = pendingChatId!!.split("_").lastOrNull()?.toLongOrNull() ?: 0L
+        if (addrId != 0L) {
+          apartmentScreenModel.setAddressId(addrId)
+          snapshotFlow { baseUIState }.first { it.addressId == addrId }
+          chatScreenModel.selectUserByAddressId(addrId)
         }
       }
     }
@@ -122,12 +119,14 @@ fun RootNavGraph(
             LaunchedEffect(pendingChatId) {
               if (pendingChatId != null) {
                 snapshotFlow { baseUIState }.first { it.userRole != UserRole.Unknown && !it.mainLoading }
-                val parts = pendingChatId!!.split("_")
-                val addrId = parts.getOrNull(parts.size - 2)?.toLongOrNull() ?: 0L
+                val addrId = pendingChatId!!.split("_").lastOrNull()?.toLongOrNull() ?: 0L
                 if (addrId != 0L) {
                    snapshotFlow { baseUIState }.first { it.addressId == addrId }
                    delay(300)
-                   navigator.push(ChatScreenDest(chatId = pendingChatId))
+                   // Перевіряємо чи ми вже не в чаті
+                   if (navigator.lastItem !is ChatScreenDest) {
+                       navigator.push(ChatScreenDest(chatId = pendingChatId))
+                   }
                    chatScreenModel.setPendingPushChatId(null)
                 }
               }
