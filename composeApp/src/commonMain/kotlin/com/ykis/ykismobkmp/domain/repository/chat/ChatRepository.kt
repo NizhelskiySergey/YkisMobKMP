@@ -143,7 +143,14 @@ class ChatRepository(
     return realtime.reference("unread_counters/$myUid")
       .valueEvents
       .map { snapshot ->
-        snapshot.children.associate { it.key!! to (it.value<Int?>() ?: 0) }
+        snapshot.children.associate { 
+            val count = try {
+                it.value<Double?>()?.toInt() ?: 0
+            } catch (e: Exception) {
+                try { it.value<Int?>() ?: 0 } catch (e2: Exception) { 0 }
+            }
+            it.key!! to count 
+        }
       }
   }
 
@@ -159,6 +166,8 @@ class ChatRepository(
     
     try {
       val distinctUids = uids.distinct()
+      println("[ChatRepository.increment]: Спроба збільшити лічильники для ${distinctUids.size} осіб у чаті $chatId")
+      
       distinctUids.forEach { uid ->
         val presenceRef = realtime.reference("presence/$chatId/$uid/online")
         val isOnline = try {
@@ -166,16 +175,15 @@ class ChatRepository(
             if (snap.exists) snap.value<Boolean?>() ?: false else false
         } catch (e: Exception) { false }
         
+        // Збільшуємо тільки тим, хто офлайн
         if (!isOnline) {
             val unreadRef = realtime.reference("unread_counters/$uid/$chatId")
-            val chatExists = try { realtime.reference("chat_access/$chatId").valueEvents.first().exists } catch(e: Exception) { false }
-            
-            if (chatExists) {
-                unreadRef.setValue(dev.gitlive.firebase.database.ServerValue.increment(1.0))
-            }
+            unreadRef.setValue(dev.gitlive.firebase.database.ServerValue.increment(1.0))
         }
       }
-    } catch (e: Exception) { }
+    } catch (e: Exception) {
+      println("[ChatRepository.increment_ERROR]: ${e.message}")
+    }
   }
 
   suspend fun incrementUnreadForParticipants(chatId: String, senderUid: String) {
@@ -183,8 +191,15 @@ class ChatRepository(
     try {
       val participantsSnapshot = realtime.reference("chat_access/$chatId").valueEvents.first()
       val uids = participantsSnapshot.children.mapNotNull { it.key }.filter { it != senderUid }.distinct()
-      if (uids.isNotEmpty()) incrementUnreadForUids(chatId, uids)
-    } catch (e: Exception) { }
+      
+      if (uids.isNotEmpty()) {
+          incrementUnreadForUids(chatId, uids)
+      } else {
+          println("[ChatRepository.increment]: Отримувачів не знайдено (тільки відправник у списку доступу)")
+      }
+    } catch (e: Exception) {
+      println("[ChatRepository.increment_Participants_ERROR]: ${e.message}")
+    }
   }
 
   suspend fun fetchAllUsersByAddressId(addressId: Long): List<UserEntity> {

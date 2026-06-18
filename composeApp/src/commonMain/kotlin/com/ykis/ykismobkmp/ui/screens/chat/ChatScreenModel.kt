@@ -391,10 +391,7 @@ class ChatScreenModel(
         )
         chatRepo.sendMessage(chatId, message)
         
-        val recipients = _recipientUids.value
-        if (recipients.isNotEmpty()) {
-            chatRepo.incrementUnreadForUids(chatId, recipients)
-        }
+        chatRepo.incrementUnreadForParticipants(chatId, senderUid)
         
         _messageText.value = ""
         onComplete()
@@ -650,6 +647,7 @@ class ChatScreenModel(
            getChatPath(baseState.userRole, baseState.osbbId ?: 0L, user.addressId)
         }
         chatRepo.sendMessage(targetPath, MessageEntity(senderUid = myUid, text = msg.text, imageUrl = msg.imageUrl, timestamp = currentTimeMillis(), isForwarded = true))
+        chatRepo.incrementUnreadForParticipants(targetPath, myUid)
         cancelForwarding(); SnackbarManager.showMessage(Res.string.success_send_message)
       } catch (e: Exception) { }
     }
