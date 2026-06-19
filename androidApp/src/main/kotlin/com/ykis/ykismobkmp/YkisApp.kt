@@ -29,6 +29,10 @@ class YkisApp : Application() {
                 firebaseAppCheck.installAppCheckProviderFactory(
                     DebugAppCheckProviderFactory.getInstance()
                 )
+                // Виводимо токен в лог для зручності реєстрації в консолі
+                firebaseAppCheck.getAppCheckToken(false).addOnSuccessListener { token ->
+                    println("[YkisLogKMP.AppCheck]: Ваш Debug Token для Firebase Console: ${token.token}")
+                }
             } else {
                 println("[YkisLogKMP.YkisApp]: РЕЛИЗНЫЙ режим. Использование PlayIntegrity.")
                 firebaseAppCheck.installAppCheckProviderFactory(

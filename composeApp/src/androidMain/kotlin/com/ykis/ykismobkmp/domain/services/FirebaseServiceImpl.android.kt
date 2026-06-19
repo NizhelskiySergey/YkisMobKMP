@@ -63,15 +63,15 @@ actual suspend fun performPlatformSendSms(
   println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_SMS_PREPARE] Номер: $fullFormattedPhoneNumber")
 
   try {
-      // ИСПРАВЛЕНО: Принудительный запрос токена App Check перед отправкой SMS
+      // Ініціюємо перевірку Play Integrity / App Check
       com.google.firebase.appcheck.FirebaseAppCheck.getInstance().getAppCheckToken(false).addOnCompleteListener { task ->
           if (task.isSuccessful) {
-              println("[YkisLogKMP.FirebaseServiceImpl]: App Check токен отримано: ${task.result?.token?.take(10)}...")
+              println("[YkisLogKMP.FirebaseServiceImpl]: [APP_CHECK_OK] Токен Play Integrity отримано")
           } else {
-              println("[YkisLogKMP.FirebaseServiceImpl]: [APP_CHECK_FAIL] Помилка: ${task.exception?.message}")
+              // ВАЖЛИВО: Виводимо причину збою. Якщо тут "Device integrity failed", то SHA-ключі не працюють.
+              println("[YkisLogKMP.FirebaseServiceImpl]: [APP_CHECK_FAIL] Причина: ${task.exception?.message}")
           }
           
-          // В ЛЮБОМ СЛУЧАЕ пробуем отправить SMS
           val options = PhoneAuthOptions.newBuilder(nativeAndroidAuth)
             .setPhoneNumber(fullFormattedPhoneNumber)
             .setTimeout(60L, TimeUnit.SECONDS)

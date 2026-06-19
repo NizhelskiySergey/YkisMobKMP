@@ -6,8 +6,8 @@ import androidx.compose.runtime.remember
 @Composable
 actual fun rememberFilePicker(): FilePicker = remember {
     object : FilePicker {
-        override fun pickFile(onFilePicked: (String) -> Unit) {
-            println("[YkisLogKMP.FilePicker]: Выбор файлов на Desktop пока не реализован")
+        override fun pickFile(onFilePicked: (String, String?) -> Unit) {
+            println("[YkisLogKMP.FilePicker]: Вибір файлів на Desktop поки не реалізований")
         }
     }
 }

@@ -47,7 +47,7 @@ val jsPlatformModule: Module = module {
     println("[YkisLogKMP.Koin]: Ініціалізація Firebase App (Web)...")
     val options = FirebaseOptions(
         applicationId = "1:1062920014188:web:cd8ced095f943b9d088b49",
-        apiKey = "AIzaSyDZUPgZSs5RMcQFtt2DjcoZoYTi9wdI37k",
+        apiKey = "AIzaSyD5ukrhK6g6xKlrn4Iv9zPQxB7ji_gACY4",
         projectId = "ykis-mob",
         storageBucket = "ykis-mob.firebasestorage.app",
         databaseUrl = "https://ykis-mob-default-rtdb.europe-west1.firebasedatabase.app",
@@ -120,12 +120,15 @@ actual val databaseModule: Module = module {
 }
 
 /**
- * [initializeRecaptcha] — Вызов JS-функции из index.html.
+ * [initializeRecaptcha] — Виклик JS-функції для активації App Check Enterprise.
  */
 fun initializeRecaptcha(key: String) {
     try {
+        println("[YkisLogKMP.Koin]: Активація App Check Enterprise з ключем: $key")
         window.asDynamic().initializeFirebaseAppCheck(key)
-    } catch (e: Exception) { }
+    } catch (e: Exception) { 
+        println("[YkisLogKMP.Koin_ERROR]: Не вдалося активувати App Check: ${e.message}")
+    }
 }
 
 /**

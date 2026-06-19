@@ -5,22 +5,38 @@ import com.ykis.ykismobkmp.di.VAPID_KEY
 import kotlinx.browser.window
 import kotlinx.coroutines.await
 
-// ИСПРАВЛЕНО: Сигнатура синхронизирована по параметрам
+// ИСПРАВЛЕНО: Реалізація SMS через JS міст для Web
 actual suspend fun performPlatformSendSms(
   auth: dev.gitlive.firebase.auth.FirebaseAuth,
   phoneNumber: String,
   platformActivity: Any?
 ): Resource<String> {
-  println("[YkisLogKMP.FirebaseServiceImpl]: [JS_WEB] Сценарий SMS изолирован для Web-браузера")
-  return Resource.Error("Вхід за номером телефону тимчасово обмежений у Веб-версії.")
+  println("[YkisLogKMP.FirebaseServiceImpl]: [JS_WEB] Відправка SMS на $phoneNumber...")
+  return try {
+    val formattedPhone = if (phoneNumber.startsWith("+")) phoneNumber else "+380$phoneNumber"
+    val promise = window.asDynamic().sendSmsWeb(formattedPhone)
+    (promise as kotlin.js.Promise<String>).await()
+    Resource.Success("WEB_SMS_SESSION")
+  } catch (e: Exception) {
+    println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: ${e.message}")
+    Resource.Error(e.message ?: "Помилка відправки SMS")
+  }
 }
+
 actual suspend fun performPlatformSignInWithSms(
   auth: dev.gitlive.firebase.auth.FirebaseAuth,
   verificationId: String,
   smsCode: String
 ): Resource<Boolean> {
-  println("[YkisLogKMP.FirebaseServiceImpl]: [JS_WEB] Сценарій входу за SMS ізольований для браузера")
-  return Resource.Error("Функція авторизації за номером телефону недоступна у Веб-версії.")
+  println("[YkisLogKMP.FirebaseServiceImpl]: [JS_WEB] Підтвердження SMS коду...")
+  return try {
+    val promise = window.asDynamic().verifySmsWeb(smsCode)
+    (promise as kotlin.js.Promise<Boolean>).await()
+    Resource.Success(true)
+  } catch (e: Exception) {
+    println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: ${e.message}")
+    Resource.Error(e.message ?: "Невірний код")
+  }
 }
 
 actual suspend fun getPlatformFcmToken(): String? {
