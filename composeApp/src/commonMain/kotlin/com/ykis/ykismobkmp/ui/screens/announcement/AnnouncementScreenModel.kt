@@ -164,6 +164,7 @@ class AnnouncementScreenModel(
                 val result = chatRepo.publishAnnouncement(announcement)
                 
                 if (result.isSuccess) {
+                    println("[AnnouncementScreenModel]: Оголошення успішно збережено в Firestore. Очікування тригера...")
                     _uiState.update { 
                         it.copy(
                             isAnnouncementUploading = false,
@@ -177,6 +178,7 @@ class AnnouncementScreenModel(
                     SnackbarManager.showMessage("Оголошення опубліковано")
                     onSuccess()
                 } else {
+                    println("[AnnouncementScreenModel_ERROR]: Помилка збереження документа!")
                     _uiState.update { it.copy(isAnnouncementUploading = false) }
                     SnackbarManager.showMessage("Помилка публікації")
                 }

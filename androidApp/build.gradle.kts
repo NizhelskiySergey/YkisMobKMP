@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.androidApplication)
     id("org.jetbrains.kotlin.android")
@@ -18,6 +20,32 @@ android {
         versionName = "1.1"
     }
 
+    val props = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { props.load(it) }
+    }
+
+    signingConfigs {
+        create("release") {
+            val path = props.getProperty("signing.keyStorePath")
+            if (path != null) {
+                val storeFileObj = file(path)
+                if (storeFileObj.exists()) {
+                    storeFile = storeFileObj
+                    storePassword = props.getProperty("signing.keyStorePassword")
+                    keyAlias = props.getProperty("signing.keyAlias")
+                    keyPassword = props.getProperty("signing.keyPassword")
+                    println("[YkisLogKMP]: Signing config 'release' successfully initialized.")
+                } else {
+                    println("[YkisLogKMP_ERROR]: JKS file not found at path: $path")
+                }
+            } else {
+                println("[YkisLogKMP_ERROR]: 'signing.keyStorePath' is missing in local.properties")
+            }
+        }
+    }
+
     sourceSets {
         getByName("main") {
             java.srcDirs("src/main/kotlin", "src/main/java")
@@ -32,8 +60,13 @@ android {
 
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
+        }
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
@@ -63,5 +96,5 @@ dependencies {
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.messaging.native)
     implementation(libs.firebase.appcheck.debug)
-    implementation("com.google.firebase:firebase-appcheck-playintegrity") // ДОБАВЛЕНО: Для релизных версий
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
 }

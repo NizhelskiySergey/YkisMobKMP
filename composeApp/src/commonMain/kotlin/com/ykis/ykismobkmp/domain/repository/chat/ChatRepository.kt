@@ -213,14 +213,10 @@ class ChatRepository(
     } catch (e: Exception) { emptyList() }
   }
 
-  suspend fun sendGlobalNotification(title: String, body: String, osbbId: Long = 0L, imageUrl: String? = null) {
-    try {
-      val data = mutableMapOf<String, Any?>(
-        "title" to title, "body" to body, "osbbId" to safeNum(osbbId), "type" to "ANNOUNCEMENT"
-      )
-      imageUrl?.let { data["imageUrl"] = it }
-      Firebase.functions.httpsCallable("sendGlobalNotification")(data)
-    } catch (e: Exception) { }
+  fun sendGlobalNotification(title: String, body: String, osbbId: Long = 0L, imageUrl: String? = null) {
+    // ПОРОЖНЬО: Тепер пуші розсилаються автоматично через Cloud Functions (Firestore Trigger)
+    // як і в чаті. Це усуває проблеми з CORS та правами доступу в браузері.
+    println("[ChatRepository]: Оголошення '$title' збережено. Очікування автоматичної розсилки сервером для OSBB: $osbbId")
   }
 
   suspend fun publishAnnouncement(announcement: AnnouncementEntity): Result<Unit> {

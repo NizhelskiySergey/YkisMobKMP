@@ -55,9 +55,10 @@ val jsPlatformModule: Module = module {
     )
     val app = Firebase.initialize(options = options)
     println("[YkisLogKMP.Koin]: Firebase успішно ініціалізовано.")
-    if (RECAPTCHA_SITE_KEY != "ТВОЙ_КЛЮЧ_ЗДЕСЬ") {
-        initializeRecaptcha(RECAPTCHA_SITE_KEY)
-    }
+    // ТИМЧАСОВО ВИМКНЕНО через блокування Google на 24 години
+    // if (RECAPTCHA_SITE_KEY != "ТВОЙ_КЛЮЧ_ЗДЕСЬ") {
+    //    initializeRecaptcha(RECAPTCHA_SITE_KEY)
+    // }
     app
   }
 
@@ -120,15 +121,12 @@ actual val databaseModule: Module = module {
 }
 
 /**
- * [initializeRecaptcha] — Виклик JS-функції для активації App Check Enterprise.
+ * [initializeRecaptcha] — Вызов JS-функции из index.html.
  */
 fun initializeRecaptcha(key: String) {
     try {
-        println("[YkisLogKMP.Koin]: Активація App Check Enterprise з ключем: $key")
         window.asDynamic().initializeFirebaseAppCheck(key)
-    } catch (e: Exception) { 
-        println("[YkisLogKMP.Koin_ERROR]: Не вдалося активувати App Check: ${e.message}")
-    }
+    } catch (e: Exception) { }
 }
 
 /**

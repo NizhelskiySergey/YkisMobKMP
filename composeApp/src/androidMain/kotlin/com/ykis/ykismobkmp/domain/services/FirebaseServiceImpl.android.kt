@@ -79,10 +79,12 @@ actual suspend fun performPlatformSendSms(
             .setCallbacks(callbacks)
             .build()
 
+          println("[YkisLogKMP.FirebaseServiceImpl]: Виклик verifyPhoneNumber для $fullFormattedPhoneNumber")
           PhoneAuthProvider.verifyPhoneNumber(options)
       }
   } catch (e: Exception) {
-      println("[YkisLogKMP.FirebaseServiceImpl]: [CRITICAL_FAIL] ${e.message}")
+      println("[YkisLogKMP.FirebaseServiceImpl]: [CRITICAL_FAIL] Помилка виконання: ${e.message}")
+      if (continuation.isActive) continuation.resume(Resource.Error(e.message ?: "Runtime error"))
   }
 }
 
