@@ -292,7 +292,8 @@ class AuthScreenModel(
 
   private suspend fun signInAndLinkWithGoogle(idToken: String) {
     val methodName = "signInAndLinkWithGoogle"
-    val firebaseCredential = GoogleAuthProvider.credential(idToken = idToken, accessToken = null)
+    // ФІКС: Для бібліотеки GitLive передаємо порожній рядок замість null, щоб уникнути помилки типизації
+    val firebaseCredential = GoogleAuthProvider.credential(idToken = idToken, accessToken = "")
     val currentUser = auth.currentUser
 
     if (currentUser == null) {

@@ -55,7 +55,7 @@ class ChatRepository(
   suspend fun fetchUsersByIds(ids: List<String>): List<UserEntity> = coroutineScope {
     if (ids.isEmpty() || _firestore == null) return@coroutineScope emptyList()
     
-    val distinctIds = ids.distinct().take(20)
+    val distinctIds = ids.distinct().filter { it.isNotBlank() }.take(20)
     
     try {
       val deferreds = distinctIds.map { uid ->
@@ -246,7 +246,7 @@ class ChatRepository(
   }
 
   suspend fun deleteAnnouncement(announcementId: String): Result<Unit> {
-    if (_firestore == null) return Result.failure(Exception("Firestore not ready"))
+    if (_firestore == null || announcementId.isBlank()) return Result.failure(Exception("Firestore not ready or empty ID"))
     return try {
       firestore.collection("announcements").document(announcementId).delete()
       Result.success(Unit)

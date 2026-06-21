@@ -16,8 +16,8 @@ android {
         applicationId = "com.ykis.ykismobkmp"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = libs.versions.app.versionCode.get().toInt()
+        versionName = libs.versions.app.version.get()
     }
 
     val props = Properties()

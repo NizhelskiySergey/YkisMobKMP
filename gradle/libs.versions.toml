@@ -45,13 +45,17 @@ webcamCapture = "0.3.12"
 datastorePreferencesCore = "1.2.1"
 window = "1.5.1"
 dateTimeVersion = "0.7.1"
-buildConfig = "0.15.2"
+buildConfig = "0.15.1"
 firebaseAppcheckDebug = "19.0.2"
 playServicesAuthApiPhone = "18.1.0"
 firebaseAnalytics = "22.3.0"
 firebaseCommonKtx = "21.0.0"
 firebaseBom = "33.9.0"
 firebaseMessaging = "25.0.2"
+
+# Версія додатка ЮКІС (Source of truth)
+app-version = "1.1.0"
+app-versionCode = "2"
 [libraries]
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCore" }
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCore" }

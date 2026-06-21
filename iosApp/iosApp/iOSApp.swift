@@ -3,9 +3,11 @@ import FirebaseCore
 import FirebaseAppCheck
 import FirebaseMessaging
 import UserNotifications
+import GoogleSignIn
 import ComposeApp
 
-class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate, NativeAuthBridge {
+    
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
@@ -16,7 +18,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         FirebaseApp.configure()
         
-        AppInitializer().run()
+        // Ініціалізація KMP ядра з передачею моста для авторизації
+        AppInitializer().run(bridge: self)
         
         UNUserNotificationCenter.current().delegate = self
         let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
@@ -34,9 +37,40 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         return true
     }
 
-    // ВАЖНО: Передаем APNS токен в Firebase, чтобы убрать ошибку 505
+    // Обробка URL для Google Sign-In
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        return GIDSignIn.sharedInstance.handle(url)
+    }
+
+    // РЕАЛІЗАЦІЯ МОСТА: Google Sign-In
+    func signInWithGoogle(onSuccess: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
+        guard let rootViewController = UIApplication.shared.windows.first?.rootViewController else {
+            onError("Root View Controller not found")
+            return
+        }
+        
+        GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { signInResult, error in
+            if let error = error {
+                onError(error.localizedDescription)
+                return
+            }
+            
+            guard let user = signInResult?.user,
+                  let idToken = user.idToken?.tokenString else {
+                onError("Failed to get ID Token")
+                return
+            }
+            
+            onSuccess(idToken)
+        }
+    }
+    
+    // РЕАЛІЗАЦІЯ МОСТА: Apple Sign-In (заготовка)
+    func signInWithApple(onSuccess: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
+        onError("Apple Sign-In ще не реалізовано")
+    }
+
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        print("[YkisLogKMP.AppDelegate]: APNS токен получен.")
         Messaging.messaging().apnsToken = deviceToken
     }
 

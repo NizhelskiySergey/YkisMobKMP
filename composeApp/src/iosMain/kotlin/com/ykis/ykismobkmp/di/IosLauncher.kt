@@ -103,7 +103,8 @@ actual val databaseModule: Module = module {
 @OptIn(ExperimentalObjCName::class)
 @ObjCName("AppInitializer")
 class AppInitializer {
-    fun run() {
+    fun run(bridge: com.ykis.ykismobkmp.core.utils.NativeAuthBridge) {
+        com.ykis.ykismobkmp.core.utils.IosAuthConnector.bridge = bridge
         Napier.base(DebugAntilog())
         initKoin(platformModule = iosPlatformModule)
     }

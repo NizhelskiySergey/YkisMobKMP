@@ -83,10 +83,14 @@ class FirebaseServiceImpl(
   }
 
   override suspend fun firebaseSignInWithGoogle(idToken: String): SignInWithGoogleResponse = try {
+    println("[YkisLogKMP.$className]: [GOOGLE_AUTH] Спроба входу через Firebase з ID токеном")
+    // accessToken для сучасного Google Auth через Firebase не є обов'язковим
     val googleCredential = GoogleAuthProvider.credential(idToken = idToken, accessToken = null)
     auth.signInWithCredential(googleCredential)
+    println("[YkisLogKMP.$className]: [GOOGLE_AUTH_OK] Вхід успішний")
     Resource.Success(true)
   } catch (e: Exception) {
+    println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: [GOOGLE_AUTH_FAIL] ${e.message}")
     Resource.Error(message = e.message ?: "Google Auth Failed")
   }
 
@@ -95,6 +99,8 @@ class FirebaseServiceImpl(
     try {
       val currentUser = auth.currentUser ?: return Resource.Error(message = "No user")
       val currentUid = currentUser.uid
+      if (currentUid.isBlank()) return Resource.Error(message = "Empty UID")
+      
       val userEmail = currentUser.email?.takeIf { it.isNotBlank() } ?: currentUser.phoneNumber ?: ""
       
       println("[FirebaseServiceImpl]: [START] Синхронізація профілю для $userEmail")
@@ -136,6 +142,7 @@ class FirebaseServiceImpl(
   }
 
   override suspend fun updateUserRoleAndPermissions(uid: String, addressId: Long?, userRole: UserRole, osbbId: Long?, displayName: String?, fio: String?, osbb: String?) {
+    if (uid.isBlank()) return
     try {
       val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
       val updates = mutableMapOf<String, Any>(
@@ -154,10 +161,14 @@ class FirebaseServiceImpl(
   }
 
   override suspend fun getUserProfile(): UserFirebase = withContext(Dispatchers.Default) {
+    val currentUid = uid
+    if (currentUid.isBlank()) {
+        return@withContext UserFirebase(uid = "", email = "", userRole = "StandardUser")
+    }
     try {
       // ИСПРАВЛЕНО: Добавляем таймаут и на чтение профиля
       val snapshot = withTimeout(10000) {
-          db.collection("users").document(uid).get()
+          db.collection("users").document(currentUid).get()
       }
       
       UserFirebase(
@@ -181,6 +192,7 @@ class FirebaseServiceImpl(
     try {
       val user = auth.currentUser ?: throw Exception("Auth session expired")
       val currentUid = user.uid
+      if (currentUid.isBlank()) throw Exception("Empty UID")
       user.delete()
       db.collection("users").document(currentUid).delete()
       Resource.Success(true)
@@ -278,9 +290,11 @@ class FirebaseServiceImpl(
 
   override suspend fun removeFcmToken() {
     try {
+      val currentUid = uid
+      if (currentUid.isBlank()) return
       val token = getPlatformFcmToken() ?: return
       val updates = mapOf("fcmTokens" to dev.gitlive.firebase.firestore.FieldValue.arrayRemove(token))
-      db.collection("users").document(uid).update(updates)
+      db.collection("users").document(currentUid).update(updates)
     } catch (e: Exception) { }
   }
 

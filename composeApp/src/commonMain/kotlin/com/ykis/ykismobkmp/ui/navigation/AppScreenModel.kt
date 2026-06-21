@@ -38,7 +38,7 @@ class AppScreenModel(
 
   fun evaluateStartDestination() {
     screenModelScope.launch {
-      println("[YkisLogKMP.$className.evaluateStartDestination]: >>> ЗАПУСК ПЕРЕВІРКИ (v.1.0.7) <<<")
+      println("[YkisLogKMP.$className.evaluateStartDestination]: >>> ЗАПУСК ПЕРЕВІРКИ (v.${com.ykis.ykismobkmp.AppConfig.APP_VERSION}) <<<")
       
       if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
           delay(1000)
