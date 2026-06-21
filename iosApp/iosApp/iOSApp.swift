@@ -4,9 +4,14 @@ import FirebaseAppCheck
 import FirebaseMessaging
 import UserNotifications
 import GoogleSignIn
+import AuthenticationServices
+import CryptoKit
 import ComposeApp
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate, NativeAuthBridge {
+    
+    // Переменная для хранения nonce (защита Apple Sign In)
+    fileprivate var currentNonce: String?
     
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
@@ -18,14 +23,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         FirebaseApp.configure()
         
-        // Ініціалізація KMP ядра з передачею моста для авторизації
         AppInitializer().run(bridge: self)
         
         UNUserNotificationCenter.current().delegate = self
         let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
         UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { granted, error in
             if granted {
-                print("[YkisLogKMP.AppDelegate]: Разрешения на уведомления получены.")
                 DispatchQueue.main.async {
                     application.registerForRemoteNotifications()
                 }
@@ -37,12 +40,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         return true
     }
 
-    // Обробка URL для Google Sign-In
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
         return GIDSignIn.sharedInstance.handle(url)
     }
 
-    // РЕАЛІЗАЦІЯ МОСТА: Google Sign-In
+    // --- GOOGLE SIGN IN ---
     func signInWithGoogle(onSuccess: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
         guard let rootViewController = UIApplication.shared.windows.first?.rootViewController else {
             onError("Root View Controller not found")
@@ -54,22 +56,39 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 onError(error.localizedDescription)
                 return
             }
-            
-            guard let user = signInResult?.user,
-                  let idToken = user.idToken?.tokenString else {
+            guard let user = signInResult?.user, let idToken = user.idToken?.tokenString else {
                 onError("Failed to get ID Token")
                 return
             }
-            
             onSuccess(idToken)
         }
     }
     
-    // РЕАЛІЗАЦІЯ МОСТА: Apple Sign-In (заготовка)
+    // --- APPLE SIGN IN ---
     func signInWithApple(onSuccess: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
-        onError("Apple Sign-In ще не реалізовано")
+        let nonce = randomNonceString()
+        currentNonce = nonce
+        
+        let appleIDProvider = ASAuthorizationAppleIDProvider()
+        let request = appleIDProvider.createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = sha256(nonce)
+        
+        let authorizationController = ASAuthorizationController(authorizationRequests: [request])
+        authorizationController.delegate = self
+        authorizationController.presentationContextProvider = self
+        
+        // Сохраняем колбэки во временных переменных для использования в делегате
+        self.appleSuccessCallback = onSuccess
+        self.appleErrorCallback = onError
+        
+        authorizationController.performRequests()
     }
+    
+    private var appleSuccessCallback: ((String) -> Void)?
+    private var appleErrorCallback: ((String) -> Void)?
 
+    // Уведомления
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         Messaging.messaging().apnsToken = deviceToken
     }
@@ -83,6 +102,55 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([[.banner, .sound, .badge]])
     }
+}
+
+// РЕАЛИЗАЦИЯ ДЕЛЕГАТОВ APPLE AUTH
+extension AppDelegate: ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        return UIApplication.shared.windows.first!
+    }
+    
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
+            guard let identityToken = appleIDCredential.identityToken,
+                  let idTokenString = String(data: identityToken, encoding: .utf8) else {
+                appleErrorCallback?("Unable to fetch identity token")
+                return
+            }
+            appleSuccessCallback?(idTokenString)
+        }
+    }
+    
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        appleErrorCallback?(error.localizedDescription)
+    }
+}
+
+// ХЕЛПЕРЫ ДЛЯ БЕЗОПАСНОСТИ APPLE AUTH
+private func randomNonceString(length: Int = 32) -> String {
+    precondition(length > 0)
+    let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+    var result = ""
+    var remainingLength = length
+    while remainingLength > 0 {
+        let randoms: [UInt8] = (0..<16).map { _ in UInt8.random(in: 0...255) }
+        randoms.forEach { random in
+            if remainingLength == 0 { return }
+            if random < charset.count {
+                result.append(charset[Int(random)])
+                remainingLength -= 1
+            }
+        }
+    }
+    return result
+}
+
+private func sha256(_ input: String) -> String {
+    let inputData = Data(input.utf8)
+    let hashedData = SHA256.hash(data: inputData)
+    let hashString = hashedData.compactMap { String(format: "%02x", $0) }.joined()
+    return hashString
 }
 
 @main

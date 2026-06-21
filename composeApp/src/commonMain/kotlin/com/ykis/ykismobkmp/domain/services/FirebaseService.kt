@@ -36,6 +36,7 @@ interface FirebaseService {
   suspend fun deleteAccount()
   suspend fun signOut()
   suspend fun firebaseSignInWithGoogle(idToken: String): SignInWithGoogleResponse
+  suspend fun firebaseSignInWithApple(idToken: String, rawNonce: String? = null): Resource<Boolean>
   suspend fun firebaseSignUpWithEmailAndPassword(email: String, password: String): SignUpResponse
   suspend fun sendEmailVerification(): SendEmailVerificationResponse
   suspend fun sendPasswordResetEmail(email: String): SendPasswordResetEmailResponse

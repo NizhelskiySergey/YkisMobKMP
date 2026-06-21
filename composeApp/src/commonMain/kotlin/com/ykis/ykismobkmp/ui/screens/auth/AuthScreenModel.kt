@@ -304,6 +304,25 @@ class AuthScreenModel(
       currentUser.linkWithCredential(firebaseCredential)
     }
   }
+
+  private suspend fun signInAndLinkWithApple(idToken: String) {
+    val methodName = "signInAndLinkWithApple"
+    val firebaseCredential = dev.gitlive.firebase.auth.OAuthProvider.credential(
+        providerId = "apple.com",
+        idToken = idToken,
+        accessToken = ""
+    )
+    val currentUser = auth.currentUser
+
+    if (currentUser == null) {
+      println("[YkisLogKMP.$className.$methodName]: [NEW_USER] Вхід через Apple ID")
+      auth.signInWithCredential(firebaseCredential)
+    } else {
+      println("[YkisLogKMP.$className.$methodName]: [LINK] Прив'язка Apple ID до аккаунту")
+      currentUser.linkWithCredential(firebaseCredential)
+    }
+  }
+
   fun onSignUpWithGoogle(idToken: String, onFinishedNavigate: () -> Unit) {
     val methodName = "onSignUpWithGoogle"
 
@@ -344,6 +363,37 @@ class AuthScreenModel(
     }
   }
 
+
+  fun onSignUpWithApple(idToken: String, onFinishedNavigate: () -> Unit) {
+    val methodName = "onSignUpWithApple"
+
+    screenModelScope.launch {
+      try {
+        _isGoogleLoading.value = true
+        _signInWithGoogleResponse.value = Resource.Loading()
+        
+        println("[YkisLogKMP.$className.$methodName]: [PROCESS] Авторизація Apple ID...")
+        signInAndLinkWithApple(idToken)
+
+        _signInWithGoogleResponse.value = Resource.Success(true)
+        
+        screenModelScope.launch {
+            firebaseService.addUserFirestore()
+            firebaseService.addFcmToken()
+        }
+
+        appScreenModel.evaluateStartDestination()
+        onFinishedNavigate()
+
+      } catch (e: Exception) {
+        println("[YkisLogKMP.$className.$methodName]: Помилка Apple Auth: ${e.message}")
+        _signInWithGoogleResponse.value = Resource.Error(messageRes = Res.string.error_unknown)
+        SnackbarManager.showMessage(Res.string.error_unknown)
+      } finally {
+        _isGoogleLoading.value = false
+      }
+    }
+  }
 
   // ====================================================================
   // --- ДОБАВЛЕНО: МЕТОДЫ АУТЕНТИФИКАЦИИ ПО НОМЕРУ ТЕЛЕФОНА (SMS) ---

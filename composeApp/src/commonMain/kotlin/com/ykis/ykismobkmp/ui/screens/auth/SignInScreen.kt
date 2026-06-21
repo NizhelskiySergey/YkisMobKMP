@@ -70,13 +70,34 @@ private const val className = "SignInScreen"
 @Composable
 fun AppleAuthButton(isLoading: Boolean, onStart: () -> Unit, onTokenReceived: (String) -> Unit) {
     val platform = com.ykis.ykismobkmp.getPlatform().name
-    if (!platform.contains("iOS", true)) return
+    println("[YkisLogKMP.AppleAuthButton]: Поточна платформа: $platform")
+
+    // Відображаємо кнопку на всіх Apple пристроях (iPhone, iPad, Mac)
+    val isApplePlatform = platform.contains("iOS", true) || 
+                          platform.contains("iPad", true) || 
+                          platform.contains("Darwin", true) || 
+                          platform.contains("Mac", true) ||
+                          platform.contains("Apple", true)
+
+    if (!isApplePlatform) return
 
     Button(
         onClick = {
             onStart()
-            // Нативный вызов Apple Sign In будет добавлен позже через expect/actual
-            SnackbarManager.showMessage("Авторизація Apple доступна тільки на пристроях iOS")
+            println("[YkisLogKMP.AppleAuthButton]: [START] Запуск нативної авторизації Apple")
+            com.ykis.ykismobkmp.core.utils.triggerNativeAppleSignIn(
+                onTokenReceived = { token ->
+                    println("[YkisLogKMP.AppleAuthButton]: [SUCCESS] Apple Token отримано")
+                    onTokenReceived(token)
+                },
+                onError = { error ->
+                    println("[YkisLogKMP.AppleAuthButton]: [ERROR] $error")
+                    if (error != "Canceled") {
+                        SnackbarManager.showMessage(error)
+                    }
+                    onTokenReceived("") // Скидаємо лоадер
+                }
+            )
         },
         enabled = !isLoading,
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -86,7 +107,15 @@ fun AppleAuthButton(isLoading: Boolean, onStart: () -> Unit, onTokenReceived: (S
             contentColor = MaterialTheme.colorScheme.surface
         )
     ) {
-        Text("Увійти через Apple", style = MaterialTheme.typography.titleMedium)
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                strokeWidth = 2.dp
+            )
+        } else {
+            Text("Увійти через Apple", style = MaterialTheme.typography.titleMedium)
+        }
     }
 }
 
@@ -226,6 +255,12 @@ object SignInScreen : Screen {
           println("[YkisLogKMP.$className.Content]: [NAVIGATION] Перехід на екран реєстрації SignUpScreen")
           navigator.push(SignUpScreenDest)
         },
+        onAppleTokenReceived = { idToken ->
+          println("[YkisLogKMP.$className.Content]: [EVENT] Получен Apple ID Token.")
+          screenModel.onSignUpWithApple(idToken) {
+            println("[YkisLogKMP.$className.Content]: [SUCCESS] Успех Apple Auth.")
+          }
+        },
         onGoogleTokenReceived = { idToken ->
           println("[YkisLogKMP.$className.Content]: [EVENT] Получен Google ID Token. Запуск авторизации...")
           screenModel.onSignUpWithGoogle(idToken) {
@@ -258,6 +293,7 @@ fun SignInScreenStateless(
   onForgotPasswordClick: () -> Unit,
   onSignUpClick: () -> Unit,
   onGoogleTokenReceived: (String) -> Unit,
+  onAppleTokenReceived: (String) -> Unit,
   onGoogleStart: () -> Unit,
   onGoogleError: () -> Unit,
   isGoogleLoading: Boolean
@@ -424,9 +460,9 @@ fun SignInScreenStateless(
             onTokenReceived = onGoogleTokenReceived
           )
           AppleAuthButton(
-            isLoading = isGoogleLoading, // Используем тот же флаг загрузки для простоты
+            isLoading = isGoogleLoading, 
             onStart = onGoogleStart,
-            onTokenReceived = onGoogleTokenReceived
+            onTokenReceived = onAppleTokenReceived
           )
         }
         Spacer(modifier = Modifier.height(24.dp))

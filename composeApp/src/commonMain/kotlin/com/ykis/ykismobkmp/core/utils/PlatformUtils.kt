@@ -14,3 +14,11 @@ expect fun triggerNativeGoogleSignIn(
   onError: (String) -> Unit
 )
 
+/**
+ * [triggerNativeAppleSignIn] — Кроссплатформенный запуск нативного диалога Apple ID.
+ */
+expect fun triggerNativeAppleSignIn(
+    onTokenReceived: (String) -> Unit,
+    onError: (String) -> Unit
+)
+

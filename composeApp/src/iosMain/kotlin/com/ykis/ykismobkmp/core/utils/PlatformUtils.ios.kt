@@ -22,3 +22,22 @@ actual fun triggerNativeGoogleSignIn(
       onError("Нативна авторизація не налаштована")
   }
 }
+
+/**
+ * [triggerNativeAppleSignIn] — Кроссплатформенный запуск нативного диалога Apple ID.
+ */
+actual fun triggerNativeAppleSignIn(
+    onTokenReceived: (String) -> Unit,
+    onError: (String) -> Unit
+) {
+    val bridge = IosAuthConnector.bridge
+    if (bridge != null) {
+        println("[YkisLogKMP.PlatformUtils]: [iOS_APPLE] Запуск нативного моста Apple")
+        bridge.signInWithApple(
+            onSuccess = { token -> onTokenReceived(token) },
+            onError = { error -> onError(error) }
+        )
+    } else {
+        onError("Apple Auth не налаштована")
+    }
+}

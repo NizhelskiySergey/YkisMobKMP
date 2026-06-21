@@ -38,3 +38,11 @@ actual fun triggerNativeGoogleSignIn(
     onError("Помилка ініціалізації Google Auth")
   }
 }
+
+actual fun triggerNativeAppleSignIn(
+    onTokenReceived: (String) -> Unit,
+    onError: (String) -> Unit
+) {
+    onError("Apple ID не підтримується в браузері")
+}
+

@@ -11,3 +11,11 @@ actual fun triggerNativeGoogleSignIn(
   println("[YkisLogKMP.PlatformUtils]: [JVM_DESKTOP] Сценарій Google Auth недоступний на Mac/PC")
   onError("Вхід через Google доступний тільки на мобільних пристроях.")
 }
+
+actual fun triggerNativeAppleSignIn(
+    onTokenReceived: (String) -> Unit,
+    onError: (String) -> Unit
+) {
+    onError("Apple ID не підтримується на Desktop")
+}
+

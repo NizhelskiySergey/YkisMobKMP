@@ -94,6 +94,22 @@ class FirebaseServiceImpl(
     Resource.Error(message = e.message ?: "Google Auth Failed")
   }
 
+  override suspend fun firebaseSignInWithApple(idToken: String, rawNonce: String?): Resource<Boolean> = try {
+    println("[YkisLogKMP.$className]: [APPLE_AUTH] Спроба входу через Firebase з Apple ID")
+    val appleCredential = dev.gitlive.firebase.auth.OAuthProvider.credential(
+        providerId = "apple.com",
+        idToken = idToken,
+        accessToken = "",
+        rawNonce = rawNonce
+    )
+    auth.signInWithCredential(appleCredential)
+    println("[YkisLogKMP.$className]: [APPLE_AUTH_OK] Вхід через Apple успішний")
+    Resource.Success(true)
+  } catch (e: Exception) {
+    println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: [APPLE_AUTH_FAIL] ${e.message}")
+    Resource.Error(message = e.message ?: "Apple Auth Failed")
+  }
+
   override suspend fun addUserFirestore(): addUserFirestoreResponse {
     val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
     try {

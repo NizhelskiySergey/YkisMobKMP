@@ -85,3 +85,11 @@ actual fun triggerNativeGoogleSignIn(
     }
   }
 }
+
+actual fun triggerNativeAppleSignIn(
+    onTokenReceived: (String) -> Unit,
+    onError: (String) -> Unit
+) {
+    onError("Apple ID не підтримується на Android")
+}
+
