@@ -10,19 +10,21 @@ import platform.UIKit.UIScreen
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import com.ykis.ykismobkmp.ui.navigation.YkisPamApp
+import platform.Foundation.NSUserDefaults
+import com.russhwolf.settings.NSUserDefaultsSettings
 
 /**
- * [MainViewController] — Главная точка входа графического холста для iOS.
- * ИСПРАВЛЕНО: Теперь WindowSizeClass вычисляется динамически на основе реальных размеров экрана.
+ * [MainViewController] — Головна точка входу графічного полотна для iOS.
  */
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class, ExperimentalForeignApi::class)
 fun MainViewController(): UIViewController {
+    
+    // Встановлюємо мову перед запуском UI
+    updateIosLocale()
+
     return ComposeUIViewController {
-        // ИСПРАВЛЕНО: Используем BoxWithConstraints для реактивного отслеживания поворота экрана
         androidx.compose.foundation.layout.BoxWithConstraints {
             val dpSize = DpSize(maxWidth, maxHeight)
-            
-            // Этот код будет перезапускаться при каждом повороте устройства
             val windowSizeClass = WindowSizeClass.calculateFromSize(dpSize)
             
             println("[YkisLogKMP.IOS_ROOT]: Recalculated size: width=${maxWidth}, height=${maxHeight} -> ${windowSizeClass.widthSizeClass}")
@@ -36,9 +38,18 @@ fun MainViewController(): UIViewController {
 }
 
 /**
- * Метод для Swift-слоя (ContentView.swift).
- * ИСПРАВЛЕНО: Теперь возвращает реальные размеры вместо заглушки смартфона.
+ * Оновлення мови для iOS на основі збережених налаштувань.
  */
+private fun updateIosLocale() {
+    val userDefaults = NSUserDefaults.standardUserDefaults
+    val settings = NSUserDefaultsSettings(userDefaults)
+    val lang = settings.getString("app_language", "uk")
+    
+    // Force set the language for the app
+    userDefaults.setObject(listOf(lang), "AppleLanguages")
+    userDefaults.synchronize()
+}
+
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class, ExperimentalForeignApi::class)
 fun createDefaultWindowSizeClass(): WindowSizeClass {
     val dpSize = UIScreen.mainScreen.bounds.useContents {

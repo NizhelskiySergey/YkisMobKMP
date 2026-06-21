@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
@@ -30,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
 import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
@@ -39,9 +37,7 @@ import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.no_heat_meters
-import ykismobkmp.composeapp.generated.resources.no_meters
-import ykismobkmp.composeapp.generated.resources.no_water_meters
+import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "HeatMeterList"
 
@@ -57,9 +53,8 @@ fun HeatMeterList(
     label = "HeatMeterListFade"
   ) { isLoading ->
     if (isLoading) {
-      com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator()
+      CenteredProgressIndicator()
     } else if (meterUIState.heatMeterList.isEmpty()) {
-      // ИСПРАВЛЕНО: Добавлен аватар в состояние пустого списка
       EmptyListState(
         title = stringResource(Res.string.no_meters),
         subtitle = stringResource(Res.string.no_heat_meters),
@@ -100,15 +95,15 @@ fun HeatMeterItem(
   val componentAlpha: Float
   when {
     heatMeter.spisan == 1L -> {
-      statusText = "Списаний"
+      statusText = stringResource(Res.string.written_off)
       componentAlpha = 0.5f
     }
     heatMeter.isOut == 1L -> {
-      statusText = "На повірці"
+      statusText = stringResource(Res.string.on_the_test)
       componentAlpha = 0.5f
     }
     else -> {
-      statusText = "Працює"
+      statusText = stringResource(Res.string.works)
       componentAlpha = 1f
     }
   }
@@ -125,9 +120,6 @@ fun HeatMeterItem(
         .padding(vertical = 12.dp, horizontal = 8.dp),
       verticalAlignment = Alignment.CenterVertically
     ) {
-      // ИСПРАВЛЕНО НАМЕРТВО: Вырезан painterResource забагованной XML-иконки теплосети!
-      // Подключен стабильный кроссплатформенный вектор Icons.Default.LocalFireDepartment (Тепло ЮКІС).
-      // Любые NullPointerException и сбои парсинга цвета полностью уничтожены!
       Icon(
         modifier = Modifier
           .padding(horizontal = 8.dp)
@@ -147,7 +139,7 @@ fun HeatMeterItem(
         )
         Spacer(modifier = Modifier.height(2.dp))
         LabelTextWithText(
-          labelText = "Номер: ",
+          labelText = stringResource(Res.string.number),
           valueText = heatMeter.number
         )
         Spacer(modifier = Modifier.height(2.dp))
@@ -170,4 +162,3 @@ fun HeatMeterItem(
     }
   }
 }
-

@@ -63,6 +63,7 @@ import ykismobkmp.composeapp.generated.resources.delete
 import ykismobkmp.composeapp.generated.resources.title_delete_appartment
 import ykismobkmp.composeapp.generated.resources.desc_delete_appartment
 import ykismobkmp.composeapp.generated.resources.info
+import ykismobkmp.composeapp.generated.resources.list_family
 private const val className = "InfoApartmentScreen"
 
 class InfoApartmentScreen(
@@ -199,7 +200,7 @@ class InfoApartmentScreen(
               onClick = { selectedTab = 1 },
               text = {
                 Text(
-                  text = "Склад сім'ї",
+                  text = stringResource(Res.string.list_family),
                   style = MaterialTheme.typography.titleSmall,
                   fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium
                 )
@@ -265,7 +266,7 @@ fun InfoScreenDualPanelContent(
         .weight(0.55f)
         .fillMaxHeight()
     ) {
-      DualPaneHeader(Icons.Default.People, "Склад сім'ї")
+      DualPaneHeader(Icons.Default.People, stringResource(Res.string.list_family))
       FamilyContent(baseUIState = baseUIState, viewModel = apartmentScreenModel)
     }
   }

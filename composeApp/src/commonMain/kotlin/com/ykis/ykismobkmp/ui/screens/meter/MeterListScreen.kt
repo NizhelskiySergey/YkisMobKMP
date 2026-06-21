@@ -13,6 +13,8 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterList
 import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterList
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "MeterListScreen"
 
@@ -41,7 +43,7 @@ fun MeterListScreen(
 
       // Мультиплатформенный DefaultAppBar ( subtitle принимает адрес квартиры из биллинга ЮКІС )
       DefaultAppBar(
-        title = "Прилади обліку",
+        title = stringResource(Res.string.meters),
         subtitle = baseUIState.address,
         onBackClick = {},
         onDrawerClick = onDrawerClick,
@@ -54,7 +56,10 @@ fun MeterListScreen(
         containerColor = MaterialTheme.colorScheme.background,
         divider = { HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant) }
       ) {
-        val tabs = listOf("Водопостачання", "Опалення")
+        val tabs = listOf(
+          stringResource(Res.string.water),
+          stringResource(Res.string.heat_supply)
+        )
         tabs.forEachIndexed { index, title ->
           Tab(
             selected = selectedTab == index,
@@ -63,7 +68,10 @@ fun MeterListScreen(
               onTabClick(index)
             },
             text = {
-              Text(text = title, style = MaterialTheme.typography.titleSmall)
+              Text(
+                text = title.replace(":", ""), // Видаляємо двокрапку для заголовка вкладки
+                style = MaterialTheme.typography.titleSmall
+              )
             }
           )
         }

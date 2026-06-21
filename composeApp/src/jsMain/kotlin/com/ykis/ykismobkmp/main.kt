@@ -12,6 +12,7 @@ import com.ykis.ykismobkmp.di.initJsKoin
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import kotlinx.browser.window
+import kotlinx.browser.localStorage
 import org.koin.mp.KoinPlatform
 
 /**
@@ -21,7 +22,11 @@ import org.koin.mp.KoinPlatform
 fun main() {
   initJsKoin()
 
-  // 1. Обробка переходу до чату при старті (з URL)
+  // 1. Встановлюємо мову документа на основі налаштувань (для коректної роботи ресурсів)
+  val savedLang = localStorage.getItem("app_language") ?: "uk"
+  document.documentElement?.setAttribute("lang", savedLang)
+
+  // 2. Обробка переходу до чату при старті (з URL)
   fun handleUrlParams() {
     val urlParams = window.location.search
     if (urlParams.contains("chatId=")) {
@@ -38,7 +43,7 @@ fun main() {
   // Слухаємо зміни історії (якщо SW оновить URL у відкритій вкладці)
   window.addEventListener("popstate", { handleUrlParams() })
 
-  // 2. Обробка повідомлень, коли додаток ВІДКРИТИЙ (Foreground)
+  // 3. Обробка повідомлень, коли додаток ВІДКРИТИЙ (Foreground)
   (window.asDynamic()).onForegroundMessage = { payload: dynamic ->
       println("[Main.js]: Foreground push received")
       val data = payload.data
@@ -50,7 +55,6 @@ fun main() {
       
       if (!chatId.isNullOrBlank()) {
           println("[Main.js]: Foreground chatId detected: $chatId")
-          // Можна додати логіку автоматичного переходу, якщо це доречно
       }
   }
 

@@ -9,10 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.ykis.ykismobkmp.ui.navigation.YkisPamApp
-import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreenModel
-import com.ykis.ykismobkmp.ui.theme.YkisPAMTheme
 import kotlinx.coroutines.delay
-import org.koin.compose.koinInject
 import org.koin.mp.KoinPlatform
 
 @Composable
@@ -23,12 +20,11 @@ fun YkisPamAppRoot(
   // 1. Стейт готовности ядра (Koin + СУБД)
   var isCoreReady by remember { mutableStateOf(false) }
 
-  // 2. Безопасный "прогрев" системы (без лишних надписей)
+  // 2. Безопасный "прогрев" системы
   LaunchedEffect(Unit) {
     while (KoinPlatform.getKoinOrNull() == null) {
       delay(50)
     }
-    // Короткая пауза для стабилизации нативных ресурсов
     delay(300)
     isCoreReady = true
   }
@@ -38,7 +34,6 @@ fun YkisPamAppRoot(
       CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
   } else {
-    // ЗАПУСК ОСНОВНОГО ПРИЛОЖЕНИЯ
     YkisPamApp(
       windowSize = windowSize,
       displayFeatures = displayFeatures

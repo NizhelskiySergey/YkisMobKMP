@@ -29,6 +29,8 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.BaseCard
 import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "HeatReadings"
 
@@ -65,8 +67,8 @@ fun HeatReadings(
       CenteredProgressIndicator()
     } else if (meterUIState.heatReadings.isEmpty()) {
       EmptyListState(
-        title = "Історія тепла порожня",
-        subtitle = "Дані про споживання Гкал за даним приладом відсутні в біллінгу ЮТКЕ"
+        title = stringResource(Res.string.history_empty_title),
+        subtitle = stringResource(Res.string.history_empty_heat_subtitle)
       )
     } else {
       LazyColumn(
@@ -89,10 +91,9 @@ fun HeatReadingItem(
   modifier: Modifier = Modifier,
   reading: HeatReadingEntity
 ) {
-  // ИСПРАВЛЕНО: Заменено на каноничную BaseCard для соблюдения дизайн-системы ЮКІС
   BaseCard(
     modifier = modifier.padding(vertical = 4.dp, horizontal = 12.dp),
-    label = if (reading.avg == 1L) "Розрахунок за середнім нормативом" else null
+    label = if (reading.avg == 1L) stringResource(Res.string.calculation_by_average) else null
   ) {
     HeatReadingItemContent(
       reading = reading,
@@ -110,35 +111,34 @@ fun HeatReadingItemContent(
   Column(modifier = modifier.fillMaxWidth()) {
     LabelTextWithText(
       modifier = Modifier.padding(vertical = 2.dp),
-      labelText = "Період нарахування: ",
+      labelText = stringResource(Res.string.billing_period) + " ",
       valueText = "${reading.dateOt} — ${reading.dateDo}"
     )
     if (isAverage) {
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Розрахункові дні (середнє): ",
+        labelText = stringResource(Res.string.calculation_days_average) + " ",
         valueText = reading.dayAvg.toString()
       )
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Розрахунковий Гкал: ",
+        labelText = stringResource(Res.string.calculated_gkal) + " ",
         valueText = reading.gkalRasch.toString()
       )
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Споживання Гкал/день: ",
+        labelText = stringResource(Res.string.daily_consumption_gkal) + " ",
         valueText = reading.gkalDay.toString()
       )
     } else {
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Кількість днів: ",
+        labelText = stringResource(Res.string.days_count) + " ",
         valueText = reading.days.toString()
       )
 
       Spacer(modifier = Modifier.height(12.dp))
 
-      // ИСПРАВЛЕНО: Показания выведены в 3 колонки (Попередні, Поточні, Гкал) по стандарту ЮКІС
       Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -149,7 +149,7 @@ fun HeatReadingItemContent(
           modifier = Modifier.weight(1f)
         ) {
           Text(
-            text = "Попередні",
+            text = stringResource(Res.string.previous),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
@@ -165,7 +165,7 @@ fun HeatReadingItemContent(
           modifier = Modifier.weight(1f)
         ) {
           Text(
-            text = "Поточні",
+            text = stringResource(Res.string.current),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
@@ -182,7 +182,7 @@ fun HeatReadingItemContent(
           modifier = Modifier.weight(1f)
         ) {
           Text(
-            text = "Гкал",
+            text = stringResource(Res.string.gkal),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
@@ -198,19 +198,19 @@ fun HeatReadingItemContent(
 
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Об'єм (qty): ",
+        labelText = stringResource(Res.string.volume_qty) + " ",
         valueText = reading.qty.toString()
       )
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Діючий тариф: ",
+        labelText = stringResource(Res.string.active_tariff) + " ",
         valueText = "${reading.tarif} грн/Гкал"
       )
     }
 
     LabelTextWithText(
       modifier = Modifier.padding(vertical = 4.dp),
-      labelText = "Дата внесення: ",
+      labelText = stringResource(Res.string.date_entry) + " ",
       valueText = reading.dateIn
     )
   }

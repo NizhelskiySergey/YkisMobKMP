@@ -40,8 +40,7 @@ import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.core.utils.formatDateFull
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.info
+import ykismobkmp.composeapp.generated.resources.*
 
 sealed class GroupedAnnouncement {
     data class DateHeader(val date: String) : GroupedAnnouncement()
@@ -77,7 +76,7 @@ class AnnouncementListScreen(
             topBar = {
                 Column {
                     DefaultAppBar(
-                        title = "Оголошення",
+                        title = stringResource(Res.string.announcements),
                         onDrawerClick = onDrawerClicked,
                         canNavigateBack = false
                     )
@@ -121,12 +120,18 @@ class AnnouncementListScreen(
                                 }
                         }
 
-                        AnnouncementList(
-                            groupedItems = groupedItems,
-                            isAdmin = baseUIState.userRole != UserRole.StandardUser,
-                            currentUid = baseUIState.uid ?: "",
-                            onDeleteClick = { id -> announcementModel.deleteAnnouncement(id) }
-                        )
+                        if (groupedItems.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(stringResource(Res.string.no_announcements), style = MaterialTheme.typography.bodyLarge)
+                            }
+                        } else {
+                            AnnouncementList(
+                                groupedItems = groupedItems,
+                                isAdmin = baseUIState.userRole != UserRole.StandardUser,
+                                currentUid = baseUIState.uid ?: "",
+                                onDeleteClick = { id -> announcementModel.deleteAnnouncement(id) }
+                            )
+                        }
                     }
                 }
             }
@@ -140,11 +145,11 @@ fun FilterChipsRow(
     onRoleSelected: (UserRole?) -> Unit
 ) {
     val filters = listOf(
-        null to "Всі",
-        UserRole.VodokanalUser to "Водоканал",
-        UserRole.YtkeUser to "Тепломережа",
-        UserRole.TboUser to "Спецтранс",
-        UserRole.OsbbUser to "ОСББ"
+        null to stringResource(Res.string.all),
+        UserRole.VodokanalUser to stringResource(Res.string.vodokanal),
+        UserRole.YtkeUser to stringResource(Res.string.ytke),
+        UserRole.TboUser to stringResource(Res.string.yzhtrans),
+        UserRole.OsbbUser to stringResource(Res.string.osbb)
     )
 
     Row(
@@ -185,32 +190,26 @@ fun AnnouncementList(
     currentUid: String,
     onDeleteClick: (String) -> Unit
 ) {
-    if (groupedItems.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Оголошень поки що немає", style = MaterialTheme.typography.bodyLarge)
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            groupedItems.forEach { grouped ->
-                when (grouped) {
-                    is GroupedAnnouncement.DateHeader -> {
-                        item(key = "header_${grouped.date}") {
-                            DateHeaderChip(date = grouped.date)
-                        }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        groupedItems.forEach { grouped ->
+            when (grouped) {
+                is GroupedAnnouncement.DateHeader -> {
+                    item(key = "header_${grouped.date}") {
+                        DateHeaderChip(date = grouped.date)
                     }
-                    is GroupedAnnouncement.Item -> {
-                        item(key = grouped.announcement.id) {
-                            AnnouncementItem(
-                                item = grouped.announcement,
-                                isAdmin = isAdmin,
-                                currentUid = currentUid,
-                                onDeleteClick = onDeleteClick
-                            )
-                        }
+                }
+                is GroupedAnnouncement.Item -> {
+                    item(key = grouped.announcement.id) {
+                        AnnouncementItem(
+                            item = grouped.announcement,
+                            isAdmin = isAdmin,
+                            currentUid = currentUid,
+                            onDeleteClick = onDeleteClick
+                        )
                     }
                 }
             }
@@ -253,18 +252,18 @@ fun AnnouncementItem(
     BaseCard(
         modifier = Modifier.fillMaxWidth(),
         label = when {
-            item.authorRole.contains("Vodokanal", true) -> "КП \"ЮЖВОДОКАНАЛ\""
-            item.authorRole.contains("Ytke", true) -> "КП тм \"ЮТКЕ\""
-            item.authorRole.contains("Tbo", true) -> "КП \"СПЕЦТРАНС\""
+            item.authorRole.contains("Vodokanal", true) -> stringResource(Res.string.vodokanal)
+            item.authorRole.contains("Ytke", true) -> stringResource(Res.string.ytke_short)
+            item.authorRole.contains("Tbo", true) -> stringResource(Res.string.yzhtrans)
             !item.authorName.isNullOrBlank() -> item.authorName
-            isGlobal -> "Міське оголошення"
-            else -> "ОСББ"
+            isGlobal -> stringResource(Res.string.city_announcement)
+            else -> stringResource(Res.string.osbb)
         }
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             // ДОДАНО: Інформація про адресата оголошення
             Text(
-                text = if (item.osbbId == 0L) "📍 Усім мешканцям міста" else "🏠 Мешканцям ${item.authorName}",
+                text = if (item.osbbId == 0L) stringResource(Res.string.all_citizens) else stringResource(Res.string.residents_of, item.authorName ?: ""),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 fontWeight = FontWeight.Medium

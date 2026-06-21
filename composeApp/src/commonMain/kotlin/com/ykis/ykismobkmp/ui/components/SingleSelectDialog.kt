@@ -2,9 +2,11 @@ package com.ykis.ykismobkmp.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -14,7 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -30,14 +32,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 private const val className = "SingleSelectDialog"
 
 /**
  * [SingleSelectDialog] — Кроссплатформенное модальное окно выбора тем и конфигураций ЮКИС.
- * ИСПРАВЛЕНО: Низкоуровневый Dialog заменен на AlertDialog, убрано дублирование модификаторов.
  */
 @Composable
 fun SingleSelectDialog(
@@ -47,22 +52,25 @@ fun SingleSelectDialog(
   defaultSelected: Int,
   submitButtonText: String,
   dismissButtonText: String,
+  icon: ImageVector? = null,
+  headerText: String? = null,
   onSubmitButtonClick: (Int) -> Unit,
   onDismissRequest: () -> Unit
 ) {
   var selectedOptionIndex by remember { mutableStateOf(defaultSelected) }
 
-  // ИСПРАВЛЕНО: Переведено на системный AlertDialog Material 3 для нативного рендеринга на Mac/iOS
   AlertDialog(
     modifier = modifier.widthIn(max = 400.dp),
     onDismissRequest = onDismissRequest,
     icon = {
-      Icon(
-        imageVector = Icons.Default.DarkMode,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.size(28.dp)
-      )
+      if (icon != null) {
+        Icon(
+          imageVector = icon,
+          contentDescription = null,
+          tint = MaterialTheme.colorScheme.primary,
+          modifier = Modifier.size(28.dp)
+        )
+      }
     },
     title = {
       Text(
@@ -73,18 +81,45 @@ fun SingleSelectDialog(
       )
     },
     text = {
-      // ИСПРАВЛЕНО: Ограничиваем высоту ленивой ленты для защиты окон десктопа от переполнения
-      LazyColumn(
-        modifier = Modifier.fillMaxWidth().heightIn(max = 250.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-      ) {
-        // ИСПРАВЛЕНО: Использование itemsIndexed позволяет избавиться от ручного поиска indexOf
-        itemsIndexed(optionsList) { index, optionText ->
-          RadioButtonForDialog(
-            text = optionText,
-            isSelected = index == selectedOptionIndex,
-            onSelect = { selectedOptionIndex = index }
-          )
+      Column(modifier = Modifier.fillMaxWidth()) {
+        if (headerText != null) {
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+          ) {
+            Icon(
+              imageVector = Icons.Default.Warning,
+              contentDescription = null,
+              tint = Color(0xFFFFB300), // Желтый цвет для иконки
+              modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = headerText,
+              style = MaterialTheme.typography.bodyLarge.copy(
+                  color = Color(0xFFFFB300),
+                  fontWeight = FontWeight.Bold,
+                  lineHeight = 20.sp
+              ),
+              textAlign = TextAlign.Center
+            )
+          }
+        }
+
+        LazyColumn(
+          modifier = Modifier.fillMaxWidth().heightIn(max = 250.dp),
+          verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+          itemsIndexed(optionsList) { index, optionText ->
+            RadioButtonForDialog(
+              text = optionText,
+              isSelected = index == selectedOptionIndex,
+              onSelect = { selectedOptionIndex = index }
+            )
+          }
         }
       }
     },
@@ -115,7 +150,6 @@ fun SingleSelectDialog(
 
 /**
  * [RadioButtonForDialog] — Кроссплатформенная строка Radio-выбора Material 3.
- * ИСПРАВЛЕНО: Полностью изолирован Modifier, логика выведена на чистые КМР-события.
  */
 @Composable
 fun RadioButtonForDialog(
@@ -129,7 +163,7 @@ fun RadioButtonForDialog(
       .fillMaxWidth()
       .clip(RoundedCornerShape(8.dp))
       .clickable { onSelect() }
-      .padding(vertical = 4.dp, horizontal = 8.dp), // Увеличена зона клика для мышки на Mac Desktop
+      .padding(vertical = 4.dp, horizontal = 8.dp),
     verticalAlignment = Alignment.CenterVertically
   ) {
     RadioButton(
@@ -146,4 +180,3 @@ fun RadioButtonForDialog(
     )
   }
 }
-

@@ -35,6 +35,8 @@ import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import com.ykis.ykismobkmp.ui.screens.meter.AddReadingDialog
 import com.ykis.ykismobkmp.ui.screens.meter.DeleteReadingDialog
 import com.ykis.ykismobkmp.ui.screens.meter.LastReadingCardButtons
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.*
 
 private const val tag = "WaterMeterDetail"
 @Composable
@@ -42,7 +44,7 @@ fun WaterMeterDetail(
   modifier: Modifier = Modifier,
   baseUIState: BaseUIState,
   waterMeterEntity: WaterMeterEntity,
-  lastReading: WaterReadingEntity?, // ИСПРАВЛЕНО: Изменено на Nullable под стандарты КМР-стейтов
+  lastReading: WaterReadingEntity?, 
   getLastReading: () -> Unit,
   onNewReadingChange: (String) -> Unit,
   newWaterReading: String,
@@ -101,7 +103,7 @@ fun WaterMeterDetail(
                 println("[$tag.Navigation]: Перехід до стрічки історії")
                 navigateToReadings()
               },
-            label = "Останні показання"
+            label = stringResource(Res.string.last_reading_title)
           ) {
             WaterReadingItemContent(reading = safeLastReading)
           }
@@ -124,52 +126,52 @@ fun WaterMeterDetail(
         }
         BaseCard(
           modifier = Modifier.padding(vertical = 4.dp),
-          label = "Технічні характеристики приладу"
+          label = stringResource(Res.string.water_meter_features)
         ) {
           LabelTextWithText(
             modifier = Modifier.padding(vertical = 2.dp),
-            labelText = "Модель водоміра: ",
+            labelText = stringResource(Res.string.water_meter_model) + " ",
             valueText = waterMeterEntity.model
           )
           LabelTextWithText(
             modifier = Modifier.padding(vertical = 2.dp),
-            labelText = "Заводський номер: ",
+            labelText = stringResource(Res.string.factory_number) + " ",
             valueText = waterMeterEntity.nomer
           )
           LabelTextWithText(
             modifier = Modifier.padding(vertical = 2.dp),
-            labelText = "Місце встановлення: ",
+            labelText = stringResource(Res.string.installation_place) + " ",
             valueText = waterMeterEntity.place
           )
           LabelTextWithText(
             modifier = Modifier.padding(vertical = 2.dp),
-            labelText = "Позиція у вузлі: ",
+            labelText = stringResource(Res.string.node_position) + " ",
             valueText = waterMeterEntity.position
           )
           LabelTextWithCheckBox(
             modifier = Modifier.padding(vertical = 2.dp),
-            labelText = "Враховувати стоки (Водовідведення): ",
+            labelText = stringResource(Res.string.consider_sewerage) + " ",
             checked = waterMeterEntity.st == 1L
           )
           LabelTextWithCheckBox(
             modifier = Modifier.padding(vertical = 2.dp),
-            labelText = "Загальнобудинковий лічильник: ",
+            labelText = stringResource(Res.string.house_meter) + " ",
             checked = waterMeterEntity.avg == 1L
           )
           LabelTextWithText(
             modifier = Modifier.padding(vertical = 2.dp),
-            labelText = "Дата пломбування держповірником: ",
+            labelText = stringResource(Res.string.sealing_date) + " ",
             valueText = waterMeterEntity.zdate
           )
           LabelTextWithText(
             modifier = Modifier.padding(vertical = 2.dp),
-            labelText = "Дата початкового монтажу: ",
+            labelText = stringResource(Res.string.initial_install_date) + " ",
             valueText = waterMeterEntity.sdate
           )
           if (waterMeterEntity.spisan == 1L) {
             LabelTextWithText(
               modifier = Modifier.padding(vertical = 2.dp),
-              labelText = "Дата зняття з обліку / списання: ",
+              labelText = stringResource(Res.string.decommission_date_label) + " ",
               valueText = waterMeterEntity.dataSpis
             )
           }
@@ -177,21 +179,21 @@ fun WaterMeterDetail(
         if (isWorking) {
           BaseCard(
             modifier = Modifier.padding(vertical = 4.dp),
-            label = "Державна повірка приладу"
+            label = stringResource(Res.string.state_verification)
           ) {
             LabelTextWithText(
               modifier = Modifier.padding(vertical = 2.dp),
-              labelText = "Дата наступної повірки: ",
+              labelText = stringResource(Res.string.next_check_date) + " ",
               valueText = waterMeterEntity.pdate
             )
             LabelTextWithText(
               modifier = Modifier.padding(vertical = 2.dp),
-              labelText = "Дата останньої повірки: ",
+              labelText = stringResource(Res.string.last_check_date) + " ",
               valueText = waterMeterEntity.fpdate
             )
             LabelTextWithCheckBox(
               modifier = Modifier.padding(vertical = 2.dp),
-              labelText = "Прилад знято з комерційного обліку: ",
+              labelText = stringResource(Res.string.off_commercial_accounting) + " ",
               checked = waterMeterEntity.spisan == 1L
             )
           }
@@ -215,7 +217,7 @@ fun WaterMeterDetail(
       newReading = newWaterReading,
       onReadingChange = onNewReadingChange,
       enabledButton = enabledButton,
-      isInteger = true, // ИСПРАВЛЕНО: Для водоснабжения кубы всегда целые
+      isInteger = true, 
       isError = isErrorValue.value,
       errorMessage = "Значення має бути не менше ${safeLastReading.current}"
     )
@@ -231,4 +233,3 @@ fun WaterMeterDetail(
     )
   }
 }
-

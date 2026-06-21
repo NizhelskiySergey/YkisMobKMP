@@ -89,6 +89,7 @@ dependencies {
     implementation(libs.compose.material3.windowSizeClass)
     implementation(libs.koin.android)
     implementation(libs.voyager.screenmodel)
+    implementation(libs.multiplatform.settings)
     
     // Firebase
     implementation(platform(libs.firebase.bom))

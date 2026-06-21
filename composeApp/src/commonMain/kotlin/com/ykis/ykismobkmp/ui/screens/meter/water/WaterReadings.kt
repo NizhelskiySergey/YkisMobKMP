@@ -32,7 +32,7 @@ import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.no_payment
+import ykismobkmp.composeapp.generated.resources.*
 
 @Composable
 private fun CenteredProgressIndicator(modifier: Modifier = Modifier) {
@@ -67,8 +67,8 @@ fun WaterReadings(
       CenteredProgressIndicator()
     } else if (meterUIState.waterReadings.isEmpty()) {
       EmptyListState(
-        title = "Історія порожня",
-        subtitle = "За даним водоміром ще не зафіксовано жодних показань у біллінгу ЮКІС"
+        title = stringResource(Res.string.history_empty_title),
+        subtitle = stringResource(Res.string.history_empty_water_subtitle)
       )
     } else {
       LazyColumn(
@@ -91,7 +91,7 @@ fun WaterReadingItem(
   modifier: Modifier = Modifier,
   reading: WaterReadingEntity
 ) {
-  val cardLabel = if (reading.avg == 1L) "Розрахунок за середнім нормативом" else null
+  val cardLabel = if (reading.avg == 1L) stringResource(Res.string.calculation_by_average) else null
   BaseCard(
     modifier = modifier.padding(vertical = 4.dp, horizontal = 12.dp),
     label = cardLabel
@@ -108,38 +108,37 @@ fun WaterReadingItemContent(
   Column(modifier = modifier.fillMaxWidth()) {
     if (reading.avg == 1L) {
       LabelTextWithText(
-        labelText = "Початкове показання: ", // Приведено к единому безопасному KMP-стандарту строк ЮКІС
+        labelText = stringResource(Res.string.initial_reading) + " ", 
         valueText = reading.pokOt.toString()
       )
       LabelTextWithText(
-        labelText = "Кінцеве показання: ",
+        labelText = stringResource(Res.string.final_reading) + " ",
         valueText = reading.pokDo.toString()
       )
       LabelTextWithText(
-        labelText = "Кількість кубів: ",
+        labelText = stringResource(Res.string.cubic_meters_count) + " ",
         valueText = reading.qtyKub.toString()
       )
       LabelTextWithText(
-        labelText = "Розрахункові дні: ",
+        labelText = stringResource(Res.string.calculation_days) + " ",
         valueText = reading.rday.toString()
       )
       LabelTextWithText(
-        labelText = "Споживання на день: ",
+        labelText = stringResource(Res.string.daily_consumption) + " ",
         valueText = "${reading.kubDay} м³"
       )
     } else {
       LabelTextWithText(
-        labelText = "Період нарахування: ",
+        labelText = stringResource(Res.string.billing_period) + " ",
         valueText = "${reading.dateOt} — ${reading.dateDo}"
       )
       LabelTextWithText(
-        labelText = "Кількість днів: ",
+        labelText = stringResource(Res.string.days_count) + " ",
         valueText = reading.days.toString()
       )
       
       Spacer(modifier = Modifier.height(12.dp))
 
-      // ИСПРАВЛЕНО: Показания выведены в 3 колонки (Попередні, Поточні, Кубів) с центрированием
       Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -150,7 +149,7 @@ fun WaterReadingItemContent(
           modifier = Modifier.weight(1f)
         ) {
           Text(
-            text = "Попередні",
+            text = stringResource(Res.string.previous),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
@@ -166,7 +165,7 @@ fun WaterReadingItemContent(
           modifier = Modifier.weight(1f)
         ) {
           Text(
-            text = "Поточні",
+            text = stringResource(Res.string.current),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
@@ -183,7 +182,7 @@ fun WaterReadingItemContent(
           modifier = Modifier.weight(1f)
         ) {
           Text(
-            text = "Кубів",
+            text = stringResource(Res.string.cubs),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
@@ -198,9 +197,8 @@ fun WaterReadingItemContent(
 
     LabelTextWithText(
       modifier = Modifier.padding(vertical = 4.dp),
-      labelText = "Дата внесення: ",
+      labelText = stringResource(Res.string.date_entry) + " ",
       valueText = reading.dateIn
     )
   }
 }
-

@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
@@ -35,11 +34,11 @@ import com.ykis.ykismobkmp.domain.entity.WaterMeterEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.no_meters
 import ykismobkmp.composeapp.generated.resources.no_water_meters
+import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "WaterMeterList"
 
@@ -55,9 +54,8 @@ fun WaterMeterList(
     label = "WaterMeterListFade"
   ) { isLoading ->
     if (isLoading) {
-      com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator()
+      CenteredProgressIndicator()
     } else if (meterUIState.waterMeterList.isEmpty()) {
-      // ИСПРАВЛЕНО: Добавлено брендированное состояние с аватаром для пустых списков
       EmptyListState(
         title = stringResource(Res.string.no_meters),
         subtitle = stringResource(Res.string.no_water_meters),
@@ -98,15 +96,15 @@ fun WaterMeterItem(
   val alphaValue: Float
   when {
     waterMeter.spisan == 1L -> {
-      statusText = "Списаний"
+      statusText = stringResource(Res.string.written_off)
       alphaValue = 0.4f
     }
     waterMeter.isOut == 1L -> {
-      statusText = "На повірці"
+      statusText = stringResource(Res.string.on_the_test)
       alphaValue = 0.4f
     }
     else -> {
-      statusText = "Працює"
+      statusText = stringResource(Res.string.works)
       alphaValue = 1f
     }
   }
@@ -124,9 +122,6 @@ fun WaterMeterItem(
         .padding(vertical = 12.dp, horizontal = 8.dp),
       verticalAlignment = Alignment.CenterVertically
     ) {
-      // ИСПРАВЛЕНО НАМЕРТВО: Вырезан painterResource() забагованного XML-файла ic_water_meter9_24px!
-      // Подключен стабильный кроссплатформенный вектор Icons.Default.WaterDrop (Капля воды ЮКІС).
-      // Краш Invalid color value @android:color/white уничтожен полностью!
       Icon(
         modifier = Modifier
           .padding(horizontal = 8.dp)
@@ -149,12 +144,12 @@ fun WaterMeterItem(
         )
         Spacer(modifier = Modifier.height(2.dp))
         LabelTextWithText(
-          labelText = "Номер: ",
+          labelText = stringResource(Res.string.number),
           valueText = waterMeter.nomer
         )
         Spacer(modifier = Modifier.height(2.dp))
         LabelTextWithText(
-          labelText = "Місце: ",
+          labelText = stringResource(Res.string.place),
           valueText = waterMeter.place
         )
         Spacer(modifier = Modifier.height(2.dp))
@@ -177,6 +172,3 @@ fun WaterMeterItem(
     }
   }
 }
-
-
-

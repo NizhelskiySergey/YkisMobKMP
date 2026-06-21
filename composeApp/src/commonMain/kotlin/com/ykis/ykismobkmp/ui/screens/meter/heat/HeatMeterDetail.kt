@@ -32,6 +32,8 @@ import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import com.ykis.ykismobkmp.ui.screens.meter.AddReadingDialog
 import com.ykis.ykismobkmp.ui.screens.meter.DeleteReadingDialog
 import com.ykis.ykismobkmp.ui.screens.meter.LastReadingCardButtons
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.*
 
 private const val tag = "HeatMeterDetail"
 
@@ -41,7 +43,7 @@ fun HeatMeterDetail(
   heatMeterEntity: HeatMeterEntity,
   baseUIState: BaseUIState,
   getLastHeatReading: () -> Unit,
-  lastHeatReading: HeatReadingEntity?, // ИСПРАВЛЕНО: Изменено на Nullable тип под стандарты KMP-стейтов
+  lastHeatReading: HeatReadingEntity?, 
   onNewReadingChange: (String) -> Unit,
   newHeatReading: String,
   addReading: () -> Unit,
@@ -52,7 +54,6 @@ fun HeatMeterDetail(
   var showAddReadingDialog by rememberSaveable { mutableStateOf(false) }
   var showDeleteReadingDialog by rememberSaveable { mutableStateOf(false) }
 
-  // ИСПРАВЛЕНО: avg приведен к Long-стандарту (0L) во избежание конфликта типов
   val safeLastReading = remember(lastHeatReading) {
     lastHeatReading ?: HeatReadingEntity(current = 0.0, avg = 0L)
   }
@@ -61,8 +62,6 @@ fun HeatMeterDetail(
     derivedStateOf {
       val rawInput = newHeatReading.replace(',', '.')
       val newValue = rawInput.toDoubleOrNull() ?: -1.0
-      
-      // Кнопка активна если новое значение БОЛЬШЕ ИЛИ РАВНО текущему.
       val isValid = newValue >= safeLastReading.current && rawInput.lastOrNull() != '.'
       isValid
     }
@@ -90,14 +89,13 @@ fun HeatMeterDetail(
       .padding(horizontal = 8.dp)
   ) {
     if (isWorking) {
-      // Карточка последних переданных гигакалорий в теплосеть г. Южного
       BaseCard(
         modifier = Modifier
           .fillMaxWidth()
           .padding(vertical = 4.dp)
           .clip(CardDefaults.shape)
           .clickable { navigateToReadings() },
-        label = "Останні показання"
+        label = stringResource(Res.string.last_reading_title)
       ) {
         HeatReadingItemContent(
           reading = safeLastReading,
@@ -119,41 +117,41 @@ fun HeatMeterDetail(
 
     BaseCard(
       modifier = Modifier.padding(vertical = 4.dp),
-      label = "Технічні характеристики приладу"
+      label = stringResource(Res.string.water_meter_features)
     ) {
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Модель лічильника: ",
+        labelText = stringResource(Res.string.heat_meter_model) + " ",
         valueText = heatMeterEntity.model
       )
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Заводський номер: ",
+        labelText = stringResource(Res.string.factory_number) + " ",
         valueText = heatMeterEntity.number
       )
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Одиниця виміру: ",
+        labelText = stringResource(Res.string.unit_measurement) + " ",
         valueText = heatMeterEntity.edizm
       )
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Коефіцієнт приладу: ",
+        labelText = stringResource(Res.string.device_coefficient) + " ",
         valueText = heatMeterEntity.koef
       )
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Опалювальна площа: ",
-        valueText = "${heatMeterEntity.area} м²"
+        labelText = stringResource(Res.string.heating_area) + " ",
+        valueText = "${heatMeterEntity.area} m²"
       )
       LabelTextWithCheckBox(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Прилад знаходиться на повірці: ",
+        labelText = stringResource(Res.string.device_on_test) + " ",
         checked = heatMeterEntity.isOut == 1L
       )
       LabelTextWithCheckBox(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = "Прилад знято з обліку / списано: ",
+        labelText = stringResource(Res.string.off_commercial_accounting) + " ",
         checked = heatMeterEntity.spisan == 1L
       )
     }
@@ -161,21 +159,21 @@ fun HeatMeterDetail(
     if (isWorking) {
       BaseCard(
         modifier = Modifier.padding(vertical = 4.dp),
-        label = "Державна повірка приладу"
+        label = stringResource(Res.string.state_verification)
       ) {
         LabelTextWithText(
           modifier = Modifier.padding(vertical = 2.dp),
-          labelText = "Дата наступної повірки: ",
+          labelText = stringResource(Res.string.next_check_date) + " ",
           valueText = heatMeterEntity.pdate
         )
         LabelTextWithText(
           modifier = Modifier.padding(vertical = 2.dp),
-          labelText = "Дата останньої повірки: ",
+          labelText = stringResource(Res.string.last_check_date) + " ",
           valueText = heatMeterEntity.fpdate
         )
         LabelTextWithCheckBox(
           modifier = Modifier.padding(vertical = 2.dp),
-          labelText = "Комерційний облік призупинено: ",
+          labelText = stringResource(Res.string.commercial_accounting_suspended) + " ",
           checked = heatMeterEntity.spisan == 1L
         )
       }
@@ -190,7 +188,6 @@ fun HeatMeterDetail(
         onNewReadingChange("")
       },
       onAddClick = {
-        // ИСПРАВЛЕНО: Добавлен триггер скрытия диалога при подтверждении
         addReading()
         showAddReadingDialog = false
       },
@@ -198,7 +195,7 @@ fun HeatMeterDetail(
       newReading = newHeatReading,
       onReadingChange = onNewReadingChange,
       enabledButton = enabledButton,
-      isInteger = false, // Для тепла разрешен ввод дробной части через точку/запятую
+      isInteger = false, 
       isError = isErrorValue.value,
       errorMessage = "Значення має бути не менше ${safeLastReading.current}"
     )
@@ -208,7 +205,6 @@ fun HeatMeterDetail(
     DeleteReadingDialog(
       onDismissRequest = { showDeleteReadingDialog = false },
       onDeleteClick = {
-        // ИСПРАВЛЕНО: Добавлен триггер скрытия диалога при удалении
         deleteReading()
         showDeleteReadingDialog = false
       }
