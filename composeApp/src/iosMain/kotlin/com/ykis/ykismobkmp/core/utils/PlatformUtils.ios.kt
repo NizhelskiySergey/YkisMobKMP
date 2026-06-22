@@ -52,10 +52,20 @@ actual suspend fun performPlatformSignInWithApple(
     idToken: String,
     rawNonce: String?
 ): Resource<Boolean> = try {
-    val appleProvider = OAuthProvider("apple.com")
-    val credential = appleProvider.credential(idToken = idToken, accessToken = "", rawNonce = rawNonce)
-    auth.signInWithCredential(credential)
+    println("[YkisLogKMP.PlatformUtils]: [iOS_APPLE_SIGN_IN] Створення креденшала для Apple")
+    
+    // Використовуємо іменовані аргументи для точності в KMP бібліотеці
+    val appleCredential = OAuthProvider.credential(
+        providerId = "apple.com",
+        idToken = idToken,
+        accessToken = "", 
+        rawNonce = rawNonce
+    )
+    
+    auth.signInWithCredential(appleCredential)
+    println("[YkisLogKMP.PlatformUtils]: [iOS_APPLE_SIGN_IN] Вхід успішний")
     Resource.Success(true)
 } catch (e: Exception) {
+    println("[YkisLogKMP.PlatformUtils_ERROR]: Apple Auth Failed: ${e.message}")
     Resource.Error(message = e.message ?: "Apple Auth Failed")
 }
