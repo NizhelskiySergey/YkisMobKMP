@@ -18,7 +18,6 @@ captures
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
 composeApp/src/commonMain/kotlin/com/ykis/ykismobkmp/di/Secrets.kt
-composeApp/src/commonMain/google-services.json
-composeApp/google-services.json
+androidApp/google-services.json
 iosApp/iosApp/GoogleService-Info.plist
 README.md
