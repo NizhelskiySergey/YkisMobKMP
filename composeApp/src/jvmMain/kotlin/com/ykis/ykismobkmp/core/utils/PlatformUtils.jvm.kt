@@ -19,3 +19,9 @@ actual fun triggerNativeAppleSignIn(
     onError("Apple ID не підтримується на Desktop")
 }
 
+actual suspend fun performPlatformSignInWithApple(
+    auth: dev.gitlive.firebase.auth.FirebaseAuth,
+    idToken: String,
+    rawNonce: String?
+): Resource<Boolean> = Resource.Error("Apple ID не підтримується на Desktop")
+

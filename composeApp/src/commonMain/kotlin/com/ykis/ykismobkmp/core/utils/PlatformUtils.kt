@@ -22,3 +22,12 @@ expect fun triggerNativeAppleSignIn(
     onError: (String) -> Unit
 )
 
+/**
+ * [performPlatformSignInWithApple] — Спеціальна реалізація для iOS через OAuthProvider.
+ */
+expect suspend fun performPlatformSignInWithApple(
+    auth: dev.gitlive.firebase.auth.FirebaseAuth,
+    idToken: String,
+    rawNonce: String?
+): Resource<Boolean>
+

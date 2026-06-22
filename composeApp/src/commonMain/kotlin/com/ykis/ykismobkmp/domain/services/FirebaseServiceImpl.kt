@@ -3,6 +3,7 @@ package com.ykis.ykismobkmp.domain.services
 import com.russhwolf.settings.Settings
 import com.ykis.ykismobkmp.core.Constants.TERMS_ACCEPTED_KEY
 import com.ykis.ykismobkmp.core.utils.Resource
+import com.ykis.ykismobkmp.core.utils.performPlatformSignInWithApple
 import dev.gitlive.firebase.*
 import dev.gitlive.firebase.auth.FirebaseUser
 import dev.gitlive.firebase.auth.GoogleAuthProvider
@@ -13,9 +14,7 @@ import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.remoteconfig.remoteConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.stateIn
@@ -27,9 +26,6 @@ import kotlinx.coroutines.withTimeout
 
 private const val className = "FirebaseServiceImpl"
 
-/**
- * [FirebaseServiceImpl] — Реалізація сервісу авторизації з покращеною стійкістю до затримок мережі.
- */
 class FirebaseServiceImpl(
   private val settings: Settings
 ) : FirebaseService {
@@ -79,44 +75,36 @@ class FirebaseServiceImpl(
   override suspend fun setUserAgreed(agreed: Boolean) { settings.putBoolean(TERMS_ACCEPTED_KEY, agreed) }
 
   override suspend fun firebaseSignInWithEmailAndPassword(email: String, password: String) {
-    auth.signInWithEmailAndPassword(email, password)
+      auth.signInWithEmailAndPassword(email, password)
   }
 
   override suspend fun firebaseSignInWithGoogle(idToken: String): SignInWithGoogleResponse = try {
-    println("[YkisLogKMP.$className]: [GOOGLE_AUTH] Спроба входу через Firebase з ID токеном")
-    // accessToken для сучасного Google Auth через Firebase не є обов'язковим
-    val googleCredential = GoogleAuthProvider.credential(idToken = idToken, accessToken = null)
-    auth.signInWithCredential(googleCredential)
-    println("[YkisLogKMP.$className]: [GOOGLE_AUTH_OK] Вхід успішний")
+    val platformName = com.ykis.ykismobkmp.getPlatform().name
+    val isAndroid = platformName.contains("Android", true)
+    
+    // КРИТИЧНО: Android вимагає null, iOS/Web вимагають ""
+    val tokenForAuth: String? = if (isAndroid) null else ""
+    
+    val credential = GoogleAuthProvider.credential(idToken, tokenForAuth)
+    auth.signInWithCredential(credential)
+    
     Resource.Success(true)
   } catch (e: Exception) {
-    println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: [GOOGLE_AUTH_FAIL] ${e.message}")
+    println("[YkisLogKMP.FirebaseServiceImpl.Error]: [GOOGLE_AUTH_FAIL] ${e.message}")
     Resource.Error(message = e.message ?: "Google Auth Failed")
   }
 
-  override suspend fun firebaseSignInWithApple(idToken: String, rawNonce: String?): Resource<Boolean> = try {
-    println("[YkisLogKMP.$className]: [APPLE_AUTH] Спроба входу через Firebase з Apple ID")
-    val appleCredential = dev.gitlive.firebase.auth.OAuthProvider.credential(
-        providerId = "apple.com",
-        idToken = idToken,
-        accessToken = "",
-        rawNonce = rawNonce
-    )
-    auth.signInWithCredential(appleCredential)
-    println("[YkisLogKMP.$className]: [APPLE_AUTH_OK] Вхід через Apple успішний")
-    Resource.Success(true)
-  } catch (e: Exception) {
-    println("[YkisLogKMP.FirebaseServiceImpl_ERROR]: [APPLE_AUTH_FAIL] ${e.message}")
-    Resource.Error(message = e.message ?: "Apple Auth Failed")
+  override suspend fun firebaseSignInWithApple(idToken: String, rawNonce: String?): Resource<Boolean> {
+      return performPlatformSignInWithApple(auth, idToken, rawNonce)
   }
 
   override suspend fun addUserFirestore(): addUserFirestoreResponse {
+    val currentUid = uid
+    if (currentUid.isBlank()) return Resource.Error(message = "Empty UID")
+
     val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
     try {
       val currentUser = auth.currentUser ?: return Resource.Error(message = "No user")
-      val currentUid = currentUser.uid
-      if (currentUid.isBlank()) return Resource.Error(message = "Empty UID")
-      
       val userEmail = currentUser.email?.takeIf { it.isNotBlank() } ?: currentUser.phoneNumber ?: ""
       
       println("[FirebaseServiceImpl]: [START] Синхронізація профілю для $userEmail")
@@ -136,7 +124,6 @@ class FirebaseServiceImpl(
 
       println("[FirebaseServiceImpl]: [FIRESTORE_WAIT] Спроба запису (Timeout 15s)...")
       
-      // ИСПРАВЛЕНО: Увеличиваем таймаут до 15 секунд для стабильности на Android
       withTimeout(15000) {
           db.collection("users").document(currentUid).set(data = userMap, merge = true)
       }
@@ -182,13 +169,12 @@ class FirebaseServiceImpl(
         return@withContext UserFirebase(uid = "", email = "", userRole = "StandardUser")
     }
     try {
-      // ИСПРАВЛЕНО: Добавляем таймаут и на чтение профиля
       val snapshot = withTimeout(10000) {
           db.collection("users").document(currentUid).get()
       }
       
       UserFirebase(
-        uid = uid,
+        uid = currentUid,
         email = auth.currentUser?.email ?: "",
         isEmailVerification = auth.currentUser?.isEmailVerified ?: false,
         name = snapshot.get<String>("displayName") ?: auth.currentUser?.displayName,
@@ -200,7 +186,7 @@ class FirebaseServiceImpl(
       )
     } catch (e: Exception) {
       println("[FirebaseServiceImpl]: Помилка читання профілю, fallback до StandardUser: ${e.message}")
-      UserFirebase(uid = uid, email = email, userRole = "StandardUser")
+      UserFirebase(uid = currentUid, email = email, userRole = "StandardUser")
     }
   }
 

@@ -104,14 +104,14 @@ class MainApartmentScreen(
 
     var isInitialBoot by rememberSaveable { mutableStateOf(true) }
 
-    LaunchedEffect(baseUIState.addressId, baseUIState.userRole, baseUIState.osbbId, baseUIState.mainLoading) {
+    LaunchedEffect(baseUIState.addressId, baseUIState.userRole, baseUIState.osbbId, baseUIState.mainLoading, baseUIState.apartments) {
       val role = baseUIState.userRole
       val addressId = baseUIState.addressId
-      val osbbId = baseUIState.osbbId
+      val hasApartments = baseUIState.apartments.isNotEmpty()
 
       if (isInitialBoot && !baseUIState.mainLoading) {
         activeSubModule = when {
-          role == UserRole.StandardUser -> if (addressId != 0L) "InfoApartmentScreen" else "AddApartmentScreen"
+          role == UserRole.StandardUser -> if (addressId != 0L || hasApartments) "InfoApartmentScreen" else "AddApartmentScreen"
           role != UserRole.Unknown -> "chat_user_list"
           else -> "AddApartmentScreen"
         }
@@ -122,15 +122,15 @@ class MainApartmentScreen(
 
       if (!isInitialBoot) {
         if (activeSubModule == "AddApartmentScreen") {
-          if (role == UserRole.StandardUser && addressId != 0L) {
+          if (role == UserRole.StandardUser && (addressId != 0L || hasApartments)) {
             println("[YkisLogKMP.$className.Navigation]: Рахунок прив'язано. Перехід на InfoApartmentScreen")
             activeSubModule = "InfoApartmentScreen"
-          } else if (role != UserRole.StandardUser && role != UserRole.Unknown && osbbId != 0L) {
+          } else if (role != UserRole.StandardUser && role != UserRole.Unknown && baseUIState.osbbId != 0L) {
             println("[YkisLogKMP.$className.Navigation]: Адмін авторизований. Перехід на список чатів")
             activeSubModule = "chat_user_list"
           }
         } else if (activeSubModule == "InfoApartmentScreen") {
-           if (role == UserRole.StandardUser && addressId == 0L) {
+           if (role == UserRole.StandardUser && addressId == 0L && !hasApartments) {
              println("[YkisLogKMP.$className.Navigation]: Рахунків немає. Редирект на AddApartmentScreen")
              activeSubModule = "AddApartmentScreen"
            }

@@ -3,8 +3,8 @@ package com.ykis.ykismobkmp.domain.services
 import dev.gitlive.firebase.auth.FirebaseUser
 import com.ykis.ykismobkmp.core.utils.Resource
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+
 typealias SignInWithGoogleResponse = Resource<Boolean>
 typealias SignUpResponse = Resource<Boolean>
 typealias SendEmailVerificationResponse = Resource<Boolean>
@@ -13,12 +13,13 @@ typealias addUserFirestoreResponse = Resource<Boolean>
 typealias ReloadUserResponse = Resource<Boolean>
 typealias SendPasswordResetEmailResponse = Resource<Boolean>
 typealias AuthStateResponse = StateFlow<Boolean>
+
 interface FirebaseService {
   val isUserAuthenticatedInFirebase: Boolean
   val uid: String
   val hasUser: Boolean
   val isEmailVerified: Boolean?
-  val currentUser: FirebaseUser? // Использует кроссплатформенную обертку GitLive
+  val currentUser: FirebaseUser?
   val displayName: String
   val providerId: String
   val photoUrl: String
@@ -51,12 +52,12 @@ interface FirebaseService {
   suspend fun getUserProfile(): UserFirebase
   suspend fun updateUserRoleAndPermissions(
     uid: String,
-    addressId: Long?, // Переведено на Long под типы SQLDelight
+    addressId: Long?,
     userRole: UserRole,
-    osbbId: Long?,    // Переведено на Long под типы SQLDelight
+    osbbId: Long?,
     displayName: String? = null,
     fio: String? = null,
-    osbb: String? = null // НОВОЕ ПОЛЕ
+    osbb: String? = null
   )
   suspend fun getUid(): String
   suspend fun getEmail(): String

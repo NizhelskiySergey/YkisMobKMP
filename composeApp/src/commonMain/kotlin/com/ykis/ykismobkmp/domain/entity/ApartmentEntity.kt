@@ -154,6 +154,3 @@ data class ApartmentEntity(
   val pb: Long = 0L,
   val mtb: Long = 0L
 )
-
-
-

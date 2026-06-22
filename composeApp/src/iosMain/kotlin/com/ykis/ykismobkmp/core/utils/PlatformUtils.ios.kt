@@ -1,6 +1,8 @@
 package com.ykis.ykismobkmp.core.utils
 
 import androidx.compose.runtime.Composable
+import dev.gitlive.firebase.auth.FirebaseAuth
+import dev.gitlive.firebase.auth.OAuthProvider
 
 @Composable
 actual fun platformActivityContext(): Any? = null
@@ -40,4 +42,20 @@ actual fun triggerNativeAppleSignIn(
     } else {
         onError("Apple Auth не налаштована")
     }
+}
+
+/**
+ * [performPlatformSignInWithApple] — Спеціальна реалізація для iOS через OAuthProvider.
+ */
+actual suspend fun performPlatformSignInWithApple(
+    auth: FirebaseAuth,
+    idToken: String,
+    rawNonce: String?
+): Resource<Boolean> = try {
+    val appleProvider = OAuthProvider("apple.com")
+    val credential = appleProvider.credential(idToken = idToken, accessToken = "", rawNonce = rawNonce)
+    auth.signInWithCredential(credential)
+    Resource.Success(true)
+} catch (e: Exception) {
+    Resource.Error(message = e.message ?: "Apple Auth Failed")
 }

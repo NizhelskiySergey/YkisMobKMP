@@ -27,7 +27,12 @@ import kotlinx.serialization.json.Json
 // ИСПРАВЛЕНО НАМЕРТВО: Вынесли парсер на верхний уровень файла!
 // Теперь он нативно доступен как внутри класса, так и внутри функции расширения postFormUrlEncoded.
 @Suppress("NOTHING_TO_INLINE")
-val jsonWorker = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+val jsonWorker = Json { 
+    ignoreUnknownKeys = true 
+    coerceInputValues = true
+    isLenient = true
+    allowSpecialFloatingPointValues = true
+}
 
 /**
  * [KtorApiService] — Головний кросплатформовий КМР-клієнт мережевих служб ЮКІС м. Южне.
