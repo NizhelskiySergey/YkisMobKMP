@@ -104,6 +104,14 @@ class MainApartmentScreen(
 
     var isInitialBoot by rememberSaveable { mutableStateOf(true) }
 
+    // ЛОГ ЖИТТЄДІЯЛЬНОСТІ (Для діагностики в вебі)
+    LaunchedEffect(activeSubModule, baseUIState.mainLoading) {
+      while(true) {
+        println("[YkisLogKMP.HEARTBEAT]: Стан -> Модуль: $activeSubModule, Завантаження: ${baseUIState.mainLoading}, Квартир: ${baseUIState.apartments.size}")
+        kotlinx.coroutines.delay(2000)
+      }
+    }
+
     LaunchedEffect(baseUIState.addressId, baseUIState.userRole, baseUIState.osbbId, baseUIState.mainLoading, baseUIState.apartments) {
       val role = baseUIState.userRole
       val addressId = baseUIState.addressId

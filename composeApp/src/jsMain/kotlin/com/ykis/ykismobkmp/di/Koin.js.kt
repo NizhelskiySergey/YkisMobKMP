@@ -4,7 +4,6 @@ import com.russhwolf.settings.Settings
 import com.russhwolf.settings.StorageSettings
 import com.ykis.ykismobkmp.data.preferences.AppSettingsRepository
 import com.ykis.ykismobkmp.data.preferences.AppSettingsRepositoryJsImpl
-import com.ykis.ykismobkmp.db.DatabaseDriverFactory
 import com.ykis.ykismobkmp.domain.ai.LocalAiEngine
 import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.domain.services.FirebaseServiceImpl
@@ -44,7 +43,7 @@ val jsPlatformModule: Module = module {
   single { LocalAiEngine() }
 
   single<FirebaseApp> {
-    println("[YkisLogKMP.Koin]: Ініціалізація Firebase App (Web)...")
+    println("[YkisLogKMP.Koin]: Ініціалізація Firebase App (Web) з повним конфігом...")
     val options = FirebaseOptions(
         applicationId = "1:1062920014188:web:cd8ced095f943b9d088b49",
         apiKey = "AIzaSyD5ukrhK6g6xKlrn4Iv9zPQxB7ji_gACY4",
@@ -55,10 +54,6 @@ val jsPlatformModule: Module = module {
     )
     val app = Firebase.initialize(options = options)
     println("[YkisLogKMP.Koin]: Firebase успішно ініціалізовано.")
-    // ТИМЧАСОВО ВИМКНЕНО через блокування Google на 24 години
-    // if (RECAPTCHA_SITE_KEY != "ТВОЙ_КЛЮЧ_ЗДЕСЬ") {
-    //    initializeRecaptcha(RECAPTCHA_SITE_KEY)
-    // }
     app
   }
 
@@ -76,14 +71,12 @@ val jsPlatformModule: Module = module {
  * [databaseModule] — Web-реализация СУБД.
  */
 actual val databaseModule: Module = module {
-  // 1. Создаем драйвер с ЯВНЫМ именем файла
   single<SqlDriver> { 
     app.cash.sqldelight.driver.worker.WebWorkerDriver(
         org.w3c.dom.Worker("sqldelight-worker.js")
     )
   }
   
-  // 2. Создаем базу данных
   single<YkisDatabases> {
     val driver = get<SqlDriver>()
     YkisDatabases(driver)
@@ -91,7 +84,6 @@ actual val databaseModule: Module = module {
 
   single<YkisDatabasesQueries> { get<YkisDatabases>().ykisDatabasesQueries }
 
-  // 3. Регистрируем DAO (Явно указываем параметры для фикса ошибки компиляции JS)
   single { 
     ApartmentDao(
         dbQueries = get<YkisDatabasesQueries>(),
@@ -114,24 +106,17 @@ actual val databaseModule: Module = module {
     ) 
   }
 
-  // 4. Регистрируем Cache
   single<ApartmentCache> { ApartmentCacheImpl(apartmentDao = get()) }
   single<MeterRepositoryCash> { MeterRepositoryCashImpl(meterDao = get()) }
   single<LedgerRepositoryCash> { LedgerRepositoryCashImpl(ledgerDao = get()) }
 }
 
-/**
- * [initializeRecaptcha] — Вызов JS-функции из index.html.
- */
 fun initializeRecaptcha(key: String) {
     try {
         window.asDynamic().initializeFirebaseAppCheck(key)
     } catch (e: Exception) { }
 }
 
-/**
- * [initJsKoin] — Точка запуска DI-графа.
- */
 fun initJsKoin() {
   initKoin(platformModule = jsPlatformModule)
 }

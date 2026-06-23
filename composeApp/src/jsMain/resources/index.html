@@ -11,166 +11,91 @@
     <link rel="manifest" href="manifest.json">
 </head>
 <body style="text-align: center; align-content: center">
-<!-- Контейнер для невидимої reCAPTCHA -->
-<div id="recaptcha-container"></div>
+<div id="recaptcha-container" style="position: fixed; bottom: 0; left: 0; z-index: 9999;"></div>
 
-<!-- Инициализация Firebase App Check (reCAPTCHA) -->
+<!-- Firebase SDKs (compat) потрібні лише для AppCheck та SMS, якщо Kotlin-обгортка їх викликає через вікно -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+
 <script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyD5ukrhK6g6xKlrn4Iv9zPQxB7ji_gACY4",
-        authDomain: "ykis-mob.firebaseapp.com",
-        projectId: "ykis-mob",
-        appId: "1:1062920014188:web:cd8ced095f943b9d088b49",
-        messagingSenderId: "1062920014188"
-    };
-
-    // Ініціалізація тільки якщо додаток ще не ініціалізований
-    if (firebase.apps.length === 0) {
-        firebase.initializeApp(firebaseConfig);
-    }
-
-    let confirmationResult = null;
+    // Ми НЕ викликаємо initializeApp тут, це зробить Kotlin (Koin.js.kt)
 
     window.initializeFirebaseAppCheck = function(siteKey) {
         try {
-            // Явно створюємо провайдер для Enterprise
-            const provider = new firebase.appCheck.ReCaptchaEnterpriseProvider(siteKey);
+            // App Check ініціалізується автоматично після ініціалізації додатку в Kotlin
+            const provider = new firebase.appCheck.ReCaptchaV3Provider(siteKey);
             firebase.appCheck().activate(provider, true);
-            console.log("App Check Enterprise activated with key:", siteKey);
+            console.log("[JS] reCAPTCHA V3 activated via bridge");
         } catch (e) {
-            console.error("App Check activation failed:", e.message);
+            console.error("[JS] App Check activation fail:", e.message);
         }
     };
 
-    // --- SMS AUTH BRIDGE ---
-    window.sendSmsWeb = async function(phoneNumber) {
-        console.log("[JS] Запит SMS для:", phoneNumber);
-        try {
-            const auth = firebase.auth();
-            // Створюємо verifier (невидимий)
-            const verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-                'size': 'invisible'
-            });
-
-            confirmationResult = await auth.signInWithPhoneNumber(phoneNumber, verifier);
-            console.log("[JS] SMS надіслано. Очікуємо код.");
-            return "SUCCESS"; // Повертаємо технічний ID (ConfirmationResult зберігаємо в JS)
-        } catch (e) {
-            console.error("[JS] Помилка відправки SMS:", e);
-            throw e.message;
-        }
-    };
-
-    window.verifySmsWeb = async function(smsCode) {
-        console.log("[JS] Перевірка коду:", smsCode);
-        if (!confirmationResult) throw "Сесія SMS не знайдена. Спробуйте ще раз.";
-        try {
-            const result = await confirmationResult.confirm(smsCode);
-            console.log("[JS] Вхід успішний!");
-            return true;
-        } catch (e) {
-            console.error("[JS] Невірний код:", e);
-            throw "Невірний код підтвердження";
-        }
-    };
-
-    window.getWebFcmToken = async function(vapidKey) {
-        console.log("[JS] Запит Web Push токена з VAPID:", vapidKey);
-
-        if (Notification.permission === 'default') {
-            console.log("[JS] Запит дозволу на сповіщення...");
-            await Notification.requestPermission();
-        }
-
-        if (!('serviceWorker' in navigator)) {
-            console.error("[JS] Service Workers не підтримуються цим браузером");
-            return null;
-        }
-
-        try {
-            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-                scope: '/'
-            });
-            console.log("[JS] Service Worker зареєстрований:", registration.scope);
-
-            const messaging = firebase.messaging();
-            const token = await messaging.getToken({
-                vapidKey: vapidKey,
-                serviceWorkerRegistration: registration
-            });
-
-            // Обробка Foreground повідомлень
-            messaging.onMessage((payload) => {
-                console.log("[JS] Отримано повідомлення:", payload);
-
-                if (document.visibilityState === 'visible') {
-                    if (window.onForegroundMessage) {
-                        window.onForegroundMessage(payload);
-                    }
-                } else {
-                    // Показуємо через реєстрацію SW для кращої підтримки
-                    const title = payload.data?.title || payload.notification?.title || 'ЮКІС';
-                    const body = payload.data?.body || payload.notification?.body || 'Нове повідомлення';
-                    const chatId = payload.data?.chatId;
-                    const iconUrl = '/ykis.png';
-
-                    registration.showNotification(title, {
-                        body: body,
-                        icon: iconUrl,
-                        badge: iconUrl,
-                        data: { chatId: chatId }
-                    });
-                }
-            });
-
-            // Слухач кліків від SW
-            navigator.serviceWorker.addEventListener('message', (event) => {
-                if (event.data && event.data.type === 'NAVIGATE_TO_CHAT') {
-                    console.log("[JS] Навігація до чату:", event.data.chatId);
-                    const newUrl = window.location.origin + "/?chatId=" + event.data.chatId;
-                    window.history.pushState({}, '', newUrl);
-                    window.dispatchEvent(new Event('popstate'));
-                }
-            });
-
-            return token;
-        } catch (e) {
-            console.error("[JS] Помилка FCM:", e);
-            return null;
-        }
-    };
-</script>
-
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script>
+    // --- Google Auth Bridge (Оптимізовано для Safari та Chrome) ---
     window.triggerGoogleAuth = function(clientId) {
-        google.accounts.id.initialize({
-            client_id: clientId,
-            ux_mode: 'popup',
-            callback: (response) => {
-                if (response.credential) {
-                    console.log("Google ID Token received");
-                    if (window.onGoogleTokenReceived) {
+        console.log("[JS] Google Auth Requested...");
+        try {
+            google.accounts.id.initialize({
+                client_id: clientId,
+                ux_mode: 'popup',
+                itp_support: true,
+                auto_select: false,
+                use_fedcm_for_prompt: false,
+                callback: (response) => {
+                    if (response.credential && window.onGoogleTokenReceived) {
                         window.onGoogleTokenReceived(response.credential);
                     }
                 }
-            }
-        });
-        google.accounts.id.prompt();
+            });
+
+            // ПРИМУСОВИЙ ВИКЛИК ПАП-АПУ
+            google.accounts.id.prompt((notification) => {
+                console.log("[JS] GSI Status:", notification.getMomentType());
+                if (notification.isSkippedMoment()) {
+                    console.warn("[JS] One Tap skipped, reason:", notification.getSkippedReason());
+                    // Якщо шторка зверху заблокована - нічого не робимо,
+                    // користувачу доведеться клікнути ще раз або ми виведемо кнопку
+                }
+            });
+        } catch (e) {
+            console.error("[JS] GSI Error:", e);
+        }
+    };
+
+    // --- SMS AUTH ---
+    let confirmationResult = null;
+    window.sendSmsWeb = async function(phoneNumber) {
+        try {
+            const auth = firebase.auth();
+            const verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 'size': 'invisible' });
+            confirmationResult = await auth.signInWithPhoneNumber(phoneNumber, verifier);
+            return "SUCCESS";
+        } catch (e) { throw e.message; }
+    };
+    window.verifySmsWeb = async function(smsCode) {
+        if (!confirmationResult) throw "Session expired";
+        try { await confirmationResult.confirm(smsCode); return true; } catch (e) { throw "Invalid code"; }
+    };
+
+    // --- WEB PUSH ---
+    window.getWebFcmToken = async function(vapidKey) {
+        try {
+            if (Notification.permission === 'default') await Notification.requestPermission();
+            if (!('serviceWorker' in navigator)) return null;
+            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+            return await firebase.messaging().getToken({ vapidKey: vapidKey, serviceWorkerRegistration: registration });
+        } catch (e) { return null; }
     };
 </script>
 
-<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 50 50" role="presentation">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 50 50">
     <circle cx="25" cy="25" r="20" stroke="#ccc" stroke-width="4" fill="none"/>
-    <circle cx="25" cy="25" r="20" stroke="#333" stroke-width="4" fill="none" stroke-linecap="round"
-            stroke-dasharray="90 125">
-        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s"
-                          repeatCount="indefinite"/>
+    <circle cx="25" cy="25" r="20" stroke="#333" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="90 125">
+        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/>
     </circle>
 </svg>
 <script type="module" src="composeApp.js"></script>

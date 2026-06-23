@@ -9,7 +9,7 @@ actual fun platformActivityContext(): Any? = null
 
 /**
  * [triggerNativeGoogleSignIn] — Реалізація для браузера через Google Identity Services (GIS).
- * Викликає JavaScript функцію, визначену в index.html.
+ * Викликає JavaScript функцію, визначену в index2.html.
  */
 actual fun triggerNativeGoogleSignIn(
   activityContext: Any?,
@@ -25,7 +25,7 @@ actual fun triggerNativeGoogleSignIn(
   }
 
   try {
-    // Викликаємо функцію triggerGoogleAuth з index.html
+    // Викликаємо функцію triggerGoogleAuth з index2.html
     val bridge = (window.asDynamic()).triggerGoogleAuth
     if (bridge != null) {
         bridge(WEB_GOOGLE_CLIENT_ID)
