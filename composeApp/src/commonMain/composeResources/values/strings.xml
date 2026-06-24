@@ -309,6 +309,18 @@
   <string name="error_cant_send_email">Неможливо надіслати на цей email.</string>
   <string name="error_add_reading">Не вдалося додати показання.</string>
   <string name="error_incorrect_reading">Помилка вводу. Перевірте дані.</string>
+  <string name="error_google_auth">Помилка авторизації Google</string>
+  <string name="error_empty_uid">Ідентифікатор користувача порожній</string>
+  <string name="error_process">Помилка обробки даних</string>
+  <string name="error_auth_session_expired">Сесія авторизації вичерпана</string>
+  <string name="error_unknown_deletion">Невідома помилка при видаленні</string>
+  <string name="error_session_refresh_failed">Помилка оновлення сесії</string>
+  <string name="error_registration_failed">Помилка реєстрації</string>
+  <string name="error_load_osbb">Помилка завантаження списку ОСББ</string>
+  <string name="error_load_raions">Помилка завантаження районів</string>
+  <string name="error_load_houses">Помилка завантаження будинків</string>
+  <string name="error_load_family">Помилка завантаження складу сім'ї</string>
+  <string name="error_invalid_data">Отримано некоректні дані від сервера</string>
 
   <!-- Успіх -->
   <string name="success_delete_flat">Квартиру видалено.</string>

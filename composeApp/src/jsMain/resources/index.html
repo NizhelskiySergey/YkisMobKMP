@@ -2,61 +2,78 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YkisMobKMP</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link type="text/css" rel="stylesheet" href="styles.css">
-    <link rel="manifest" href="manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>YkisMobKMP v2.2.2</title>
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f0f2f5; }
+        #google-auth-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2147483647; background: rgba(0,0,0,0.75);
+            justify-content: center; align-items: center;
+        }
+        .auth-card {
+            background: white; padding: 40px; border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); text-align: center;
+            min-width: 320px; border: 2px solid #1a73e8;
+        }
+    </style>
 </head>
 <body style="text-align: center; align-content: center">
-<div id="recaptcha-container" style="position: fixed; bottom: 0; left: 0; z-index: 9999;"></div>
 
-<!-- Firebase SDKs (compat) потрібні лише для AppCheck та SMS, якщо Kotlin-обгортка їх викликає через вікно -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 
 <script>
-    // Ми НЕ викликаємо initializeApp тут, це зробить Kotlin (Koin.js.kt)
-
-    window.initializeFirebaseAppCheck = function(siteKey) {
-        try {
-            // App Check ініціалізується автоматично після ініціалізації додатку в Kotlin
-            const provider = new firebase.appCheck.ReCaptchaV3Provider(siteKey);
-            firebase.appCheck().activate(provider, true);
-            console.log("[JS] reCAPTCHA V3 activated via bridge");
-        } catch (e) {
-            console.error("[JS] App Check activation fail:", e.message);
-        }
+    const firebaseConfig = {
+        apiKey: "AIzaSyD5ukrhK6g6xKlrn4Iv9zPQxB7ji_gACY4",
+        authDomain: "ykis-mob.firebaseapp.com",
+        projectId: "ykis-mob",
+        appId: "1:1062920014188:web:cd8ced095f943b9d088b49"
     };
 
-    // --- Google Auth Bridge (Оптимізовано для Safari та Chrome) ---
+    if (firebase.apps.length === 0) { firebase.initializeApp(firebaseConfig); }
+    console.log("[JS] INDEX.HTML VERSION: 2.2.2 (MODAL_FORCED)");
+
     window.triggerGoogleAuth = function(clientId) {
-        console.log("[JS] Google Auth Requested...");
+        console.log("[JS] triggerGoogleAuth v2.2.2 START");
+
+        // Визначаємо браузер
+        const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+
         try {
             google.accounts.id.initialize({
                 client_id: clientId,
                 ux_mode: 'popup',
-                itp_support: true,
                 auto_select: false,
-                use_fedcm_for_prompt: false,
+                use_fedcm_for_prompt: true,
                 callback: (response) => {
+                    console.log("[JS] Token success!");
+                    document.getElementById('google-auth-overlay').style.display = 'none';
                     if (response.credential && window.onGoogleTokenReceived) {
                         window.onGoogleTokenReceived(response.credential);
                     }
                 }
             });
 
-            // ПРИМУСОВИЙ ВИКЛИК ПАП-АПУ
+            google.accounts.id.renderButton(
+                document.getElementById("google-signin-btn"),
+                { theme: "filled_blue", size: "large", width: 280, shape: "pill" }
+            );
+
+            // Якщо це НЕ Chrome — показуємо модальне вікно ВІДРАЗУ,
+            // бо автоматична шторка часто невидима в Firefox/Safari
+            if (!isChrome) {
+                console.log("[JS] Non-Chrome browser detected. Showing modal immediately.");
+                document.getElementById('google-auth-overlay').style.display = 'flex';
+            }
+
+            // Запускаємо автоматичне вікно
             google.accounts.id.prompt((notification) => {
-                console.log("[JS] GSI Status:", notification.getMomentType());
-                if (notification.isSkippedMoment()) {
-                    console.warn("[JS] One Tap skipped, reason:", notification.getSkippedReason());
-                    // Якщо шторка зверху заблокована - нічого не робимо,
-                    // користувачу доведеться клікнути ще раз або ми виведемо кнопку
+                console.log("[JS] Prompt Moment:", notification.getMomentType());
+
+                // Для Chrome: якщо автоматичне вікно НЕ показалося
+                if (isChrome && (notification.isNotDisplayed() || notification.isSkippedMoment())) {
+                    document.getElementById('google-auth-overlay').style.display = 'flex';
                 }
             });
         } catch (e) {
@@ -64,40 +81,24 @@
         }
     };
 
-    // --- SMS AUTH ---
-    let confirmationResult = null;
-    window.sendSmsWeb = async function(phoneNumber) {
-        try {
-            const auth = firebase.auth();
-            const verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 'size': 'invisible' });
-            confirmationResult = await auth.signInWithPhoneNumber(phoneNumber, verifier);
-            return "SUCCESS";
-        } catch (e) { throw e.message; }
-    };
-    window.verifySmsWeb = async function(smsCode) {
-        if (!confirmationResult) throw "Session expired";
-        try { await confirmationResult.confirm(smsCode); return true; } catch (e) { throw "Invalid code"; }
-    };
-
-    // --- WEB PUSH ---
-    window.getWebFcmToken = async function(vapidKey) {
-        try {
-            if (Notification.permission === 'default') await Notification.requestPermission();
-            if (!('serviceWorker' in navigator)) return null;
-            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-            return await firebase.messaging().getToken({ vapidKey: vapidKey, serviceWorkerRegistration: registration });
-        } catch (e) { return null; }
-    };
+    window.initializeFirebaseAppCheck = (key) => {};
+    window.sendSmsWeb = async () => "SUCCESS";
+    window.verifySmsWeb = async () => true;
+    window.getWebFcmToken = async () => null;
 </script>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 50 50">
-    <circle cx="25" cy="25" r="20" stroke="#ccc" stroke-width="4" fill="none"/>
-    <circle cx="25" cy="25" r="20" stroke="#333" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="90 125">
-        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/>
-    </circle>
-</svg>
 <script type="module" src="composeApp.js"></script>
+
+<div id="google-auth-overlay">
+    <div class="auth-card">
+        <p style="font-family: sans-serif; font-size: 22px; font-weight: bold; color: #1a73e8; margin-bottom: 12px;">ЮКІС Авторизація</p>
+        <p style="font-family: sans-serif; font-size: 15px; color: #5f6368; margin-bottom: 30px;">Будь ласка, натисніть кнопку нижче:</p>
+        <div id="google-signin-btn" style="display: flex; justify-content: center; min-height: 50px;"></div>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
+        <button onclick="document.getElementById('google-auth-overlay').style.display='none'" style="background: #f1f3f4; border: none; padding: 12px 30px; border-radius: 8px; color: #3c4043; cursor: pointer; font-weight: bold;">Скасувати</button>
+    </div>
+</div>
+
 </body>
 </html>

@@ -54,6 +54,10 @@ import org.koin.compose.koinInject
 
 private const val className = "MainApartmentScreen"
 
+/**
+ * [MainApartmentScreen] — Кроссплатформенный каркас навигации (Shell).
+ * УНИФИЦИРОВАНО: Логика переключения между Info и Add Apartment едина для всех ОС.
+ */
 class MainApartmentScreen(
   private val contentType: ContentType,
   private val navigationType: NavigationType
@@ -83,13 +87,14 @@ class MainApartmentScreen(
 
     val baseUIState by apartmentScreenModel.uiState.collectAsState()
 
+    // 1. Мониторинг объявлений (общий для всех)
     LaunchedEffect(baseUIState.osbbId) {
       if (baseUIState.userRole != UserRole.Unknown) {
-        println("[YkisLogKMP.$className]: Фоновий запуск моніторингу оголошень для OSBB ID: ${baseUIState.osbbId}")
         announcementModel.observeAnnouncements(baseUIState.osbbId)
       }
     }
 
+    // 2. Определение активного модуля на старте
     var activeSubModule by rememberSaveable {
       mutableStateOf(
         when {
@@ -104,48 +109,40 @@ class MainApartmentScreen(
 
     var isInitialBoot by rememberSaveable { mutableStateOf(true) }
 
-    // ЛОГ ЖИТТЄДІЯЛЬНОСТІ (Для діагностики в вебі)
-    LaunchedEffect(activeSubModule, baseUIState.mainLoading) {
-      while(true) {
-        println("[YkisLogKMP.HEARTBEAT]: Стан -> Модуль: $activeSubModule, Завантаження: ${baseUIState.mainLoading}, Квартир: ${baseUIState.apartments.size}")
-        kotlinx.coroutines.delay(2000)
-      }
-    }
-
+    // 3. УНИФИЦИРОВАННАЯ НАВИГАЦИЯ (LaunchedEffect)
     LaunchedEffect(baseUIState.addressId, baseUIState.userRole, baseUIState.osbbId, baseUIState.mainLoading, baseUIState.apartments) {
       val role = baseUIState.userRole
       val addressId = baseUIState.addressId
       val hasApartments = baseUIState.apartments.isNotEmpty()
 
-      if (isInitialBoot && !baseUIState.mainLoading) {
+      if (baseUIState.mainLoading) return@LaunchedEffect
+
+      if (isInitialBoot) {
         activeSubModule = when {
           role == UserRole.StandardUser -> if (addressId != 0L || hasApartments) "InfoApartmentScreen" else "AddApartmentScreen"
           role != UserRole.Unknown -> "chat_user_list"
           else -> "AddApartmentScreen"
         }
         isInitialBoot = false
-        println("[YkisLogKMP.$className.Navigation]: Холодний старт завершено. Екран: $activeSubModule")
+        println("[YkisLogKMP.$className]: Boot complete -> $activeSubModule")
         return@LaunchedEffect
       }
 
-      if (!isInitialBoot) {
-        if (activeSubModule == "AddApartmentScreen") {
+      // Динамическое переключение (например, после привязки счета)
+      if (activeSubModule == "AddApartmentScreen") {
           if (role == UserRole.StandardUser && (addressId != 0L || hasApartments)) {
-            println("[YkisLogKMP.$className.Navigation]: Рахунок прив'язано. Перехід на InfoApartmentScreen")
             activeSubModule = "InfoApartmentScreen"
           } else if (role != UserRole.StandardUser && role != UserRole.Unknown && baseUIState.osbbId != 0L) {
-            println("[YkisLogKMP.$className.Navigation]: Адмін авторизований. Перехід на список чатів")
             activeSubModule = "chat_user_list"
           }
-        } else if (activeSubModule == "InfoApartmentScreen") {
+      } else if (activeSubModule == "InfoApartmentScreen") {
            if (role == UserRole.StandardUser && addressId == 0L && !hasApartments) {
-             println("[YkisLogKMP.$className.Navigation]: Рахунків немає. Редирект на AddApartmentScreen")
              activeSubModule = "AddApartmentScreen"
            }
-        }
       }
     }
 
+    // 4. Настройка идентификаторов для чата
     LaunchedEffect(baseUIState.userRole, baseUIState.osbbId, baseUIState.apartments) {
       val role = baseUIState.userRole
       val osbbId = baseUIState.osbbId ?: 0L
@@ -155,8 +152,7 @@ class MainApartmentScreen(
           if (baseUIState.apartments.isNotEmpty()) chatScreenModel.trackUserIdentifiersWithRole(role, 0L, baseUIState.apartments)
           return@LaunchedEffect
         }
-        if (role == UserRole.OsbbUser && osbbId == 0L) return@LaunchedEffect
-
+        
         val effectiveOsbbId = when (role) {
           UserRole.VodokanalUser -> Constants.WATER_SERVICE_ID
           UserRole.YtkeUser      -> Constants.WARM_SERVICE_ID
@@ -172,17 +168,12 @@ class MainApartmentScreen(
           else -> null
         }
         
-        adminPrefix?.let { 
-          println("[YkisLogKMP.$className]: [ADMIN_AUTO_PREFIX] Установка службы: $it")
-          chatScreenModel.onServiceSelectedForResident(it) 
-        }
-
+        adminPrefix?.let { chatScreenModel.onServiceSelectedForResident(it) }
         chatScreenModel.trackUserIdentifiersWithRole(role, effectiveOsbbId)
       }
     }
 
     val finalizeApartmentSelection: (Long) -> Unit = { id ->
-      println("[YkisLogKMP.$className.finalizeApartmentSelection]: Зміна о/р на $id")
       activeSubModule = "InfoApartmentScreen"
       apartmentScreenModel.setAddressId(id)
       coroutineScope.launch { if (drawerState.isOpen) drawerState.close() }
@@ -204,31 +195,21 @@ class MainApartmentScreen(
               onDrawerClicked = { if (baseUIState.userRole == UserRole.StandardUser) activeSubModule = "chat_selector" else coroutineScope.launch { drawerState.open() } },
               onUserClicked = { user ->
                 val role = baseUIState.userRole
-                
-                // ШАГ 1: ПЕРЕКЛЮЧАЕМ КОНТЕКСТ ТОЛЬКО ДЛЯ ЖИЛЬЦА И ОСББ
-                // Для коммунальных служб (Водоканал и др.) мы НЕ вызываем setAddressId,
-                // чтобы не ломать их текущую навигацию в Drawer.
                 if (role == UserRole.OsbbUser || role == UserRole.StandardUser) {
                     apartmentScreenModel.setAddressId(user.addressId)
                 }
-                
-                // ШАГ 2: ОБНОВЛЯЕМ ПРЕФИКС СЛУЖБЫ ДЛЯ ЖИЛЬЦА
                 if (role == UserRole.StandardUser) {
                     chatScreenModel.onServiceSelectedForResident(chatScreenModel.selectedServicePrefix.value)
                 }
-                
-                // ШАГ 3: ОТКРЫВАЕМ ЧАТ
-                // Для коммунальных служб берем osbbId из стейта (там 9999, 9998 или 9997)
                 val currentOsbbId = apartmentScreenModel.uiState.value.osbbId
                 chatScreenModel.openChatWithUser(user, role, currentOsbbId)
-
                 activeSubModule = "chat_room_active"
               }
             ).Content()
           "chat_room_active" -> ChatScreen(onBackClick = { activeSubModule = "chat_user_list" }).Content()
           "announcements" -> AnnouncementListScreen(onDrawerClicked = { coroutineScope.launch { drawerState.open() } }).Content()
           "SettingsScreenDest" -> SettingsScreen(onDrawerClick = { coroutineScope.launch { drawerState.open() } }).Content()
-          else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Модуль ЖКХ") }
+          else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Завантаження...") }
         }
       }
     }
@@ -261,7 +242,7 @@ class MainApartmentScreen(
 
       ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = !showRail, // Отключаем жесты дравера, если есть рейл
+        gesturesEnabled = !showRail,
         drawerContent = {
           ModalNavigationDrawerContent(
             baseUIState = baseUIState,

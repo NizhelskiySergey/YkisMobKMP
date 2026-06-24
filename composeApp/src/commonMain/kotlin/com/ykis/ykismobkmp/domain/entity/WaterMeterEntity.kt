@@ -2,40 +2,37 @@ package com.ykis.ykismobkmp.domain.entity
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import com.ykis.ykismobkmp.core.utils.SmartLongSerializer
+import com.ykis.ykismobkmp.core.utils.SmartDoubleSerializer
 
 /**
- * [WaterMeterEntity] — Кроссплатформенная доменная модель водомера г. Южный.
- * Полностью типизирована под Long идентификаторы и готова к десериализации на любой ОС.
+ * [WaterMeterEntity] — Доменна модель лічильника води ЮКІС.
+ * ВІДНОВЛЕНО: Всі поля для коректної роботи Мапперів та СУБД.
  */
 @Serializable
 data class WaterMeterEntity(
-  // ИСПРАВЛЕНО: Все ключевые системные ID переведены на тип Long под стандарты SQLDelight и Ktor
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("vodomer_id")
   val vodomerId: Long = 0L,
 
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("dvodomer_id")
   val dvodomerId: Long = 0L,
 
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("address_id")
   val addressId: Long = 0L,
 
-  @SerialName("nomer")
+  @SerialName("num")
   val nomer: String = "Unknown",
-
-  @SerialName("model")
+  
   val model: String = "Unknown",
 
-  // ИСПРАВЛЕНО: Платформозависимый Byte изменен на универсальный Int для стабильности на Mac/iOS
-  @SerialName("st")
+  @Serializable(with = SmartLongSerializer::class)
   val st: Long = 1L,
 
-  @SerialName("voda")
   val voda: String = "Unknown",
-
-  @SerialName("place")
   val place: String = "Unknown",
-
-  @SerialName("position")
   val position: String = "Unknown",
 
   @SerialName("sdate")
@@ -47,28 +44,35 @@ data class WaterMeterEntity(
   @SerialName("pdate")
   val pdate: String = "Unknown",
 
-  @SerialName("pp")
+  @Serializable(with = SmartLongSerializer::class)
   val pp: Long = 0L,
 
   @SerialName("zdate")
   val zdate: String = "Unknown",
 
-  @SerialName("avg")
+  @Serializable(with = SmartLongSerializer::class)
   val avg: Long = 0L,
 
-  @SerialName("spisan")
+  @Serializable(with = SmartLongSerializer::class)
   val spisan: Long = 0L,
 
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("out")
   val isOut: Long = 0L,
 
-  @SerialName("paused")
+  @Serializable(with = SmartLongSerializer::class)
   val paused: Long = 0L,
 
-  @SerialName("data_spis")
+  @SerialName("date_spisan")
   val dataSpis: String = "Unknown",
 
-  @SerialName("work")
-  val work: Long = 0L
-)
+  @Serializable(with = SmartLongSerializer::class)
+  val work: Long = 0L,
 
+  @Serializable(with = SmartDoubleSerializer::class)
+  @SerialName("last_pok")
+  val lastReading: Double = 0.0,
+
+  @SerialName("last_data")
+  val lastDate: String? = null
+)

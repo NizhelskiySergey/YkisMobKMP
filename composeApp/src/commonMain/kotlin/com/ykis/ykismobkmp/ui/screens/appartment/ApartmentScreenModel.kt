@@ -119,19 +119,10 @@ class ApartmentScreenModel(
     observeJob = screenModelScope.launch {
       _uiState.update { it.copy(mainLoading = true) }
       try {
+        println("[YkisLogKMP.$className]: [STEP 1] Читання профілю Firestore...")
         val user = firebaseService.getUserProfile()
         val currentUserRole = UserRole.fromString(user.userRole)
-        val currentOsbbId: Long = if (currentUserRole != UserRole.StandardUser &&
-          currentUserRole != UserRole.OsbbUser && user.osbbId == 0L
-        ) {
-          when (currentUserRole) {
-            UserRole.VodokanalUser -> 9999L
-            UserRole.YtkeUser -> 9998L
-            UserRole.TboUser -> 9997L
-            else -> 0L
-          }
-        } else user.osbbId
-
+        
         val officialOrgName = if (!user.osbb.isNullOrBlank()) user.osbb else {
             when (currentUserRole) {
                 UserRole.VodokanalUser -> getString(Res.string.vodokanal)
@@ -141,42 +132,89 @@ class ApartmentScreenModel(
             }
         }
 
-        _uiState.update {
-          it.copy(
+        _uiState.update { state ->
+          // КРИТИЧНИЙ ФІКС: Не затираємо вже вибрану квартиру нулем, 
+          // якщо Firestore ще не оновився (eventual consistency)
+          val finalAddressId = if (user.addressId == 0L && state.addressId != 0L) state.addressId else user.addressId
+          
+          state.copy(
             uid = user.uid,
             userRole = currentUserRole,
-            osbbId = currentOsbbId,
-            osmdId = currentOsbbId,
+            osbbId = user.osbbId,
+            osmdId = user.osbbId,
             osbb = officialOrgName,
             displayName = user.name ?: "",
-            fio = user.fio
+            fio = user.fio,
+            addressId = finalAddressId
           )
         }
 
         firebaseService.addFcmToken()
 
-        when (currentUserRole) {
-          UserRole.StandardUser -> {
-            apartmentService.getApartmentList(user.uid).collect { result ->
-              handleStandardUserResult(result, user.uid, currentUserRole)
-            }
-          }
-          UserRole.OsbbUser -> {
-            apartmentService.getOsbbApartmentsList(currentOsbbId).collect { result ->
-              handleOsbbAdminResult(result, user.uid, currentUserRole, currentOsbbId, user.osbb)
-            }
-          }
-          else -> {
-            apartmentService.getRaionList(user.uid).collect { result ->
-              handleOrganizationResult(result, user.uid, currentUserRole, currentOsbbId, officialOrgName)
-            }
-          }
+        println("[YkisLogKMP.$className]: [STEP 2] Запит списку квартир MySQL...")
+        apartmentService.getApartmentList(user.uid).collect { result ->
+            handleStandardUserResult(result, user.uid, currentUserRole)
         }
+
       } catch (e: Exception) {
-          println("[YkisLogKMP.$className]: Error: ${e.message}")
+          println("[YkisLogKMP.${className}_ERROR]: observeUserProfile failed: ${e.message}")
       } finally {
           _uiState.update { it.copy(mainLoading = false) }
       }
+    }
+  }
+
+  private suspend fun handleStandardUserResult(result: Resource<List<ApartmentEntity>>, uid: String, role: UserRole) {
+    if (result is Resource.Loading) return
+    val incoming = result.data ?: emptyList()
+    
+    _uiState.update { state ->
+      if (incoming.isNotEmpty()) {
+        // Вибираємо квартиру: або ту що вже була, або першу зі списку
+        val target = if (state.addressId == 0L) incoming.first() else (incoming.find { it.addressId == state.addressId } ?: incoming.first())
+        val finalOsbbName = if (target.osbb.isNullOrBlank() || target.osbb == "0") "Мій ОСББ" else target.osbb
+        
+        // СИНХРОНІЗАЦІЯ: Якщо дані в Firestore (state.addressId) відрізняються від реальності (target)
+        if (state.addressId != target.addressId || state.osbbId != target.osmdId) {
+            println("[YkisLogKMP.$className]: [SYNC] Виявлено розбіжність. Оновлення Firestore для ID: ${target.addressId}")
+            screenModelScope.launch {
+                syncProfileWithFirestore(uid, target, role)
+            }
+        }
+
+        state.copy(
+          apartments = incoming, 
+          apartment = target, 
+          isApartmentsLoaded = true, 
+          addressId = target.addressId,
+          address = target.address, 
+          osbbId = target.osmdId, 
+          osmdId = target.osmdId, 
+          osbb = finalOsbbName, 
+          mainLoading = false, 
+          apartmentLoading = false
+        )
+      } else {
+        state.copy(mainLoading = false, apartmentLoading = false, isApartmentsLoaded = true)
+      }
+    }
+  }
+
+  private suspend fun syncProfileWithFirestore(uid: String, apartment: ApartmentEntity, role: UserRole) {
+    try {
+        println("[YkisLogKMP.$className]: Виклик FirebaseService.updateUserRoleAndPermissions...")
+        firebaseService.updateUserRoleAndPermissions(
+            uid = uid,
+            addressId = apartment.addressId,
+            userRole = role,
+            osbbId = apartment.osmdId,
+            displayName = apartment.address,
+            fio = apartment.nanim ?: "",
+            osbb = apartment.osbb
+        )
+        println("[YkisLogKMP.$className]: Firestore успішно синхронізовано.")
+    } catch (e: Exception) {
+        println("[YkisLogKMP.${className}_ERROR]: Помилка синхронізації Firestore: ${e.message}")
     }
   }
 
@@ -194,34 +232,6 @@ class ApartmentScreenModel(
     }
   }
 
-  private suspend fun handleStandardUserResult(result: Resource<List<ApartmentEntity>>, uid: String, role: UserRole) {
-    if (result is Resource.Loading) return
-    val incoming = result.data ?: emptyList()
-    _uiState.update { state ->
-      if (incoming.isNotEmpty()) {
-        val target = if (state.addressId == 0L) incoming.first() else (incoming.find { it.addressId == state.addressId } ?: incoming.first())
-        val finalOsbbName = if (target.osbb.isNullOrBlank() || target.osbb == "0") "Мій ОСББ" else target.osbb!!
-        
-        if (state.addressId == 0L) {
-            screenModelScope.launch {
-                firebaseService.updateUserRoleAndPermissions(
-                    uid = uid,
-                    addressId = target.addressId,
-                    userRole = role,
-                    osbbId = target.osmdId,
-                    displayName = target.address,
-                    fio = target.nanim ?: "",
-                    osbb = target.osbb
-                )
-            }
-        }
-
-        state.copy(apartments = incoming, apartment = target, isApartmentsLoaded = true, addressId = target.addressId,
-          address = target.address, osbbId = target.osmdId, osmdId = target.osmdId, osbb = finalOsbbName, mainLoading = false, apartmentLoading = false)
-      } else state.copy(mainLoading = false, apartmentLoading = false, isApartmentsLoaded = true)
-    }
-  }
-
   private fun combinedFind(list: List<ApartmentEntity>, id: Long) = list.find { it.addressId == id } ?: list.first()
 
   private fun formatOsbbName(apt: ApartmentEntity, current: String?): String {
@@ -234,25 +244,17 @@ class ApartmentScreenModel(
     val currentState = _uiState.value
     val isResident = currentState.userRole == UserRole.StandardUser
     val target = currentState.apartments.find { it.addressId == addressId } ?: _drawerApartments.value.find { it.addressId == addressId }
+    
     if (target != null) {
+      println("[YkisLogKMP.$className]: Перемикання на о/р: $addressId")
       _uiState.update { state ->
-        val finalOsbbName = if (isResident) (if (target.osbb.isNullOrBlank() || target.osbb == "0") "Мій ОСББ" else target.osbb!!) else state.osbb
+        val finalOsbbName = if (isResident) (if (target.osbb.isNullOrBlank() || target.osbb == "0") "Мій ОСББ" else target.osbb) else state.osbb
         state.copy(addressId = target.addressId, apartment = target, address = target.address, nanim = target.nanim, fio = target.nanim ?: "",
           osbb = finalOsbbName, osbbId = if (isResident) target.osmdId else state.osbbId, osmdId = if (isResident) target.osmdId else state.osmdId, apartmentLoading = false)
       }
       
       screenModelScope.launch {
-        try {
-            firebaseService.updateUserRoleAndPermissions(
-                uid = currentState.uid ?: "",
-                addressId = target.addressId,
-                userRole = currentState.userRole,
-                osbbId = if (isResident) target.osmdId else currentState.osbbId,
-                displayName = target.address,
-                fio = target.nanim ?: "",
-                osbb = if (isResident) target.osbb else currentState.osbb
-            )
-        } catch (e: Exception) { }
+        syncProfileWithFirestore(currentState.uid ?: "", target, currentState.userRole)
       }
     }
   }
@@ -333,8 +335,8 @@ class ApartmentScreenModel(
             SnackbarManager.showMessage("Рахунок успішно прив'язаний")
             screenModelScope.launch {
                 observeUserProfile()
-                delay(3000)
-                if (_uiState.value.mainLoading) _uiState.update { it.copy(mainLoading = false, isApartmentsLoaded = true) }
+                delay(2000)
+                if (_uiState.value.mainLoading) _uiState.update { it.copy(mainLoading = false) }
             }
         } else if (result is Resource.Error) {
             _uiState.update { it.copy(mainLoading = false) }

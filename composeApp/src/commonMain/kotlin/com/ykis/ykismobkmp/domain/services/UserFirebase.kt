@@ -1,14 +1,13 @@
 package com.ykis.ykismobkmp.domain.services
 
 import com.ykis.ykismobkmp.domain.entity.UserEntity
+import com.ykis.ykismobkmp.core.utils.SmartLongSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-private const val className = "UserFirebase"
-
 /**
- * [UserFirebase] — Кроссплатформенная сериализуемая модель пользователя для работы с Firestore KMP.
- * ЗАФИКСИРОВАНО: Идентификаторы osbbId и addressId имеют жесткий сквозной тип Long под каноны SQLDelight.
+ * [UserFirebase] — Кроссплатформенная сериализуемая модель пользователя.
+ * ФІКС: fcmTokens тепер null за замовчуванням для запобігання RangeError у JS.
  */
 @Serializable
 data class UserFirebase(
@@ -24,7 +23,7 @@ data class UserFirebase(
   @SerialName("provider")
   val provider: String? = null,
 
-  @SerialName("displayName") // Имя поля в облачной БД Firestore
+  @SerialName("displayName") 
   val name: String? = null,
 
   @SerialName("phone")
@@ -36,9 +35,11 @@ data class UserFirebase(
   @SerialName("userRole")
   val userRole: String = "StandardUser",
 
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("osbbId")
   val osbbId: Long = 0L,
 
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("addressId")
   val addressId: Long = 0L,
 
@@ -49,31 +50,21 @@ data class UserFirebase(
   val osbb: String? = null,
 
   @SerialName("fcmTokens")
-  val fcmTokens: List<String>? = emptyList()
+  val fcmTokens: List<String>? = null // Null замість emptyList() для стабільності Web
 )
 
-/**
- * [UserFirebase.toEntity] — Кроссплатформенный маппер из модели Firebase в Entity-модель для UI слоя.
- * ИСПРАВЛЕНО: Убран ложный кастинг .toInt(). Идентификаторы пробрасываются как чистые Long.
- * Префикс логирования переведен на стандарт YkisLogKMP.
- */
 fun UserFirebase.toEntity(): UserEntity {
-  println("[YkisLogKMP.$className.toEntity]: Выполняется КМР-маппинг профиля Firestore для UID: $uid")
-
   return UserEntity(
     uid = this.uid,
-    // Используем name ("Адрес | Фамилия"), а если он null — email
     displayName = this.name ?: this.email,
     photoUrl = this.photoUrl,
-    // Безопасно парсим строку роли в Enum класс через нашу зафиксированную функцию fromString
     userRole = UserRole.fromString(this.userRole),
     email = this.email,
     address = this.name ?: "",
-    fio = this.fio, // Пробрасываем новое поле ФИО
-    // ИСПРАВЛЕНО: Никаких .toInt(). Пробрасываем чистые Long идентификаторы напрямую в UI Entity структуру
+    fio = this.fio,
     osbbId = this.osbbId,
     addressId = this.addressId,
-    osbb = this.osbb ?: "", // Пробрасываем новое поле название ОСББ
+    osbb = this.osbb ?: "",
     tokens = this.fcmTokens ?: emptyList()
   )
 }

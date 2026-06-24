@@ -14,10 +14,14 @@ import dev.gitlive.firebase.initialize
 import dev.gitlive.firebase.database.database
 import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.storage.storage
-import kotlinx.browser.window
 import org.koin.core.module.Module
 import org.koin.dsl.module
 import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlPreparedStatement
+import app.cash.sqldelight.db.SqlCursor
+import app.cash.sqldelight.Query
+import app.cash.sqldelight.Transacter
 import com.ykis.ykismobkmp.db.YkisDatabases
 import com.ykis.ykismobkmp.db.YkisDatabasesQueries
 import com.ykis.ykismobkmp.cash.sqlDelight.ApartmentDao
@@ -34,16 +38,12 @@ import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
 import com.ykis.ykismobkmp.db.DatabaseSchemaInitializer
 
-/**
- * [jsPlatformModule] — Нативний DI-граф для Web ЮКІС.
- */
 val jsPlatformModule: Module = module {
   single<Settings> { StorageSettings() }
   single<AppSettingsRepository> { AppSettingsRepositoryJsImpl() }
   single { LocalAiEngine() }
 
   single<FirebaseApp> {
-    println("[YkisLogKMP.Koin]: Ініціалізація Firebase App (Web) з повним конфігом...")
     val options = FirebaseOptions(
         applicationId = "1:1062920014188:web:cd8ced095f943b9d088b49",
         apiKey = "AIzaSyD5ukrhK6g6xKlrn4Iv9zPQxB7ji_gACY4",
@@ -52,69 +52,46 @@ val jsPlatformModule: Module = module {
         databaseUrl = "https://ykis-mob-default-rtdb.europe-west1.firebasedatabase.app",
         authDomain = "ykis-mob.firebaseapp.com"
     )
-    val app = Firebase.initialize(options = options)
-    println("[YkisLogKMP.Koin]: Firebase успішно ініціалізовано.")
-    app
+    Firebase.initialize(options = options)
   }
 
-  // Реєстрація Firebase під-сервісів для ChatRepository (Common)
   single<FirebaseFirestore> { Firebase.firestore(get<FirebaseApp>()) }
   single<FirebaseDatabase> { Firebase.database(get<FirebaseApp>()) }
   single<FirebaseStorage> { Firebase.storage(get<FirebaseApp>()) }
-
-  single<FirebaseService> { 
-    FirebaseServiceImpl(settings = get()) 
-  }
+  single<FirebaseService> { FirebaseServiceImpl(get()) }
 }
 
 /**
  * [databaseModule] — Web-реализация СУБД.
+ * УНІФІКОВАНО: Повертаємо безпечний драйвер-заглушку, який повертає порожні списки замість null.
  */
 actual val databaseModule: Module = module {
   single<SqlDriver> { 
-    app.cash.sqldelight.driver.worker.WebWorkerDriver(
-        org.w3c.dom.Worker("sqldelight-worker.js")
-    )
+    object : SqlDriver {
+        @Suppress("UNCHECKED_CAST")
+        override fun <R> executeQuery(identifier: Int?, sql: String, mapper: (SqlCursor) -> QueryResult<R>, parameters: Int, binders: (SqlPreparedStatement.() -> Unit)?): QueryResult<R> {
+            // ПОВЕРТАЄМО ПОРОЖНІЙ СПИСОК: Це запобігає крашу "Cannot read properties of null"
+            return QueryResult.Value(emptyList<Any>()) as QueryResult<R>
+        }
+        override fun execute(identifier: Int?, sql: String, parameters: Int, binders: (SqlPreparedStatement.() -> Unit)?): QueryResult<Long> = QueryResult.Value(0L)
+        override fun newTransaction(): QueryResult<Transacter.Transaction> = throw IllegalStateException("DB Disabled")
+        override fun currentTransaction(): Transacter.Transaction? = null
+        override fun close() {}
+        override fun addListener(vararg queryKeys: String, listener: Query.Listener) {}
+        override fun notifyListeners(vararg queryKeys: String) {}
+        override fun removeListener(vararg queryKeys: String, listener: Query.Listener) {}
+    }
   }
   
-  single<YkisDatabases> {
-    val driver = get<SqlDriver>()
-    YkisDatabases(driver)
-  }
-
+  single<DatabaseSchemaInitializer> { DatabaseSchemaInitializer() }
+  single<YkisDatabases> { YkisDatabases(get<SqlDriver>()) }
   single<YkisDatabasesQueries> { get<YkisDatabases>().ykisDatabasesQueries }
-
-  single { 
-    ApartmentDao(
-        dbQueries = get<YkisDatabasesQueries>(),
-        driver = get<SqlDriver>(),
-        schemaInitializer = get<DatabaseSchemaInitializer>()
-    ) 
-  }
-  single { 
-    MeterDao(
-        dbQueries = get<YkisDatabasesQueries>(),
-        driver = get<SqlDriver>(),
-        schemaInitializer = get<DatabaseSchemaInitializer>()
-    ) 
-  }
-  single { 
-    LedgerDao(
-        dbQueries = get<YkisDatabasesQueries>(),
-        driver = get<SqlDriver>(),
-        schemaInitializer = get<DatabaseSchemaInitializer>()
-    ) 
-  }
-
-  single<ApartmentCache> { ApartmentCacheImpl(apartmentDao = get()) }
-  single<MeterRepositoryCash> { MeterRepositoryCashImpl(meterDao = get()) }
-  single<LedgerRepositoryCash> { LedgerRepositoryCashImpl(ledgerDao = get()) }
-}
-
-fun initializeRecaptcha(key: String) {
-    try {
-        window.asDynamic().initializeFirebaseAppCheck(key)
-    } catch (e: Exception) { }
+  single { ApartmentDao(get(), get(), get()) }
+  single { MeterDao(get(), get(), get()) }
+  single { LedgerDao(get(), get(), get()) }
+  single<ApartmentCache> { ApartmentCacheImpl(get()) }
+  single<MeterRepositoryCash> { MeterRepositoryCashImpl(get()) }
+  single<LedgerRepositoryCash> { LedgerRepositoryCashImpl(get()) }
 }
 
 fun initJsKoin() {

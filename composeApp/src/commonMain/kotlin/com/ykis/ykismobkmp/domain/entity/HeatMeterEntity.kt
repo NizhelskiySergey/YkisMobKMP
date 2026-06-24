@@ -1,62 +1,60 @@
 package com.ykis.ykismobkmp.domain.entity
 
-
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import com.ykis.ykismobkmp.core.utils.SmartLongSerializer
+import com.ykis.ykismobkmp.core.utils.SmartDoubleSerializer
 
 /**
- * [HeatMeterEntity] — Чистая кроссплатформенная доменная модель счетчика тепла г. Южный.
- * ПОЛНОСТЬЮ ОЧИЩЕНА от Android Room аннотаций для стабильной сборки на Mac Desktop и iOS.
+ * [HeatMeterEntity] — Доменна модель теплолічильника ЮТКЕ.
+ * ВІДНОВЛЕНО: Всі поля для коректної роботи Мапперів та СУБД.
  */
 @Serializable
 data class HeatMeterEntity(
-  // ИСПРАВЛЕНО: Ключевые идентификаторы переведены на тип Long согласно сквозному КМР-стандарту
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("teplomer_id")
   val teplomerId: Long = 0L,
 
-  @SerialName("nomer")
+  @SerialName("num")
   val number: String = "Unknown",
 
-  @SerialName("model")
   val model: String = "Unknown",
 
-  // ИСПРАВЛЕНО: modelId переведен на Long для бесшовной стыковки с СУБД SQLDelight
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("model_id")
   val modelId: Long = 0L,
 
-  // ИСПРАВЛЕНО: addressId переведен на Long под архитектуру Use Case и биллинга ЮЖНОГО
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("address_id")
   val addressId: Long = 0L,
 
-  @SerialName("edizm")
   val edizm: String = "Unknown",
-
-  @SerialName("koef")
   val koef: String = "Unknown",
 
-  @SerialName("area")
+  @Serializable(with = SmartDoubleSerializer::class)
   val area: Double = 0.0,
 
-  @SerialName("sdate")
   val sdate: String = "Unknown",
-
-  @SerialName("fpdate")
   val fpdate: String = "Unknown",
-
-  @SerialName("pdate")
   val pdate: String = "Unknown",
 
-  // ИСПРАВЛЕНО: Платформозависимый Byte изменен на универсальный Kotlin Int
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("out")
   val isOut: Long = 0L,
 
-  @SerialName("spisan")
+  @Serializable(with = SmartLongSerializer::class)
   val spisan: Long = 0L,
 
-  @SerialName("data_spis")
+  @SerialName("date_spisan")
   val dataSpis: String = "Unknown",
 
-  @SerialName("work")
+  @Serializable(with = SmartLongSerializer::class)
   val work: Long = 0L,
-)
 
+  @Serializable(with = SmartDoubleSerializer::class)
+  @SerialName("last_pok")
+  val lastReading: Double = 0.0,
+
+  @SerialName("last_data")
+  val lastDate: String? = null
+)
