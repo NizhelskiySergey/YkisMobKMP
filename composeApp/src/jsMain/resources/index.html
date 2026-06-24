@@ -32,12 +32,11 @@
     };
 
     if (firebase.apps.length === 0) { firebase.initializeApp(firebaseConfig); }
-    console.log("[JS] INDEX.HTML VERSION: 2.2.2 (MODAL_FORCED)");
+щыии    console.log("[JS] INDEX.HTML VERSION: 2.2.9 (ADMIN_FIX)");
 
     window.triggerGoogleAuth = function(clientId) {
-        console.log("[JS] triggerGoogleAuth v2.2.2 START");
+        console.log("[JS] triggerGoogleAuth v2.2.9 START");
 
-        // Визначаємо браузер
         const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
 
         try {
@@ -46,6 +45,7 @@
                 ux_mode: 'popup',
                 auto_select: false,
                 use_fedcm_for_prompt: true,
+                prompt: 'select_account', // ЗМУШУЄ GOOGLE ПОКАЗАТИ СПИСОК АКАУНТІВ
                 callback: (response) => {
                     console.log("[JS] Token success!");
                     document.getElementById('google-auth-overlay').style.display = 'none';

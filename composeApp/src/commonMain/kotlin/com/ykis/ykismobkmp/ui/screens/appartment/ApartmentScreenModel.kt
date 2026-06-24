@@ -324,12 +324,38 @@ class ApartmentScreenModel(
 
   fun addApartment() {
     val input = _secretCode.value.trim()
-    if (input.isEmpty()) return
-    val uid = firebaseService.uid ?: return
+    println("[YkisLogKMP.$className]: Метод addApartment запущен. Input: $input")
+    
+    if (input.isEmpty()) {
+        println("[YkisLogKMP.$className]: Input порожній, вихід.")
+        return
+    }
+    
+    val currentUid = firebaseService.uid
+    println("[YkisLogKMP.$className]: Поточний UID: $currentUid")
+    
+    if (currentUid.isBlank()) {
+        println("[YkisLogKMP.$className]: UID порожній, спроба отримати через getUid()...")
+        screenModelScope.launch {
+            val asyncUid = firebaseService.getUid()
+            if (asyncUid.isNotBlank()) proceedAddApartment(input, asyncUid)
+            else {
+                _uiState.update { it.copy(mainLoading = false) }
+                SnackbarManager.showMessage("Помилка: UID не знайдено")
+            }
+        }
+    } else {
+        proceedAddApartment(input, currentUid)
+    }
+  }
+
+  private fun proceedAddApartment(input: String, uid: String) {
     val email = firebaseService.email ?: ""
     _secretCode.value = ""
     _uiState.update { it.copy(mainLoading = true) }
+
     if (input.all { it.isDigit() }) {
+      println("[YkisLogKMP.$className]: ЛОГІКА ДЛЯ ЖИТЕЛЬЦЯ (Прив'язка о/р)")
       apartmentService.addApartment(input, uid, email).onEach { result ->
         if (result is Resource.Success) {
             SnackbarManager.showMessage("Рахунок успішно прив'язаний")
@@ -341,6 +367,39 @@ class ApartmentScreenModel(
         } else if (result is Resource.Error) {
             _uiState.update { it.copy(mainLoading = false) }
             SnackbarManager.showMessage(result.message ?: "Помилка")
+        }
+      }.launchIn(screenModelScope)
+    } else {
+      println("[YkisLogKMP.$className]: ЛОГІКА ДЛЯ АДМІНІСТРАТОРА (Секретне слово): $input")
+      apartmentService.verifyAdminCode(input, uid).onEach { result ->
+        when (result) {
+          is Resource.Success -> {
+            val data = result.data
+            if (data != null) {
+                println("[YkisLogKMP.$className]: Адмін-доступ надано. Справа за Firestore...")
+                screenModelScope.launch {
+                    firebaseService.updateUserRoleAndPermissions(
+                        uid = uid,
+                        addressId = data.addressId,
+                        userRole = UserRole.fromString(data.userRole),
+                        osbbId = data.osbbId,
+                        displayName = data.address ?: data.osbb ?: "Адмін",
+                        fio = data.nanim ?: "",
+                        osbb = data.osbb
+                    )
+                    delay(1000)
+                    observeUserProfile()
+                    delay(2000)
+                    if (_uiState.value.mainLoading) _uiState.update { it.copy(mainLoading = false) }
+                }
+            }
+            SnackbarManager.showMessage("Адмін-доступ надано успішно")
+          }
+          is Resource.Error -> {
+            _uiState.update { it.copy(mainLoading = false) }
+            SnackbarManager.showMessage(result.message ?: "Невірний секретний код")
+          }
+          is Resource.Loading -> { }
         }
       }.launchIn(screenModelScope)
     }

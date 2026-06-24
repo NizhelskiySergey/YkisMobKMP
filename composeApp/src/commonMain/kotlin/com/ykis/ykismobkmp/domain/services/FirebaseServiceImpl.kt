@@ -281,15 +281,16 @@ class FirebaseServiceImpl(
       if (currentUid.isBlank()) return
       val token = getPlatformFcmToken() ?: return
       
-      println("[YkisLogKMP.$className.addFcmToken]: Реєстрація токена FCM: ${token.take(10)}...")
+      println("[YkisLogKMP.$className.addFcmToken]: Спроба реєстрації токена: $token")
       
-      // На Вебі використовуємо set з merge, щоб створити поле fcmTokens, якщо його немає
-      val updates = mapOf("fcmTokens" to dev.gitlive.firebase.firestore.FieldValue.arrayUnion(token))
+      // Використовуємо просту MutableMap для усунення проблем серіалізації в JS
+      val updates = mutableMapOf<String, Any>()
+      updates["fcmTokens"] = dev.gitlive.firebase.firestore.FieldValue.arrayUnion(token)
       
       withTimeout(10000) {
           db.collection("users").document(currentUid).set(data = updates, merge = true)
       }
-      println("[YkisLogKMP.$className.addFcmToken]: Токен успішно збережено")
+      println("[YkisLogKMP.$className.addFcmToken]: Токен успішно збережено у Firestore")
     } catch (e: Exception) {
       println("[YkisLogKMP.$className.addFcmToken_ERROR]: ${e.message}")
     }
