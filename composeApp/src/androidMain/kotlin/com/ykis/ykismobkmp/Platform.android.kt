@@ -7,3 +7,8 @@ class AndroidPlatform : Platform {
 }
 
 actual fun getPlatform(): Platform = AndroidPlatform()
+
+actual fun restartApp() {
+    // На Android мова зазвичай змінюється через ресурси системи,
+    // але якщо потрібно програмно - Activity.recreate()
+}

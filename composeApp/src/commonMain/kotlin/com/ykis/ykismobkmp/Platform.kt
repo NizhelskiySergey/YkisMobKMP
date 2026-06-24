@@ -5,3 +5,8 @@ interface Platform {
 }
 
 expect fun getPlatform(): Platform
+
+/**
+ * [restartApp] — Примусове перезавантаження додатку для застосування налаштувань (наприклад, мови).
+ */
+expect fun restartApp()

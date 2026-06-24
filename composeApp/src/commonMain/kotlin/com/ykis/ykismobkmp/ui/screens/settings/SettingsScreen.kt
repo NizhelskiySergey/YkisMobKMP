@@ -35,7 +35,6 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.*
 
-private const val APP_LANGUAGE_KEY = "app_language"
 private const val THEME_KEY = "theme_key"
 
 enum class AppLanguage(val isoCode: String, val displayNameRes: StringResource) {
@@ -66,9 +65,7 @@ class SettingsScreen(
 
     // Стейт для языка
     val languages = AppLanguage.entries
-    var currentLanguageCode by remember { 
-        mutableStateOf(appCache.getString(APP_LANGUAGE_KEY, "uk")) 
-    }
+    val currentLanguageCode by screenModel.language.collectAsState()
     val languageIndex = languages.indexOfFirst { it.isoCode == currentLanguageCode }.let { if (it == -1) 0 else it }
 
     var showChangeThemeDialog by remember { mutableStateOf(false) }
@@ -145,8 +142,7 @@ class SettingsScreen(
             dismissButtonText = stringResource(Res.string.cancel),
             onSubmitButtonClick = { id ->
                 val selectedLang = languages[id].isoCode
-                appCache.putString(APP_LANGUAGE_KEY, selectedLang)
-                currentLanguageCode = selectedLang
+                screenModel.setLanguageValue(selectedLang)
                 showLanguageDialog = false
             },
             onDismissRequest = { showLanguageDialog = false }

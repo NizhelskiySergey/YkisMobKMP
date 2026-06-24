@@ -167,17 +167,17 @@
   <string name="employer_text_colon">Гл. наниматель (ФИО):</string>
   <string name="employer_none">данные отсутствуют</string>
   <string name="owner_text">Владелец:</string>
-  <string name="empty_phone">Добавьте номер телефона</string>
-  <string name="empty_email">Добавьте электронный адрес</string>
+  <string name="empty_phone">Додайте номер телефону</string>
+  <string name="empty_email">Додайте електронну адресу</string>
 
   <!-- Службы -->
-  <string name="vodokanal">КП "ЮЖВОДОКАНАЛ"</string>
-  <string name="vodokanal_colon">KП "ЮЖВОДОКАНАЛ":</string>
-  <string name="ytke">КП тc "ЮТКЭ"</string>
+  <string name="vodokanal">КП \"ЮЖВОДОКАНАЛ\"</string>
+  <string name="vodokanal_colon">KП \"ЮЖВОДОКАНАЛ\":</string>
+  <string name="ytke">КП тс \"ЮТКЭ\"</string>
   <string name="ytke_short">ЮТКЭ</string>
-  <string name="ytke_colon">КП тс "ЮТКЭ":</string>
-  <string name="yzhtrans">КП "СПЕЦТРАНС"</string>
-  <string name="yzhtrans_colon">КП "СПЕЦТРАНС":</string>
+  <string name="ytke_colon">КП тс \"ЮТКЭ\":</string>
+  <string name="yzhtrans">КП \"СПЕЦТРАНС\"</string>
+  <string name="yzhtrans_colon">КП \"СПЕЦТРАНС\":</string>
   <string name="organ">Организация</string>
   <string name="borg_text">Долг на %s</string>
   <string name="compound_text">Состав семьи</string>
@@ -305,6 +305,18 @@
   <string name="error_cant_send_email">Невозможно отправить на этот email.</string>
   <string name="error_add_reading">Не удалось добавить показание.</string>
   <string name="error_incorrect_reading">Ошибка ввода. Проверьте данные.</string>
+  <string name="error_google_auth">Помилка авторизації Google</string>
+  <string name="error_empty_uid">Ідентифікатор користувача порожній</string>
+  <string name="error_process">Помилка обробки даних</string>
+  <string name="error_auth_session_expired">Сесія авторизації вичерпана</string>
+  <string name="error_unknown_deletion">Невідома помилка при видаленні</string>
+  <string name="error_session_refresh_failed">Помилка оновлення сесії</string>
+  <string name="error_registration_failed">Помилка реєстрації</string>
+  <string name="error_load_osbb">Помилка завантаження реєстру ОСББ</string>
+  <string name="error_load_raions">Помилка завантаження районів</string>
+  <string name="error_load_houses">Помилка завантаження будинків</string>
+  <string name="error_load_family">Помилка завантаження складу сім\'ї</string>
+  <string name="error_invalid_data">Отримано некоректні дані від сервера</string>
 
   <!-- Успех -->
   <string name="success_delete_flat">Квартира удалена.</string>
@@ -318,7 +330,7 @@
   <string name="already_have_account">Уже есть аккаунт?</string>
   <string name="dont_have_account">Еще нет аккаунта?</string>
   <string name="login">Вход</string>
-  <string name="terms_condition">Условия пользования "ЮКИС"</string>
+  <string name="terms_condition">Условия пользования \"ЮКИС\"</string>
   <string name="terms_condition_accept">Я принимаю условия соглашения</string>
   <string name="terms_condition_down">Прокрутите текст до конца ↓</string>
   <string name="chats">Чаты</string>
@@ -338,6 +350,7 @@
   <string name="send_request">Отправить запрос</string>
   <string name="ic_arrow_forward">стрелка вправо</string>
   <string name="loading_from_wifi">Через Wi-Fi</string>
+  <string name="search_apartment_hint">Поиск по адресу или л/с</string>
   <string name="loading_from_mobile">Через мобильную сеть</string>
   <string name="settings_loadin_from_server">Загрузка с сервера</string>
   <string name="driver_menu">боковое меню</string>

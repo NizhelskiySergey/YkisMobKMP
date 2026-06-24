@@ -7,3 +7,7 @@ class IOSPlatform: Platform {
 }
 
 actual fun getPlatform(): Platform = IOSPlatform()
+
+actual fun restartApp() {
+    // На iOS програмне перезавантаження не рекомендується Apple
+}

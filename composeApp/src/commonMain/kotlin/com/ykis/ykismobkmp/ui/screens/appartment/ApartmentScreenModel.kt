@@ -258,8 +258,8 @@ class ApartmentScreenModel(
     if (result is Resource.Success) {
       val incoming = result.data ?: emptyList()
       
-      val housesFromApts = incoming.map { 
-          HouseEntity(houseId = it.houseId, house = it.address.substringBefore("/"), raionId = it.blockId) 
+      val housesFromApts = incoming.map {
+          HouseEntity(houseId = it.houseId, house = it.address.substringBefore("/"), raionId = it.blockId)
       }.distinctBy { it.houseId }
 
       _uiState.update { state ->

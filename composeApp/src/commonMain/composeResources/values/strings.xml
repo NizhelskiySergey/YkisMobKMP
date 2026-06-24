@@ -175,13 +175,13 @@
   <string name="empty_email">Додайте електронну адресу</string>
 
   <!-- Служби -->
-  <string name="vodokanal">КП "ЮЖВОДОКАНАЛ"</string>
-  <string name="vodokanal_colon">KП "ЮЖВОДОКАНАЛ":</string>
-  <string name="ytke">КП тм "ЮТКЕ"</string>
+  <string name="vodokanal">КП \"ЮЖВОДОКАНАЛ\"</string>
+  <string name="vodokanal_colon">KП \"ЮЖВОДОКАНАЛ\":</string>
+  <string name="ytke">КП тм \"ЮТКЕ\"</string>
   <string name="ytke_short">ЮТКЕ</string>
-  <string name="ytke_colon">КП тм "ЮТКЕ":</string>
-  <string name="yzhtrans">КП "СПЕЦТРАНС"</string>
-  <string name="yzhtrans_colon">КП "СПЕЦТРАНС":</string>
+  <string name="ytke_colon">КП тм \"ЮТКЕ\":</string>
+  <string name="yzhtrans">КП \"СПЕЦТРАНС\"</string>
+  <string name="yzhtrans_colon">КП \"СПЕЦТРАНС\":</string>
   <string name="organ">Організація</string>
   <string name="borg_text">Борг на %s</string>
   <string name="compound_text">Склад сім’ї</string>
@@ -339,7 +339,7 @@
   <string name="already_have_account">Вже є акаунт?</string>
   <string name="dont_have_account">Ще немає акаунта?</string>
   <string name="login">Вхід</string>
-  <string name="terms_condition">Умови користування "ЮКІС"</string>
+  <string name="terms_condition">Умови користування \"ЮКІС\"</string>
   <string name="terms_condition_accept">Я приймаю умови угоди</string>
   <string name="terms_condition_down">Прокрутіть текст до кінця ↓</string>
   <string name="chats">Чати</string>
@@ -470,4 +470,5 @@
   <string name="all_citizens">📍 Усім мешканцям міста</string>
   <string name="residents_of">🏠 Мешканцям %s</string>
   <string name="osbb">ОСББ</string>
+  <string name="search_apartment_hint">Пошук за адресою або о/р</string>
 </resources>

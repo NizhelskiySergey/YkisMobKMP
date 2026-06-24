@@ -34,10 +34,10 @@ object SmartLongSerializer : KSerializer<Long> {
         // Спроба 2: Пряме читання (якщо це Firestore або інший формат)
         return try {
             decoder.decodeLong()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             try {
                 decoder.decodeDouble().toLong()
-            } catch (e2: Exception) {
+            } catch (_: Exception) {
                 0L
             }
         }
@@ -57,10 +57,10 @@ object SmartDoubleSerializer : KSerializer<Double> {
         }
         return try {
             decoder.decodeDouble()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             try {
                 decoder.decodeString().toDoubleOrNull() ?: 0.0
-            } catch (e2: Exception) {
+            } catch (_: Exception) {
                 0.0
             }
         }
@@ -80,7 +80,7 @@ object SmartIntSerializer : KSerializer<Int> {
         }
         return try {
             decoder.decodeInt()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             0
         }
     }
