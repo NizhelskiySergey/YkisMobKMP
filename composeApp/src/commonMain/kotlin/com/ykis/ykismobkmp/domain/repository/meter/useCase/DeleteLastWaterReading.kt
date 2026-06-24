@@ -9,9 +9,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import org.jetbrains.compose.resources.getString
+import ykismobkmp.composeapp.generated.resources.*
 
 /**
- * [DeleteLastWaterReading] — Сценарий удаления ошибочных показаний водомера.
+ * [DeleteLastWaterReading] — Use Case видалення показань води.
+ * УНІФІКОВАНО: Локалізація та стандартне логування.
  */
 class DeleteLastWaterReading(
   private val repository: MeterRepository,
@@ -19,47 +22,31 @@ class DeleteLastWaterReading(
 ) {
   private val className = "DeleteLastWaterReading"
 
-  /**
-   * [invoke] — Выполнение Use Case.
-   * ЯВНО ТИПИЗИРОВАНО: Возвращает Flow строго с типом Resource<GetSimpleResponse?>.
-   */
-  operator fun invoke(uid: String, readingId: Long): Flow<Resource<GetSimpleResponse?>> =
-    flow<Resource<GetSimpleResponse?>> { // Принудительно задаем тип контекста всего потока
-      val methodName = "invoke"
-      try {
-        emit(Resource.Loading())
+  operator fun invoke(uid: String, readingId: Long): Flow<Resource<GetSimpleResponse?>> = flow {
+    try {
+      emit(Resource.Loading())
 
-        // Запрос в сеть через очищенный Ktor репозиторий напрямую
-        val response = repository.deleteLastWaterReading(uid, readingId)
+      val response = repository.deleteLastWaterReading(uid, readingId)
 
-        if (response.success == 1) {
-          /**
-           * АТОМАРНОЕ УДАЛЕНИЕ ИЗ СУБД:
-           * Вызываем удаление показания воды из локального кэша через MeterDao,
-           * инкапсулированный внутри нашего единого MeterRepositoryCash.
-           */
-          try {
-            // В будущем при расширении MeterRepositoryCash сюда можно добавить прямой метод:
-            // meterCache.deleteWaterReadingById(readingId)
-            println("[$className.$methodName]: Показання води $readingId успішно видалено з локальної СУБД")
-          } catch (dbEx: Exception) {
-            println("[$className.$methodName]: Помилка видалення з локального кэшу: ${dbEx.message}")
-          }
-
-          // Явно типизируем фабрику успеха nullable-аргументом
-          emit(Resource.Success<GetSimpleResponse?>(response))
-          SnackbarManager.showMessage("Показання успішно видалені")
-        } else {
-          // Явно типизируем ошибку сервера под контракт потока
-          emit(Resource.Error<GetSimpleResponse?>(message = response.message ?: "Помилка видалення"))
+      if (response.success == 1) {
+        // На вебі ми ігноруємо кеш
+        if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+            try { meterCache.deleteWaterReadingByPokId(readingId) } catch (e: Exception) { }
         }
-
-      } catch (ex: Exception) {
-        println("[$className.$methodName]: [FATAL_ERROR] Сбой удаления Ktor: ${ex.message}")
-        SnackbarManager.showMessage("Помилка зв'язку з сервером водопостачання")
-
-        // Принудительно типизируем КМР-фабрику ошибки, закрывая Return type mismatch
-        emit(Resource.Error<GetSimpleResponse?>(message = ex.message ?: "Помилка мережі"))
+        
+        emit(Resource.Success<GetSimpleResponse?>(response))
+        SnackbarManager.showMessage(getString(Res.string.success_delete))
+      } else {
+        val errorMsg = response.message ?: getString(Res.string.error_server)
+        emit(Resource.Error<GetSimpleResponse?>(message = errorMsg))
+        SnackbarManager.showMessage(errorMsg)
       }
-    }.flowOn(Dispatchers.Default) // Безопасный КМР-пул потоков корутин
+
+    } catch (ex: Exception) {
+      println("[YkisLogKMP.$className]: [ERROR] ${ex.message}")
+      val netError = getString(Res.string.error_network_request_failed)
+      emit(Resource.Error<GetSimpleResponse?>(message = netError))
+      SnackbarManager.showMessage(netError)
+    }
+  }.flowOn(Dispatchers.Default)
 }

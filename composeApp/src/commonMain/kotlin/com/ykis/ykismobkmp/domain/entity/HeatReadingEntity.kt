@@ -2,20 +2,24 @@ package com.ykis.ykismobkmp.domain.entity
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import com.ykis.ykismobkmp.core.utils.SmartLongSerializer
+import com.ykis.ykismobkmp.core.utils.SmartDoubleSerializer
 
 /**
- * [HeatReadingEntity] — Кроссплатформенная доменная модель показаний счетчика тепла.
- * Полностью типизирована под Long для бесшовной интеграции с SQLDelight и Ktor.
+ * [HeatReadingEntity] — Доменна модель історії показань тепла.
+ * УНІФІКОВАНО: Використовуються Smart-серіалізатори для парсингу JSON.
  */
 @Serializable
 data class HeatReadingEntity(
-  // ИСПРАВЛЕНО: Все ключевые ЖКХ-идентификаторы переведены на тип Long
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("address_id")
   val addressId: Long = 0L,
 
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("pok_id")
   val pokId: Long = 0L,
 
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("teplomer_id")
   val teplomerId: Long = 0L,
 
@@ -34,26 +38,31 @@ data class HeatReadingEntity(
   @SerialName("koef")
   val koef: String = "Unknown",
 
-  // ИСПРАВЛЕНО: Платформозависимый Short изменен на универсальный Int
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("days")
   val days: Long = 0L,
 
+  @Serializable(with = SmartDoubleSerializer::class)
   @SerialName("last")
   val last: Double = 0.0,
 
+  @Serializable(with = SmartDoubleSerializer::class)
   @SerialName("current")
   val current: Double = 0.0,
 
+  @Serializable(with = SmartDoubleSerializer::class)
   @SerialName("gkal")
   val gkal: Double = 0.0,
 
-  // ИСПРАВЛЕНО: Платформозависимый Byte изменен на универсальный Int
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("avg")
   val avg: Long = 0L,
 
+  @Serializable(with = SmartDoubleSerializer::class)
   @SerialName("tarif")
   val tarif: Double = 0.0,
 
+  @Serializable(with = SmartDoubleSerializer::class)
   @SerialName("qty")
   val qty: Double = 0.0,
 
@@ -81,5 +90,3 @@ data class HeatReadingEntity(
   @SerialName("operator")
   val operator: String = "Unknown"
 )
-
-

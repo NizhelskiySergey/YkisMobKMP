@@ -8,54 +8,48 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import org.jetbrains.compose.resources.getString
+import ykismobkmp.composeapp.generated.resources.*
 
 /**
- * [AddWaterReading] — Сценарий передачи новых показаний кубометров водомера в расчетный центр.
+ * [AddWaterReading] — Use Case передачі показань води.
+ * УНІФІКОВАНО: Локалізовані повідомлення та стандартне логування.
  */
 class AddWaterReading(
   private val repository: MeterRepository
 ) {
   private val className = "AddWaterReading"
 
-  /**
-   * [invoke] — Выполнение Use Case через передачу индивидуальных базовых параметров.
-   * ЯВНО ТИПИЗИРОВАНО: Возвращает Flow строго с типом Resource<GetSimpleResponse?>.
-   */
   operator fun invoke(
     uid: String,
     vodomerId: Long,
     currentValue: Long,
     newValue: Long
-  ): Flow<Resource<GetSimpleResponse?>> =
-    flow<Resource<GetSimpleResponse?>> { // Принудительно задаем тип контекста всего потока
-      val methodName = "invoke"
-      try {
-        emit(Resource.Loading())
+  ): Flow<Resource<GetSimpleResponse?>> = flow {
+    try {
+      emit(Resource.Loading())
 
-        // ИСПРАВЛЕНО НАМЕРТВО: Прямой проброс базовых типов в обновленный репозиторий без упаковки в params!
-        val response = repository.addWaterReading(
-          uid = uid,
-          vodomerId = vodomerId,
-          currentValue = currentValue,
-          newValue = newValue
-        )
+      val response = repository.addWaterReading(
+        uid = uid,
+        vodomerId = vodomerId,
+        currentValue = currentValue,
+        newValue = newValue
+      )
 
-        if (response.success == 1) {
-          // ЯВНО ТИПИЗИРУЕМ: Указываем генерик для Success, исключая mismatch типов
-          emit(Resource.Success<GetSimpleResponse?>(response))
-          SnackbarManager.showMessage("Показання успішно додані")
-        } else {
-          // Показываем сообщение об ошибке от бэкенда расчетного центра г. Южный
-          emit(Resource.Error<GetSimpleResponse?>(message = response.message ?: "Помилка додавання"))
-          SnackbarManager.showMessage(response.message ?: "Помилка білінгу")
-        }
-
-      } catch (ex: Exception) {
-        println("[$className.$methodName]: [FATAL_ERROR] Сбой Ktor при добавлении показаний воды: ${ex.message}")
-        SnackbarManager.showMessage("Помилка зв'язку з сервером водопостачання")
-
-        // Принудительно типизируем КМР-фабрику ошибки под контракт потока
-        emit(Resource.Error<GetSimpleResponse?>(message = ex.message ?: "Помилка мережі"))
+      if (response.success == 1) {
+        emit(Resource.Success<GetSimpleResponse?>(response))
+        SnackbarManager.showMessage(getString(Res.string.reading_added))
+      } else {
+        val errorMsg = response.message ?: getString(Res.string.error_add_reading)
+        emit(Resource.Error<GetSimpleResponse?>(message = errorMsg))
+        SnackbarManager.showMessage(errorMsg)
       }
-    }.flowOn(Dispatchers.Default) // Кроссплатформенный пул потоков корутин
+
+    } catch (ex: Exception) {
+      println("[YkisLogKMP.$className]: [ERROR] ${ex.message}")
+      val netError = getString(Res.string.error_network_request_failed)
+      emit(Resource.Error<GetSimpleResponse?>(message = netError))
+      SnackbarManager.showMessage(netError)
+    }
+  }.flowOn(Dispatchers.Default)
 }

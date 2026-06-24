@@ -11,12 +11,13 @@ import com.ykis.ykismobkmp.ui.BaseScreenModel
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
+import org.jetbrains.compose.resources.getString
+import ykismobkmp.composeapp.generated.resources.*
 
 /**
- * [MeterScreenModel] — Кроссплатформенная модель управления списками счетчиков тепла и воды ЮКИС.
+ * [MeterScreenModel] — Кроссплатформенная модель управления списками счетчиков тепла и воды.
+ * УНІФІКОВАНО: Локалізація та стандартне логування.
  */
-
 class MeterScreenModel(
   private val meterService: MeterService,
   logService: LogService
@@ -24,16 +25,10 @@ class MeterScreenModel(
 
   private val className = "MeterScreenModel"
 
-  /**
-   * [onTabSelect] — Переключение между водой и теплом.
-   */
   fun onTabSelect(index: Int) {
     _uiState.update { it.copy(selectedTab = index) }
   }
 
-  /**
-   * [getWaterMeterList] — Запрос и реактивное обновление приборов учета Водоканала города Южный.
-   */
   fun getWaterMeterList(uid: String, addressId: Long) {
     val methodName = "getWaterMeterList"
     if (uid.isBlank() || addressId <= 0L) return
@@ -43,34 +38,21 @@ class MeterScreenModel(
         _uiState.update { currentState ->
           when (result) {
             is Resource.Success -> {
-              val metersList = result.data ?: emptyList()
-              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Выведено ${metersList.size} водомеров")
-              currentState.copy(
-                waterMeterList = metersList,
-                isMetersLoading = false,
-                error = null
-              )
+              val meters = result.data ?: emptyList()
+              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] ${meters.size} водомірів")
+              currentState.copy(waterMeterList = meters, isMetersLoading = false, error = null)
             }
             is Resource.Error -> {
-              println("[YkisLogKMP.$className.$methodName]: [ERROR] Сбой загрузки водомеров: ${result.message}")
-              currentState.copy(
-                error = result.message ?: "Ошибка загрузки данных Водоканала",
-                isMetersLoading = false
-              )
+              println("[YkisLogKMP.$className.$methodName]: [ERROR] ${result.message}")
+              currentState.copy(error = result.message, isMetersLoading = false)
             }
-            is Resource.Loading -> {
-              println("[YkisLogKMP.$className.$methodName]: [LOADING] Запрос списка приборов учета воды...")
-              currentState.copy(isMetersLoading = true)
-            }
+            is Resource.Loading -> currentState.copy(isMetersLoading = true)
           }
         }
       }
     }
   }
 
-  /**
-   * [getHeatMeterList] — Запрос и реактивное обновление приборов учета Теплосети (ЮТКЕ) города Южный.
-   */
   fun getHeatMeterList(uid: String, addressId: Long) {
     val methodName = "getHeatMeterList"
     if (uid.isBlank() || addressId <= 0L) return
@@ -80,25 +62,15 @@ class MeterScreenModel(
         _uiState.update { currentState ->
           when (result) {
             is Resource.Success -> {
-              val metersList = result.data ?: emptyList()
-              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Выведено ${metersList.size} теплосчетчиков")
-              currentState.copy(
-                heatMeterList = metersList,
-                isMetersLoading = false,
-                error = null
-              )
+              val meters = result.data ?: emptyList()
+              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] ${meters.size} лічильників тепла")
+              currentState.copy(heatMeterList = meters, isMetersLoading = false, error = null)
             }
             is Resource.Error -> {
-              println("[YkisLogKMP.$className.$methodName]: [ERROR] Сбой загрузки теплосчетчиков: ${result.message}")
-              currentState.copy(
-                error = result.message ?: "Ошибка загрузки данных ЮТКЕ",
-                isMetersLoading = false
-              )
+              println("[YkisLogKMP.$className.$methodName]: [ERROR] ${result.message}")
+              currentState.copy(error = result.message, isMetersLoading = false)
             }
-            is Resource.Loading -> {
-              println("[YkisLogKMP.$className.$methodName]: [LOADING] Запрос списка приборов учета тепла...")
-              currentState.copy(isMetersLoading = true)
-            }
+            is Resource.Loading -> currentState.copy(isMetersLoading = true)
           }
         }
       }
@@ -125,9 +97,6 @@ class MeterScreenModel(
     _uiState.update { it.copy(showDetail = false) }
   }
 
-  /**
-   * [getWaterReadings] — Запрос истории показаний водомера.
-   */
   fun getWaterReadings(uid: String, vodomerId: Long) {
     val methodName = "getWaterReadings"
     if (uid.isBlank() || vodomerId <= 0L) return
@@ -137,31 +106,21 @@ class MeterScreenModel(
         _uiState.update { currentState ->
           when (result) {
             is Resource.Success -> {
-              val readingsList = result.data ?: emptyList()
-              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Получено ${readingsList.size} показаний воды")
-              currentState.copy(
-                waterReadings = readingsList,
-                isReadingsLoading = false,
-                error = null
-              )
+              val readings = result.data ?: emptyList()
+              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] ${readings.size} записів води")
+              currentState.copy(waterReadings = readings, isReadingsLoading = false, error = null)
             }
             is Resource.Error -> {
-              println("[YkisLogKMP.$className.$methodName]: [ERROR] Сбой загрузки истории воды: ${result.message}")
+              println("[YkisLogKMP.$className.$methodName]: [ERROR] ${result.message}")
               currentState.copy(isReadingsLoading = false)
             }
-            is Resource.Loading -> {
-              println("[YkisLogKMP.$className.$methodName]: [LOADING] Запрос истории показаний водомера...")
-              currentState.copy(isReadingsLoading = true)
-            }
+            is Resource.Loading -> currentState.copy(isReadingsLoading = true)
           }
         }
       }
     }
   }
 
-  /**
-   * [getLastWaterReading] — Чтение последнего зафиксированного показания водомера.
-   */
   fun getLastWaterReading(uid: String, vodomerId: Long) {
     val methodName = "getLastWaterReading"
     if (uid.isBlank() || vodomerId <= 0L) return
@@ -171,30 +130,20 @@ class MeterScreenModel(
         _uiState.update { currentState ->
           when (result) {
             is Resource.Success -> {
-              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Последнее показание воды получено")
-              currentState.copy(
-                lastWaterReading = result.data,
-                isLastReadingLoading = false,
-                error = null
-              )
+              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Показання води отримано")
+              currentState.copy(lastWaterReading = result.data, isLastReadingLoading = false, error = null)
             }
             is Resource.Error -> {
-              println("[YkisLogKMP.$className.$methodName]: [ERROR] Сбой получения последнего показания воды: ${result.message}")
+              println("[YkisLogKMP.$className.$methodName]: [ERROR] ${result.message}")
               currentState.copy(isLastReadingLoading = false)
             }
-            is Resource.Loading -> {
-              println("[YkisLogKMP.$className.$methodName]: [LOADING] Запрос последнего показания водомера...")
-              currentState.copy(isLastReadingLoading = true)
-            }
+            is Resource.Loading -> currentState.copy(isLastReadingLoading = true)
           }
         }
       }
     }
   }
 
-  /**
-   * [getHeatReadings] — Архив истории гигакалорий теплосети.
-   */
   fun getHeatReadings(uid: String, teplomerId: Long) {
     val methodName = "getHeatReadings"
     screenModelScope.launch {
@@ -202,30 +151,21 @@ class MeterScreenModel(
         _uiState.update { currentState ->
           when (result) {
             is Resource.Success -> {
-              val readingsList = result.data ?: emptyList()
-              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Получено ${readingsList.size} показаний тепла")
-              currentState.copy(
-                heatReadings = readingsList,
-                isReadingsLoading = false
-              )
+              val readings = result.data ?: emptyList()
+              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] ${readings.size} записів тепла")
+              currentState.copy(heatReadings = readings, isReadingsLoading = false)
             }
             is Resource.Error -> {
-              println("[YkisLogKMP.$className.$methodName]: [ERROR] Сбой загрузки истории тепла: ${result.message}")
+              println("[YkisLogKMP.$className.$methodName]: [ERROR] ${result.message}")
               currentState.copy(isReadingsLoading = false)
             }
-            is Resource.Loading -> {
-              println("[YkisLogKMP.$className.$methodName]: [LOADING] Запрос истории показаний тепломера...")
-              currentState.copy(isReadingsLoading = true)
-            }
+            is Resource.Loading -> currentState.copy(isReadingsLoading = true)
           }
         }
       }
     }
   }
 
-  /**
-   * [getLastHeatReading] — Чтение последнего зафиксированного показания теплосчетчика.
-   */
   fun getLastHeatReading(uid: String, teplomerId: Long) {
     val methodName = "getLastHeatReading"
     if (uid.isBlank() || teplomerId <= 0L) return
@@ -235,76 +175,53 @@ class MeterScreenModel(
         _uiState.update { currentState ->
           when (result) {
             is Resource.Success -> {
-              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Последнее показание тепла получено")
-              currentState.copy(
-                lastHeatReading = result.data,
-                isLastReadingLoading = false,
-                error = null
-              )
+              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Показання тепла отримано")
+              currentState.copy(lastHeatReading = result.data, isLastReadingLoading = false, error = null)
             }
             is Resource.Error -> {
-              println("[YkisLogKMP.$className.$methodName]: [ERROR] Сбой получения последнего показания тепла: ${result.message}")
+              println("[YkisLogKMP.$className.$methodName]: [ERROR] ${result.message}")
               currentState.copy(isLastReadingLoading = false)
             }
-            is Resource.Loading -> {
-              println("[YkisLogKMP.$className.$methodName]: [LOADING] Запрос последнего показания тепломера...")
-              currentState.copy(isLastReadingLoading = true)
-            }
+            is Resource.Loading -> currentState.copy(isLastReadingLoading = true)
           }
         }
       }
     }
   }
 
-  /**
-   * [addWaterReading] — Передача показаний воды в расчетный центр.
-   * ИСПРАВЛЕНО: Интегрирована жесткая валидация (new >= current).
-   */
   fun addWaterReading(uid: String, newValue: Long, currentValue: Long, vodomerId: Long) {
     val methodName = "addWaterReading"
     if (uid.isBlank() || vodomerId <= 0L) return
 
-    // ВАЛИДАЦИЯ: Новые показания не могут быть меньше текущих
     if (newValue < currentValue) {
-      println("[YkisLogKMP.$className.$methodName]: [REJECT] Введенное значение $newValue меньше текущего $currentValue")
-      SnackbarManager.showMessage("Нові показання не можуть бути меншими за поточні")
+      screenModelScope.launch {
+          SnackbarManager.showMessage(getString(Res.string.error_incorrect_reading))
+      }
       return
     }
 
-    println("[YkisLogKMP.$className.$methodName]: [START] Передача новых кубов воды: $newValue")
+    println("[YkisLogKMP.$className.$methodName]: [START] Передача: $newValue")
 
     screenModelScope.launch {
-      meterService.addWaterReading(
-        uid = uid,
-        vodomerId = vodomerId,
-        currentValue = currentValue,
-        newValue = newValue
-      ).collect { result ->
+      meterService.addWaterReading(uid, vodomerId, currentValue, newValue).collect { result ->
         _uiState.update { currentState ->
           when (result) {
             is Resource.Success -> {
-              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Показания воды добавлены")
-              SnackbarManager.showMessage("Показання успішно додані")
+              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Показання додані")
               getLastWaterReading(uid, vodomerId)
               currentState.copy(isLastReadingLoading = false, error = null)
             }
             is Resource.Error -> {
-              println("[YkisLogKMP.$className.$methodName]: [ERROR] Сбой добавления воды: ${result.message}")
-              SnackbarManager.showMessage(result.message ?: "Ошибка добавления")
+              println("[YkisLogKMP.$className.$methodName]: [ERROR] ${result.message}")
               currentState.copy(isLastReadingLoading = false)
             }
-            is Resource.Loading -> {
-              currentState.copy(isLastReadingLoading = true)
-            }
+            is Resource.Loading -> currentState.copy(isLastReadingLoading = true)
           }
         }
       }
     }
   }
 
-  /**
-   * [deleteLastWaterReading] — Удаление последнего показания воды.
-   */
   fun deleteLastWaterReading(uid: String, vodomerId: Long, readingId: Long) {
     val methodName = "deleteLastWaterReading"
     if (uid.isBlank() || vodomerId <= 0L || readingId <= 0L) return
@@ -314,68 +231,52 @@ class MeterScreenModel(
         _uiState.update { currentState ->
           when (result) {
             is Resource.Success -> {
-              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Показание воды удалено")
-              SnackbarManager.showMessage("Показання успішно видалені")
+              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Показання видалено")
               getLastWaterReading(uid, vodomerId)
               currentState.copy(isLastReadingLoading = false, error = null)
             }
             is Resource.Error -> {
-              println("[YkisLogKMP.$className.$methodName]: [ERROR] Сбой удаления: ${result.message}")
+              println("[YkisLogKMP.$className.$methodName]: [ERROR] ${result.message}")
               currentState.copy(isLastReadingLoading = false)
             }
-            is Resource.Loading -> {
-              currentState.copy(isLastReadingLoading = true)
-            }
+            is Resource.Loading -> currentState.copy(isLastReadingLoading = true)
           }
         }
       }
     }
   }
 
-  /**
-   * [addHeatReading] — Передача показаний тепла.
-   */
   fun addHeatReading(uid: String, teplomerId: Long, currentValue: Double, newValue: Double) {
     val methodName = "addHeatReading"
     if (uid.isBlank() || teplomerId <= 0L) return
 
     if (newValue < currentValue) {
-      println("[YkisLogKMP.$className.$methodName]: [REJECT] Введенное тепло $newValue меньше текущего $currentValue")
-      SnackbarManager.showMessage("Нові показання не можуть бути меншими за поточні")
+      screenModelScope.launch {
+          SnackbarManager.showMessage(getString(Res.string.error_incorrect_reading))
+      }
       return
     }
 
     screenModelScope.launch {
-      meterService.addHeatReading(
-        uid = uid,
-        teplomerId = teplomerId,
-        currentValue = currentValue,
-        newValue = newValue
-      ).collect { result ->
+      meterService.addHeatReading(uid, teplomerId, currentValue, newValue).collect { result ->
         _uiState.update { currentState ->
           when (result) {
             is Resource.Success -> {
-              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Показания тепла добавлены")
-              SnackbarManager.showMessage("Показання успішно додані")
+              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Показання додані")
               getLastHeatReading(uid, teplomerId)
               currentState.copy(isLastReadingLoading = false, error = null)
             }
             is Resource.Error -> {
-              println("[YkisLogKMP.$className.$methodName]: [ERROR] Сбой добавления тепла: ${result.message}")
+              println("[YkisLogKMP.$className.$methodName]: [ERROR] ${result.message}")
               currentState.copy(isLastReadingLoading = false)
             }
-            is Resource.Loading -> {
-              currentState.copy(isLastReadingLoading = true)
-            }
+            is Resource.Loading -> currentState.copy(isLastReadingLoading = true)
           }
         }
       }
     }
   }
 
-  /**
-   * [deleteLastHeatReading] — Удаление последнего показания тепла.
-   */
   fun deleteLastHeatReading(readingId: Long, teplomerId: Long, uid: String) {
     val methodName = "deleteLastHeatReading"
     if (uid.isBlank() || teplomerId <= 0L || readingId <= 0L) return
@@ -385,18 +286,15 @@ class MeterScreenModel(
         _uiState.update { currentState ->
           when (result) {
             is Resource.Success -> {
-              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Показание тепла удалено")
-              SnackbarManager.showMessage("Показання успішно видалені")
+              println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Показання видалено")
               getLastHeatReading(uid, teplomerId)
               currentState.copy(isLastReadingLoading = false, error = null)
             }
             is Resource.Error -> {
-              println("[YkisLogKMP.$className.$methodName]: [ERROR] Сбой удаления тепла: ${result.message}")
+              println("[YkisLogKMP.$className.$methodName]: [ERROR] ${result.message}")
               currentState.copy(isLastReadingLoading = false)
             }
-            is Resource.Loading -> {
-              currentState.copy(isLastReadingLoading = true)
-            }
+            is Resource.Loading -> currentState.copy(isLastReadingLoading = true)
           }
         }
       }
@@ -415,6 +313,3 @@ class MeterScreenModel(
     _uiState.update { it.copy(selectedContentDetail = contentDetail) }
   }
 }
-// Конец класса MeterScreenModel
-
-
