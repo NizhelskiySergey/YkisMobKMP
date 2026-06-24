@@ -1,31 +1,38 @@
 package com.ykis.ykismobkmp.domain.entity
 
-
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import com.ykis.ykismobkmp.core.utils.SmartLongSerializer
+import com.ykis.ykismobkmp.core.utils.SmartDoubleSerializer
 
 /**
- * [PaymentEntity] — Чистая кроссплатформенная доменная модель записи совершенного платежа ГИОЦ г. Южный.
- * Полностью типизирована под Long-идентификаторы для бесшовной стыковки со схемами SQLDelight 2.x.
+ * [PaymentEntity] — Доменна модель здійсненого платежу ЮКІС.
+ * УНІФІКОВАНО: Стійкість до форматів JSON через Smart-серіалізатори.
  */
 @Serializable
 data class PaymentEntity(
-  // ИСПРАВЛЕНО: recID изменен на Long, так как он является INTEGER PRIMARY KEY в СУБД
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("rec_id")
   val recID: Long = 0L,
 
-  // ИСПРАВЛЕНО: addressId переведен на Long под сквозной стандарт лицевых счетов ЮКИС
+  @Serializable(with = SmartLongSerializer::class)
   @SerialName("address_id")
   val addressId: Long = 0L,
 
   @SerialName("data")
   val data: String = "Unknown",
 
+  @Serializable(with = SmartDoubleSerializer::class)
   val kvartplata: Double = 0.00,
+  @Serializable(with = SmartDoubleSerializer::class)
   val remont: Double = 0.00,
+  @Serializable(with = SmartDoubleSerializer::class)
   val otoplenie: Double = 0.00,
+  @Serializable(with = SmartDoubleSerializer::class)
   val voda: Double = 0.00,
+  @Serializable(with = SmartDoubleSerializer::class)
   val tbo: Double = 0.00,
+  @Serializable(with = SmartDoubleSerializer::class)
   val summa: Double = 0.00,
 
   val prixod: String = "Unknown",
@@ -35,5 +42,3 @@ data class PaymentEntity(
   @SerialName("data_in")
   val dataIn: String = "Unknown"
 )
-
-
