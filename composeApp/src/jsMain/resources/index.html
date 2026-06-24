@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>YkisMobKMP v2.2.2</title>
+    <title>YkisMobKMP v2.3.1</title>
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f0f2f5; }
         #google-auth-overlay {
@@ -22,6 +22,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 
 <script>
     const firebaseConfig = {
@@ -32,10 +33,10 @@
     };
 
     if (firebase.apps.length === 0) { firebase.initializeApp(firebaseConfig); }
-щыии    console.log("[JS] INDEX.HTML VERSION: 2.2.9 (ADMIN_FIX)");
+    console.log("[JS] INDEX.HTML VERSION: 2.3.1 (PURE_FEDCM)");
 
     window.triggerGoogleAuth = function(clientId) {
-        console.log("[JS] triggerGoogleAuth v2.2.9 START");
+        console.log("[JS] triggerGoogleAuth v2.3.1 START");
 
         const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
 
@@ -45,7 +46,6 @@
                 ux_mode: 'popup',
                 auto_select: false,
                 use_fedcm_for_prompt: true,
-                prompt: 'select_account', // ЗМУШУЄ GOOGLE ПОКАЗАТИ СПИСОК АКАУНТІВ
                 callback: (response) => {
                     console.log("[JS] Token success!");
                     document.getElementById('google-auth-overlay').style.display = 'none';
@@ -60,18 +60,12 @@
                 { theme: "filled_blue", size: "large", width: 280, shape: "pill" }
             );
 
-            // Якщо це НЕ Chrome — показуємо модальне вікно ВІДРАЗУ,
-            // бо автоматична шторка часто невидима в Firefox/Safari
             if (!isChrome) {
-                console.log("[JS] Non-Chrome browser detected. Showing modal immediately.");
                 document.getElementById('google-auth-overlay').style.display = 'flex';
             }
 
-            // Запускаємо автоматичне вікно
             google.accounts.id.prompt((notification) => {
                 console.log("[JS] Prompt Moment:", notification.getMomentType());
-
-                // Для Chrome: якщо автоматичне вікно НЕ показалося
                 if (isChrome && (notification.isNotDisplayed() || notification.isSkippedMoment())) {
                     document.getElementById('google-auth-overlay').style.display = 'flex';
                 }
@@ -81,10 +75,19 @@
         }
     };
 
+    window.getWebFcmToken = async function(vapidKey) {
+        try {
+            const messaging = firebase.messaging();
+            return await messaging.getToken({ vapidKey: vapidKey });
+        } catch (e) {
+            console.error("[JS] FCM Error:", e);
+            return null;
+        }
+    };
+
     window.initializeFirebaseAppCheck = (key) => {};
     window.sendSmsWeb = async () => "SUCCESS";
     window.verifySmsWeb = async () => true;
-    window.getWebFcmToken = async () => null;
 </script>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -93,7 +96,7 @@
 <div id="google-auth-overlay">
     <div class="auth-card">
         <p style="font-family: sans-serif; font-size: 22px; font-weight: bold; color: #1a73e8; margin-bottom: 12px;">ЮКІС Авторизація</p>
-        <p style="font-family: sans-serif; font-size: 15px; color: #5f6368; margin-bottom: 30px;">Будь ласка, натисніть кнопку нижче:</p>
+        <p style="font-family: sans-serif; font-size: 15px; color: #5f6368; margin-bottom: 30px;">Будь ласка, оберіть ваш акаунт:</p>
         <div id="google-signin-btn" style="display: flex; justify-content: center; min-height: 50px;"></div>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
         <button onclick="document.getElementById('google-auth-overlay').style.display='none'" style="background: #f1f3f4; border: none; padding: 12px 30px; border-radius: 8px; color: #3c4043; cursor: pointer; font-weight: bold;">Скасувати</button>

@@ -13,6 +13,7 @@ import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.domain.services.LogService
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseScreenModel
+import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -22,6 +23,10 @@ import ykismobkmp.composeapp.generated.resources.*
 
 enum class ListMode { RAIONS, HOUSES, APARTMENTS }
 
+/**
+ * [ApartmentScreenModel] — Уніфікована модель керування квартирами та адмін-доступом ЮКІС.
+ * ВІДНОВЛЕНО: Повна логіка адміна ОСББ та завантаження реєстрів.
+ */
 class ApartmentScreenModel(
   val firebaseService: FirebaseService,
   private val apartmentService: ApartmentService,
@@ -81,6 +86,7 @@ class ApartmentScreenModel(
           _drawerHouses.value = result.data ?: emptyList()
           _uiState.update { it.copy(isLoading = false) }
         } else if (result is Resource.Loading) _uiState.update { it.copy(isLoading = true) }
+        else _uiState.update { it.copy(isLoading = false) }
       }
     }
   }
@@ -105,8 +111,9 @@ class ApartmentScreenModel(
       apartmentService.getOsbbApartmentsList(houseId, true).collect { result ->
         if (result is Resource.Success) {
           _drawerApartments.value = result.data ?: emptyList()
-          _uiState.update { it.copy(isLoading = false) }
+          _uiState.update { it.copy(isLoading = false, isApartmentsLoaded = true) }
         } else if (result is Resource.Loading) _uiState.update { it.copy(isLoading = true) }
+        else _uiState.update { it.copy(isLoading = false, isApartmentsLoaded = true) }
       }
     }
   }
@@ -123,6 +130,17 @@ class ApartmentScreenModel(
         val user = firebaseService.getUserProfile()
         val currentUserRole = UserRole.fromString(user.userRole)
         
+        val currentOsbbId: Long = if (currentUserRole != UserRole.StandardUser &&
+          currentUserRole != UserRole.OsbbUser && user.osbbId == 0L
+        ) {
+          when (currentUserRole) {
+            UserRole.VodokanalUser -> 9999L
+            UserRole.YtkeUser -> 9998L
+            UserRole.TboUser -> 9997L
+            else -> 0L
+          }
+        } else user.osbbId
+
         val officialOrgName = if (!user.osbb.isNullOrBlank()) user.osbb else {
             when (currentUserRole) {
                 UserRole.VodokanalUser -> getString(Res.string.vodokanal)
@@ -133,15 +151,13 @@ class ApartmentScreenModel(
         }
 
         _uiState.update { state ->
-          // КРИТИЧНИЙ ФІКС: Не затираємо вже вибрану квартиру нулем, 
-          // якщо Firestore ще не оновився (eventual consistency)
           val finalAddressId = if (user.addressId == 0L && state.addressId != 0L) state.addressId else user.addressId
           
           state.copy(
             uid = user.uid,
             userRole = currentUserRole,
-            osbbId = user.osbbId,
-            osmdId = user.osbbId,
+            osbbId = currentOsbbId,
+            osmdId = currentOsbbId,
             osbb = officialOrgName,
             displayName = user.name ?: "",
             fio = user.fio,
@@ -151,14 +167,26 @@ class ApartmentScreenModel(
 
         firebaseService.addFcmToken()
 
-        println("[YkisLogKMP.$className]: [STEP 2] Запит списку квартир MySQL...")
-        apartmentService.getApartmentList(user.uid).collect { result ->
-            handleStandardUserResult(result, user.uid, currentUserRole)
+        println("[YkisLogKMP.$className]: [STEP 2] Запит реєстру MySQL для ролі: $currentUserRole")
+        when (currentUserRole) {
+          UserRole.StandardUser -> {
+            apartmentService.getApartmentList(user.uid).collect { result ->
+              handleStandardUserResult(result, user.uid, currentUserRole)
+            }
+          }
+          UserRole.OsbbUser -> {
+            apartmentService.getOsbbApartmentsList(currentOsbbId).collect { result ->
+              handleOsbbAdminResult(result, user.uid, currentUserRole, currentOsbbId, user.osbb)
+            }
+          }
+          else -> {
+            apartmentService.getRaionList(user.uid).collect { result ->
+              handleOrganizationResult(result, user.uid, currentUserRole, currentOsbbId, officialOrgName)
+            }
+          }
         }
-
       } catch (e: Exception) {
           println("[YkisLogKMP.${className}_ERROR]: observeUserProfile failed: ${e.message}")
-      } finally {
           _uiState.update { it.copy(mainLoading = false) }
       }
     }
@@ -170,13 +198,11 @@ class ApartmentScreenModel(
     
     _uiState.update { state ->
       if (incoming.isNotEmpty()) {
-        // Вибираємо квартиру: або ту що вже була, або першу зі списку
         val target = if (state.addressId == 0L) incoming.first() else (incoming.find { it.addressId == state.addressId } ?: incoming.first())
         val finalOsbbName = if (target.osbb.isNullOrBlank() || target.osbb == "0") "Мій ОСББ" else target.osbb
         
-        // СИНХРОНІЗАЦІЯ: Якщо дані в Firestore (state.addressId) відрізняються від реальності (target)
         if (state.addressId != target.addressId || state.osbbId != target.osmdId) {
-            println("[YkisLogKMP.$className]: [SYNC] Виявлено розбіжність. Оновлення Firestore для ID: ${target.addressId}")
+            println("[YkisLogKMP.$className]: [SYNC] Оновлення Firestore для жильця...")
             screenModelScope.launch {
                 syncProfileWithFirestore(uid, target, role)
             }
@@ -202,7 +228,6 @@ class ApartmentScreenModel(
 
   private suspend fun syncProfileWithFirestore(uid: String, apartment: ApartmentEntity, role: UserRole) {
     try {
-        println("[YkisLogKMP.$className]: Виклик FirebaseService.updateUserRoleAndPermissions...")
         firebaseService.updateUserRoleAndPermissions(
             uid = uid,
             addressId = apartment.addressId,
@@ -212,23 +237,59 @@ class ApartmentScreenModel(
             fio = apartment.nanim ?: "",
             osbb = apartment.osbb
         )
-        println("[YkisLogKMP.$className]: Firestore успішно синхронізовано.")
     } catch (e: Exception) {
-        println("[YkisLogKMP.${className}_ERROR]: Помилка синхронізації Firestore: ${e.message}")
+        println("[YkisLogKMP.${className}_ERROR]: Firestore sync failed: ${e.message}")
     }
   }
 
-  private suspend fun handleOsbbAdminResult(result: Resource<List<ApartmentEntity>>, uid: String, role: UserRole, osbbId: Long, currentOsbbName: String?) {
+  private suspend fun handleOsbbAdminResult(
+    result: Resource<List<ApartmentEntity>>,
+    uid: String,
+    role: UserRole,
+    osbbId: Long,
+    currentOsbbName: String?
+  ) {
     if (result is Resource.Success) {
       val incoming = result.data ?: emptyList()
       _uiState.update { state ->
-        if (incoming.isNotEmpty()) {
-          val target = combinedFind(incoming, state.addressId)
+        val combined = if (state.apartments.isEmpty()) incoming else (incoming + state.apartments).distinctBy { it.addressId }
+        if (combined.isNotEmpty()) {
+          val target = combined.find { it.addressId == state.addressId } ?: combined.first()
           val finalOsbbName = formatOsbbName(target, currentOsbbName)
-          state.copy(apartments = incoming, apartment = target, isApartmentsLoaded = true, listMode = ListMode.APARTMENTS,
-            addressId = target.addressId, address = target.address, osbbId = target.osmdId, osbb = finalOsbbName, mainLoading = false)
-        } else state.copy(mainLoading = false, isApartmentsLoaded = true)
+
+          state.copy(
+            apartments = combined,
+            apartment = target,
+            isApartmentsLoaded = true,
+            listMode = ListMode.APARTMENTS,
+            addressId = target.addressId,
+            address = target.address,
+            osbbId = target.osmdId,
+            osbb = finalOsbbName,
+            nanim = target.nanim ?: "Власник не вказаний",
+            fio = target.nanim ?: "",
+            mainLoading = false
+          )
+        } else {
+          state.copy(mainLoading = false, isApartmentsLoaded = true)
+        }
       }
+      
+      // СИНХРОНІЗАЦІЯ НАЗВИ ОСББ
+      val updatedName = _uiState.value.osbb
+      if (updatedName.isNotBlank() && updatedName != "ОСББ" && updatedName != currentOsbbName) {
+          screenModelScope.launch {
+              firebaseService.updateUserRoleAndPermissions(
+                  uid = uid,
+                  addressId = 0L,
+                  userRole = role,
+                  osbbId = osbbId,
+                  osbb = updatedName
+              )
+          }
+      }
+    } else if (result is Resource.Error) {
+        _uiState.update { it.copy(mainLoading = false, isApartmentsLoaded = true) }
     }
   }
 
@@ -324,39 +385,15 @@ class ApartmentScreenModel(
 
   fun addApartment() {
     val input = _secretCode.value.trim()
-    println("[YkisLogKMP.$className]: Метод addApartment запущен. Input: $input")
-    
-    if (input.isEmpty()) {
-        println("[YkisLogKMP.$className]: Input порожній, вихід.")
-        return
-    }
-    
-    val currentUid = firebaseService.uid
-    println("[YkisLogKMP.$className]: Поточний UID: $currentUid")
-    
-    if (currentUid.isBlank()) {
-        println("[YkisLogKMP.$className]: UID порожній, спроба отримати через getUid()...")
-        screenModelScope.launch {
-            val asyncUid = firebaseService.getUid()
-            if (asyncUid.isNotBlank()) proceedAddApartment(input, asyncUid)
-            else {
-                _uiState.update { it.copy(mainLoading = false) }
-                SnackbarManager.showMessage("Помилка: UID не знайдено")
-            }
-        }
-    } else {
-        proceedAddApartment(input, currentUid)
-    }
-  }
-
-  private fun proceedAddApartment(input: String, uid: String) {
+    if (input.isEmpty()) return
+    val currentUid = firebaseService.uid ?: return
     val email = firebaseService.email ?: ""
     _secretCode.value = ""
     _uiState.update { it.copy(mainLoading = true) }
 
     if (input.all { it.isDigit() }) {
-      println("[YkisLogKMP.$className]: ЛОГІКА ДЛЯ ЖИТЕЛЬЦЯ (Прив'язка о/р)")
-      apartmentService.addApartment(input, uid, email).onEach { result ->
+      // ЛОГІКА ДЛЯ ЖИТЕЛЬЦЯ (Прив'язка о/р)
+      apartmentService.addApartment(input, currentUid, email).onEach { result ->
         if (result is Resource.Success) {
             SnackbarManager.showMessage("Рахунок успішно прив'язаний")
             screenModelScope.launch {
@@ -370,38 +407,47 @@ class ApartmentScreenModel(
         }
       }.launchIn(screenModelScope)
     } else {
-      println("[YkisLogKMP.$className]: ЛОГІКА ДЛЯ АДМІНІСТРАТОРА (Секретне слово): $input")
-      apartmentService.verifyAdminCode(input, uid).onEach { result ->
-        when (result) {
-          is Resource.Success -> {
-            val data = result.data
-            if (data != null) {
-                println("[YkisLogKMP.$className]: Адмін-доступ надано. Справа за Firestore...")
-                screenModelScope.launch {
-                    firebaseService.updateUserRoleAndPermissions(
-                        uid = uid,
-                        addressId = data.addressId,
-                        userRole = UserRole.fromString(data.userRole),
-                        osbbId = data.osbbId,
-                        displayName = data.address ?: data.osbb ?: "Адмін",
-                        fio = data.nanim ?: "",
-                        osbb = data.osbb
-                    )
-                    delay(1000)
-                    observeUserProfile()
-                    delay(2000)
-                    if (_uiState.value.mainLoading) _uiState.update { it.copy(mainLoading = false) }
-                }
-            }
-            SnackbarManager.showMessage("Адмін-доступ надано успішно")
-          }
-          is Resource.Error -> {
-            _uiState.update { it.copy(mainLoading = false) }
-            SnackbarManager.showMessage(result.message ?: "Невірний секретний код")
-          }
-          is Resource.Loading -> { }
-        }
+      // ЛОГІКА ДЛЯ АДМІНІСТРАТОРА (Секретне слово)
+      println("[YkisLogKMP.$className]: Спроба входу адміністратора: $input")
+      apartmentService.verifyAdminCode(input, currentUid).onEach { result ->
+        handleAdminResult(result, currentUid)
       }.launchIn(screenModelScope)
+    }
+  }
+
+  private fun handleAdminResult(result: Resource<GetSimpleResponse>, uid: String) {
+    when (result) {
+      is Resource.Success -> {
+        val data = result.data ?: return
+        val mappedRole = UserRole.fromString(data.userRole)
+        val newOsbbId = when (mappedRole) {
+            UserRole.VodokanalUser -> 9999L
+            UserRole.YtkeUser -> 9998L
+            UserRole.TboUser -> 9997L
+            else -> data.osbbId
+        }
+        
+        println("[YkisLogKMP.$className]: Адмін-пароль вірний. Роль: $mappedRole. Оновлення Firestore...")
+        
+        screenModelScope.launch {
+          firebaseService.updateUserRoleAndPermissions(
+            uid = uid,
+            addressId = 0L,
+            userRole = mappedRole,
+            osbbId = newOsbbId,
+            displayName = data.osbb ?: "Адмін",
+            osbb = data.osbb ?: "ОСББ"
+          )
+          delay(1000)
+          observeUserProfile()
+          SnackbarManager.showMessage("Авторизація адміністратора успішна")
+        }
+      }
+      is Resource.Error -> {
+        _uiState.update { it.copy(mainLoading = false) }
+        SnackbarManager.showMessage(result.message ?: "Невірний секретний код")
+      }
+      is Resource.Loading -> _uiState.update { it.copy(mainLoading = true) }
     }
   }
 

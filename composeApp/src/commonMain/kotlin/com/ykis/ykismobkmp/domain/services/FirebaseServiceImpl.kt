@@ -100,58 +100,54 @@ class FirebaseServiceImpl(
 
   override suspend fun addUserFirestore(): addUserFirestoreResponse {
     val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
+    val currentUid = uid
+    if (currentUid.isBlank()) return Resource.Error(message = "No UID")
+
     try {
       val currentUser = auth.currentUser ?: return Resource.Error(message = "No user")
-      val currentUid = currentUser.uid
       val userEmail = currentUser.email?.takeIf { it.isNotBlank() } ?: currentUser.phoneNumber ?: ""
 
-      println("[FirebaseServiceImpl]: [START] Синхронізація профілю для $userEmail")
+      println("[YkisLogKMP.$className.addUserFirestore]: [START] Синхронізація для $userEmail")
 
-      val userMap = mutableMapOf<String, Any?>(
+      val userMap = mutableMapOf<String, Any>(
         "uid" to currentUid,
         "email" to userEmail,
         "displayName" to (currentUser.displayName ?: "Мешканець"),
-        "userRole" to "StandardUser",
+        "userRole" to "STANDARD_USER",
         "osbbId" to (if (isWeb) 0.0 else 0L),
         "addressId" to (if (isWeb) 0.0 else 0L)
       )
 
-      if (!isWeb) {
-        userMap["fcmTokens"] = emptyList<String>()
-      }
-
-      println("[FirebaseServiceImpl]: [FIRESTORE_WAIT] Спроба запису (Timeout 15s)...")
-
-      // ИСПРАВЛЕНО: Увеличиваем таймаут до 15 секунд для стабильности на Android
       withTimeout(15000) {
         db.collection("users").document(currentUid).set(data = userMap, merge = true)
       }
 
-      println("[FirebaseServiceImpl]: [FIRESTORE_OK] Дані збережені")
+      println("[YkisLogKMP.$className.addUserFirestore]: [SUCCESS] Профіль створено")
 
       try {
         apartmentService.saveUserUid(currentUid, userEmail).filter { it !is Resource.Loading }.first()
-        println("[FirebaseServiceImpl]: [MySQL_OK] UID передано")
       } catch (e: Exception) {
-        println("[FirebaseServiceImpl]: [MySQL_WARN] MySQL: ${e.message}")
+        println("[YkisLogKMP.$className.addUserFirestore]: [WARN] MySQL sync failed: ${e.message}")
       }
 
       return Resource.Success(true)
     } catch (e: Exception) {
-      println("[FirebaseServiceImpl_ERROR]: $e")
+      println("[YkisLogKMP.$className.addUserFirestore]: [ERROR] $e")
       return Resource.Error(message = e.message ?: "Process error")
     }
   }
 
   override suspend fun updateUserRoleAndPermissions(uid: String, addressId: Long?, userRole: UserRole, osbbId: Long?, displayName: String?, fio: String?, osbb: String?) {
+    if (uid.isBlank()) return
     try {
       val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
       val updates = mutableMapOf<String, Any>(
-        "userRole" to userRole.getSerialName(),
-        "osbbId" to (if (isWeb) (osbbId ?: 0L).toDouble() else (osbbId ?: 0L))
+        "userRole" to userRole.getSerialName()
       )
-      displayName?.let { updates["displayName"] = it }
+      
       addressId?.let { updates["addressId"] = if (isWeb) it.toDouble() else it }
+      osbbId?.let { updates["osbbId"] = if (isWeb) it.toDouble() else it }
+      displayName?.let { updates["displayName"] = it }
       fio?.let { updates["fio"] = it }
       osbb?.let { updates["osbb"] = it }
 
@@ -162,26 +158,32 @@ class FirebaseServiceImpl(
   }
 
   override suspend fun getUserProfile(): UserFirebase = withContext(Dispatchers.Default) {
+    val currentUid = uid
+    if (currentUid.isBlank()) {
+        return@withContext UserFirebase(uid = "", email = "", userRole = "STANDARD_USER")
+    }
     try {
-      // ИСПРАВЛЕНО: Добавляем таймаут и на чтение профиля
       val snapshot = withTimeout(10000) {
-        db.collection("users").document(uid).get()
+        db.collection("users").document(currentUid).get()
       }
+      
+      val data = snapshot.data<UserFirebase>()
 
       UserFirebase(
-        uid = uid,
-        email = auth.currentUser?.email ?: "",
-        isEmailVerification = auth.currentUser?.isEmailVerified ?: false,
-        name = snapshot.get<String>("displayName") ?: auth.currentUser?.displayName,
-        userRole = snapshot.get<String>("userRole") ?: "StandardUser",
-        osbbId = snapshot.get<Long>("osbbId") ?: 0L,
-        addressId = snapshot.get<Long>("addressId") ?: 0L,
-        fio = try { snapshot.get<String>("fio") ?: "" } catch (e: Exception) { "" },
-        osbb = try { snapshot.get<String>("osbb") ?: "" } catch (e: Exception) { "" }
+        uid = currentUid,
+        email = auth.currentUser?.email ?: data.email,
+        isEmailVerification = auth.currentUser?.isEmailVerified ?: data.isEmailVerification,
+        name = data.name,
+        userRole = data.userRole,
+        osbbId = data.osbbId,
+        addressId = data.addressId,
+        fio = data.fio,
+        osbb = data.osbb,
+        fcmTokens = data.fcmTokens
       )
     } catch (e: Exception) {
-      println("[FirebaseServiceImpl]: Помилка читання профілю, fallback до StandardUser: ${e.message}")
-      UserFirebase(uid = uid, email = email, userRole = "StandardUser")
+      println("[YkisLogKMP.$className.getUserProfile]: [ERROR] Fallback: ${e.message}")
+      UserFirebase(uid = currentUid, email = email, userRole = "STANDARD_USER")
     }
   }
 
@@ -283,14 +285,13 @@ class FirebaseServiceImpl(
       
       println("[YkisLogKMP.$className.addFcmToken]: Спроба реєстрації токена: $token")
       
-      // Використовуємо просту MutableMap для усунення проблем серіалізації в JS
       val updates = mutableMapOf<String, Any>()
       updates["fcmTokens"] = dev.gitlive.firebase.firestore.FieldValue.arrayUnion(token)
       
       withTimeout(10000) {
           db.collection("users").document(currentUid).set(data = updates, merge = true)
       }
-      println("[YkisLogKMP.$className.addFcmToken]: Токен успішно збережено у Firestore")
+      println("[YkisLogKMP.$className.addFcmToken]: Токен успішно збережено")
     } catch (e: Exception) {
       println("[YkisLogKMP.$className.addFcmToken_ERROR]: ${e.message}")
     }
