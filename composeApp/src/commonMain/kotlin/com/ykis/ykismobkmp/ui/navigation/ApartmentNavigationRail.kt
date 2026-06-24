@@ -134,7 +134,8 @@ fun ApartmentNavigationRail(
   val unreadCounts by chatViewModel.unreadCounts.collectAsState()
   
   val listMode = baseUIState.listMode
-  val isOrgAdmin = baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
+  // Org Admin або Osbb Admin — обидва можуть мати багаторівневе меню
+  val isAnyAdmin = baseUIState.userRole != UserRole.StandardUser
   val raions = baseUIState.raions
 
   val houses by apartmentViewModel.drawerHouses.collectAsState()
@@ -194,7 +195,6 @@ fun ApartmentNavigationRail(
           // ПОШУК доступний тільки для адмінів і ТІЛЬКИ в режимі списку квартир
           if (isUserAdmin && listMode == ListMode.APARTMENTS) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-              // ФІКС: Локальний стейт для усунення стрибків курсору
               var localSearchQuery by remember { mutableStateOf(searchQuery) }
 
               OutlinedTextField(
@@ -207,7 +207,7 @@ fun ApartmentNavigationRail(
                   .fillMaxWidth()
                   .height(48.dp)
                   .focusRequester(searchFocusRequester),
-                placeholder = { Text("Пошук...", fontSize = 11.sp) },
+                placeholder = { Text(stringResource(Res.string.search_apartment_hint), fontSize = 11.sp) },
                 leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(16.dp)) },
                 trailingIcon = {
                   if (localSearchQuery.isNotEmpty()) {
@@ -261,18 +261,23 @@ fun ApartmentNavigationRail(
           .weight(1f)
       ) {
         if (isRailExpanded) {
-          if (listMode != ListMode.RAIONS && isOrgAdmin && searchQuery.isEmpty()) {
-            TextButton(
-              onClick = {
-                focusManager.clearFocus()
-                selectedApartmentFocusRequester.requestFocus()
-                apartmentViewModel.goBackLevel()
-              },
-              modifier = Modifier.padding(start = 8.dp, top = 8.dp)
-            ) {
-              Icon(Icons.Default.ArrowBackIosNew, null, modifier = Modifier.size(16.dp))
-              Spacer(Modifier.width(8.dp))
-              Text("Назад")
+          // Кнопка НАЗАД для будь-якого адміна, якщо він не в корені
+          if (listMode != ListMode.RAIONS && isAnyAdmin && searchQuery.isEmpty()) {
+            val isOsbbRoot = baseUIState.userRole == UserRole.OsbbUser && listMode == ListMode.HOUSES
+            
+            if (!isOsbbRoot) {
+                TextButton(
+                  onClick = {
+                    focusManager.clearFocus()
+                    selectedApartmentFocusRequester.requestFocus()
+                    apartmentViewModel.goBackLevel()
+                  },
+                  modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+                ) {
+                  Icon(Icons.Default.ArrowBackIosNew, null, modifier = Modifier.size(16.dp))
+                  Spacer(Modifier.width(8.dp))
+                  Text(stringResource(Res.string.back_button))
+                }
             }
           }
 
@@ -367,7 +372,9 @@ fun ApartmentNavigationRail(
                 }
 
                 ListMode.APARTMENTS -> {
-                  val aptList = if (isOrgAdmin) drawerApartments else baseUIState.apartments
+                  // Для адмінів ОСББ з декількома будинками теж використовуємо drawer список або основний
+                  val aptList = if (isAnyAdmin && drawerApartments.isNotEmpty()) drawerApartments else baseUIState.apartments
+
                   items(aptList, key = { "a_${it.addressId}" }) { apartment ->
                     val isSelected = baseUIState.addressId == apartment.addressId
                     val badgeCount = apartmentBadges[apartment.addressId.toString()] ?: 0

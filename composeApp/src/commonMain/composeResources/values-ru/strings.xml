@@ -167,8 +167,8 @@
   <string name="employer_text_colon">Гл. наниматель (ФИО):</string>
   <string name="employer_none">данные отсутствуют</string>
   <string name="owner_text">Владелец:</string>
-  <string name="empty_phone">Додайте номер телефону</string>
-  <string name="empty_email">Додайте електронну адресу</string>
+  <string name="empty_phone">Добавьте номер телефона</string>
+  <string name="empty_email">Добавьте электронный адрес</string>
 
   <!-- Службы -->
   <string name="vodokanal">КП \"ЮЖВОДОКАНАЛ\"</string>
@@ -305,18 +305,18 @@
   <string name="error_cant_send_email">Невозможно отправить на этот email.</string>
   <string name="error_add_reading">Не удалось добавить показание.</string>
   <string name="error_incorrect_reading">Ошибка ввода. Проверьте данные.</string>
-  <string name="error_google_auth">Помилка авторизації Google</string>
-  <string name="error_empty_uid">Ідентифікатор користувача порожній</string>
-  <string name="error_process">Помилка обробки даних</string>
-  <string name="error_auth_session_expired">Сесія авторизації вичерпана</string>
-  <string name="error_unknown_deletion">Невідома помилка при видаленні</string>
-  <string name="error_session_refresh_failed">Помилка оновлення сесії</string>
-  <string name="error_registration_failed">Помилка реєстрації</string>
-  <string name="error_load_osbb">Помилка завантаження реєстру ОСББ</string>
-  <string name="error_load_raions">Помилка завантаження районів</string>
-  <string name="error_load_houses">Помилка завантаження будинків</string>
-  <string name="error_load_family">Помилка завантаження складу сім\'ї</string>
-  <string name="error_invalid_data">Отримано некоректні дані від сервера</string>
+  <string name="error_google_auth">Ошибка авторизации Google</string>
+  <string name="error_empty_uid">Идентификатор пользователя пуст</string>
+  <string name="error_process">Ошибка обработки данных</string>
+  <string name="error_auth_session_expired">Сессия авторизации истекла</string>
+  <string name="error_unknown_deletion">Неизвестная ошибка при удалении</string>
+  <string name="error_session_refresh_failed">Ошибка обновления сессии</string>
+  <string name="error_registration_failed">Ошибка регистрации</string>
+  <string name="error_load_osbb">Ошибка загрузки реестра ОСББ</string>
+  <string name="error_load_raions">Ошибка загрузки районов</string>
+  <string name="error_load_houses">Ошибка загрузки домов</string>
+  <string name="error_load_family">Ошибка загрузки состава семьи</string>
+  <string name="error_invalid_data">Получены некорректные данные от сервера</string>
 
   <!-- Успех -->
   <string name="success_delete_flat">Квартира удалена.</string>

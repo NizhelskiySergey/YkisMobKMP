@@ -296,7 +296,7 @@
   <!-- Помилки -->
   <string name="error_network">Немає інтернет-з’єднання.</string>
   <string name="error_terms">Очікування відповіді від сервера...</string>
-  <string name="error_update">Не вдалося оновити дані.</string>
+  <string name="error_update">Відсутні обов’язкові поля.</string>
   <string name="error_delete_flat">Не вдалося видалити квартиру.</string>
   <string name="error_missing_fields">Відсутні обов’язкові поля.</string>
   <string name="error_flat_in_db">Ця квартира вже додана.</string>
@@ -316,10 +316,10 @@
   <string name="error_unknown_deletion">Невідома помилка при видаленні</string>
   <string name="error_session_refresh_failed">Помилка оновлення сесії</string>
   <string name="error_registration_failed">Помилка реєстрації</string>
-  <string name="error_load_osbb">Помилка завантаження списку ОСББ</string>
+  <string name="error_load_osbb">Помилка завантаження реєстру ОСББ</string>
   <string name="error_load_raions">Помилка завантаження районів</string>
   <string name="error_load_houses">Помилка завантаження будинків</string>
-  <string name="error_load_family">Помилка завантаження складу сім'ї</string>
+  <string name="error_load_family">Помилка завантаження складу сім’ї</string>
   <string name="error_invalid_data">Отримано некоректні дані від сервера</string>
 
   <!-- Успіх -->
@@ -339,7 +339,7 @@
   <string name="already_have_account">Вже є акаунт?</string>
   <string name="dont_have_account">Ще немає акаунта?</string>
   <string name="login">Вхід</string>
-  <string name="terms_condition">Умови користування \"ЮКІС\"</string>
+  <string name="terms_condition">Умови користування "ЮКІС"</string>
   <string name="terms_condition_accept">Я приймаю умови угоди</string>
   <string name="terms_condition_down">Прокрутіть текст до кінця ↓</string>
   <string name="chats">Чати</string>
@@ -434,7 +434,7 @@
   <string name="daily_consumption_gkal">Споживання Гкал/день:</string>
   <string name="accrued_gkal">Нараховано (ГКал):</string>
   <string name="active_tariff">Діючий тариф:</string>
-  <string name="volume_qty">Об\'єм (qty):</string>
+  <string name="volume_qty">Об’єм (qty):</string>
   <string name="heat_meter_model">Модель лічильника:</string>
   <string name="unit_measurement">Одиниця виміру:</string>
   <string name="device_coefficient">Коефіцієнт приладу:</string>

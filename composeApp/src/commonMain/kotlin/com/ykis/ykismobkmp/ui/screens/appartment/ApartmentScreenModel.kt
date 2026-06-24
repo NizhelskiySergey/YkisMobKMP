@@ -12,6 +12,7 @@ import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentService
 import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.domain.services.LogService
 import com.ykis.ykismobkmp.domain.services.UserRole
+import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.BaseScreenModel
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import kotlinx.coroutines.Job
@@ -25,7 +26,6 @@ enum class ListMode { RAIONS, HOUSES, APARTMENTS }
 
 /**
  * [ApartmentScreenModel] — Уніфікована модель керування квартирами та адмін-доступом ЮКІС.
- * ВІДНОВЛЕНО: Повна логіка адміна ОСББ та завантаження реєстрів.
  */
 class ApartmentScreenModel(
   val firebaseService: FirebaseService,
@@ -79,7 +79,7 @@ class ApartmentScreenModel(
   fun onSearchQueryChanged(newQuery: String) { _searchQuery.value = newQuery }
 
   fun onRaionSelected(raion: RaionEntity) {
-    _uiState.update { it.copy(selectedRaionId = raion.raionId, listMode = ListMode.HOUSES) }
+    _uiState.update { it.copy(selectedRaionId = raion.raionId, listMode = ListMode.HOUSES, addressId = 0L) }
     screenModelScope.launch {
       apartmentService.getHouseList(raion.raionId).collect { result ->
         if (result is Resource.Success) {
@@ -101,19 +101,36 @@ class ApartmentScreenModel(
         }
         ListMode.RAIONS -> ListMode.RAIONS
       }
-      state.copy(listMode = newMode)
+      state.copy(listMode = newMode, addressId = if (newMode != ListMode.APARTMENTS) 0L else state.addressId)
     }
   }
 
   fun onHouseSelected(houseId: Long) {
-    _uiState.update { it.copy(selectedHouseId = houseId, listMode = ListMode.APARTMENTS) }
+    _uiState.update { it.copy(selectedHouseId = houseId, listMode = ListMode.APARTMENTS, apartmentLoading = true) }
     screenModelScope.launch {
       apartmentService.getOsbbApartmentsList(houseId, true).collect { result ->
-        if (result is Resource.Success) {
-          _drawerApartments.value = result.data ?: emptyList()
-          _uiState.update { it.copy(isLoading = false, isApartmentsLoaded = true) }
-        } else if (result is Resource.Loading) _uiState.update { it.copy(isLoading = true) }
-        else _uiState.update { it.copy(isLoading = false, isApartmentsLoaded = true) }
+        when (result) {
+          is Resource.Success -> {
+            val incoming = result.data ?: emptyList()
+            _drawerApartments.value = incoming
+            _uiState.update { state ->
+                val target = if (state.addressId != 0L) (incoming.find { it.addressId == state.addressId } ?: incoming.firstOrNull()) else incoming.firstOrNull()
+                state.copy(
+                  apartments = incoming, 
+                  apartment = target ?: ApartmentEntity(),
+                  addressId = target?.addressId ?: 0L,
+                  address = target?.address ?: "",
+                  isLoading = false, 
+                  apartmentLoading = false,
+                  isApartmentsLoaded = true
+                )
+            }
+          }
+          is Resource.Error -> {
+            _uiState.update { it.copy(isLoading = false, apartmentLoading = false, isApartmentsLoaded = true) }
+          }
+          is Resource.Loading -> { }
+        }
       }
     }
   }
@@ -181,7 +198,7 @@ class ApartmentScreenModel(
                 }
             } else {
                 println("[YkisLogKMP.${className}_ERROR]: Роль OsbbUser, але OSBB_ID не призначено")
-                _uiState.update { it.copy(mainLoading = false, error = "Помилка: OSBB_ID не призначено") }
+                _uiState.update { it.copy(mainLoading = false) }
             }
           }
           else -> {
@@ -204,7 +221,7 @@ class ApartmentScreenModel(
     _uiState.update { state ->
       val combined = if (state.apartments.isEmpty()) incoming else (incoming + state.apartments).distinctBy { it.addressId }
       if (combined.isNotEmpty()) {
-        val target = if (state.addressId == 0L) combined.first() else (combined.find { it.addressId == state.addressId } ?: combined.first())
+        val target = if (state.addressId == 0L) incoming.first() else (incoming.find { it.addressId == state.addressId } ?: incoming.first())
         val finalOsbbName = if (target.osbb.isNullOrBlank() || target.osbb == "0") "Мій ОСББ" else target.osbb
         
         if (state.addressId != target.addressId || state.osbbId != target.osmdId) {
@@ -258,21 +275,35 @@ class ApartmentScreenModel(
     if (result is Resource.Success) {
       val incoming = result.data ?: emptyList()
       
-      val housesFromApts = incoming.map {
-          HouseEntity(houseId = it.houseId, house = it.address.substringBefore("/"), raionId = it.blockId)
-      }.distinctBy { it.houseId }
+      // Групуємо квартири по будинках
+      val housesFromApts = incoming.map { 
+          HouseEntity(
+              houseId = it.houseId, 
+              house = it.address.substringBefore("/").trim(), 
+              raionId = it.blockId
+          ) 
+      }.distinctBy { it.houseId }.sortedBy { it.house }
 
       _uiState.update { state ->
         if (incoming.isNotEmpty()) {
+          // Якщо у ОСББ декілька будинків - показуємо список будинків
           if (housesFromApts.size > 1) {
               _drawerHouses.value = housesFromApts
               state.copy(
                 apartments = incoming,
                 isApartmentsLoaded = true,
                 listMode = ListMode.HOUSES,
-                mainLoading = false
+                mainLoading = false,
+                osbbId = osbbId,
+                osmdId = osbbId,
+                addressId = 0L, // ВАЖЛИВО: скидаємо ID, якщо будинків багато
+                apartment = ApartmentEntity(),
+                address = "",
+                nanim = "",
+                fio = ""
               )
           } else {
+              // Якщо будинок один - показуємо відразу квартири цього будинку
               val target = if (state.addressId != 0L) (incoming.find { it.addressId == state.addressId } ?: incoming.first()) else incoming.first()
               state.copy(
                 apartments = incoming,
@@ -282,6 +313,7 @@ class ApartmentScreenModel(
                 addressId = target.addressId,
                 address = target.address,
                 osbbId = target.osmdId,
+                osmdId = target.osmdId,
                 osbb = formatOsbbName(target, currentOsbbName),
                 nanim = target.nanim ?: "Власник не вказаний",
                 fio = target.nanim ?: "",
@@ -388,7 +420,7 @@ class ApartmentScreenModel(
 
   private suspend fun handleOrganizationResult(result: Resource<List<RaionEntity>>, uid: String, role: UserRole, osbbId: Long, orgName: String) {
     _uiState.update { state ->
-      if (result is Resource.Success) state.copy(raions = result.data ?: emptyList(), listMode = ListMode.RAIONS, mainLoading = false, osbb = orgName)
+      if (result is Resource.Success) state.copy(raions = result.data ?: emptyList(), listMode = ListMode.RAIONS, mainLoading = false, osbb = orgName, addressId = 0L)
       else state.copy(mainLoading = false)
     }
   }
@@ -427,57 +459,6 @@ class ApartmentScreenModel(
       apartmentService.verifyAdminCode(input, currentUid).onEach { result ->
         handleAdminResult(result, currentUid)
       }.launchIn(screenModelScope)
-    }
-  }
-
-  private suspend fun handleApartmentResult(uid: String, result: Resource<GetSimpleResponse>) {
-    when (result) {
-      is Resource.Loading -> _uiState.update { it.copy(mainLoading = true) }
-      is Resource.Success -> {
-        val data = result.data ?: return
-        val newAddressId = data.addressId
-        val newOsbbId = data.osbbId
-        val finalOsbbName = data.osbb ?: "Мій ОСББ"
-        
-        _uiState.update { state ->
-          state.copy(
-            addressId = newAddressId,
-            address = data.address ?: "",
-            nanim = data.nanim,
-            fio = data.nanim ?: "",
-            osbb = finalOsbbName,
-            osbbId = newOsbbId,
-            userRole = UserRole.StandardUser,
-            mainLoading = false
-          )
-        }
-        
-        firebaseService.updateUserRoleAndPermissions(
-          uid = uid,
-          addressId = newAddressId,
-          userRole = UserRole.StandardUser,
-          osbbId = newOsbbId,
-          displayName = data.address ?: "",
-          fio = data.nanim ?: "",
-          osbb = finalOsbbName
-        )
-
-        apartmentService.initResidentChats(
-          scope = screenModelScope,
-          uid = uid,
-          osbbId = newOsbbId,
-          addressId = newAddressId,
-          addressText = data.address ?: "",
-          nanim = data.nanim ?: ""
-        )
-        
-        observeUserProfile()
-        SnackbarManager.showMessage("Рахунок успішно прив'язаний")
-      }
-      is Resource.Error -> {
-        _uiState.update { it.copy(mainLoading = false) }
-        SnackbarManager.showMessage(result.message ?: "Помилка")
-      }
     }
   }
 
