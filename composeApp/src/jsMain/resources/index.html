@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>YkisMobKMP v2.3.1</title>
+    <title>YkisMobKMP v2.3.3</title>
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f0f2f5; }
         #google-auth-overlay {
@@ -29,17 +29,16 @@
         apiKey: "AIzaSyD5ukrhK6g6xKlrn4Iv9zPQxB7ji_gACY4",
         authDomain: "ykis-mob.firebaseapp.com",
         projectId: "ykis-mob",
-        appId: "1:1062920014188:web:cd8ced095f943b9d088b49"
+        messagingSenderId: "1062920014188",
+        appId: "1:1062920014188:web:cd8ced095f943b9d088b49",
+        measurementId: "G-JNPZSDLKV9"
     };
 
     if (firebase.apps.length === 0) { firebase.initializeApp(firebaseConfig); }
-    console.log("[JS] INDEX.HTML VERSION: 2.3.1 (PURE_FEDCM)");
+    console.log("[JS] INDEX.HTML VERSION: 2.3.3 (RECOVERY)");
 
     window.triggerGoogleAuth = function(clientId) {
-        console.log("[JS] triggerGoogleAuth v2.3.1 START");
-
-        const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-
+        console.log("[JS] triggerGoogleAuth START");
         try {
             google.accounts.id.initialize({
                 client_id: clientId,
@@ -47,8 +46,6 @@
                 auto_select: false,
                 use_fedcm_for_prompt: true,
                 callback: (response) => {
-                    console.log("[JS] Token success!");
-                    document.getElementById('google-auth-overlay').style.display = 'none';
                     if (response.credential && window.onGoogleTokenReceived) {
                         window.onGoogleTokenReceived(response.credential);
                     }
@@ -60,29 +57,19 @@
                 { theme: "filled_blue", size: "large", width: 280, shape: "pill" }
             );
 
-            if (!isChrome) {
-                document.getElementById('google-auth-overlay').style.display = 'flex';
-            }
-
             google.accounts.id.prompt((notification) => {
-                console.log("[JS] Prompt Moment:", notification.getMomentType());
-                if (isChrome && (notification.isNotDisplayed() || notification.isSkippedMoment())) {
+                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
                     document.getElementById('google-auth-overlay').style.display = 'flex';
                 }
             });
-        } catch (e) {
-            console.error("[JS] GSI Error:", e);
-        }
+        } catch (e) { console.error(e); }
     };
 
     window.getWebFcmToken = async function(vapidKey) {
         try {
             const messaging = firebase.messaging();
             return await messaging.getToken({ vapidKey: vapidKey });
-        } catch (e) {
-            console.error("[JS] FCM Error:", e);
-            return null;
-        }
+        } catch (e) { return null; }
     };
 
     window.initializeFirebaseAppCheck = (key) => {};
@@ -96,10 +83,9 @@
 <div id="google-auth-overlay">
     <div class="auth-card">
         <p style="font-family: sans-serif; font-size: 22px; font-weight: bold; color: #1a73e8; margin-bottom: 12px;">ЮКІС Авторизація</p>
-        <p style="font-family: sans-serif; font-size: 15px; color: #5f6368; margin-bottom: 30px;">Будь ласка, оберіть ваш акаунт:</p>
-        <div id="google-signin-btn" style="display: flex; justify-content: center; min-height: 50px;"></div>
+        <div id="google-signin-btn" style="display: flex; justify-content: center;"></div>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
-        <button onclick="document.getElementById('google-auth-overlay').style.display='none'" style="background: #f1f3f4; border: none; padding: 12px 30px; border-radius: 8px; color: #3c4043; cursor: pointer; font-weight: bold;">Скасувати</button>
+        <button onclick="document.getElementById('google-auth-overlay').style.display='none'" style="cursor: pointer;">Скасувати</button>
     </div>
 </div>
 

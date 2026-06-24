@@ -167,7 +167,7 @@ class ApartmentScreenModel(
 
         firebaseService.addFcmToken()
 
-        println("[YkisLogKMP.$className]: [STEP 2] Запит реєстру MySQL для ролі: $currentUserRole")
+        println("[YkisLogKMP.$className]: [STEP 2] Запит реєстру для ролі: $currentUserRole | OSBB_ID: $currentOsbbId")
         when (currentUserRole) {
           UserRole.StandardUser -> {
             apartmentService.getApartmentList(user.uid).collect { result ->
@@ -175,8 +175,13 @@ class ApartmentScreenModel(
             }
           }
           UserRole.OsbbUser -> {
-            apartmentService.getOsbbApartmentsList(currentOsbbId).collect { result ->
-              handleOsbbAdminResult(result, user.uid, currentUserRole, currentOsbbId, user.osbb)
+            if (currentOsbbId > 0L) {
+                apartmentService.getOsbbApartmentsList(currentOsbbId).collect { result ->
+                  handleOsbbAdminResult(result, user.uid, currentUserRole, currentOsbbId, user.osbb)
+                }
+            } else {
+                println("[YkisLogKMP.${className}_ERROR]: Роль OsbbUser, але OSBB_ID не призначено")
+                _uiState.update { it.copy(mainLoading = false, error = "Помилка: OSBB_ID не призначено") }
             }
           }
           else -> {
@@ -197,8 +202,9 @@ class ApartmentScreenModel(
     val incoming = result.data ?: emptyList()
     
     _uiState.update { state ->
-      if (incoming.isNotEmpty()) {
-        val target = if (state.addressId == 0L) incoming.first() else (incoming.find { it.addressId == state.addressId } ?: incoming.first())
+      val combined = if (state.apartments.isEmpty()) incoming else (incoming + state.apartments).distinctBy { it.addressId }
+      if (combined.isNotEmpty()) {
+        val target = if (state.addressId == 0L) combined.first() else (combined.find { it.addressId == state.addressId } ?: combined.first())
         val finalOsbbName = if (target.osbb.isNullOrBlank() || target.osbb == "0") "Мій ОСББ" else target.osbb
         
         if (state.addressId != target.addressId || state.osbbId != target.osmdId) {
@@ -209,7 +215,7 @@ class ApartmentScreenModel(
         }
 
         state.copy(
-          apartments = incoming, 
+          apartments = combined, 
           apartment = target, 
           isApartmentsLoaded = true, 
           addressId = target.addressId,
@@ -251,31 +257,42 @@ class ApartmentScreenModel(
   ) {
     if (result is Resource.Success) {
       val incoming = result.data ?: emptyList()
-      _uiState.update { state ->
-        val combined = if (state.apartments.isEmpty()) incoming else (incoming + state.apartments).distinctBy { it.addressId }
-        if (combined.isNotEmpty()) {
-          val target = combined.find { it.addressId == state.addressId } ?: combined.first()
-          val finalOsbbName = formatOsbbName(target, currentOsbbName)
+      
+      val housesFromApts = incoming.map { 
+          HouseEntity(houseId = it.houseId, house = it.address.substringBefore("/"), raionId = it.blockId) 
+      }.distinctBy { it.houseId }
 
-          state.copy(
-            apartments = combined,
-            apartment = target,
-            isApartmentsLoaded = true,
-            listMode = ListMode.APARTMENTS,
-            addressId = target.addressId,
-            address = target.address,
-            osbbId = target.osmdId,
-            osbb = finalOsbbName,
-            nanim = target.nanim ?: "Власник не вказаний",
-            fio = target.nanim ?: "",
-            mainLoading = false
-          )
+      _uiState.update { state ->
+        if (incoming.isNotEmpty()) {
+          if (housesFromApts.size > 1) {
+              _drawerHouses.value = housesFromApts
+              state.copy(
+                apartments = incoming,
+                isApartmentsLoaded = true,
+                listMode = ListMode.HOUSES,
+                mainLoading = false
+              )
+          } else {
+              val target = if (state.addressId != 0L) (incoming.find { it.addressId == state.addressId } ?: incoming.first()) else incoming.first()
+              state.copy(
+                apartments = incoming,
+                apartment = target,
+                isApartmentsLoaded = true,
+                listMode = ListMode.APARTMENTS,
+                addressId = target.addressId,
+                address = target.address,
+                osbbId = target.osmdId,
+                osbb = formatOsbbName(target, currentOsbbName),
+                nanim = target.nanim ?: "Власник не вказаний",
+                fio = target.nanim ?: "",
+                mainLoading = false
+              )
+          }
         } else {
-          state.copy(mainLoading = false, isApartmentsLoaded = true)
+          state.copy(mainLoading = false, isApartmentsLoaded = true, apartments = emptyList())
         }
       }
       
-      // СИНХРОНІЗАЦІЯ НАЗВИ ОСББ
       val updatedName = _uiState.value.osbb
       if (updatedName.isNotBlank() && updatedName != "ОСББ" && updatedName != currentOsbbName) {
           screenModelScope.launch {
@@ -292,8 +309,6 @@ class ApartmentScreenModel(
         _uiState.update { it.copy(mainLoading = false, isApartmentsLoaded = true) }
     }
   }
-
-  private fun combinedFind(list: List<ApartmentEntity>, id: Long) = list.find { it.addressId == id } ?: list.first()
 
   private fun formatOsbbName(apt: ApartmentEntity, current: String?): String {
       val raw = apt.osbb
@@ -412,6 +427,57 @@ class ApartmentScreenModel(
       apartmentService.verifyAdminCode(input, currentUid).onEach { result ->
         handleAdminResult(result, currentUid)
       }.launchIn(screenModelScope)
+    }
+  }
+
+  private suspend fun handleApartmentResult(uid: String, result: Resource<GetSimpleResponse>) {
+    when (result) {
+      is Resource.Loading -> _uiState.update { it.copy(mainLoading = true) }
+      is Resource.Success -> {
+        val data = result.data ?: return
+        val newAddressId = data.addressId
+        val newOsbbId = data.osbbId
+        val finalOsbbName = data.osbb ?: "Мій ОСББ"
+        
+        _uiState.update { state ->
+          state.copy(
+            addressId = newAddressId,
+            address = data.address ?: "",
+            nanim = data.nanim,
+            fio = data.nanim ?: "",
+            osbb = finalOsbbName,
+            osbbId = newOsbbId,
+            userRole = UserRole.StandardUser,
+            mainLoading = false
+          )
+        }
+        
+        firebaseService.updateUserRoleAndPermissions(
+          uid = uid,
+          addressId = newAddressId,
+          userRole = UserRole.StandardUser,
+          osbbId = newOsbbId,
+          displayName = data.address ?: "",
+          fio = data.nanim ?: "",
+          osbb = finalOsbbName
+        )
+
+        apartmentService.initResidentChats(
+          scope = screenModelScope,
+          uid = uid,
+          osbbId = newOsbbId,
+          addressId = newAddressId,
+          addressText = data.address ?: "",
+          nanim = data.nanim ?: ""
+        )
+        
+        observeUserProfile()
+        SnackbarManager.showMessage("Рахунок успішно прив'язаний")
+      }
+      is Resource.Error -> {
+        _uiState.update { it.copy(mainLoading = false) }
+        SnackbarManager.showMessage(result.message ?: "Помилка")
+      }
     }
   }
 

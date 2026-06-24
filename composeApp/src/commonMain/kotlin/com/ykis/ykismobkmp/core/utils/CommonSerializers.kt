@@ -9,11 +9,11 @@ import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
- * [SmartLongSerializer] — Дешифратор довгих чисел.
- * ФІКС: На Вебі серіалізує Long як Double (Number в JS), щоб уникнути RangeError у Firestore.
+ * [SmartLongSerializer] — Універсальний дешифратор довгих чисел.
+ * Вміє працювати як з JSON, так і з внутрішніми форматами Firestore.
  */
 object SmartLongSerializer : KSerializer<Long> {
-    override val descriptor = PrimitiveSerialDescriptor("SmartLong", PrimitiveKind.DOUBLE) // Double для сумісності з JS
+    override val descriptor = PrimitiveSerialDescriptor("SmartLong", PrimitiveKind.LONG)
     
     override fun serialize(encoder: Encoder, value: Long) {
         val platform = com.ykis.ykismobkmp.getPlatform().name
@@ -25,25 +25,44 @@ object SmartLongSerializer : KSerializer<Long> {
     }
 
     override fun deserialize(decoder: Decoder): Long {
-        val element = (decoder as? JsonDecoder)?.decodeJsonElement() ?: return 0L
-        return when (element) {
-            is JsonPrimitive -> element.content.toLongOrNull() ?: element.content.toDoubleOrNull()?.toLong() ?: 0L
-            else -> 0L
+        // Спроба 1: Читання через Json (якщо це мережевий запит)
+        val jsonElement = (decoder as? JsonDecoder)?.decodeJsonElement()
+        if (jsonElement is JsonPrimitive) {
+            return jsonElement.content.toLongOrNull() ?: jsonElement.content.toDoubleOrNull()?.toLong() ?: 0L
+        }
+        
+        // Спроба 2: Пряме читання (якщо це Firestore або інший формат)
+        return try {
+            decoder.decodeLong()
+        } catch (e: Exception) {
+            try {
+                decoder.decodeDouble().toLong()
+            } catch (e2: Exception) {
+                0L
+            }
         }
     }
 }
 
 /**
- * [SmartDoubleSerializer] — Дешифратор дробних чисел.
+ * [SmartDoubleSerializer] — Універсальний дешифратор дробних чисел.
  */
 object SmartDoubleSerializer : KSerializer<Double> {
     override val descriptor = PrimitiveSerialDescriptor("SmartDouble", PrimitiveKind.DOUBLE)
     override fun serialize(encoder: Encoder, value: Double) = encoder.encodeDouble(value)
     override fun deserialize(decoder: Decoder): Double {
-        val element = (decoder as? JsonDecoder)?.decodeJsonElement() ?: return 0.0
-        return when (element) {
-            is JsonPrimitive -> element.content.toDoubleOrNull() ?: 0.0
-            else -> 0.0
+        val jsonElement = (decoder as? JsonDecoder)?.decodeJsonElement()
+        if (jsonElement is JsonPrimitive) {
+            return jsonElement.content.toDoubleOrNull() ?: 0.0
+        }
+        return try {
+            decoder.decodeDouble()
+        } catch (e: Exception) {
+            try {
+                decoder.decodeString().toDoubleOrNull() ?: 0.0
+            } catch (e2: Exception) {
+                0.0
+            }
         }
     }
 }
@@ -55,10 +74,14 @@ object SmartIntSerializer : KSerializer<Int> {
     override val descriptor = PrimitiveSerialDescriptor("SmartInt", PrimitiveKind.INT)
     override fun serialize(encoder: Encoder, value: Int) = encoder.encodeInt(value)
     override fun deserialize(decoder: Decoder): Int {
-        val element = (decoder as? JsonDecoder)?.decodeJsonElement() ?: return 0
-        return when (element) {
-            is JsonPrimitive -> element.content.toIntOrNull() ?: 0
-            else -> 0
+        val jsonElement = (decoder as? JsonDecoder)?.decodeJsonElement()
+        if (jsonElement is JsonPrimitive) {
+            return jsonElement.content.toIntOrNull() ?: 0
+        }
+        return try {
+            decoder.decodeInt()
+        } catch (e: Exception) {
+            0
         }
     }
 }
