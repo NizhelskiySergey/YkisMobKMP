@@ -1,19 +1,13 @@
 <resources>
   <string name="app_name">ЮКІС</string>
-  <string name="full_name">Южненська Комунальна\nІнформаційна Система</string>
-
-  <!-- Навігація -->
+  <string name="full_name">Южненська Комунальна Інформаційна Система</string>
   <string name="navigation_drawer">Бічне меню</string>
   <string name="chat">Чат</string>
   <string name="account">Акаунт</string>
   <string name="empty_screen_title">Екран у стадії розробки</string>
   <string name="empty_screen_subtitle">Цей екран все ще розробляється.</string>
-
-  <!-- Firebase IDs -->
   <string name="web_client_id">1062920014188-t49akhe8bi4u07vde9n40bqsfdvcpfj3.apps.googleusercontent.com</string>
   <string name="google_app_id" translatable="false">1:1062920014188:android:2fd6c70e4349bef4088b49</string>
-
-  <!-- Діалоги -->
   <string name="lite_mode">Світла тема</string>
   <string name="dark_mode">Темна тема</string>
   <string name="system_mode">Системна тема</string>
@@ -22,7 +16,7 @@
   <string name="sign_out_description">Вам доведеться знову увійти до системи, щоб побачити свої дані.</string>
   <string name="delete_account_title">Видалити акаунт?</string>
   <string name="delete_account_description">Ви втратите всі свої дані, а ваш обліковий запис буде видалено назавжди.</string>
-  <string name="password_error">Пароль має містити мінімум 6 символів, включаючи цифри та літери різного регістру.</string>
+  <string name="password_error">Пароль має містити мінімум 6 символів.</string>
   <string name="password_match_error">Паролі не збігаються.</string>
   <string name="verify_email_message">Ми надіслали лист для підтвердження електронної пошти.</string>
   <string name="reset_password_message">Ми надіслали лист для скидання пароля.</string>
@@ -31,12 +25,12 @@
   <string name="email_not_verified_message">Електронна пошта не підтверджена.</string>
   <string name="repeat_email_not_verified_message">надіслати ще раз</string>
   <string name="agreement_title">Згода на обробку персональних даних</string>
-  <string name="agreement_text">Я, клієнт порталу «Южненська Комунальна Інформаційна Система», даю згоду на зберігання та обробку моїх персональних даних (прізвище, ім’я, по батькові, адреса, телефон, email) адміністрацією порталу для надання даних про заборгованість, оплату комунальних послуг та інших сервісів. Адміністрація зобов’язується обробляти дані згідно із законодавством України. Я погоджуюся на передачу даних комунальним службам для виконання послуг. Відкликання згоди можливе за зверненням на email ykis.osbb@gmail.com.</string>
+  <string name="agreement_text">Я даю згоду на зберігання та обробку моїх персональних даних адміністрацією порталу для надання даних про заборгованість, оплату комунальних послуг та інших сервісів. Адміністрація зобов’язується обробляти дані згідно із законодавством України. Відкликання згоди можливе за зверненням на email ykis.osbb@gmail.com.</string>
   <string name="create_account_sign">Зареєструватись</string>
   <string name="alredy_verified">Вже підтверджено?</string>
   <string name="alredy_user">Я підтвердив пошту. Увійти.</string>
   <string name="verify_email">Підтвердити Email</string>
-  <string name="span_email">Ми надіслали лист для підтвердження. Перевірте також папку спам.</string>
+  <string name="span_email">Ми надіслали лист для підтвердження. Перевірте также папку спам.</string>
   <string name="email">Email</string>
   <string name="email_placeholder">email@address.com</string>
   <string name="number_int_placeholder">0</string>
@@ -58,8 +52,6 @@
   <string name="error_sms_failed">Не вдалося надіслати SMS.</string>
   <string name="error_invalid_sms_code">Невірний код підтвердження.</string>
   <string name="error_db_sync">Помилка синхронізації. Спробуйте пізніше.</string>
-
-  <!-- Авторизація -->
   <string name="email_tab">Ел. пошта</string>
   <string name="phone_tab">Телефон</string>
   <string name="forgot_password_link">Забули пароль?</string>
@@ -78,8 +70,6 @@
   <string name="email_sent_to">Лист надіслано на:</string>
   <string name="try_again">Спробуйте ще раз</string>
   <string name="profile">Профіль</string>
-
-  <!-- LoginScreen -->
   <string name="email_use">Ця адреса вже використовується іншим акаунтом.</string>
   <string name="login_details">Ласкаво просимо!</string>
   <string name="forgot_password">Забули пароль? Відновіть через email.</string>
@@ -87,8 +77,6 @@
   <string name="empty_password_error">Пароль не може бути порожнім.</string>
   <string name="empty_field_error">Поле не може бути порожнім.</string>
   <string name="no_account">Немає акаунту? Зареєструйтесь.</string>
-
-  <!-- Акаунт -->
   <string name="tasks">Подія</string>
   <string name="nikname">Логін</string>
   <string name="uid_provider">UID:</string>
@@ -146,7 +134,7 @@
   <string name="cancel">Скасувати</string>
   <string name="delete">Видалити</string>
   <string name="save">Зберегти</string>
-  <string name="area_flat">Площа квартири (м²)</string>
+  <string name="area_flat">Площа квартири (м2)</string>
   <string name="contacts">Контактні дані</string>
   <string name="PIB">ПІБ</string>
   <string name="area_full">Загальна:</string>
@@ -173,15 +161,13 @@
   <string name="owner_text">Власник:</string>
   <string name="empty_phone">Додайте номер телефону</string>
   <string name="empty_email">Додайте електронну адресу</string>
-
-  <!-- Служби -->
-  <string name="vodokanal">КП \"ЮЖВОДОКАНАЛ\"</string>
-  <string name="vodokanal_colon">KП \"ЮЖВОДОКАНАЛ\":</string>
-  <string name="ytke">КП тм \"ЮТКЕ\"</string>
+  <string name="vodokanal">КП ЮЖВОДОКАНАЛ</string>
+  <string name="vodokanal_colon">KП ЮЖВОДОКАНАЛ:</string>
+  <string name="ytke">КП тм ЮТКЕ</string>
   <string name="ytke_short">ЮТКЕ</string>
-  <string name="ytke_colon">КП тм \"ЮТКЕ\":</string>
-  <string name="yzhtrans">КП \"СПЕЦТРАНС\"</string>
-  <string name="yzhtrans_colon">КП \"СПЕЦТРАНС\":</string>
+  <string name="ytke_colon">КП тм ЮТКЕ:</string>
+  <string name="yzhtrans">КП СПЕЦТРАНС</string>
+  <string name="yzhtrans_colon">КП СПЕЦТРАНС:</string>
   <string name="organ">Організація</string>
   <string name="borg_text">Борг на %s</string>
   <string name="compound_text">Склад сім’ї</string>
@@ -214,8 +200,6 @@
   <string name="tbo">Управління ПВ:</string>
   <string name="prixod">Прихід:</string>
   <string name="add">Додати</string>
-
-  <!-- Лічильники -->
   <string name="water_meter">Водяний</string>
   <string name="water_meter_label">Водяний лічильник</string>
   <string name="water_meter_placeholder">Виберіть лічильник для перегляду деталей</string>
@@ -248,15 +232,13 @@
   <string name="spisan_colon">Списаний:</string>
   <string name="date_spisan_colon">Дата списання:</string>
   <string name="out_colon">На повірці:</string>
-
-  <!-- Показання -->
   <string name="date_ot_colon">Дата попереднього:</string>
   <string name="date_do_colon">Дата поточного:</string>
   <string name="reading">Показання</string>
   <string name="average">За середнім</string>
   <string name="days_colon">Днів:</string>
   <string name="qty_cube_colon">Об’єм:</string>
-  <string name="cube_day_colon">м³/день:</string>
+  <string name="cube_day_colon">м3/день:</string>
   <string name="period_colon">Період:</string>
   <string name="last_reading">Останнє показання</string>
   <string name="last_colon">Попереднє:</string>
@@ -273,16 +255,12 @@
   <string name="gkal_colon">Нараховано (ГКал):</string>
   <string name="rate_colon">Тариф:</string>
   <string name="coefficient_colon">Коеф. переведення:</string>
-
-  <!-- Діалоги показань -->
   <string name="new_reading">Нове показання</string>
   <string name="add_reading_title">Додати нове показання?</string>
   <string name="current_reading">Поточне показання</string>
   <string name="add_reading">Додати</string>
   <string name="delete_reading">Видалити показання</string>
   <string name="delete_reading_title">Видалити останнє показання?</string>
-
-  <!-- Оплата -->
   <string name="mtb_text">МТБ БАНК</string>
   <string name="pay_text">Оплатити через:</string>
   <string name="pb_text">ПриватБанк</string>
@@ -292,8 +270,6 @@
   <string name="edit_pay_text">Сума до сплати</string>
   <string name="pay">Сплатити</string>
   <string name="two_numbers_after_comma">%.2f</string>
-
-  <!-- Помилки -->
   <string name="error_network">Немає інтернет-з’єднання.</string>
   <string name="error_terms">Очікування відповіді від сервера...</string>
   <string name="error_update">Відсутні обов’язкові поля.</string>
@@ -316,13 +292,11 @@
   <string name="error_unknown_deletion">Невідома помилка при видаленні</string>
   <string name="error_session_refresh_failed">Помилка оновлення сесії</string>
   <string name="error_registration_failed">Помилка реєстрації</string>
-  <string name="error_load_osbb">Помилка завантаження реєстру ОСББ</string>
+  <string name="error_load_osbb">Помилка завантаження списку ОСББ</string>
   <string name="error_load_raions">Помилка завантаження районів</string>
   <string name="error_load_houses">Помилка завантаження будинків</string>
-  <string name="error_load_family">Помилка завантаження складу сім’ї</string>
+  <string name="error_load_family">Помилка завантаження складу сім'ї</string>
   <string name="error_invalid_data">Отримано некоректні дані від сервера</string>
-
-  <!-- Успіх -->
   <string name="success_delete_flat">Квартиру видалено.</string>
   <string name="success_add_flat">Квартиру додано.</string>
   <string name="success_send_message">Повідомлення надіслано.</string>
@@ -331,17 +305,15 @@
   <string name="language_ru">Русский</string>
   <string name="language_en">English</string>
   <string name="restart_required">Зміни набудуть чинності після перезапуску додатка</string>
-
-  <!-- Різне -->
   <string name="confirm_password">Підтвердьте пароль</string>
   <string name="name">Ім’я</string>
   <string name="register">Реєстрація</string>
   <string name="already_have_account">Вже є акаунт?</string>
   <string name="dont_have_account">Ще немає акаунта?</string>
   <string name="login">Вхід</string>
-  <string name="terms_condition">Умови користування "ЮКІС"</string>
+  <string name="terms_condition">Умови користування ЮКІС</string>
   <string name="terms_condition_accept">Я приймаю умови угоди</string>
-  <string name="terms_condition_down">Прокрутіть текст до кінця ↓</string>
+  <string name="terms_condition_down">Прокрутіть текст до кінця</string>
   <string name="chats">Чати</string>
   <string name="friends">Друзі</string>
   <string name="add_friend">Запросити друга</string>
@@ -359,6 +331,7 @@
   <string name="send_request">Надіслати запит</string>
   <string name="ic_arrow_forward">стрілка вправо</string>
   <string name="loading_from_wifi">Через Wi-Fi</string>
+  <string name="search_apartment_hint">Пошук за адресою або о/р</string>
   <string name="loading_from_mobile">Через мобільну мережу</string>
   <string name="settings_loadin_from_server">Завантаження з сервера</string>
   <string name="driver_menu">бічне меню</string>
@@ -470,5 +443,4 @@
   <string name="all_citizens">📍 Усім мешканцям міста</string>
   <string name="residents_of">🏠 Мешканцям %s</string>
   <string name="osbb">ОСББ</string>
-  <string name="search_apartment_hint">Пошук за адресою або о/р</string>
 </resources>

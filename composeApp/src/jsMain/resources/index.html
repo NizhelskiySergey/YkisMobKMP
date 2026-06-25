@@ -1,9 +1,38 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>YkisMobKMP v2.3.3</title>
+    <title>ЮКІС (v2.4.4)</title>
+    <script>
+        // 1. ЕКСТРЕМАЛЬНА ПІДМІНА МОВИ (ДО ЗАВАНТАЖЕННЯ БУДЬ-ЯКОГО JS)
+        (function() {
+            try {
+                let raw = localStorage.getItem('app_language') || 'uk';
+                let lang = raw.replace(/['"]+/g, '').trim(); // Видаляємо лапки від Kotlin
+
+                // Форсуємо атрибути документа
+                document.documentElement.lang = lang;
+                document.documentElement.setAttribute('lang', lang);
+
+                // Підміна властивостей navigator (Spoofing)
+                const languageProp = { get: function() { return lang; } };
+                const languagesProp = { get: function() { return [lang, (lang === 'uk' ? 'ru' : 'uk')]; } };
+
+                try {
+                    Object.defineProperty(navigator, 'language', languageProp);
+                    Object.defineProperty(navigator, 'languages', languagesProp);
+                    Object.defineProperty(navigator, 'userLanguage', languageProp);
+                    Object.defineProperty(navigator, 'browserLanguage', languageProp);
+                } catch (e) {
+                    // Якщо заблоковано, пробуємо через прототип
+                    navigator.__proto__.language = lang;
+                }
+
+                console.log("%c[YKIS_BOOT] Locale forced to: " + lang, "background: #FF5722; color: white; padding: 5px;");
+            } catch (e) { console.error("[JS] Spoofing error:", e); }
+        })();
+    </script>
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f0f2f5; }
         #google-auth-overlay {
@@ -33,35 +62,21 @@
         appId: "1:1062920014188:web:cd8ced095f943b9d088b49",
         measurementId: "G-JNPZSDLKV9"
     };
-
     if (firebase.apps.length === 0) { firebase.initializeApp(firebaseConfig); }
-    console.log("[JS] INDEX.HTML VERSION: 2.3.3 (RECOVERY)");
 
+    // ВІДНОВЛЕННЯ BRIDGE-ФУНКЦІЙ (для Firebase)
     window.triggerGoogleAuth = function(clientId) {
-        console.log("[JS] triggerGoogleAuth START");
         try {
             google.accounts.id.initialize({
-                client_id: clientId,
-                ux_mode: 'popup',
-                auto_select: false,
-                use_fedcm_for_prompt: true,
+                client_id: clientId, ux_mode: 'popup', auto_select: false,
                 callback: (response) => {
                     if (response.credential && window.onGoogleTokenReceived) {
                         window.onGoogleTokenReceived(response.credential);
                     }
                 }
             });
-
-            google.accounts.id.renderButton(
-                document.getElementById("google-signin-btn"),
-                { theme: "filled_blue", size: "large", width: 280, shape: "pill" }
-            );
-
-            google.accounts.id.prompt((notification) => {
-                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                    document.getElementById('google-auth-overlay').style.display = 'flex';
-                }
-            });
+            google.accounts.id.renderButton(document.getElementById("google-signin-btn"), { theme: "filled_blue", size: "large", width: 280, shape: "pill" });
+            google.accounts.id.prompt();
         } catch (e) { console.error(e); }
     };
 
@@ -78,14 +93,14 @@
 </script>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script type="module" src="composeApp.js"></script>
+<script type="module" src="composeApp.js?v=20240320_FINAL_V244"></script>
 
 <div id="google-auth-overlay">
     <div class="auth-card">
-        <p style="font-family: sans-serif; font-size: 22px; font-weight: bold; color: #1a73e8; margin-bottom: 12px;">ЮКІС Авторизація</p>
+        <p style="font-family: sans-serif; font-size: 22px; font-weight: bold; color: #1a73e8; margin-bottom: 24px;">ЮКІС Авторизація</p>
         <div id="google-signin-btn" style="display: flex; justify-content: center;"></div>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
-        <button onclick="document.getElementById('google-auth-overlay').style.display='none'" style="cursor: pointer;">Скасувати</button>
+        <button onclick="document.getElementById('google-auth-overlay').style.display='none'">Скасувати</button>
     </div>
 </div>
 

@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import coil3.compose.AsyncImage
+import com.ykis.ykismobkmp.getPlatform
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.components.SingleSelectDialog
 import com.ykis.ykismobkmp.ui.navigation.AppScreenModel

@@ -11,17 +11,11 @@ import com.ykis.ykismobkmp.di.initJsKoin
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.core.utils.SnackbarManager
 import kotlinx.browser.window
-import kotlinx.browser.localStorage
 import org.koin.mp.KoinPlatform
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
 fun main() {
   initJsKoin()
-
-  // 1. Читаємо мову та встановлюємо атрибут lang для HTML (критично для ресурсів)
-  val savedLang = localStorage.getItem("app_language") ?: "uk"
-  println("[Main.js]: Считана локаль: $savedLang. Установка атрибута lang...")
-  document.documentElement?.setAttribute("lang", savedLang)
 
   fun handleUrlParams() {
     val urlParams = window.location.search
