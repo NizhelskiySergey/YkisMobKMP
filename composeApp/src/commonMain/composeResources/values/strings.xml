@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="app_name">ЮКІС</string>
   <string name="full_name">Южненська Комунальна Інформаційна Система</string>
@@ -17,10 +18,10 @@
   <string name="delete_account_title">Видалити акаунт?</string>
   <string name="delete_account_description">Ви втратите всі свої дані, а ваш обліковий запис буде видалено назавжди.</string>
   <string name="password_error">Пароль має містити мінімум 6 символів.</string>
-  <string name="password_match_error">Паролі не збігаються.</string>
+  <string name="password_match_error">Паролі не збігаются.</string>
   <string name="verify_email_message">Ми надіслали лист для підтвердження електронної пошти.</string>
   <string name="reset_password_message">Ми надіслали лист для скидання пароля.</string>
-  <string name="revoke_access_message">Задля безпеки, перед видаленням акаунта необхідно підтвердити особу. Будь ласка, виконайте перевхід.</string>
+  <string name="revoke_access_message">Задля безпеки, перед видаленням акаунта необхідно подтвредити особу. Будь ласка, виконайте перевхід.</string>
   <string name="access_revoked_message">Доступ скасовано.</string>
   <string name="email_not_verified_message">Електронна пошта не підтверджена.</string>
   <string name="repeat_email_not_verified_message">надіслати ще раз</string>
@@ -46,7 +47,7 @@
   <string name="error_network_request_failed">Помилка мережі. Перевірте інтернет.</string>
   <string name="error_too_many_requests">Занадто багато спроб. Спробуйте пізніше.</string>
   <string name="error_unknown">Сталася невідома помилка.</string>
-  <string name="error_empty_password">Пароль не може бути порожнім.</string>
+  <string name="error_empty_password">Пароль не может бути порожнім.</string>
   <string name="error_invalid_password_format">Пароль занадто простий.</string>
   <string name="error_passwords_mismatch">Паролі не збігаються.</string>
   <string name="error_sms_failed">Не вдалося надіслати SMS.</string>
@@ -74,8 +75,8 @@
   <string name="login_details">Ласкаво просимо!</string>
   <string name="forgot_password">Забули пароль? Відновіть через email.</string>
   <string name="recovery_email_sent">Перевірте пошту (і папку спам).</string>
-  <string name="empty_password_error">Пароль не може бути порожнім.</string>
-  <string name="empty_field_error">Поле не може бути порожнім.</string>
+  <string name="empty_password_error">Пароль не может бути порожнім.</string>
+  <string name="empty_field_error">Поле не может бути порожнім.</string>
   <string name="no_account">Немає акаунту? Зареєструйтесь.</string>
   <string name="tasks">Подія</string>
   <string name="nikname">Логін</string>
@@ -304,7 +305,7 @@
   <string name="language_uk">Українська</string>
   <string name="language_ru">Русский</string>
   <string name="language_en">English</string>
-  <string name="restart_required">Зміни набудуть чинності після перезапуску додатка</string>
+  <string name="restart_required">Зміни набудуть чинності после перезапуску додатка</string>
   <string name="confirm_password">Підтвердьте пароль</string>
   <string name="name">Ім’я</string>
   <string name="register">Реєстрація</string>

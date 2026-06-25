@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="app_name">ЮКИС</string>
   <string name="full_name">Южненская Коммунальная\nИнформационная Система</string>
@@ -158,7 +159,7 @@
   <string name="employer_none">данные отсутствуют</string>
   <string name="owner_text">Владелец:</string>
   <string name="empty_phone">Добавьте номер телефона</string>
-  <string name="empty_email">Добавьте электронный адрес</string>
+  <string name="empty_email">Додайте электронный адрес</string>
   <string name="vodokanal">КП ЮЖВОДОКАНАЛ</string>
   <string name="vodokanal_colon">KП ЮЖВОДОКАНАЛ:</string>
   <string name="ytke">КП тс ЮТКЭ</string>
@@ -312,7 +313,7 @@
   <string name="terms_condition">Условия пользования ЮКИС</string>
   <string name="terms_condition_accept">Я принимаю условия соглашения</string>
   <string name="terms_condition_down">Прокрутите текст до конца</string>
-  <string name="chats">Чаты</string>
+  <string name="chats">Чати</string>
   <string name="friends">Друзья</string>
   <string name="add_friend">Пригласить друга</string>
   <string name="friend_requests">Запросы в друзья</string>
@@ -327,7 +328,7 @@
   <string name="new_password_colon">Новый пароль:</string>
   <string name="update_account">Обновить аккаунт</string>
   <string name="send_request">Отправить запрос</string>
-  <string name="ic_arrow_forward">стрелка вправо</string>
+  <string name="ic_arrow_forward">стрілка вправо</string>
   <string name="loading_from_wifi">Через Wi-Fi</string>
   <string name="search_apartment_hint">Поиск по адресу или л/с</string>
   <string name="loading_from_mobile">Через мобильную сеть</string>
@@ -428,17 +429,17 @@
   <string name="forwarded">переслано</string>
   <string name="forward_message">переслать сообщение</string>
   <string name="select_recipient">выбрать получателя</string>
-  <string name="edit">редактировать</string>
+  <string name="edit">редакторовать</string>
   <string name="delete_for_me">удалить у меня</string>
   <string name="delete_for_everyone">удалить для всех</string>
   <string name="forward">переслать</string>
-  <string name="message_actions_title">Действия с сообщением</string>
-  <string name="apply_suggestion">Использовать ответ</string>
-  <string name="announcements">Объявления</string>
-  <string name="all">Все</string>
-  <string name="no_announcements">Объявлений пока нет</string>
-  <string name="city_announcement">Городское объявление</string>
-  <string name="all_citizens">📍 Всем жителям города</string>
-  <string name="residents_of">🏠 Жителям %s</string>
+  <string name="message_actions_title">Дії з повідомленням</string>
+  <string name="apply_suggestion">Використати відповідь</string>
+  <string name="announcements">Оголошення</string>
+  <string name="all">Всі</string>
+  <string name="no_announcements">Оголошень поки що немає</string>
+  <string name="city_announcement">Міське оголошення</string>
+  <string name="all_citizens">📍 Усім мешканцям міста</string>
+  <string name="residents_of">🏠 Мешканцям %s</string>
   <string name="osbb">ОСББ</string>
 </resources>
