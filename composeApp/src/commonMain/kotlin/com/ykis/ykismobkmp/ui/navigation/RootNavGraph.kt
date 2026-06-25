@@ -102,7 +102,7 @@ fun RootNavGraph(
                   if (currentRoute !is TermsAndConditionScreen) navigator.replaceAll(TermsAndConditionScreen(appStartModel.cachedTermsText))
                 }
                 AppStartState.SignIn -> {
-                  if (currentRoute != SignInScreen && currentRoute != SignUpScreenDest && currentRoute != VerifyEmailScreenDest) navigator.replaceAll(SignInScreen)
+                  if (currentRoute != SignInScreen && currentRoute != SignUpScreenDest) navigator.replaceAll(SignInScreen)
                 }
                 AppStartState.VerifyEmail -> {
                   if (currentRoute != VerifyEmailScreenDest) navigator.replaceAll(VerifyEmailScreenDest)

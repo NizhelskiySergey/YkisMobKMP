@@ -441,5 +441,6 @@
   <string name="city_announcement">Міське оголошення</string>
   <string name="all_citizens">📍 Усім мешканцям міста</string>
   <string name="residents_of">🏠 Мешканцям %s</string>
+  <string name="change_email">Изменить почту</string>
   <string name="osbb">ОСББ</string>
 </resources>

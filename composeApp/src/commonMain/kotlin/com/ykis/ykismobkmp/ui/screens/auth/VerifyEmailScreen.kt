@@ -33,6 +33,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -51,6 +52,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.alredy_user
+import ykismobkmp.composeapp.generated.resources.change_email
 import ykismobkmp.composeapp.generated.resources.email_sent_to
 import ykismobkmp.composeapp.generated.resources.send_again
 import ykismobkmp.composeapp.generated.resources.repeat_email_not_verified_message
@@ -114,6 +116,12 @@ object VerifyEmailScreen : Screen {
           )
         }
       },
+      onChangeEmailClick = {
+          viewModel.signOutFromVerifyScreen {
+              println("[YkisLogKMP.$className.Content]: [ACTION] Вихід для зміни пошти. Повернення на SignIn.")
+              navigator.replaceAll(com.ykis.ykismobkmp.ui.screens.auth.SignInScreen)
+          }
+      },
       email = viewModel.displayEmail,
       navigateBack = {
         navigator.pop() // Нативный КМР возврат назад во вход
@@ -131,6 +139,7 @@ fun VerifyEmailScreenStateless(
   modifier: Modifier = Modifier,
   onReloadClick: () -> Unit,
   onRepeatEmailClick: () -> Unit,
+  onChangeEmailClick: () -> Unit,
   email: String,
   navigateBack: () -> Unit,
   isLoading: Boolean
@@ -223,6 +232,21 @@ fun VerifyEmailScreenStateless(
           color = MaterialTheme.colorScheme.secondary
         )
       }
+      
+      Spacer(modifier = Modifier.height(24.dp))
+      
+      Text(
+          text = stringResource(Res.string.change_email),
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.primary,
+          modifier = Modifier
+              .clip(RoundedCornerShape(8.dp))
+              .clickable { 
+                  println("[YkisLogKMP.$className]: Користувач бажає змінити пошту.")
+                  onChangeEmailClick() 
+              }
+              .padding(8.dp)
+      )
     }
   }
 }

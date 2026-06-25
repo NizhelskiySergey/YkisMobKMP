@@ -56,7 +56,11 @@ class AppScreenModel(
 
       // 2. ШАГ №2: Auth
       var attempts = 0
-      while (firebaseService.uid.isBlank() && attempts < 20) {
+      // Збільшено до 50 спроб (10 секунд) для повільних пристроїв
+      while (firebaseService.uid.isBlank() && attempts < 50) {
+          if (attempts % 10 == 0) {
+              println("[YkisLogKMP.$className]: Очікування сесії... Спроба $attempts. Current user: ${firebaseService.currentUser?.email ?: "null"}")
+          }
           delay(200)
           attempts++
       }
@@ -65,6 +69,22 @@ class AppScreenModel(
       if (finalUid.isBlank()) {
           println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Сесія НЕ знайдена. SignIn.")
           _startState.value = AppStartState.SignIn
+          return@launch
+      }
+      println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] UID знайдено: $finalUid")
+
+      // 2.5 ШАГ №2.5: Перевірка верифікації пошти
+      println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2.5] Перевірка статусу пошти...")
+      firebaseService.reloadFirebaseUser()
+      
+      val user = firebaseService.currentUser
+      val isVerified = user?.isEmailVerified ?: true // Якщо нема юзера або провайдер інший, вважаємо ок
+      
+      println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2.5] User: ${user?.email}, Verified: ${user?.isEmailVerified}")
+      
+      if (user?.isEmailVerified == false) {
+          println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2.5] Email не підтверджений. Йдемо на VerifyEmail.")
+          _startState.value = AppStartState.VerifyEmail
           return@launch
       }
 

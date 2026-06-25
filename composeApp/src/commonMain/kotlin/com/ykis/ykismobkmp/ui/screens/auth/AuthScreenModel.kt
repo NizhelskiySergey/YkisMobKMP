@@ -172,6 +172,14 @@ class AuthScreenModel(
     }
   }
 
+  fun signOutFromVerifyScreen(onSuccess: () -> Unit) {
+    screenModelScope.launch {
+      firebaseService.signOut()
+      appScreenModel.evaluateStartDestination()
+      onSuccess()
+    }
+  }
+
   fun onPhoneChange(newValue: String) { _authUiState.update { it.copy(phoneNumber = newValue) } }
   fun onSmsCodeChange(newValue: String) { _authUiState.update { it.copy(smsCode = newValue) } }
   fun setSmsSentState(isSent: Boolean) { _authUiState.update { it.copy(isSmsSent = isSent) } }

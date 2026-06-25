@@ -14,7 +14,7 @@ class YkisApp : Application() {
     override fun onCreate() {
         super.onCreate()
         
-        // 1. Инициализируем Koin ПЕРВЫМ (чтобы все зависимости были готовы до старта сервисов)
+        // 1. Инициализируем Koin
         initAndroidKoin(this)
 
         // 2. Инициализируем Firebase
@@ -25,13 +25,21 @@ class YkisApp : Application() {
             val isDebug = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
             if (isDebug) {
-                println("[YkisLogKMP.YkisApp]: Режим ОТЛАДКИ. Использование DebugAppCheckProvider.")
+                println("[YkisLogKMP.AppCheck]: Режим ОТЛАДКИ. Установка DebugProvider...")
                 firebaseAppCheck.installAppCheckProviderFactory(
                     DebugAppCheckProviderFactory.getInstance()
                 )
-                // Виводимо токен в лог для зручності реєстрації в консолі
-                firebaseAppCheck.getAppCheckToken(false).addOnSuccessListener { token ->
-                    println("[YkisLogKMP.AppCheck]: Ваш Debug Token для Firebase Console: ${token.token}")
+                
+                // ГАРАНТОВАНИЙ ВИВІД ТОКЕНА ДЛЯ КОНСОЛІ
+                firebaseAppCheck.getAppCheckToken(false).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        println("==========================================================================")
+                        println("[YkisLogKMP.AppCheck]: ВАШ DEBUG TOKEN:")
+                        println("${task.result.token}")
+                        println("==========================================================================")
+                    } else {
+                        println("[YkisLogKMP.AppCheck_ERROR]: Не вдалося отримати токен: ${task.exception?.message}")
+                    }
                 }
             } else {
                 println("[YkisLogKMP.YkisApp]: РЕЛИЗНЫЙ режим. Использование PlayIntegrity.")
@@ -40,13 +48,8 @@ class YkisApp : Application() {
                 )
             }
             
-            // "Прогрев" токена в фоновом режиме
-            firebaseAppCheck.getAppCheckToken(false)
-            
         } catch (e: Exception) {
             println("[YkisLogKMP.YkisApp_ERROR]: Ошибка при инициализации Firebase: ${e.message}")
         }
-        
-        println("[YkisLogKMP.YkisApp]: Инициализация завершена успешно.")
     }
 }
