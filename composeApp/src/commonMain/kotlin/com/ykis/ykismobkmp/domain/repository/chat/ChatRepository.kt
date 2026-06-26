@@ -106,12 +106,17 @@ class ChatRepository(
     return realtime.reference("chat_access")
       .valueEvents
       .map { snapshot ->
-        snapshot.children
+        val keys = snapshot.children
           .mapNotNull { it.key }
           .filter { it.startsWith(prefix) }
           .sortedDescending()
+        println("[YkisLogKMP.ChatRepository]: observeChatKeys для '$prefix' повернув ${keys.size} ключів")
+        keys
       }
-      .catch { emit(emptyList()) }
+      .catch { e -> 
+        println("[YkisLogKMP.ChatRepository_ERROR]: Помилка observeChatKeys для '$prefix': ${e.message}")
+        // Не емітимо пустий список, щоб не затирати стан при помилці зв'язку або AppCheck
+      }
   }
 
   suspend fun fetchAdminsByOsbb(osbbId: Long): List<UserEntity> {

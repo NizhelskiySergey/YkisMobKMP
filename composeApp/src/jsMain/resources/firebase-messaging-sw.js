@@ -2,10 +2,13 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-    apiKey: "AIzaSyDZUPgZSs5RMcQFtt2DjcoZoYTi9wdI37k",
+    apiKey: "AIzaSyD5ukrhK6g6xKlrn4Iv9zPQxB7ji_gACY4",
+    authDomain: "ykis-mob.firebaseapp.com",
+    databaseURL: "https://ykis-mob-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "ykis-mob",
-    appId: "1:1062920014188:web:cd8ced095f943b9d088b49",
-    messagingSenderId: "1062920014188"
+    storageBucket: "ykis-mob.firebasestorage.app",
+    messagingSenderId: "1062920014188",
+    appId: "1:1062920014188:web:cd8ced095f943b9d088b49"
 });
 
 const messaging = firebase.messaging();

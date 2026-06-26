@@ -294,13 +294,14 @@ class ApartmentScreenModel(
       }.distinctBy { it.houseId }.sortedBy { it.house }
 
       _uiState.update { state ->
-        if (incoming.isNotEmpty()) {
+        val combined = incoming // ЕТАЛОН: Тільки актуальний список
+        if (combined.isNotEmpty()) {
           if (housesFromApts.size > 1) {
               _drawerHouses.value = housesFromApts
-              state.copy(apartments = incoming, isApartmentsLoaded = true, listMode = ListMode.HOUSES, mainLoading = false, osbbId = osbbId, osmdId = osbbId, addressId = 0L)
+              state.copy(apartments = combined, isApartmentsLoaded = true, listMode = ListMode.HOUSES, mainLoading = false, osbbId = osbbId, osmdId = osbbId, addressId = 0L)
           } else {
-              val target = if (state.addressId != 0L) (incoming.find { it.addressId == state.addressId } ?: incoming.first()) else incoming.first()
-              state.copy(apartments = incoming, apartment = target, isApartmentsLoaded = true, listMode = ListMode.APARTMENTS, addressId = target.addressId, address = target.address, osbbId = target.osmdId, osmdId = target.osmdId, osbb = formatOsbbName(target, currentOsbbName), nanim = target.nanim ?: "Власник не вказаний", fio = target.nanim ?: "", mainLoading = false)
+              val target = if (state.addressId != 0L) (combined.find { it.addressId == state.addressId } ?: combined.first()) else combined.first()
+              state.copy(apartments = combined, apartment = target, isApartmentsLoaded = true, listMode = ListMode.APARTMENTS, addressId = target.addressId, address = target.address, osbbId = target.osmdId, osmdId = target.osmdId, osbb = formatOsbbName(target, currentOsbbName), nanim = target.nanim ?: "Власник не вказаний", fio = target.nanim ?: "", mainLoading = false)
           }
         } else {
           state.copy(mainLoading = false, isApartmentsLoaded = true, apartments = emptyList())

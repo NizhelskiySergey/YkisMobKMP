@@ -3,33 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ЮКІС</title>
+    <title>ЮКІС (v2.5.0)</title>
+    <!-- reCAPTCHA Enterprise Script (АКТУАЛЬНИЙ КЛЮЧ: 6Le1Kyct...) -->
+    <script src="https://www.google.com/recaptcha/enterprise.js?render=6Le1KyctAAAAAKfaFArw96fKZev9yAxMeqEFagrh"></script>
     <script>
-        // 1. ЕКСТРЕМАЛЬНА ПІДМІНА МОВИ (ДО ЗАВАНТАЖЕННЯ БУДЬ-ЯКОГО JS)
         (function() {
             try {
                 let raw = localStorage.getItem('app_language') || 'uk';
-                let lang = raw.replace(/['"]+/g, '').trim(); // Видаляємо лапки від Kotlin
-
-                // Форсуємо атрибути документа
+                let lang = raw.replace(/['"]+/g, '').trim();
                 document.documentElement.lang = lang;
                 document.documentElement.setAttribute('lang', lang);
-
-                // Підміна властивостей navigator (Spoofing)
                 const languageProp = { get: function() { return lang; } };
                 const languagesProp = { get: function() { return [lang, (lang === 'uk' ? 'ru' : 'uk')]; } };
-
                 try {
                     Object.defineProperty(navigator, 'language', languageProp);
                     Object.defineProperty(navigator, 'languages', languagesProp);
-                    Object.defineProperty(navigator, 'userLanguage', languageProp);
-                    Object.defineProperty(navigator, 'browserLanguage', languageProp);
                 } catch (e) {
-                    // Якщо заблоковано, пробуємо через прототип
                     navigator.__proto__.language = lang;
                 }
-
-                console.log("%c[YKIS_BOOT] Locale forced to: " + lang, "background: #FF5722; color: white; padding: 5px;");
             } catch (e) { console.error("[JS] Spoofing error:", e); }
         })();
     </script>
@@ -45,26 +36,50 @@
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); text-align: center;
             min-width: 320px; border: 2px solid #1a73e8;
         }
+        #recaptcha-container { position: fixed; bottom: 0; right: 0; z-index: 9999; }
     </style>
 </head>
 <body style="text-align: center; align-content: center">
 
+<div id="recaptcha-container"></div>
+
+<!-- FIREBASE SDK COMPAT (JS) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
 
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyD5ukrhK6g6xKlrn4Iv9zPQxB7ji_gACY4",
         authDomain: "ykis-mob.firebaseapp.com",
+        databaseURL: "https://ykis-mob-default-rtdb.europe-west1.firebasedatabase.app",
         projectId: "ykis-mob",
+        storageBucket: "ykis-mob.firebasestorage.app",
         messagingSenderId: "1062920014188",
         appId: "1:1062920014188:web:cd8ced095f943b9d088b49",
         measurementId: "G-JNPZSDLKV9"
     };
-    if (firebase.apps.length === 0) { firebase.initializeApp(firebaseConfig); }
 
-    // ВІДНОВЛЕННЯ BRIDGE-ФУНКЦІЙ (для Firebase)
+    if (firebase.apps.length === 0) {
+        firebase.initializeApp(firebaseConfig);
+        firebase.firestore().settings({ experimentalForceLongPolling: true });
+    }
+
+    // ТА САМА РОБОЧА ФУНКЦІЯ З ХОРОШОЇ ВЕТКИ
+    window.initializeFirebaseAppCheck = function(siteKey) {
+        try {
+            const appCheck = firebase.appCheck();
+            appCheck.activate(siteKey, true);
+            console.log("[JS] App Check Ready (Standard Activate)");
+        } catch (e) {
+            console.warn("[JS] App Check Activation Warn:", e.message);
+        }
+    };
+
     window.triggerGoogleAuth = function(clientId) {
         try {
             google.accounts.id.initialize({
@@ -87,13 +102,25 @@
         } catch (e) { return null; }
     };
 
-    window.initializeFirebaseAppCheck = (key) => {};
-    window.sendSmsWeb = async () => "SUCCESS";
-    window.verifySmsWeb = async () => true;
+    window.sendSmsWeb = async function(phoneNumber) {
+        const auth = firebase.auth();
+        auth.languageCode = 'uk';
+        try {
+            if (recaptchaVerifier) { try { recaptchaVerifier.clear(); } catch(e) {} }
+            recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 'size': 'invisible' });
+            confirmationResult = await auth.signInWithPhoneNumber(phoneNumber, recaptchaVerifier);
+            return "SUCCESS";
+        } catch (e) { throw e.message; }
+    };
+
+    window.verifySmsWeb = async function(smsCode) {
+        if (!confirmationResult) throw "Сесія не знайдена";
+        try { await confirmationResult.confirm(smsCode); return true; } catch (e) { throw "Невірний код"; }
+    };
 </script>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script type="module" src="composeApp.js?v=20240320_FINAL_V244"></script>
+<script type="module" src="composeApp.js?v=20240320_FINAL_V250"></script>
 
 <div id="google-auth-overlay">
     <div class="auth-card">

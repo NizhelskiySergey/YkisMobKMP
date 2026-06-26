@@ -455,12 +455,30 @@ class ChatScreenModel(
       }
   }
 
+  private var lastTrackedRole: UserRole? = null
+  private var lastTrackedOsbbId: Long? = null
+  private var lastTrackedApartmentsCount: Int = -1
+
   fun trackUserIdentifiersWithRole(role: UserRole, osbbId: Long, apartments: List<ApartmentEntity> = emptyList()) {
     val myUid = chatRepo.currentUid ?: ""
+    if (myUid.isBlank()) return
+
+    // ОПТИМІЗАЦІЯ: Для мешканця важлива кількість квартир, для адміна - тільки роль та ID організації
+    val isResident = role == UserRole.StandardUser
+    val shouldUpdate = lastTrackedRole != role || 
+                       lastTrackedOsbbId != osbbId || 
+                       (isResident && lastTrackedApartmentsCount != apartments.size)
+
+    if (!shouldUpdate) return
+    
+    lastTrackedRole = role
+    lastTrackedOsbbId = osbbId
+    lastTrackedApartmentsCount = apartments.size
+
     activeTrackerJob?.cancel()
     subscribeToUnreadCountGlobal(myUid)
 
-    if (role == UserRole.StandardUser) {
+    if (isResident) {
       val residentKeys = mutableListOf<String>()
       apartments.forEach { apt ->
         residentKeys.add("OSBB_${apt.osmdId ?: 0L}_${apt.addressId}")
@@ -482,7 +500,29 @@ class ChatScreenModel(
     }
 
     activeTrackerJob = screenModelScope.launch {
+      println("[YkisLogKMP.Chat]: Запуск відстеження для $role (Prefix: $targetPrefix)")
+      
+      // ФІКС ДЛЯ WEB: Спроби ініціалізації з невеликою затримкою для App Check
+      var success = false
+      var attempts = 0
+      while (!success && attempts < 3) {
+          try {
+              chatRepo.observeChatKeys(targetPrefix).first().let { keys ->
+                  if (keys.isNotEmpty() || attempts == 2) { // На останній спробі приймаємо що є
+                      success = true
+                  }
+              }
+          } catch (e: Exception) {
+              println("[YkisLogKMP.Chat_WARN]: Спроба $attempts не вдалася: ${e.message}")
+          }
+          if (!success) {
+              delay(2000)
+              attempts++
+          }
+      }
+
       chatRepo.observeChatKeys(targetPrefix).collect { chatKeys ->
+          println("[YkisLogKMP.Chat]: Отримано ${chatKeys.size} ключів чату")
           _userIdentifiersWithRole.value = chatKeys
           if (chatKeys.isNotEmpty()) {
             subscribeToLastMessages(chatKeys)

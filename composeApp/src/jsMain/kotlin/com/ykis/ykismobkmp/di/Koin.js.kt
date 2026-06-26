@@ -37,6 +37,7 @@ import dev.gitlive.firebase.database.FirebaseDatabase
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
 import com.ykis.ykismobkmp.db.DatabaseSchemaInitializer
+import kotlinx.browser.window
 
 val jsPlatformModule: Module = module {
   single<Settings> { StorageSettings() }
@@ -52,7 +53,17 @@ val jsPlatformModule: Module = module {
         databaseUrl = "https://ykis-mob-default-rtdb.europe-west1.firebasedatabase.app",
         authDomain = "ykis-mob.firebaseapp.com"
     )
-    Firebase.initialize(options = options)
+    val app = Firebase.initialize(options = options)
+    
+    // ІНІЦІАЛІЗАЦІЯ APP CHECK ДЛЯ WEB (ЯК У ХОРОШІЙ ВЕТЦІ)
+    try {
+        window.asDynamic().initializeFirebaseAppCheck(RECAPTCHA_SITE_KEY_WEB)
+        println("[YkisLogKMP.Koin]: App Check для Web активовано успішно.")
+    } catch (e: Exception) {
+        println("[YkisLogKMP.Koin_ERROR]: Не вдалося ініціалізувати App Check: \${e.message}")
+    }
+    
+    app
   }
 
   single<FirebaseFirestore> { Firebase.firestore(get<FirebaseApp>()) }
@@ -70,7 +81,6 @@ actual val databaseModule: Module = module {
     object : SqlDriver {
         @Suppress("UNCHECKED_CAST")
         override fun <R> executeQuery(identifier: Int?, sql: String, mapper: (SqlCursor) -> QueryResult<R>, parameters: Int, binders: (SqlPreparedStatement.() -> Unit)?): QueryResult<R> {
-            // ПОВЕРТАЄМО ПОРОЖНІЙ СПИСОК: Це запобігає крашу "Cannot read properties of null"
             return QueryResult.Value(emptyList<Any>()) as QueryResult<R>
         }
         override fun execute(identifier: Int?, sql: String, parameters: Int, binders: (SqlPreparedStatement.() -> Unit)?): QueryResult<Long> = QueryResult.Value(0L)
