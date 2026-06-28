@@ -152,9 +152,9 @@ fun SendImageContent(
         val (displayName, displayAddr) = if (role == UserRole.StandardUser) {
             val surname = apartmentLiveUiState.nanim ?: ""
             val cleanSurname = if (surname.isNotBlank() && surname != "Мешканець") surname else "Жилець"
-            cleanSurname to (apartmentLiveUiState.address ?: "")
+            cleanSurname to apartmentLiveUiState.address
         } else {
-            (apartmentLiveUiState.osbb ?: "") to " "
+            apartmentLiveUiState.osbb to " "
         }
 
         chatScreenModel.uploadFileAndSendMessage(

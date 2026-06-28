@@ -1,6 +1,7 @@
 package com.ykis.ykismobkmp.domain.repository.ledger
 
 import com.ykis.ykismobkmp.data.remote.ledger.LedgerRemoteRepository
+import com.ykis.ykismobkmp.data.responses.GetFastpayTokensResponse
 import com.ykis.ykismobkmp.data.responses.GetServiceResponse
 import org.jetbrains.compose.resources.getString
 import ykismobkmp.composeapp.generated.resources.*
@@ -14,6 +15,18 @@ class LedgerRepositoryImpl(
 ) : LedgerRepository {
 
   private val className = "LedgerRepositoryImpl"
+
+  override suspend fun getFastpayTokens(): GetFastpayTokensResponse {
+    return try {
+      remote.getFastpayTokens()
+    } catch (ex: Exception) {
+      println("[YkisLogKMP.$className.getFastpayTokens]: [ERROR] ${ex.message}")
+      GetFastpayTokensResponse(
+        success = 0,
+        message = getString(Res.string.error_network_request_failed)
+      )
+    }
+  }
 
   override suspend fun getFlatDetailService(
     uid: String,

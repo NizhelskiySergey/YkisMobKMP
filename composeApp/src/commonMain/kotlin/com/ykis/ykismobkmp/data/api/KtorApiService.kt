@@ -87,4 +87,5 @@ class KtorApiService(private val client: HttpClient) {
 
   // Финансы
   suspend fun getFlatService(params: Map<String, String>) = postFormUrlEncoded<GetServiceResponse>("getFlatServices.php", params)
+  suspend fun getFastpayTokens() = postFormUrlEncoded<GetFastpayTokensResponse>("getFastpayTokens.php", emptyMap())
 }

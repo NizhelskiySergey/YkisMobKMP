@@ -1,5 +1,6 @@
 package com.ykis.ykismobkmp.data.remote.ledger
 
+import com.ykis.ykismobkmp.data.responses.GetFastpayTokensResponse
 import com.ykis.ykismobkmp.data.responses.GetPaymentResponse
 import com.ykis.ykismobkmp.data.responses.GetServiceResponse
 import com.ykis.ykismobkmp.data.responses.InsertPaymentResponse
@@ -8,6 +9,11 @@ import com.ykis.ykismobkmp.data.responses.InsertPaymentResponse
  * [LedgerRemoteRepository] — Интерфейс удаленного взаимодействия с API начислений и платежей ЮКИС.
  */
 interface LedgerRemoteRepository {
+
+  /**
+   * Получение токенов быстрой оплаты для организаций.
+   */
+  suspend fun getFastpayTokens(): GetFastpayTokensResponse
 
   /**
    * Получение детальной информации по начислениям и квитанциям услуг ЖКХ на прямых параметрах.

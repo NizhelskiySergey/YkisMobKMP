@@ -57,7 +57,7 @@ private const val tag = "MessageListItem"
 fun formatTime24H(timestamp: Long): String {
   if (timestamp <= 0L) return ""
   return try {
-    val instant = Instant.fromEpochMilliseconds(timestamp)
+    val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(timestamp)
     val localDateTime = instant.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
     val hourStr = localDateTime.hour.toString().padStart(2, '0')
     val minuteStr = localDateTime.minute.toString().padStart(2, '0')
@@ -154,7 +154,7 @@ fun MessageListItem(
           if (hasAddress) {
             // АДРЕС ВВЕРХУ (Для сообщений от жильца админу)
             Text(
-              text = messageEntity.senderAddress!!,
+              text = messageEntity.senderAddress,
               style = MaterialTheme.typography.labelMedium,
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.primary,
@@ -207,7 +207,7 @@ fun MessageListItem(
             Row(
                 modifier = Modifier
                     .padding(bottom = 4.dp)
-                    .clickable { onFileClick(messageEntity.imageUrl!!) },
+                    .clickable { onFileClick(messageEntity.imageUrl) },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(

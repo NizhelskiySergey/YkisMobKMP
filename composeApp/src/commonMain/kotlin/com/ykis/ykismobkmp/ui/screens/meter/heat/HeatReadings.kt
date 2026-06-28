@@ -118,17 +118,17 @@ fun HeatReadingItemContent(
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
         labelText = stringResource(Res.string.calculation_days_average) + " ",
-        valueText = reading.dayAvg.toString()
+        valueText = reading.dayAvg
       )
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
         labelText = stringResource(Res.string.calculated_gkal) + " ",
-        valueText = reading.gkalRasch.toString()
+        valueText = reading.gkalRasch
       )
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
         labelText = stringResource(Res.string.daily_consumption_gkal) + " ",
-        valueText = reading.gkalDay.toString()
+        valueText = reading.gkalDay
       )
     } else {
       LabelTextWithText(

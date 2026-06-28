@@ -286,12 +286,13 @@ class FirebaseServiceImpl(
       println("[YkisLogKMP.$className.addFcmToken]: Спроба реєстрації токена: $token")
       
       val updates = mutableMapOf<String, Any>()
+      // Залишаємо тільки один стандартний масив для токенів
       updates["fcmTokens"] = dev.gitlive.firebase.firestore.FieldValue.arrayUnion(token)
       
       withTimeout(10000) {
           db.collection("users").document(currentUid).set(data = updates, merge = true)
       }
-      println("[YkisLogKMP.$className.addFcmToken]: Токен успішно збережено")
+      println("[YkisLogKMP.$className.addFcmToken]: Токен успішно збережено в fcmTokens")
     } catch (e: Exception) {
       println("[YkisLogKMP.$className.addFcmToken_ERROR]: ${e.message}")
     }

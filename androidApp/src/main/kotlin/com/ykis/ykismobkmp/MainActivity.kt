@@ -37,7 +37,7 @@ class MainActivity : ComponentActivity() {
         val settings = SharedPreferencesSettings(prefs)
         val lang = settings.getString("app_language", "uk")
         
-        val locale = Locale(lang)
+        val locale = Locale.forLanguageTag(lang)
         Locale.setDefault(locale)
         
         val config = Configuration(context.resources.configuration)

@@ -16,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -105,6 +106,7 @@ fun ComposeMessageBox(
         .sizeIn(maxHeight = 120.dp)
         .verticalScroll(scrollState),
       textStyle = textStyle,
+      cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), // ФИКС: Явный цвет курсора для Web
       decorationBox = { innerTextField ->
         Box(
           modifier = Modifier

@@ -14,6 +14,7 @@ import com.ykis.ykismobkmp.domain.repository.apartment.useCase.UpdateBti
 import com.ykis.ykismobkmp.domain.repository.apartment.useCase.VerifyAdminCode
 import com.ykis.ykismobkmp.domain.repository.chat.useCase.InitResidentChats
 import com.ykis.ykismobkmp.domain.repository.chat.useCase.DeleteResidentChats
+import com.ykis.ykismobkmp.domain.repository.ledger.request.GetFastpayTokens
 import com.ykis.ykismobkmp.domain.repository.ledger.request.GetFlatServices
 import com.ykis.ykismobkmp.domain.repository.ledger.request.GetTotalDebtServices
 import com.ykis.ykismobkmp.domain.repository.meter.useCase.AddHeatReading
@@ -77,4 +78,5 @@ val domainModule = module {
   // ====================================================================
   factory { GetFlatServices(repository = get(), ledgerCache = get()) }
   factory { GetTotalDebtServices(repository = get(), ledgerCache = get()) }
+  factory { GetFastpayTokens(repository = get(), ledgerCache = get()) }
 }

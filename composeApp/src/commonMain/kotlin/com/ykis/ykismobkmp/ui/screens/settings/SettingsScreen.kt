@@ -83,8 +83,8 @@ class SettingsScreen(
       } else {
         SettingsScreenStateless(
           currentLanguage = stringResource(languages[languageIndex].displayNameRes),
-          photoUrl = screenModel.photoUrl ?: "",
-          email = screenModel.email ?: "",
+          photoUrl = screenModel.photoUrl,
+          email = screenModel.email,
           onDrawerClick = onDrawerClick,
           onChangeThemeClick = { showChangeThemeDialog = true },
           onChangeLanguageClick = { showLanguageDialog = true },

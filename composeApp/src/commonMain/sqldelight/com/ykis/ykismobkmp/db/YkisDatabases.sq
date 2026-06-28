@@ -252,6 +252,16 @@ CREATE TABLE waterReadingEntity (
     dateIn TEXT NOT NULL DEFAULT 'Unknown'
 );
 
+CREATE TABLE fastpayTokenEntity (
+    id INTEGER NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    biplanId INTEGER NOT NULL,
+    okpo INTEGER NOT NULL,
+    osbbId INTEGER NOT NULL DEFAULT 0,
+    fullUrl TEXT NOT NULL,
+    token TEXT NOT NULL
+);
+
 -- ====================================================================
 -- --- 1. DAO RAION (Справочник Районов — Стратегия: Постоянный Кэш) ---
 -- ====================================================================
@@ -456,6 +466,15 @@ DELETE FROM heatReadingEntity;
 -- --- 9. АТОМАРНЫЕ ТРАНЗАКЦИИ ПОЛНОЙ ЗАЧИСТКИ БАЗЫ ДАННЫХ ------------
 -- ====================================================================
 
+insertFastpayToken:
+INSERT OR REPLACE INTO fastpayTokenEntity VALUES ?;
+
+getFastpayTokens:
+SELECT * FROM fastpayTokenEntity;
+
+deleteAllFastpayTokens:
+DELETE FROM fastpayTokenEntity;
+
 clearAllTables:
     DELETE FROM apartmentEntity;
     DELETE FROM familyEntity;
@@ -467,3 +486,4 @@ clearAllTables:
     DELETE FROM heatReadingEntity;
     DELETE FROM serviceEntity;
     DELETE FROM paymentEntity;
+    DELETE FROM fastpayTokenEntity;

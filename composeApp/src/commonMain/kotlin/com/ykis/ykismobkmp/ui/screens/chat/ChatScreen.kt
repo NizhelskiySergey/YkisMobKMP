@@ -126,7 +126,7 @@ fun ChatScreenStateful(
     navigateBack = onBackClick,
     navigateToSendImageScreen = {
       val path = screenModel.selectedImagePath.value ?: ""
-      val addressText = baseUIState.address ?: "м. Южне"
+      val addressText = baseUIState.address.ifBlank { "м. Южне" }
       val pathFromModel = screenModel.activeChatPath
       navigator.push(SendImageScreen(imagePath = path, address = addressText, chatId = pathFromModel))
     },
@@ -184,7 +184,7 @@ fun ChatScreenContent(
   LaunchedEffect(baseUIState.addressId, baseUIState.userRole, chatUid, userEntity.uid, baseUIState.osbbId) {
     val role = baseUIState.userRole
     val addrId = if (role == UserRole.StandardUser) baseUIState.addressId else userEntity.addressId
-    val osbbId = baseUIState.osbbId ?: 0L
+    val osbbId = baseUIState.osbbId
     if (role != UserRole.Unknown && addrId > 0L) {
       screenModel.readFromDatabase(role, osbbId, addrId)
     }
@@ -250,7 +250,7 @@ fun ChatScreenContent(
   val appBarSubtitle = remember(baseUIState.address, userEntity, isOpponentTyping, baseUIState.userRole) {
     when {
       isOpponentTyping -> "друкує..."
-      baseUIState.userRole == UserRole.StandardUser -> baseUIState.address ?: ""
+      baseUIState.userRole == UserRole.StandardUser -> baseUIState.address
       else -> "о/р: ${userEntity.addressId}"
     }
   }
@@ -363,7 +363,7 @@ fun ChatScreenContent(
             },
             onAiClick = {
               if (messageText.isNotBlank()) {
-                screenModel.askAssistant(messageText, baseUIState.userRole, baseUIState.address ?: "Южне")
+                screenModel.askAssistant(messageText, baseUIState.userRole, baseUIState.address.ifBlank { "Южне" })
               }
             },
             onCameraClick = { 

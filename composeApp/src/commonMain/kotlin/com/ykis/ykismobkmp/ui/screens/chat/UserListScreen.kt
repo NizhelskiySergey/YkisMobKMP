@@ -172,11 +172,11 @@ class UserListScreen(
               uid = baseUIState.uid ?: "",
               address = apt.address,
               addressId = apt.addressId, // Чистый Long тип
-              osbbId = apt.osmdId ?: 0L,  // Чистый Long тип
+              osbbId = apt.osmdId,  // Чистый Long тип
               displayName = apt.address,
               userRole = UserRole.StandardUser,
-              nanim = apt.nanim ?: "",
-              fio = apt.nanim ?: ""
+              nanim = apt.nanim,
+              fio = apt.nanim
             )
           }.filter {
             it.address.contains(searchQuery, ignoreCase = true)

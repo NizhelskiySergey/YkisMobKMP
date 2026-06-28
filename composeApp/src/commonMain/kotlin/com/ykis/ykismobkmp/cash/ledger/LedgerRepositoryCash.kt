@@ -2,6 +2,7 @@ package com.ykis.ykismobkmp.cash.ledger
 
 import com.ykis.ykismobkmp.domain.entity.PaymentEntity
 import com.ykis.ykismobkmp.domain.entity.ServiceEntity
+import com.ykis.ykismobkmp.domain.entity.FastpayEntity
 
 /**
  * [LedgerRepositoryCash] — Главный доменный КМР-контракт локального кэша начислений и платежей ЮКИС.
@@ -13,4 +14,7 @@ interface LedgerRepositoryCash {
   suspend fun deleteAllService()
   suspend fun getTotalDebt(addressId: Long): ServiceEntity?
   suspend fun deleteServiceByApartment(addressId: Long)
+
+  suspend fun insertFastpayTokens(tokens: List<FastpayEntity>)
+  suspend fun getFastpayTokens(): List<FastpayEntity>
 }

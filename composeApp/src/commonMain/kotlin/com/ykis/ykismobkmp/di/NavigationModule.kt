@@ -51,7 +51,8 @@ val navigationModule = module {
   single {
     LedgerService(
       getFlatServices = get(),
-      getTotalDebtServices = get()
+      getTotalDebtServices = get(),
+      getFastpayTokens = get()
     )
   }
 

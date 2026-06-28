@@ -1,4 +1,7 @@
 [versions]
+# Версія додатка ЮКІС (Source of truth)
+app-version = "1.1.2"
+app-versionCode = "4"
 cameraCore = "1.6.1"
 composeWebviewMultiplatform = "2.0.3"
 datastorePreferencesCoreVersion = "1.1.1"
@@ -53,9 +56,7 @@ firebaseCommonKtx = "21.0.0"
 firebaseBom = "33.9.0"
 firebaseMessaging = "25.0.2"
 
-# Версія додатка ЮКІС (Source of truth)
-app-version = "1.1.0"
-app-versionCode = "2"
+
 [libraries]
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCore" }
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCore" }

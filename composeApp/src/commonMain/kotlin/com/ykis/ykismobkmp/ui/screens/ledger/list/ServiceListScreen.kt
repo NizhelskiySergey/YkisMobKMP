@@ -48,7 +48,7 @@ fun assembleServiceList(
       TotalServiceDebt(
         name = "ОСББ",
         color = MaterialTheme.colorScheme.primary,
-        debt = ledgerUIState.totalDebt.dolg4 ?: 0.0,
+        debt = ledgerUIState.totalDebt.dolg4,
         icon = Icons.Default.CorporateFare,
         contentDetail = ContentDetail.OSBB
       )
@@ -59,21 +59,21 @@ fun assembleServiceList(
       TotalServiceDebt(
         name = stringResource(Res.string.vodokanal),
         color = Color(0xFF2196F3),
-        debt = ledgerUIState.totalDebt.dolg1 ?: 0.0,
+        debt = ledgerUIState.totalDebt.dolg1,
         icon = Icons.Default.WaterDrop,
         contentDetail = ContentDetail.WATER_SERVICE
       ),
       TotalServiceDebt(
         name = stringResource(Res.string.ytke_short),
         color = Color(0xFFFF5722),
-        debt = ledgerUIState.totalDebt.dolg2 ?: 0.0,
+        debt = ledgerUIState.totalDebt.dolg2,
         icon = Icons.Default.HotTub,
         contentDetail = ContentDetail.WARM_SERVICE
       ),
       TotalServiceDebt(
         name = stringResource(Res.string.yzhtrans),
         color = Color(0xFF4CAF50),
-        debt = ledgerUIState.totalDebt.dolg3 ?: 0.0,
+        debt = ledgerUIState.totalDebt.dolg3,
         icon = Icons.Default.Commute,
         contentDetail = ContentDetail.GARBAGE_SERVICE
       )
@@ -162,7 +162,7 @@ fun ServiceListScreen(
         }
         val displayTotal = remember(filteredItems, baseUIState.userRole) {
           if (baseUIState.userRole == UserRole.StandardUser) {
-            ledgerUIState.totalDebt.dolg ?: 0.0
+            ledgerUIState.totalDebt.dolg
           } else {
             filteredItems.sumOf { it.debt }
           }

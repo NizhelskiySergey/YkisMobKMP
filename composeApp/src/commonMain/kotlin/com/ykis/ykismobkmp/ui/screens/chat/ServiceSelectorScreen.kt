@@ -158,7 +158,7 @@ fun ServiceSelectorContent(
           val totalCount = remember(unreadCounts, announcements, lastCheck, baseUIState.apartments, service.contentDetail) {
             val chatUnread = baseUIState.apartments.sumOf { apt ->
               val chatId = when (service.contentDetail) {
-                ContentDetail.OSBB -> "OSBB_${apt.osmdId ?: 0L}_${apt.addressId}"
+                ContentDetail.OSBB -> "OSBB_${apt.osmdId}_${apt.addressId}"
                 ContentDetail.WATER_SERVICE -> "WATER_SERVICE_9999_${apt.addressId}"
                 ContentDetail.WARM_SERVICE  -> "WARM_SERVICE_9998_${apt.addressId}"
                 ContentDetail.GARBAGE_SERVICE -> "GARBAGE_SERVICE_9997_${apt.addressId}"

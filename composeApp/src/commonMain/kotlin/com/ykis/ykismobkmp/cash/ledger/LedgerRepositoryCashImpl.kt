@@ -3,6 +3,7 @@ package com.ykis.ykismobkmp.cash.ledger
 import com.ykis.ykismobkmp.cash.sqlDelight.LedgerDao
 import com.ykis.ykismobkmp.domain.entity.PaymentEntity
 import com.ykis.ykismobkmp.domain.entity.ServiceEntity
+import com.ykis.ykismobkmp.domain.entity.FastpayEntity
 
 /**
  * [LedgerRepositoryCashImpl] — Реализация кэша Ledger на одиночных идентификаторах Long.
@@ -36,6 +37,16 @@ class LedgerRepositoryCashImpl(
   override suspend fun deleteServiceByApartment(addressId: Long) {
     println("[$className.deleteServiceByApartment]: Зачистка кЕшу нарахувань для о/р: $addressId")
     ledgerDao.deleteServiceByApartment(addressId)
+  }
+
+  override suspend fun insertFastpayTokens(tokens: List<FastpayEntity>) {
+    println("[$className.insertFastpayTokens]: Пакетне збереження ${tokens.size} токенів оплати...")
+    ledgerDao.insertFastpayTokens(tokens)
+  }
+
+  override suspend fun getFastpayTokens(): List<FastpayEntity> {
+    println("[$className.getFastpayTokens]: Запит токенів оплати з локальної СУБД...")
+    return ledgerDao.getFastpayTokens()
   }
 }
 

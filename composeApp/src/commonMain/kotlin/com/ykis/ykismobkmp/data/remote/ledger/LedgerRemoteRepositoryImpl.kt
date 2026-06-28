@@ -15,6 +15,7 @@ import com.ykis.ykismobkmp.core.Constants.VODA
 import com.ykis.ykismobkmp.core.Constants.TBO
 import com.ykis.ykismobkmp.core.Constants.TEPLOMER_ID
 import com.ykis.ykismobkmp.data.api.KtorApiService
+import com.ykis.ykismobkmp.data.responses.GetFastpayTokensResponse
 import com.ykis.ykismobkmp.data.responses.GetPaymentResponse
 import com.ykis.ykismobkmp.data.responses.GetServiceResponse
 import com.ykis.ykismobkmp.data.responses.GetSimpleResponse
@@ -23,6 +24,10 @@ import com.ykis.ykismobkmp.data.responses.InsertPaymentResponse
 class LedgerRemoteRepositoryImpl(
   private val ktorApiService: KtorApiService
 ) : LedgerRemoteRepository {
+
+  override suspend fun getFastpayTokens(): GetFastpayTokensResponse {
+    return ktorApiService.getFastpayTokens()
+  }
 
   override suspend fun getFlatDetailServices(
     uid: String,

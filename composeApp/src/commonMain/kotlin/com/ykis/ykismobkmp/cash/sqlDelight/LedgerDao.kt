@@ -6,8 +6,11 @@ import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import app.cash.sqldelight.db.SqlDriver
 import com.ykis.ykismobkmp.domain.entity.ServiceEntity
 import com.ykis.ykismobkmp.domain.entity.PaymentEntity
+import com.ykis.ykismobkmp.domain.entity.FastpayEntity
 import com.ykis.ykismobkmp.domain.mapper.toDbService
 import com.ykis.ykismobkmp.domain.mapper.toDomainService
+import com.ykis.ykismobkmp.domain.mapper.toDbFastpay
+import com.ykis.ykismobkmp.domain.mapper.toDomainFastpay
 import com.ykis.ykismobkmp.db.DatabaseSchemaInitializer
 
 /**
@@ -66,6 +69,30 @@ class LedgerDao(
     ensureSchema()
     dbQueries.transaction {
       dbQueries.deleteServiceByAddressIds(addressId)
+    }
+  }
+
+  suspend fun insertFastpayTokens(tokens: List<FastpayEntity>) {
+    ensureSchema()
+    try {
+        dbQueries.transaction {
+            tokens.forEach { token ->
+                dbQueries.insertFastpayToken(token.toDbFastpay())
+            }
+        }
+    } catch (e: Exception) {
+        println("[${className}_ERROR]: Помилка запису FastPay токенів: ${e.message}")
+    }
+  }
+
+  suspend fun getFastpayTokens(): List<FastpayEntity> {
+    ensureSchema()
+    return try {
+        dbQueries.getFastpayTokens()
+            .awaitAsList()
+            .map { it.toDomainFastpay() }
+    } catch (e: Exception) {
+        emptyList()
     }
   }
 }

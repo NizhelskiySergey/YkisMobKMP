@@ -111,20 +111,20 @@ fun BtiContent(
         InfoItem(
           modifier = Modifier.weight(1f),
           label = stringResource(Res.string.tenant_text),
-          value = baseUIState.apartment.tenant?.toString() ?: "0",
+          value = baseUIState.apartment.tenant.toString(),
           icon = Icons.Default.Groups
         )
         InfoItem(
           modifier = Modifier.weight(1f),
           label = stringResource(Res.string.podnan_text),
-          value = baseUIState.apartment.podnan?.toString() ?: "0"
+          value = baseUIState.apartment.podnan.toString()
         )
       }
       Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
         InfoItem(
           modifier = Modifier.weight(1f),
           label = stringResource(Res.string.absent_text),
-          value = baseUIState.apartment.absent?.toString() ?: "0"
+          value = baseUIState.apartment.absent.toString()
         )
       }
     }
@@ -147,7 +147,7 @@ fun BtiContent(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        InfoItem(Modifier.weight(1f), stringResource(Res.string.rooms_colon), baseUIState.apartment.room?.toString() ?: "0")
+        InfoItem(Modifier.weight(1f), stringResource(Res.string.rooms_colon), baseUIState.apartment.room.toString())
 
         // ИСПРАВЛЕНО НАМЕРТВО: Очищено от платформенных вызовов .toString() == "1".
         // Приведение типов выполняется нативно на базе сквозного стандарта Long-значений СУБД.

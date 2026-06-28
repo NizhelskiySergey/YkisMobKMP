@@ -128,7 +128,7 @@ fun WaterMeterItem(
           .size(48.dp),
         imageVector = Icons.Default.WaterDrop,
         contentDescription = null,
-        tint = if (waterMeter.voda?.contains("гар", ignoreCase = true) == true)
+        tint = if (waterMeter.voda.contains("гар", ignoreCase = true))
           MaterialTheme.colorScheme.error
         else
           MaterialTheme.colorScheme.primary

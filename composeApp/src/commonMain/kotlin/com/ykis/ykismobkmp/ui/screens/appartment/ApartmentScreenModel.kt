@@ -1,6 +1,7 @@
 package com.ykis.ykismobkmp.ui.screens.appartment
 
 import cafe.adriel.voyager.core.model.screenModelScope
+import com.ykis.ykismobkmp.core.Constants
 import com.ykis.ykismobkmp.core.utils.Log
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.core.utils.SnackbarManager
@@ -71,7 +72,7 @@ class ApartmentScreenModel(
     } else apartments
     source.filter {
       it.address.contains(query, ignoreCase = true) ||
-        (it.nanim?.contains(query, ignoreCase = true) == true) ||
+        it.nanim.contains(query, ignoreCase = true) ||
         it.addressId.toString().contains(query)
     }
   }.stateIn(screenModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -138,7 +139,7 @@ class ApartmentScreenModel(
   fun onSecretCodeChanged(newCode: String) { _secretCode.value = newCode }
 
   fun observeUserProfile() {
-    val actualUid = firebaseService.uid ?: return
+    firebaseService.uid ?: return
     observeJob?.cancel()
     observeJob = screenModelScope.launch {
       _uiState.update { it.copy(mainLoading = true) }
@@ -147,16 +148,14 @@ class ApartmentScreenModel(
         val user = firebaseService.getUserProfile()
         val currentUserRole = UserRole.fromString(user.userRole)
         
-        val currentOsbbId: Long = if (currentUserRole != UserRole.StandardUser &&
-          currentUserRole != UserRole.OsbbUser && user.osbbId == 0L
-        ) {
-          when (currentUserRole) {
-            UserRole.VodokanalUser -> 9999L
-            UserRole.YtkeUser -> 9998L
-            UserRole.TboUser -> 9997L
-            else -> 0L
-          }
-        } else user.osbbId
+        // ИСПРАВЛЕНО: Служебные роли ВСЕГДА получают свои системные ID (9999, 9998, 9997)
+        // Мы больше не проверяем "user.osbbId == 0L", а форсируем ID по роли.
+        val currentOsbbId: Long = when (currentUserRole) {
+            UserRole.VodokanalUser -> Constants.WATER_SERVICE_ID
+            UserRole.YtkeUser      -> Constants.WARM_SERVICE_ID
+            UserRole.TboUser       -> Constants.GARBAGE_SERVICE_ID
+            else                   -> user.osbbId
+        }
 
         val officialOrgName = if (!user.osbb.isNullOrBlank()) user.osbb else {
             when (currentUserRole) {
@@ -169,7 +168,7 @@ class ApartmentScreenModel(
 
         _uiState.update { state ->
           val finalAddressId = if (user.addressId == 0L && state.addressId != 0L) state.addressId else user.addressId
-          
+
           state.copy(
             uid = user.uid,
             userRole = currentUserRole,
@@ -265,6 +264,9 @@ class ApartmentScreenModel(
   }
 
   private suspend fun syncProfileWithFirestore(uid: String, apartment: ApartmentEntity, role: UserRole) {
+    // ЗАХИСТ: Адміни не повинні прив'язуватися до адреси квартири у Firestore
+    if (role != UserRole.StandardUser) return
+
     try {
         firebaseService.updateUserRoleAndPermissions(
             uid = uid,
@@ -272,7 +274,7 @@ class ApartmentScreenModel(
             userRole = role,
             osbbId = apartment.osmdId,
             displayName = apartment.address,
-            fio = apartment.nanim ?: "",
+            fio = apartment.nanim,
             osbb = apartment.osbb
         )
     } catch (e: Exception) {
@@ -301,7 +303,7 @@ class ApartmentScreenModel(
               state.copy(apartments = combined, isApartmentsLoaded = true, listMode = ListMode.HOUSES, mainLoading = false, osbbId = osbbId, osmdId = osbbId, addressId = 0L)
           } else {
               val target = if (state.addressId != 0L) (combined.find { it.addressId == state.addressId } ?: combined.first()) else combined.first()
-              state.copy(apartments = combined, apartment = target, isApartmentsLoaded = true, listMode = ListMode.APARTMENTS, addressId = target.addressId, address = target.address, osbbId = target.osmdId, osmdId = target.osmdId, osbb = formatOsbbName(target, currentOsbbName), nanim = target.nanim ?: "Власник не вказаний", fio = target.nanim ?: "", mainLoading = false)
+              state.copy(apartments = combined, apartment = target, isApartmentsLoaded = true, listMode = ListMode.APARTMENTS, addressId = target.addressId, address = target.address, osbbId = target.osmdId, osmdId = target.osmdId, osbb = formatOsbbName(target, currentOsbbName), nanim = target.nanim, fio = target.nanim, mainLoading = false)
           }
         } else {
           state.copy(mainLoading = false, isApartmentsLoaded = true, apartments = emptyList())
@@ -326,7 +328,7 @@ class ApartmentScreenModel(
     if (target != null) {
       _uiState.update { state ->
         val finalOsbbName = if (isResident) (if (target.osbb.isNullOrBlank() || target.osbb == "0") "Мій ОСББ" else target.osbb) else state.osbb
-        state.copy(addressId = target.addressId, apartment = target, address = target.address, nanim = target.nanim, fio = target.nanim ?: "",
+        state.copy(addressId = target.addressId, apartment = target, address = target.address, nanim = target.nanim, fio = target.nanim,
           osbb = finalOsbbName, osbbId = if (isResident) target.osmdId else state.osbbId, osmdId = if (isResident) target.osmdId else state.osmdId, apartmentLoading = false)
       }
       screenModelScope.launch { syncProfileWithFirestore(currentState.uid ?: "", target, currentState.userRole) }

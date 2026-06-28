@@ -259,27 +259,34 @@ class ChatScreenModel(
 
   fun getChatPath(role: UserRole, osbbId: Long, addressId: Long): String {
     val servicePrefix = _selectedServicePrefix.value
-    val effectiveId = if (role == UserRole.StandardUser) {
-        when (servicePrefix) {
-            "WATER_SERVICE"   -> Constants.WATER_SERVICE_ID
-            "WARM_SERVICE"    -> Constants.WARM_SERVICE_ID
-            "GARBAGE_SERVICE" -> Constants.GARBAGE_SERVICE_ID
-            else -> if (osbbId != 0L) osbbId else (_selectedUser.value?.osbbId ?: 0L)
+    
+    val effectiveId = when (role) {
+        UserRole.VodokanalUser -> Constants.WATER_SERVICE_ID
+        UserRole.YtkeUser      -> Constants.WARM_SERVICE_ID
+        UserRole.TboUser       -> Constants.GARBAGE_SERVICE_ID
+        UserRole.StandardUser -> {
+            when (servicePrefix) {
+                "WATER_SERVICE"   -> Constants.WATER_SERVICE_ID
+                "WARM_SERVICE"    -> Constants.WARM_SERVICE_ID
+                "GARBAGE_SERVICE" -> Constants.GARBAGE_SERVICE_ID
+                else -> if (osbbId != 0L) osbbId else (_selectedUser.value?.osbbId ?: 0L)
+            }
         }
-    } else osbbId
+        else -> osbbId // Для OsbbUser використовуємо його реальний ID
+    }
+    
     return "${servicePrefix}_${effectiveId}_${addressId}"
   }
 
   fun readFromDatabase(role: UserRole, osbbId: Long, addressId: Long) {
     currentParams = Triple(role, osbbId, addressId)
-    val finalOsbbId = if (osbbId == 0L) {
-        when (role) {
-            UserRole.VodokanalUser -> Constants.WATER_SERVICE_ID
-            UserRole.YtkeUser      -> Constants.WARM_SERVICE_ID
-            UserRole.TboUser       -> Constants.GARBAGE_SERVICE_ID
-            else -> osbbId
-        }
-    } else osbbId
+    
+    val finalOsbbId = when (role) {
+        UserRole.VodokanalUser -> Constants.WATER_SERVICE_ID
+        UserRole.YtkeUser      -> Constants.WARM_SERVICE_ID
+        UserRole.TboUser       -> Constants.GARBAGE_SERVICE_ID
+        else -> osbbId
+    }
 
     val targetPath = getChatPath(role, finalOsbbId, addressId)
     if (activeChatIdForNotifications == targetPath) return
@@ -339,9 +346,9 @@ class ChatScreenModel(
 
       val isResident = baseUIState.userRole == UserRole.StandardUser
       val (displayName, displayAddr) = if (isResident) {
-          (baseUIState.nanim?.takeIf { it.isNotBlank() && it != "Мешканець" } ?: "Жилець") to (baseUIState.address ?: "")
+          (baseUIState.nanim?.takeIf { it.isNotBlank() && it != "Мешканець" } ?: "Жилець") to baseUIState.address
       } else {
-          (baseUIState.osbb ?: "") to " "
+          baseUIState.osbb to " "
       }
 
       writeToDatabaseInternal(
@@ -481,7 +488,7 @@ class ChatScreenModel(
     if (isResident) {
       val residentKeys = mutableListOf<String>()
       apartments.forEach { apt ->
-        residentKeys.add("OSBB_${apt.osmdId ?: 0L}_${apt.addressId}")
+        residentKeys.add("OSBB_${apt.osmdId}_${apt.addressId}")
         residentKeys.add("WATER_SERVICE_${Constants.WATER_SERVICE_ID}_${apt.addressId}")
         residentKeys.add("WARM_SERVICE_${Constants.WARM_SERVICE_ID}_${apt.addressId}")
         residentKeys.add("GARBAGE_SERVICE_${Constants.GARBAGE_SERVICE_ID}_${apt.addressId}")
@@ -673,7 +680,7 @@ class ChatScreenModel(
              ContentDetail.WATER_SERVICE -> Constants.WATER_SERVICE_ID
              ContentDetail.WARM_SERVICE -> Constants.WARM_SERVICE_ID
              ContentDetail.GARBAGE_SERVICE -> Constants.GARBAGE_SERVICE_ID
-             else -> baseState.osbbId ?: 0L
+             else -> baseState.osbbId
            }
            val pref = when(service) {
              ContentDetail.WATER_SERVICE -> "WATER_SERVICE"
@@ -684,7 +691,7 @@ class ChatScreenModel(
            "${pref}_${sId}_${baseState.addressId}"
         } else {
            val user = targetUser ?: return@launchCatching
-           getChatPath(baseState.userRole, baseState.osbbId ?: 0L, user.addressId)
+           getChatPath(baseState.userRole, baseState.osbbId, user.addressId)
         }
         chatRepo.sendMessage(targetPath, MessageEntity(senderUid = myUid, text = msg.text, imageUrl = msg.imageUrl, timestamp = currentTimeMillis(), isForwarded = true))
         chatRepo.incrementUnreadForParticipants(targetPath, myUid)
