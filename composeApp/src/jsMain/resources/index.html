@@ -89,7 +89,7 @@
                 ux_mode: 'popup',
                 auto_select: false,
                 use_fedcm_for_prompt: false,
-                itp_support: false, // Вимикаємо для перевірки, чи не воно блокує
+                itp_support: true, // Вимикаємо для перевірки, чи не воно блокує
                 callback: (response) => {
                     if (response.credential && window.onGoogleTokenReceived) {
                         window.onGoogleTokenReceived(response.credential);

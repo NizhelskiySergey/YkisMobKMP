@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter.Companion.tint
 import androidx.compose.ui.input.key.Key.Companion.R
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
@@ -98,12 +99,12 @@ fun FastPayPaymentRow(
         ) {
           OutlinedTextField(
             value = paymentSum,
-            onValueChange = { if (it.isEmpty() || it.all { c -> c.isDigit() || c == '.' }) paymentSum = it },
+            onValueChange = { },
             modifier = Modifier.weight(1f),
             label = { Text("Сума до сплати", fontSize = 11.sp) },
             suffix = { Text("грн") },
+            readOnly = true,
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             shape = RoundedCornerShape(12.dp)
           )
 
@@ -111,8 +112,7 @@ fun FastPayPaymentRow(
             onClick = {
               if (!fastpayToken.isNullOrBlank()) {
                   val personalAccount = baseUIState.addressId.toString()
-                  val cleanSum = paymentSum.replace(",", ".")
-                  val jsonParams = "{\"token\":\"$fastpayToken\",\"personalAccount\":\"$personalAccount\",\"sum\":\"$cleanSum\"}"
+                  val jsonParams = "{\"token\":\"$fastpayToken\",\"personalAccount\":\"$personalAccount\"}"
                   val encodedParams = jsonParams.replace("{", "%7B").replace("}", "%7D").replace("\"", "%22")
                   val url = "https://next.privat24.ua/payments/form/$encodedParams"
 
@@ -121,11 +121,16 @@ fun FastPayPaymentRow(
               }
             },
             enabled = !fastpayToken.isNullOrBlank(),
-            modifier = Modifier.height(56.dp),
+            modifier = Modifier.height(64.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = if (fastpayToken.isNullOrBlank()) Color.Gray else Color(0xFF7CB342))
           ) {
-            Icon(painter = painterResource(Res.drawable.privatbank), contentDescription = null, modifier = Modifier.size(24.dp), tint = Color.Unspecified)
+            Icon(
+              painter = painterResource(Res.drawable.privatbank), 
+              contentDescription = null, 
+              modifier = Modifier.size(54.dp).padding(top=4.dp),
+              tint = Color.Unspecified
+            )
             Spacer(Modifier.width(8.dp))
             Text(if (fastpayToken.isNullOrBlank()) "Немає токена" else "Сплатити")
           }

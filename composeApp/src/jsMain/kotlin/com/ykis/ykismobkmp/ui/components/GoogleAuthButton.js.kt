@@ -23,6 +23,7 @@ actual fun GoogleAuthButton(
   // Регистрируем коллбек в объекте window, чтобы JS мог его вызвать
   LaunchedEffect(Unit) {
     (window.asDynamic()).onGoogleTokenReceived = { credential: String ->
+      println("[GoogleAuthButton.js]: ОТРИМАНО ТОКЕН ВІД GOOGLE (Credential length: ${credential.length})")
       onTokenReceived(credential)
     }
   }
