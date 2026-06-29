@@ -52,7 +52,7 @@ val navigationModule = module {
     LedgerService(
       getFlatServices = get(),
       getTotalDebtServices = get(),
-      getFastpayTokens = get()
+      getFastpayTokenByOsbb = get()
     )
   }
 

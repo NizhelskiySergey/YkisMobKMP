@@ -16,11 +16,11 @@ class LedgerRepositoryImpl(
 
   private val className = "LedgerRepositoryImpl"
 
-  override suspend fun getFastpayTokens(): GetFastpayTokensResponse {
+  override suspend fun getFastpayTokenByOsbb(uid: String, osbbId: Long): GetFastpayTokensResponse {
     return try {
-      remote.getFastpayTokens()
+      remote.getFastpayTokenByOsbb(uid, osbbId)
     } catch (ex: Exception) {
-      println("[YkisLogKMP.$className.getFastpayTokens]: [ERROR] ${ex.message}")
+      println("[YkisLogKMP.$className.getFastpayTokenByOsbb]: [ERROR] ${ex.message}")
       GetFastpayTokensResponse(
         success = 0,
         message = getString(Res.string.error_network_request_failed)

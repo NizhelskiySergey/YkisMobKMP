@@ -10,9 +10,9 @@ import com.ykis.ykismobkmp.data.responses.GetServiceResponse
 interface LedgerRepository {
 
   /**
-   * Получение токенов быстрой оплаты для организаций.
+   * Получение токена быстрой оплаты по конкретному osbbId.
    */
-  suspend fun getFastpayTokens(): GetFastpayTokensResponse
+  suspend fun getFastpayTokenByOsbb(uid: String, osbbId: Long): GetFastpayTokensResponse
 
   /**
    * Получение детальной информации по начислениям услуг ЖКХ для конкретной квартиры.

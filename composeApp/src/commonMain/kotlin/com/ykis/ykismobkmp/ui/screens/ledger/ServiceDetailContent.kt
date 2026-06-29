@@ -9,16 +9,27 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key.Companion.R
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.ykis.ykismobkmp.core.Constants
 import com.ykis.ykismobkmp.core.utils.CenteredProgressIndicator
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import kotlinx.datetime.TimeZone
@@ -32,24 +43,98 @@ import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.navigation.ContentType
 import com.ykis.ykismobkmp.ui.navigation.LocalContentType
 import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.accrued_text
-import ykismobkmp.composeapp.generated.resources.accrued_text_full
-import ykismobkmp.composeapp.generated.resources.end_debt
-import ykismobkmp.composeapp.generated.resources.end_debt_full
-import ykismobkmp.composeapp.generated.resources.no_payment
-import ykismobkmp.composeapp.generated.resources.no_payment_year
-import ykismobkmp.composeapp.generated.resources.paid
-import ykismobkmp.composeapp.generated.resources.paid_full
-import ykismobkmp.composeapp.generated.resources.payment_list
-import ykismobkmp.composeapp.generated.resources.services
-import ykismobkmp.composeapp.generated.resources.start_debt
-import ykismobkmp.composeapp.generated.resources.start_debt_full
-import ykismobkmp.composeapp.generated.resources.summary
-import ykismobkmp.composeapp.generated.resources.vodokanal
-import ykismobkmp.composeapp.generated.resources.ytke
-import ykismobkmp.composeapp.generated.resources.yzhtrans
+import ykismobkmp.composeapp.generated.resources.*
 import kotlin.time.Clock
 private const val className = "ServiceDetailContent"
+
+@Composable
+fun FastPayPaymentRow(
+  contentDetail: ContentDetail,
+  baseUIState: BaseUIState,
+  ledgerUIState: BaseUIState
+) {
+  val uriHandler = LocalUriHandler.current
+  
+  // Визначаємо ЗАГАЛЬНИЙ борг по службі
+  val totalServiceDebt = remember(contentDetail, ledgerUIState.totalDebt) {
+    when (contentDetail) {
+      ContentDetail.WATER_SERVICE   -> ledgerUIState.totalDebt.dolg1
+      ContentDetail.WARM_SERVICE    -> ledgerUIState.totalDebt.dolg2
+      ContentDetail.GARBAGE_SERVICE -> ledgerUIState.totalDebt.dolg3
+      ContentDetail.OSBB            -> ledgerUIState.totalDebt.dolg4
+      else -> 0.0
+    }
+  }
+
+  // Стейт суми
+  var paymentSum by remember(totalServiceDebt) { 
+      mutableStateOf(if (totalServiceDebt > 0) totalServiceDebt.toString() else "") 
+  }
+
+  val targetOsbbId = when (contentDetail) {
+      ContentDetail.WATER_SERVICE   -> Constants.WATER_SERVICE_ID
+      ContentDetail.WARM_SERVICE    -> Constants.WARM_SERVICE_ID
+      ContentDetail.GARBAGE_SERVICE -> Constants.GARBAGE_SERVICE_ID
+      else -> baseUIState.osmdId
+  }
+  
+  val fastpayToken = remember(targetOsbbId, ledgerUIState.fastpayTokens) {
+      ledgerUIState.fastpayTokens.find { it.osbbId == targetOsbbId }?.token
+  }
+
+  // Показуємо тільки мешканцю
+  if (baseUIState.userRole != com.ykis.ykismobkmp.domain.services.UserRole.StandardUser) return
+
+  Column(modifier = Modifier.fillMaxWidth()) {
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        tonalElevation = 1.dp
+      ) {
+        Row(
+          modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+          OutlinedTextField(
+            value = paymentSum,
+            onValueChange = { if (it.isEmpty() || it.all { c -> c.isDigit() || c == '.' }) paymentSum = it },
+            modifier = Modifier.weight(1f),
+            label = { Text("Сума до сплати", fontSize = 11.sp) },
+            suffix = { Text("грн") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            shape = RoundedCornerShape(12.dp)
+          )
+
+          Button(
+            onClick = {
+              if (!fastpayToken.isNullOrBlank()) {
+                  val personalAccount = baseUIState.addressId.toString()
+                  val cleanSum = paymentSum.replace(",", ".")
+                  val jsonParams = "{\"token\":\"$fastpayToken\",\"personalAccount\":\"$personalAccount\",\"sum\":\"$cleanSum\"}"
+                  val encodedParams = jsonParams.replace("{", "%7B").replace("}", "%7D").replace("\"", "%22")
+                  val url = "https://next.privat24.ua/payments/form/$encodedParams"
+
+                  println("[YkisLogKMP.FastPay]: >>> ВІДКРИВАЄМО ОПЛАТУ (ID: $personalAccount) >>>")
+                  try { uriHandler.openUri(url) } catch (e: Exception) { }
+              }
+            },
+            enabled = !fastpayToken.isNullOrBlank(),
+            modifier = Modifier.height(56.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = if (fastpayToken.isNullOrBlank()) Color.Gray else Color(0xFF7CB342))
+          ) {
+            Icon(painter = painterResource(Res.drawable.privatbank), contentDescription = null, modifier = Modifier.size(24.dp), tint = Color.Unspecified)
+            Spacer(Modifier.width(8.dp))
+            Text(if (fastpayToken.isNullOrBlank()) "Немає токена" else "Сплатити")
+          }
+        }
+      }
+      HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+  }
+}
+
 
 @Composable
 fun ServiceDetailScreen(
@@ -79,6 +164,12 @@ fun ServiceDetailScreen(
       subtitle = baseUIState.address
     )
 
+    // БЛОК ШВИДКОЇ ОПЛАТИ (FastPay)
+    FastPayPaymentRow(
+      contentDetail = contentDetail,
+      baseUIState = baseUIState,
+      ledgerUIState = ledgerUIState
+    )
 
     Box(modifier = Modifier.weight(1f)) {
       ServiceDetailContentContainer(
@@ -108,11 +199,7 @@ fun ServiceDetailContentContainer(
 
   var selectedChip by rememberSaveable { mutableStateOf(currentYearString) }
 
-  LaunchedEffect(ledgerUIState.monthlyServices.size, selectedChip) {
-    println("[YkisLogKMP.ServiceDetailContentContainer]: Обновлено. Месяцев: ${ledgerUIState.monthlyServices.size}")
-  }
-
-  // Каскадный КМР-триггер перезагрузки таблиц при смене года или квартиры
+  // 1. Каскадний КМР-триггер перезавантаження таблиць (при зміні року або квартири)
   LaunchedEffect(key1 = selectedChip, key2 = contentDetail, key3 = baseUIState.addressId) {
     if (baseUIState.addressId != 0L) {
       baseUIState.uid?.let { currentUid ->

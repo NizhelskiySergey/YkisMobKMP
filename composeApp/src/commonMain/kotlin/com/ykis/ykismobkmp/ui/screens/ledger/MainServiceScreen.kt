@@ -64,7 +64,7 @@ class MainServiceScreen(
               ledgerScreenModel.getTotalServiceDebt(params.uid, params.addressId, params.houseId, params.year, params.service, params.total)
             },
             setContentDetail = { content ->
-              ledgerScreenModel.setContentDetail(content)
+              ledgerScreenModel.setContentDetail(content, currentLiveState.uid, currentLiveState.osmdId)
             }
           )
         }
@@ -168,7 +168,7 @@ fun SinglePanelService(
           screenModel.getTotalServiceDebt(params.uid, params.addressId, params.houseId, params.year, params.service, params.total)
         },
         setContentDetail = { content ->
-          screenModel.setContentDetail(content)
+          screenModel.setContentDetail(content, baseUIState.uid, baseUIState.osmdId)
         }
       )
     }

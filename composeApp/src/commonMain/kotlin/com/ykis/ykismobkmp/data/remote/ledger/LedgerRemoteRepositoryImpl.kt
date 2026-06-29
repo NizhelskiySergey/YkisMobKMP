@@ -9,6 +9,7 @@ import com.ykis.ykismobkmp.core.Constants.UID
 import com.ykis.ykismobkmp.core.Constants.YEAR
 import com.ykis.ykismobkmp.core.Constants.KVARTPLATA
 import com.ykis.ykismobkmp.core.Constants.NEW_VALUE
+import com.ykis.ykismobkmp.core.Constants.OSBB_ID
 import com.ykis.ykismobkmp.core.Constants.RFOND
 import com.ykis.ykismobkmp.core.Constants.TEPLO
 import com.ykis.ykismobkmp.core.Constants.VODA
@@ -25,8 +26,13 @@ class LedgerRemoteRepositoryImpl(
   private val ktorApiService: KtorApiService
 ) : LedgerRemoteRepository {
 
-  override suspend fun getFastpayTokens(): GetFastpayTokensResponse {
-    return ktorApiService.getFastpayTokens()
+  override suspend fun getFastpayTokenByOsbb(uid: String, osbbId: Long): GetFastpayTokensResponse {
+    return ktorApiService.getFastpayTokenByOsbb(mapOf(
+        UID to uid,
+        "osbbId" to osbbId.toString(),
+        "osbb_id" to osbbId.toString(),
+        "osmdId" to osbbId.toString()
+    ))
   }
 
   override suspend fun getFlatDetailServices(

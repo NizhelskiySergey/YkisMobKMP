@@ -37,23 +37,26 @@ class KtorApiService(private val client: HttpClient) {
       rawFormBodyBuilder.append(key).append("=").append(value)
     }
     val finalRawBody = rawFormBodyBuilder.toString()
+    val fullUrl = baseUrl + path
 
-    println("[YkisLogKMP.KtorApiService.$methodName]: [START] $path")
+    println("[YkisLogKMP.Network]: >>> ОТПРАВКА ЗАПРОСА >>>")
+    println("[YkisLogKMP.Network]: URL: $fullUrl")
+    println("[YkisLogKMP.Network]: BODY: $finalRawBody")
 
-    val response: HttpResponse = client.post(baseUrl + path) {
+    val response: HttpResponse = client.post(fullUrl) {
       header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
       header(HttpHeaders.Accept, ContentType.Application.Json.toString())
       setBody(finalRawBody)
     }
 
     val rawJsonText = response.bodyAsText()
+    println("[YkisLogKMP.Network]: <<< ОТВЕТ СЕРВЕРА <<<")
+    println("[YkisLogKMP.Network]: TEXT: $rawJsonText")
     
     return try {
         jsonWorker.decodeFromString<T>(rawJsonText)
     } catch (e: Exception) {
-        println("[YkisLogKMP.KtorApiService_ERROR]: Помилка парсингу JSON: ${e.message}")
-        // Если произошла ошибка парсинга (особенно часто в Вебе), выбрасываем исключение
-        // которое будет поймано в Repository и заменено на локализованную строку.
+        println("[YkisLogKMP.Network_ERROR]: Сбой парсинга JSON для $path: ${e.message}")
         throw Exception("JSON_PARSE_ERROR")
     }
   }
@@ -87,5 +90,5 @@ class KtorApiService(private val client: HttpClient) {
 
   // Финансы
   suspend fun getFlatService(params: Map<String, String>) = postFormUrlEncoded<GetServiceResponse>("getFlatServices.php", params)
-  suspend fun getFastpayTokens() = postFormUrlEncoded<GetFastpayTokensResponse>("getFastpayTokens.php", emptyMap())
+  suspend fun getFastpayTokenByOsbb(params: Map<String, String>) = postFormUrlEncoded<GetFastpayTokensResponse>("getFastpayTokenByOsbb.php", params)
 }

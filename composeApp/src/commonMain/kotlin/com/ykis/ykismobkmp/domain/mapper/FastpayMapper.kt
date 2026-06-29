@@ -8,7 +8,7 @@ import com.ykis.ykismobkmp.db.FastpayTokenEntity
  */
 fun FastpayEntity.toDbFastpay(): FastpayTokenEntity {
     return FastpayTokenEntity(
-        id = this.id.toLong(),
+        id = this.id,
         name = this.name,
         biplanId = this.biplanId,
         okpo = this.okpo,
@@ -23,7 +23,7 @@ fun FastpayEntity.toDbFastpay(): FastpayTokenEntity {
  */
 fun FastpayTokenEntity.toDomainFastpay(): FastpayEntity {
     return FastpayEntity(
-        id = this.id.toInt(),
+        id = this.id,
         name = this.name,
         biplanId = this.biplanId,
         okpo = this.okpo,

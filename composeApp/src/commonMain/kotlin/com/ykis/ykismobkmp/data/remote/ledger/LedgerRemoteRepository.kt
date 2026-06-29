@@ -11,9 +11,9 @@ import com.ykis.ykismobkmp.data.responses.InsertPaymentResponse
 interface LedgerRemoteRepository {
 
   /**
-   * Получение токенов быстрой оплаты для организаций.
+   * Получение токена быстрой оплаты по конкретному osbbId.
    */
-  suspend fun getFastpayTokens(): GetFastpayTokensResponse
+  suspend fun getFastpayTokenByOsbb(uid: String, osbbId: Long): GetFastpayTokensResponse
 
   /**
    * Получение детальной информации по начислениям и квитанциям услуг ЖКХ на прямых параметрах.

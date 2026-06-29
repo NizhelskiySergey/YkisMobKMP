@@ -3,6 +3,7 @@ package com.ykis.ykismobkmp.ui
 import com.ykis.ykismobkmp.domain.entity.AnnouncementEntity
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.entity.FamilyEntity
+import com.ykis.ykismobkmp.domain.entity.FastpayEntity
 import com.ykis.ykismobkmp.domain.entity.HeatMeterEntity
 import com.ykis.ykismobkmp.domain.entity.HeatReadingEntity
 import com.ykis.ykismobkmp.domain.entity.RaionEntity
@@ -76,6 +77,7 @@ data class BaseUIState(
   // --- 5. ФИНАНСОВЫЙ УЧЕТ (Ledger / Billing) ---
   @SerialName("totalDebt") val totalDebt: ServiceEntity = ServiceEntity(),
   @SerialName("monthlyServices") val monthlyServices: List<ServiceEntity> = emptyList(),
+  @SerialName("fastpayTokens") val fastpayTokens: List<FastpayEntity> = emptyList(),
   @SerialName("serviceDetail") val serviceDetail: ContentDetail = ContentDetail.UNKNOWN,
 
   // --- 6. УЧЕТ ПОКАЗАНИЙ (Meters / Readings) ---

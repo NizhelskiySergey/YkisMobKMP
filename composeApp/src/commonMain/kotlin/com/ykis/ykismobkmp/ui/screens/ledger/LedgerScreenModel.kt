@@ -19,13 +19,65 @@ class LedgerScreenModel(
 
   private var detailJob: kotlinx.coroutines.Job? = null
   private var totalDebtJob: kotlinx.coroutines.Job? = null
+  private var singleTokenJob: kotlinx.coroutines.Job? = null
+
+  fun getFastpayTokenByOsbb(uid: String, osbbId: Long) {
+      if (uid.isBlank() || osbbId == 0L) {
+          println("[YkisLogKMP.LedgerScreenModel]: getFastpayTokenByOsbb скасовано (пусті параметри)")
+          return
+      }
+      singleTokenJob?.cancel()
+      singleTokenJob = screenModelScope.launch {
+          println("[YkisLogKMP.LedgerScreenModel]: Початок завантаження токена для OSBB $osbbId...")
+          ledgerService.getFastpayTokenByOsbb(uid, osbbId).collect { result ->
+              when (result) {
+                  is Resource.Success -> {
+                      val newToken = result.data
+                      println("[YkisLogKMP.LedgerScreenModel]: Токен для $osbbId завантажено УСПІШНО. Значення: ${newToken?.token?.take(5)}...")
+                      if (newToken != null) {
+                          _uiState.update { currentState ->
+                              val currentTokens = currentState.fastpayTokens.toMutableList()
+                              val existingIndex = currentTokens.indexOfFirst { it.osbbId == osbbId }
+                              if (existingIndex != -1) {
+                                  currentTokens[existingIndex] = newToken
+                              } else {
+                                  currentTokens.add(newToken)
+                              }
+                              currentState.copy(fastpayTokens = currentTokens)
+                          }
+                      }
+                  }
+                  is Resource.Error -> {
+                      println("[YkisLogKMP.LedgerScreenModel]: ПОМИЛКА завантаження токена для $osbbId: ${result.message}")
+                  }
+                  is Resource.Loading -> {
+                      println("[YkisLogKMP.LedgerScreenModel]: Завантаження токена...")
+                  }
+              }
+          }
+      }
+  }
 
   /**
    * [setContentDetail] — Установка выбранной службы для детализации начислений.
    */
-  fun setContentDetail(contentDetail: ContentDetail) {
+  fun setContentDetail(contentDetail: ContentDetail, uid: String? = null, osmdId: Long? = null) {
     _uiState.update {
       it.copy(serviceDetail = contentDetail, showDetail = true)
+    }
+
+    // Автоматичне завантаження токена при виборі служби (Тільки якщо є UID)
+    if (!uid.isNullOrBlank() && contentDetail != ContentDetail.UNKNOWN) {
+        val targetOsbbId = when (contentDetail) {
+            ContentDetail.WATER_SERVICE   -> com.ykis.ykismobkmp.core.Constants.WATER_SERVICE_ID
+            ContentDetail.WARM_SERVICE    -> com.ykis.ykismobkmp.core.Constants.WARM_SERVICE_ID
+            ContentDetail.GARBAGE_SERVICE -> com.ykis.ykismobkmp.core.Constants.GARBAGE_SERVICE_ID
+            else -> osmdId ?: 0L
+        }
+        
+        if (targetOsbbId != 0L && _uiState.value.fastpayTokens.none { it.osbbId == targetOsbbId }) {
+            getFastpayTokenByOsbb(uid, targetOsbbId)
+        }
     }
   }
 
@@ -56,7 +108,7 @@ class LedgerScreenModel(
     }
 
     totalDebtJob?.cancel()
-
+    
     totalDebtJob = ledgerService.getTotalDebtServices(
       uid = uid,
       addressId = addressId,

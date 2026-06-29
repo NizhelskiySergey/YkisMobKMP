@@ -252,7 +252,7 @@ CREATE TABLE waterReadingEntity (
     dateIn TEXT NOT NULL DEFAULT 'Unknown'
 );
 
-CREATE TABLE fastpayTokenEntity (
+CREATE TABLE IF NOT EXISTS fastpayTokenEntity (
     id INTEGER NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
     biplanId INTEGER NOT NULL,
