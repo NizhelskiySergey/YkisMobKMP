@@ -59,7 +59,7 @@ class AddApartment(
           "FlatAlreadyInDataBase" -> "Ця квартира вже додана до вашого профілю"
           "IncorrectCode" -> "Невірний секретний код. Перевірте дані в квитанції"
           "CodeNotFound" -> "Такий код не знайдено в базі нарахувань ЮКІС"
-          else -> response.message ?: "Не вдалося додати квартиру"
+          else -> response.message
         }
         println("[$className.$methodName]: [REJECT] Сервер отклонил привязку: $errorMessage")
         emit(Resource.Error(message = errorMessage))

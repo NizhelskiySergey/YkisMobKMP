@@ -47,7 +47,7 @@ class DeleteApartment(
         emit(Resource.Success(response))
       } else {
         println("[$className.$methodName]: [REJECT] Сервер отклонил удаление: ${response.message}")
-        emit(Resource.Error(message = response.message ?: "Помилка видалення"))
+        emit(Resource.Error(message = response.message))
       }
 
     } catch (ex: Exception) {

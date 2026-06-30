@@ -40,7 +40,7 @@ class AddHeatReading(
         emit(Resource.Success<GetSimpleResponse?>(response))
         SnackbarManager.showMessage(getString(Res.string.reading_added))
       } else {
-        val errorMsg = response.message ?: getString(Res.string.error_add_reading)
+        val errorMsg = response.message
         emit(Resource.Error<GetSimpleResponse?>(message = errorMsg))
         SnackbarManager.showMessage(errorMsg)
       }

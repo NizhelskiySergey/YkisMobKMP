@@ -41,7 +41,7 @@ class GetTotalDebtServices(
       // 1. МЕРЕЖА
       println("[YkisLogKMP.$className]: Запит балансу для ID: $addressId")
       val response = repository.getTotalDebtService(uid, addressId, houseId, year, service, total)
-      val services = response.services ?: emptyList()
+      val services = response.services
 
       if (response.success == 1 && services.isNotEmpty()) {
         val serviceData = services[0]

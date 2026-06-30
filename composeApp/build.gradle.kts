@@ -39,6 +39,7 @@ kotlin {
   androidTarget {
     compilerOptions {
       jvmTarget.set(JvmTarget.JVM_21)
+      freeCompilerArgs.add("-Xexpect-actual-classes")
     }
   }
 
@@ -53,9 +54,16 @@ kotlin {
     }
   }
 
-  jvm()
+  jvm() {
+    compilerOptions {
+      freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+  }
 
   js(IR) {
+    compilerOptions {
+      freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
     outputModuleName.set("composeApp")
     useEsModules()
 

@@ -27,6 +27,7 @@ private const val className = "UserListItem"
  * [formatTimestamp] — Кроссплатформенный форматтер времени на базе библиотеки kotlinx-datetime.
  * Исправлено: Заглушка "12:00" удалена. Метод нативно вычисляет часы и минуты для Android/iOS.
  */
+@Suppress("DEPRECATION")
 private fun formatTimestamp(timestamp: Long): String {
   if (timestamp <= 0L) return ""
   return try {

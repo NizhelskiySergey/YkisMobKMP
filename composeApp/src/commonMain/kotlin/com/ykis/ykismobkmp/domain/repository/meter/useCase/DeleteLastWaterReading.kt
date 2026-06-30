@@ -37,7 +37,7 @@ class DeleteLastWaterReading(
         emit(Resource.Success<GetSimpleResponse?>(response))
         SnackbarManager.showMessage(getString(Res.string.success_delete))
       } else {
-        val errorMsg = response.message ?: getString(Res.string.error_server)
+        val errorMsg = response.message
         emit(Resource.Error<GetSimpleResponse?>(message = errorMsg))
         SnackbarManager.showMessage(errorMsg)
       }

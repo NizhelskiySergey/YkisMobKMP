@@ -53,6 +53,7 @@ private const val tag = "MessageListItem"
 /**
  * [formatTime24H] — Кроссплатформенный форматтер времени на базе kotlinx-datetime.
  */
+@Suppress("DEPRECATION")
 fun formatTime24H(timestamp: Long): String {
   if (timestamp <= 0L) return ""
   return try {

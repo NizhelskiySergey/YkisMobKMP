@@ -47,7 +47,7 @@ class DeleteUserAccount(
         emit(Resource.Success(response))
       } else {
         println("[$className.$methodName]: [API_REJECT] Сервер отклонил удаление: ${response.message}")
-        emit(Resource.Error(message = response.message ?: "Помилка видалення профілю"))
+        emit(Resource.Error(message = response.message))
       }
 
     } catch (ce: CancellationException) {

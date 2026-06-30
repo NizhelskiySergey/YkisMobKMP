@@ -56,7 +56,7 @@ class GetFlatServices(
       // 2. МЕРЕЖА
       println("[$className]: Запит нарахувань для ID: $addressId, рік: $year")
       val response = repository.getFlatDetailService(uid, addressId, houseId, year, service, total)
-      val remoteServices = response.services ?: emptyList()
+      val remoteServices = response.services
 
       if (response.success == 1) {
         emit(Resource.Success(remoteServices))

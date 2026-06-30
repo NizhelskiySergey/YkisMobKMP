@@ -59,7 +59,7 @@ class UpdateBti(
         emit(Resource.Success(response))
       } else {
         println("[$className.$methodName]: [REJECT] Сервер отклонил изменения: ${response.message}")
-        emit(Resource.Error(message = response.message ?: "Помилка оновлення даних БТІ"))
+        emit(Resource.Error(message = response.message))
       }
 
     } catch (ex: Exception) {
