@@ -30,7 +30,9 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material3.Badge
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -71,6 +73,7 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
+import com.ykis.ykismobkmp.ui.screens.help.ManualScreen
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.*
@@ -407,6 +410,33 @@ fun ApartmentNavigationRail(
               }
             }
           }
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        if (isRailExpanded) {
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            
+            TextButton(
+              onClick = {
+                focusManager.clearFocus()
+                navigator.push(ManualScreen(role = baseUIState.userRole, onBackClick = { navigator.pop() }))
+              },
+              modifier = Modifier.fillMaxWidth().padding(8.dp)
+            ) {
+              Icon(Icons.AutoMirrored.Filled.HelpOutline, null, modifier = Modifier.size(20.dp))
+              Spacer(Modifier.width(12.dp))
+              Text("Інструкція", style = MaterialTheme.typography.labelLarge)
+            }
+        } else {
+            IconButton(
+                onClick = {
+                  navigator.push(ManualScreen(role = baseUIState.userRole, onBackClick = { navigator.pop() }))
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 16.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.HelpOutline, null)
+            }
         }
       }
     }

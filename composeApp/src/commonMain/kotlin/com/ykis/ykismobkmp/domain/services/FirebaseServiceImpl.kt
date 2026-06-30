@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration.Companion.seconds
 import org.jetbrains.compose.resources.getString
 import ykismobkmp.composeapp.generated.resources.*
 
@@ -67,7 +68,14 @@ class FirebaseServiceImpl(
   override suspend fun getDisplayName() = displayName
 
   override suspend fun fetchConfiguration(): Boolean = try {
-    remoteConfig.fetchAndActivate()
+    // ВСТАНОВЛЮЄМО МІНІМАЛЬНИЙ ІНТЕРВАЛ ДЛЯ ТЕСТІВ (0 секунд)
+    // Це змусить Firebase ігнорувати кэш і завжди завантажувати свіжі дані
+    try {
+        remoteConfig.fetch(0.seconds)
+        remoteConfig.activate()
+    } catch (e: Exception) {
+        remoteConfig.fetchAndActivate()
+    }
     true
   } catch (e: Exception) {
     false
@@ -296,6 +304,35 @@ class FirebaseServiceImpl(
     } catch (e: Exception) {
       println("[YkisLogKMP.$className.addFcmToken_ERROR]: ${e.message}")
     }
+  }
+
+  override suspend fun getManualText(role: UserRole): String = try {
+    val lang = settings.getString("app_language", "uk")
+    val baseKey = if (role == UserRole.StandardUser) "manual_resident" else "manual_admin"
+    val fullKey = "${baseKey}_$lang"
+    
+    val rawValue = remoteConfig.getValue(fullKey).asString()
+    val finalRaw = if (rawValue.isNotBlank()) rawValue else remoteConfig.getValue(baseKey).asString()
+    
+    // ПРОВІРКА: якщо це JSON-масив, розпарсимо його як список рядків
+    if (finalRaw.trim().startsWith("[")) {
+        try {
+            val json = kotlinx.serialization.json.Json { 
+                ignoreUnknownKeys = true 
+                isLenient = true
+            }
+            val lines = json.decodeFromString<List<String>>(finalRaw)
+            println("[FirebaseService]: JSON розпарсено успішно, отримано ${lines.size} рядків")
+            lines.joinToString("\n")
+        } catch (e: Exception) {
+            println("[FirebaseService_ERROR]: Помилка парсингу JSON мануала: ${e.message}")
+            finalRaw
+        }
+    } else {
+        finalRaw
+    }
+  } catch (e: Exception) {
+    ""
   }
 
   override suspend fun removeFcmToken() {

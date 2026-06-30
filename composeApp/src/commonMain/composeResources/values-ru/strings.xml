@@ -316,6 +316,11 @@
   <string name="chats">Чати</string>
   <string name="friends">Друзья</string>
   <string name="add_friend">Пригласить друга</string>
+  <string name="manual_resident_title">Руководство Жильца</string>
+  <string name="manual_admin_title">Руководство Администратора</string>
+  <string name="instruction_title">Инструкция</string>
+  <string name="instruction_loading">Загрузка инструкции...</string>
+  <string name="instruction_unavailable">Инструкция временно недоступна. Пожалуйста, обратитесь в поддержку.</string>
   <string name="friend_requests">Запросы в друзья</string>
   <string name="logout">Выйти</string>
   <string name="name_colon">Имя:</string>

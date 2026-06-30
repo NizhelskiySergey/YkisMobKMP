@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -37,6 +38,7 @@ import com.ykis.ykismobkmp.ui.screens.appartment.ListMode
 import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
+import com.ykis.ykismobkmp.ui.screens.help.ManualScreen
 import ykismobkmp.composeapp.generated.resources.*
 
 @Composable
@@ -224,6 +226,22 @@ fun ModalNavigationDrawerContent(
           }
         }
       }
+
+      HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+      // КНОПКА ДОПОМОГИ / ІНСТРУКЦІЇ
+      NavigationDrawerItem(
+        label = { Text("Інструкція користувача", fontWeight = FontWeight.Medium) },
+        selected = false,
+        icon = { Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null) },
+        onClick = {
+            onMenuClick()
+            navigator.push(ManualScreen(role = baseUIState.userRole, onBackClick = { navigator.pop() }))
+        },
+        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+      )
+      
+      Spacer(modifier = Modifier.height(8.dp))
     }
   }
 }

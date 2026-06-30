@@ -318,6 +318,11 @@
   <string name="chats">Чати</string>
   <string name="friends">Друзі</string>
   <string name="add_friend">Запросити друга</string>
+  <string name="manual_resident_title">Посібник Мешканця</string>
+  <string name="manual_admin_title">Посібник Адміністратора</string>
+  <string name="instruction_title">Інструкція</string>
+  <string name="instruction_loading">Завантаження інструкції...</string>
+  <string name="instruction_unavailable">Інструкція тимчасово недоступна. Будь ласка, зверніться до підтримки.</string>
   <string name="friend_requests">Запити в друзі</string>
   <string name="logout">Вийти</string>
   <string name="name_colon">Ім’я:</string>
