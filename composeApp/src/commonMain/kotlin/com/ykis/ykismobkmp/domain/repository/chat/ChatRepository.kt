@@ -6,6 +6,7 @@ import com.ykis.ykismobkmp.core.utils.wrapForFirebase
 import com.ykis.ykismobkmp.domain.ai.GeminiAiManager
 import com.ykis.ykismobkmp.domain.entity.*
 import com.ykis.ykismobkmp.domain.services.UserRole
+import com.ykis.ykismobkmp.domain.services.toEntity
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import dev.gitlive.firebase.firestore.*
@@ -63,7 +64,8 @@ class ChatRepository(
           try {
             val doc = firestore.collection("users").document(uid).get()
             if (doc.exists) {
-                doc.data<UserEntity>().copy(uid = doc.id)
+                // Використовуємо UserFirebase для безпечного парсингу типів даних
+                doc.data<com.ykis.ykismobkmp.domain.services.UserFirebase>().toEntity().copy(uid = doc.id)
             } else null
           } catch (e: Exception) {
             null
@@ -122,14 +124,25 @@ class ChatRepository(
   suspend fun fetchAdminsByOsbb(osbbId: Long): List<UserEntity> {
     if (_firestore == null) return emptyList()
     return try {
-      val targetId = safeNum(osbbId)
-      val q1 = firestore.collection("users").where { "osbbId" equalTo targetId }.get()
-      val q2 = firestore.collection("users").where { "osbbId" equalTo osbbId.toString() }.get()
-      val combined = (q1.documents + q2.documents).distinctBy { it.id }
+      // Виконуємо пошук за всіма можливими типами даних (Firestore дуже строгий до типів)
+      val q1 = firestore.collection("users").where { "osbbId" equalTo osbbId }.get()            // Long
+      val q2 = firestore.collection("users").where { "osbbId" equalTo osbbId.toDouble() }.get() // Double (Web)
+      val q3 = firestore.collection("users").where { "osbbId" equalTo osbbId.toString() }.get() // String
+      
+      val combined = (q1.documents + q2.documents + q3.documents).distinctBy { it.id }
+      
       combined.mapNotNull { doc ->
-        try { doc.data<UserEntity>().copy(uid = doc.id) } catch (e: Exception) { null }
+        try { 
+            doc.data<com.ykis.ykismobkmp.domain.services.UserFirebase>().toEntity().copy(uid = doc.id) 
+        } catch (e: Exception) { 
+            println("[ChatRepository]: Помилка парсингу адміна ${doc.id}: ${e.message}")
+            null 
+        }
       }.filter { it.userRole != UserRole.StandardUser && it.userRole != UserRole.Unknown }
-    } catch (e: Exception) { emptyList() }
+    } catch (e: Exception) { 
+      println("[ChatRepository.fetchAdmins_ERROR]: ${e.message}")
+      emptyList() 
+    }
   }
 
   suspend fun fetchUserByAddressId(addressId: Long): UserEntity? {
@@ -139,7 +152,9 @@ class ChatRepository(
       val resultNum = firestore.collection("users").where { "addressId" equalTo targetId }.get()
       val resultStr = firestore.collection("users").where { "addressId" equalTo addressId.toString() }.get()
       val doc = (resultNum.documents + resultStr.documents).firstOrNull()
-      doc?.let { it.data<UserEntity>().copy(uid = it.id) }
+      doc?.let { 
+          it.data<com.ykis.ykismobkmp.domain.services.UserFirebase>().toEntity().copy(uid = it.id) 
+      }
     } catch (e: Exception) { null }
   }
 
@@ -171,7 +186,9 @@ class ChatRepository(
     
     try {
       val distinctUids = uids.distinct()
-      println("[ChatRepository.increment]: Спроба збільшити лічильники для ${distinctUids.size} осіб у чаті $chatId")
+      println("[YkisLogKMP.ChatCounter]: >>> ПОЧАТОК ІНКРЕМЕНТУ >>>")
+      println("[YkisLogKMP.ChatCounter]: Чат: $chatId")
+      println("[YkisLogKMP.ChatCounter]: Отримувачі (UIDs): $distinctUids")
       
       distinctUids.forEach { uid ->
         val presenceRef = realtime.reference("presence/$chatId/$uid/online")
@@ -180,30 +197,39 @@ class ChatRepository(
             if (snap.exists) snap.value<Boolean?>() ?: false else false
         } catch (e: Exception) { false }
         
-        // Збільшуємо тільки тим, хто офлайн
         if (!isOnline) {
+            println("[YkisLogKMP.ChatCounter]: Користувач $uid ОФЛАЙН. Збільшуємо лічильник...")
             val unreadRef = realtime.reference("unread_counters/$uid/$chatId")
             unreadRef.setValue(dev.gitlive.firebase.database.ServerValue.increment(1.0))
+        } else {
+            println("[YkisLogKMP.ChatCounter]: Користувач $uid ЗАРАЗ У ЧАТІ. Пропускаємо інкремент.")
         }
       }
+      println("[YkisLogKMP.ChatCounter]: <<< ЗАВЕРШЕНО <<<")
     } catch (e: Exception) {
-      println("[ChatRepository.increment_ERROR]: ${e.message}")
+      println("[YkisLogKMP.ChatCounter_ERROR]: ${e.message}")
     }
   }
 
   suspend fun incrementUnreadForParticipants(chatId: String, senderUid: String) {
     if (_realtime == null) return
     try {
+      println("[YkisLogKMP.ChatCounter]: Перевірка учасників для чату $chatId (Відправник: $senderUid)")
       val participantsSnapshot = realtime.reference("chat_access/$chatId").valueEvents.first()
-      val uids = participantsSnapshot.children.mapNotNull { it.key }.filter { it != senderUid }.distinct()
       
-      if (uids.isNotEmpty()) {
-          incrementUnreadForUids(chatId, uids)
+      val allParticipants = participantsSnapshot.children.mapNotNull { it.key }
+      println("[YkisLogKMP.ChatCounter]: Знайдено в chat_access: $allParticipants")
+      
+      val recipientUids = allParticipants.filter { it != senderUid }.distinct()
+      println("[YkisLogKMP.ChatCounter]: Одержувачі після фільтрації відправника: $recipientUids")
+      
+      if (recipientUids.isNotEmpty()) {
+          incrementUnreadForUids(chatId, recipientUids)
       } else {
-          println("[ChatRepository.increment]: Отримувачів не знайдено (тільки відправник у списку доступу)")
+          println("[YkisLogKMP.ChatCounter]: Одержувачів не знайдено в chat_access!")
       }
     } catch (e: Exception) {
-      println("[ChatRepository.increment_Participants_ERROR]: ${e.message}")
+      println("[YkisLogKMP.ChatCounter_ERROR]: Помилка при отриманні учасників: ${e.message}")
     }
   }
 
@@ -214,7 +240,11 @@ class ChatRepository(
       val resultNum = firestore.collection("users").where { "addressId" equalTo targetId }.get()
       val resultStr = firestore.collection("users").where { "addressId" equalTo addressId.toString() }.get()
       val combined = (resultNum.documents + resultStr.documents).distinctBy { it.id }
-      combined.mapNotNull { doc -> try { doc.data<UserEntity>().copy(uid = doc.id) } catch (e: Exception) { null } }
+      combined.mapNotNull { doc -> 
+          try {
+              doc.data<com.ykis.ykismobkmp.domain.services.UserFirebase>().toEntity().copy(uid = doc.id)
+          } catch (e: Exception) { null }
+      }
     } catch (e: Exception) { emptyList() }
   }
 
@@ -437,6 +467,40 @@ class ChatRepository(
     try {
       realtime.reference("chat_access/$chatId/$uid").setValue(true)
     } catch (e: Exception) { }
+  }
+
+  /**
+   * [subscribeToChats] — Масова підписка користувача на список чатів.
+   * Використовується адмінами для авто-реєстрації в нових гілках.
+   */
+  suspend fun subscribeToChats(chatIds: List<String>, uid: String) {
+    if (_realtime == null || chatIds.isEmpty()) return
+    try {
+        val updates = mutableMapOf<String, Any?>()
+        chatIds.forEach { id ->
+            updates["chat_access/$id/$uid"] = true
+        }
+        realtime.reference().updateChildren(updates)
+    } catch (e: Exception) {
+        println("[ChatRepository.subscribeToChats_ERROR]: ${e.message}")
+    }
+  }
+
+  /**
+   * [subscribeUsersToChat] — Реєстрація списку користувачів в одному чаті.
+   */
+  suspend fun subscribeUsersToChat(uids: List<String>, chatId: String) {
+    if (_realtime == null || uids.isEmpty()) return
+    try {
+        val updates = mutableMapOf<String, Any?>()
+        uids.forEach { uid ->
+            updates[uid] = true
+        }
+        // Записуємо напряму у гілку чату
+        realtime.reference("chat_access/$chatId").updateChildren(updates)
+    } catch (e: Exception) {
+        println("[ChatRepository.subscribeUsersToChat_ERROR]: ${e.message}")
+    }
   }
 
   suspend fun removeChatParticipant(chatId: String, uid: String) {

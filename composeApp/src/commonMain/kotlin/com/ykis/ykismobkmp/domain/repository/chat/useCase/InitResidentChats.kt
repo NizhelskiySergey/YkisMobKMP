@@ -15,8 +15,7 @@ class InitResidentChats(
 ) {
   private val className = "InitResidentChats"
 
-  operator fun invoke(
-    scope: CoroutineScope,
+  suspend operator fun invoke(
     uid: String,
     osbbId: Long,
     addressId: Long,
@@ -33,51 +32,41 @@ class InitResidentChats(
       "GARBAGE_SERVICE" to Constants.GARBAGE_SERVICE_ID
     )
 
-    scope.launch(Dispatchers.Default) {
-      serviceMap.forEach { (prefix, sysId) ->
-        if (prefix == "OSBB" && sysId == 0L) {
-            println("[YkisLogKMP.$className.$methodName]: Пропуск чату ОСББ (ID=0)")
-            return@forEach 
-        }
+    serviceMap.forEach { (prefix, sysId) ->
+      if (prefix == "OSBB" && sysId == 0L) return@forEach 
 
-        val chatPath = "${prefix}_${sysId}_${addressId}"
-        println("[YkisLogKMP.$className.$methodName]: Перевірка гілки: $chatPath")
+      val chatPath = "${prefix}_${sysId}_${addressId}"
+      try {
+        // 1. Реєструємо САМОГО СЕБЕ (мешканця) - це завжди дозволено і швидко
+        chatRepo.addChatParticipant(chatPath, uid)
 
-        try {
-          // 1. Реєструємо користувача
-          chatRepo.addChatParticipant(chatPath, uid)
-
-          // 2. Перевіряємо існування
-          val isExists = chatRepo.isChatBranchExists(chatPath)
-
-          if (!isExists) {
-            println("[YkisLogKMP.$className.$methodName]: Створення НОВОГО чату $chatPath")
-
-            val cleanNanim = if (nanim.isBlank() || nanim == "Мешканець") "Жилець" else nanim
-
-            val message = MessageEntity(
-                id = "",
-                senderUid = uid,
-                text = "Вітаю! Чат з ${if (prefix == "OSBB") "ОСББ" else "службою"} активовано.",
-                senderDisplayedName = cleanNanim,
-                senderAddress = addressText,
-                timestamp = com.ykis.ykismobkmp.core.utils.currentTimeMillis(),
-                read = false
-            )
-
-            chatRepo.sendMessage(path = chatPath, message = message)
-            
-            // 3. Сповіщення адмінів
-            val adminUids = chatRepo.fetchAdminsByOsbb(sysId).map { it.uid }.filter { it != uid }
-            if (adminUids.isNotEmpty()) {
-                chatRepo.incrementUnreadForUids(chatPath, adminUids)
-            }
-          } else {
-            println("[YkisLogKMP.$className.$methodName]: Чат $chatPath вже активовано.")
+        // 2. Перевіряємо існування гілки
+        // Якщо вона вже є - більше нічого не робимо (адміни вже там або самі додадуться)
+        if (!chatRepo.isChatBranchExists(chatPath)) {
+          println("[YkisLogKMP.$className]: Гілка $chatPath нова. Пошук адмінів для ініціалізації...")
+          
+          // Тільки для НОВОГО чату шукаємо адмінів у Firestore
+          val adminUids = chatRepo.fetchAdminsByOsbb(sysId).map { it.uid }.filter { it != uid && it.isNotBlank() }
+          
+          if (adminUids.isNotEmpty()) {
+              adminUids.forEach { adminUid ->
+                  chatRepo.addChatParticipant(chatPath, adminUid)
+              }
           }
-        } catch (e: Exception) {
-          println("[YkisLogKMP.$className.$methodName]: Помилка для $chatPath: ${e.message}")
+
+          println("[YkisLogKMP.$className]: Створення вітального повідомлення у $chatPath")
+          val cleanNanim = if (nanim.isBlank() || nanim == "Мешканець") "Жилець" else nanim
+          val message = MessageEntity(
+              id = "", senderUid = uid,
+              text = "Вітаю! Чат з ${if (prefix == "OSBB") "ОСББ" else "службою"} активовано.",
+              senderDisplayedName = cleanNanim, senderAddress = addressText,
+              timestamp = com.ykis.ykismobkmp.core.utils.currentTimeMillis()
+          )
+          chatRepo.sendMessage(path = chatPath, message = message)
+          if (adminUids.isNotEmpty()) chatRepo.incrementUnreadForUids(chatPath, adminUids)
         }
+      } catch (e: Exception) {
+        println("[YkisLogKMP.$className]: Помилка ініціалізації $chatPath: ${e.message}")
       }
     }
   }

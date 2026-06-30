@@ -10,6 +10,7 @@ import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.domain.entity.HouseEntity
 import com.ykis.ykismobkmp.domain.entity.RaionEntity
 import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentService
+import com.ykis.ykismobkmp.domain.repository.chat.ChatRepository
 import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.domain.services.LogService
 import com.ykis.ykismobkmp.domain.services.UserRole
@@ -22,6 +23,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.getString
 import ykismobkmp.composeapp.generated.resources.*
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 enum class ListMode { RAIONS, HOUSES, APARTMENTS }
 
@@ -32,7 +35,8 @@ class ApartmentScreenModel(
   val firebaseService: FirebaseService,
   private val apartmentService: ApartmentService,
   logService: LogService,
-) : BaseScreenModel(logService) {
+) : BaseScreenModel(logService), KoinComponent {
+  private val chatRepo: ChatRepository by inject()
   private val className = "ApartmentScreenModel"
 
   val uid get() = firebaseService.uid
@@ -217,12 +221,11 @@ class ApartmentScreenModel(
     if (result is Resource.Loading) return
     val incoming = result.data ?: emptyList()
 
-    // 1. Ініціалізуємо чати для ВСІХ квартир (Side Effect винесено з update)
+    // 1. Ініціалізуємо чати для ВСІХ квартир (Послідовно для уникнення Firestore шторму)
     if (incoming.isNotEmpty()) {
-        incoming.forEach { apt ->
-            screenModelScope.launch {
+        screenModelScope.launch {
+            incoming.forEach { apt ->
                 apartmentService.initResidentChats(
-                    scope = screenModelScope,
                     uid = uid,
                     osbbId = apt.osmdId,
                     addressId = apt.addressId,
@@ -441,6 +444,22 @@ class ApartmentScreenModel(
         }
         screenModelScope.launch {
           firebaseService.updateUserRoleAndPermissions(uid = uid, addressId = 0L, userRole = mappedRole, osbbId = newOsbbId, displayName = data.osbb ?: "Адмін", osbb = data.osbb ?: "ОСББ")
+          
+          // ТЕПЕР ПІДПИСКА ТУТ: Один раз при активації адміна
+          try {
+              val targetPrefix = when (mappedRole) {
+                  UserRole.VodokanalUser -> "WATER_SERVICE_9999_"
+                  UserRole.YtkeUser      -> "WARM_SERVICE_9998_"
+                  UserRole.TboUser       -> "GARBAGE_SERVICE_9997_"
+                  else                   -> "OSBB_${newOsbbId}_"
+              }
+              // Отримуємо ключі один раз і підписуємось
+              val keys = chatRepo.observeChatKeys(targetPrefix).first()
+              if (keys.isNotEmpty()) chatRepo.subscribeToChats(keys, uid)
+          } catch (e: Exception) {
+              println("[ApartmentScreenModel]: Помилка авто-підписки адміна: ${e.message}")
+          }
+
           delay(1000)
           observeUserProfile()
           SnackbarManager.showMessage("Авторизація адміністратора успішна")
