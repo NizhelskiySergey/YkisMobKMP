@@ -19,11 +19,11 @@ fun DomainHeatReading.toDbHeatReading(): DbHeatReading {
     dateDo = this.dateDo,
     edizm = this.edizm,
     koef = this.koef,
-    days = this.days.toLong(), // SQLDelight сохраняет INTEGER как Long в SQLite
+    days = this.days, // SQLDelight сохраняет INTEGER как Long в SQLite
     last = this.last, // Чистое имя поля по твоей SQL схеме
     current = this.current, // Чистое имя поля по твоей SQL схеме
     gkal = this.gkal,
-    avg = this.avg.toLong(), // Чистое имя поля по твоей SQL схеме
+    avg = this.avg, // Чистое имя поля по твоей SQL схеме
     tarif = this.tarif,
     qty = this.qty,
     pokOt = this.pokOt,

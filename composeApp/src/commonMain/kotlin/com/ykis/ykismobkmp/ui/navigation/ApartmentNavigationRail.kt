@@ -332,7 +332,7 @@ fun ApartmentNavigationRail(
                         )
                     ) {
                       RailItemContent(
-                        title = raion.raion ?: "",
+                        title = raion.raion,
                         icon = Icons.Default.Map,
                         isSelected = isSelected,
                         onClick = {
@@ -358,7 +358,7 @@ fun ApartmentNavigationRail(
                         )
                     ) {
                       RailItemContent(
-                        title = house.house ?: "",
+                        title = house.house,
                         icon = Icons.Default.Domain,
                         isSelected = isSelected,
                         onClick = {

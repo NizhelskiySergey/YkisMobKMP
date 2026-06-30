@@ -38,7 +38,7 @@ class GetFamilyList(
       // 2. МЕРЕЖЕВИЙ ЗАПИТ (Для всіх)
       println("[$className]: Запит складу сім'ї для ID: $addressId")
       val response = repository.getFamilyList(uid, addressId)
-      val remoteFamily = response.family ?: emptyList()
+      val remoteFamily = response.family
 
       if (response.success == 1) {
         emit(Resource.Success(remoteFamily))

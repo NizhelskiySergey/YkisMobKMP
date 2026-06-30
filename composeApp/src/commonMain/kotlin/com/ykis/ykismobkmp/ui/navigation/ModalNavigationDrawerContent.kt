@@ -186,7 +186,7 @@ fun ModalNavigationDrawerContent(
               ListMode.RAIONS -> {
                 items(baseUIState.raions, key = { "r_${it.raionId}" }) { raion ->
                   NavigationDrawerItem(
-                    label = { Text(raion.raion ?: "") },
+                    label = { Text(raion.raion) },
                     selected = baseUIState.selectedRaionId == raion.raionId,
                     icon = { Icon(Icons.Default.Map, null) },
                     onClick = { apartmentScreenModel.onRaionSelected(raion) },
@@ -197,7 +197,7 @@ fun ModalNavigationDrawerContent(
               ListMode.HOUSES -> {
                 items(houses, key = { "h_${it.houseId}" }) { house ->
                   NavigationDrawerItem(
-                    label = { Text(house.house ?: "") },
+                    label = { Text(house.house) },
                     selected = baseUIState.selectedHouseId == house.houseId,
                     icon = { Icon(Icons.Default.Domain, null) },
                     onClick = { apartmentScreenModel.onHouseSelected(house.houseId) },
@@ -246,7 +246,7 @@ fun DrawerItemContent(
             Text(text = "| ${apartment.addressId}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           }
           if (listMode == ListMode.APARTMENTS) {
-            apartment.nanim?.let { Text(text = it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            Text(text = apartment.nanim, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
           }
         }
         if (badgeCount > 0) {

@@ -145,7 +145,7 @@ class MainApartmentScreen(
     // 4. Настройка идентификаторов для чата
     LaunchedEffect(baseUIState.userRole, baseUIState.osbbId, baseUIState.apartments) {
       val role = baseUIState.userRole
-      val osbbId = baseUIState.osbbId ?: 0L
+      val osbbId = baseUIState.osbbId
       
       if (role != UserRole.Unknown) {
         if (role == UserRole.StandardUser) {
@@ -165,7 +165,7 @@ class MainApartmentScreen(
           UserRole.YtkeUser      -> "WARM_SERVICE"
           UserRole.TboUser       -> "GARBAGE_SERVICE"
           UserRole.OsbbUser      -> "OSBB"
-          else -> null
+          UserRole.StandardUser, UserRole.Unknown -> null
         }
         
         adminPrefix?.let { chatScreenModel.onServiceSelectedForResident(it) }

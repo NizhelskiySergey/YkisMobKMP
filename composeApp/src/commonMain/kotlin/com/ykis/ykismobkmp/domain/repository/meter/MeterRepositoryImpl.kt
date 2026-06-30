@@ -32,9 +32,9 @@ class MeterRepositoryImpl(
     }
   }
 
-  override suspend fun getLastWaterReading(uid: String, vodomerId: Long): GetLastWaterReadingResponse {
+  override suspend fun getLastWaterReading(uid: String, meterId: Long): GetLastWaterReadingResponse {
     return try {
-      remote.getLastWaterReading(uid, vodomerId)
+      remote.getLastWaterReading(uid, meterId)
     } catch (e: Exception) {
       GetLastWaterReadingResponse(success = 0, message = getString(Res.string.error_network_request_failed))
     }
@@ -48,9 +48,9 @@ class MeterRepositoryImpl(
     }
   }
 
-  override suspend fun deleteLastWaterReading(uid: String, readingId: Long): GetSimpleResponse {
+  override suspend fun deleteLastWaterReading(uid: String, pokId: Long): GetSimpleResponse {
     return try {
-      remote.deleteLastWaterReading(uid, readingId)
+      remote.deleteLastWaterReading(uid, pokId)
     } catch (e: Exception) {
       GetSimpleResponse(success = 0, message = getString(Res.string.error_network_request_failed))
     }
@@ -88,9 +88,9 @@ class MeterRepositoryImpl(
     }
   }
 
-  override suspend fun deleteLastHeatReading(uid: String, readingId: Long): GetSimpleResponse {
+  override suspend fun deleteLastHeatReading(uid: String, pokId: Long): GetSimpleResponse {
     return try {
-      remote.deleteLastHeatReading(uid, readingId)
+      remote.deleteLastHeatReading(uid, pokId)
     } catch (e: Exception) {
       GetSimpleResponse(success = 0, message = getString(Res.string.error_network_request_failed))
     }

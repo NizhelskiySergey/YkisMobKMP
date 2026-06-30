@@ -263,7 +263,7 @@ fun AnnouncementItem(
         Column(modifier = Modifier.padding(12.dp)) {
             // ДОДАНО: Інформація про адресата оголошення
             Text(
-                text = if (item.osbbId == 0L) stringResource(Res.string.all_citizens) else stringResource(Res.string.residents_of, item.authorName ?: ""),
+                text = if (item.osbbId == 0L) stringResource(Res.string.all_citizens) else stringResource(Res.string.residents_of, item.authorName),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 fontWeight = FontWeight.Medium

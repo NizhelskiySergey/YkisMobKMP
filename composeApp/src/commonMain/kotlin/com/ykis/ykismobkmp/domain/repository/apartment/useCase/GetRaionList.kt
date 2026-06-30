@@ -48,7 +48,7 @@ class GetRaionList(
       // 2. ЗАПРОС В СЕТЬ (Ktor HTTP Client через Репозиторий)
       println("[$className.$methodName]: [NETWORK_START] ID: ${uid.takeLast(5)}")
       val response = repository.getRaionList(uid)
-      val remoteRaions = response.raions ?: emptyList()
+      val remoteRaions = response.raions
 
       // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ
       if (response.success == 1 && remoteRaions.isNotEmpty()) {
@@ -65,7 +65,7 @@ class GetRaionList(
         // Если сервер вернул ошибку/success=0, но локально что-то было — мы это уже отдали.
         // Ошибку кидаем только если в базе пусто и сеть не вернула валидных данных.
         if (localRaions.isEmpty()) {
-          val errorMsg = response.message?.ifBlank { "Районів на сервері не знайдено" } ?: "Районів на сервері не знайдено"
+          val errorMsg = response.message.ifBlank { "Районів на сервері не знайдено" }
           println("[$className.$methodName]: [SERVER_REJECT] $errorMsg")
           emit(Resource.Error(message = errorMsg))
         }

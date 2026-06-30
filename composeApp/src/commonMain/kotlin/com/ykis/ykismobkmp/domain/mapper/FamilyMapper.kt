@@ -9,8 +9,8 @@ import com.ykis.ykismobkmp.domain.entity.FamilyEntity as DomainFamily
  */
 fun DomainFamily.toDbFamily(): DbFamily {
   return DbFamily(
-    recId = this.recId.toLong(),
-    addressId = this.addressId.toLong(),
+    recId = this.recId,
+    addressId = this.addressId,
     rodstvo = this.rodstvo,
     firstname = this.fistname, // Связываем с твоей опечаткой fistname в домене
     lastname = this.lastname,
@@ -18,8 +18,8 @@ fun DomainFamily.toDbFamily(): DbFamily {
     born = this.born,
     sex = this.sex,
     phone = this.phone,
-    subsidia = this.subsidia.toLong(),
-    vkl = this.vkl.toLong(),
+    subsidia = this.subsidia,
+    vkl = this.vkl,
     inn = this.inn,
     document = this.document,
     seria = this.seria,

@@ -22,9 +22,6 @@ class InitResidentChats(
     addressText: String,
     nanim: String
   ) {
-    val methodName = "invoke"
-    println("[YkisLogKMP.$className.$methodName]: [START] Активація 4-х ліній чату для о/р: $addressId")
-
     val serviceMap = mapOf(
       "OSBB"            to osbbId,
       "WATER_SERVICE"   to Constants.WATER_SERVICE_ID,

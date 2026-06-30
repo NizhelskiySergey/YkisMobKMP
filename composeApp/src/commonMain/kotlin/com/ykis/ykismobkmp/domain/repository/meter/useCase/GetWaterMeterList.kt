@@ -43,7 +43,7 @@ class GetWaterMeterList(
 
       // 2. МЕРЕЖЕВИЙ ЗАПИТ
       val response = repository.getWaterMeterList(uid, addressId)
-      val remoteMeters = response.waterMeters ?: emptyList()
+      val remoteMeters = response.waterMeters
 
       if (response.success == 1) {
         emit(Resource.Success(remoteMeters))

@@ -41,7 +41,7 @@ class GetHeatReadings(
       // 2. МЕРЕЖА
       println("[$className]: Запит історії тепла для ID: $teplomerId")
       val response = repository.getHeatReadings(uid, teplomerId)
-      val remoteReadings = response.heatReadings ?: emptyList()
+      val remoteReadings = response.heatReadings
 
       if (response.success == 1) {
         emit(Resource.Success(remoteReadings))

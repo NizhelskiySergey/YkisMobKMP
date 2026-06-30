@@ -61,14 +61,14 @@ fun RaionDropdownSelector(
         DropdownMenuItem(
           text = {
             Text(
-              text = raion.raion ?: "",
+              text = raion.raion,
               style = MaterialTheme.typography.bodyLarge
             )
           },
           onClick = {
             // Логирование согласно правилу [Класс.Метод] через КМР-команду println
             println("[$className.RaionDropdownSelector]: Клієнт обрав район биллинга ЮКИС: ${raion.raion}")
-            selectedName = raion.raion ?: ""
+            selectedName = raion.raion
             expanded = false
             onRaionSelected(raion)
           }

@@ -42,7 +42,7 @@ class GetWaterReadings(
       // 2. МЕРЕЖА
       println("[$className]: Запит історії води для ID: $vodomerId")
       val response = repository.getWaterReadings(uid, vodomerId)
-      val remoteReadings = response.waterReadings ?: emptyList()
+      val remoteReadings = response.waterReadings
 
       if (response.success == 1) {
         emit(Resource.Success(remoteReadings))

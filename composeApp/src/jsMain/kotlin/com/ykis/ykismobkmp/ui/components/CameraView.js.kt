@@ -59,10 +59,6 @@ actual fun CameraView(
   // ШАГ 1: Инициализация потока камеры при старте Composable-экрана в браузере
   LaunchedEffect(Unit) {
     val mediaDevices = window.navigator.mediaDevices
-    if (mediaDevices == null) {
-      errorMessage = "Ваш браузер не підтримує роботу з камерою"
-      return@LaunchedEffect
-    }
 
     // Формируем КМР-конфигурацию медиа-запроса
     val constraints = kotlin.js.json(

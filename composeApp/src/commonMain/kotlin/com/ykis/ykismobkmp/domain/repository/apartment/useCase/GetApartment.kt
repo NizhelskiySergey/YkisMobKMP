@@ -68,7 +68,7 @@ class GetApartment(
         // Если сеть ответила ошибкой, но у нас уже есть кэш — мы его уже отдали выше.
         // Ошибку шлем только если данных в базе нет совсем.
         if (cached == null) {
-          val errorMsg = response.message ?: "Дані про квартиру не знайдено"
+          val errorMsg = response.message
           emit(Resource.Error(message = errorMsg))
         }
       }

@@ -49,8 +49,8 @@ class FirebaseServiceImpl(
   override val email: String get() {
     val user = auth.currentUser
     return when {
-      !user?.email.isNullOrBlank() -> user?.email ?: ""
-      !user?.phoneNumber.isNullOrBlank() -> user?.phoneNumber ?: ""
+      user?.email?.isNotBlank() == true -> user.email ?: ""
+      user?.phoneNumber?.isNotBlank() == true -> user.phoneNumber ?: ""
       else -> ""
     }
   }

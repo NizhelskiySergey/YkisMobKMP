@@ -186,9 +186,6 @@ class ChatRepository(
     
     try {
       val distinctUids = uids.distinct()
-      println("[YkisLogKMP.ChatCounter]: >>> ПОЧАТОК ІНКРЕМЕНТУ >>>")
-      println("[YkisLogKMP.ChatCounter]: Чат: $chatId")
-      println("[YkisLogKMP.ChatCounter]: Отримувачі (UIDs): $distinctUids")
       
       distinctUids.forEach { uid ->
         val presenceRef = realtime.reference("presence/$chatId/$uid/online")
@@ -198,14 +195,10 @@ class ChatRepository(
         } catch (e: Exception) { false }
         
         if (!isOnline) {
-            println("[YkisLogKMP.ChatCounter]: Користувач $uid ОФЛАЙН. Збільшуємо лічильник...")
             val unreadRef = realtime.reference("unread_counters/$uid/$chatId")
             unreadRef.setValue(dev.gitlive.firebase.database.ServerValue.increment(1.0))
-        } else {
-            println("[YkisLogKMP.ChatCounter]: Користувач $uid ЗАРАЗ У ЧАТІ. Пропускаємо інкремент.")
         }
       }
-      println("[YkisLogKMP.ChatCounter]: <<< ЗАВЕРШЕНО <<<")
     } catch (e: Exception) {
       println("[YkisLogKMP.ChatCounter_ERROR]: ${e.message}")
     }
@@ -214,22 +207,17 @@ class ChatRepository(
   suspend fun incrementUnreadForParticipants(chatId: String, senderUid: String) {
     if (_realtime == null) return
     try {
-      println("[YkisLogKMP.ChatCounter]: Перевірка учасників для чату $chatId (Відправник: $senderUid)")
       val participantsSnapshot = realtime.reference("chat_access/$chatId").valueEvents.first()
-      
-      val allParticipants = participantsSnapshot.children.mapNotNull { it.key }
-      println("[YkisLogKMP.ChatCounter]: Знайдено в chat_access: $allParticipants")
-      
-      val recipientUids = allParticipants.filter { it != senderUid }.distinct()
-      println("[YkisLogKMP.ChatCounter]: Одержувачі після фільтрації відправника: $recipientUids")
+      val recipientUids = participantsSnapshot.children
+        .mapNotNull { it.key }
+        .filter { it != senderUid }
+        .distinct()
       
       if (recipientUids.isNotEmpty()) {
           incrementUnreadForUids(chatId, recipientUids)
-      } else {
-          println("[YkisLogKMP.ChatCounter]: Одержувачів не знайдено в chat_access!")
       }
     } catch (e: Exception) {
-      println("[YkisLogKMP.ChatCounter_ERROR]: Помилка при отриманні учасників: ${e.message}")
+      println("[YkisLogKMP.ChatCounter_ERROR]: ${e.message}")
     }
   }
 
@@ -302,7 +290,7 @@ class ChatRepository(
             null
           }
         }.filter { 
-            val itemOsbbId = it.osbbId.toLong()
+            val itemOsbbId = it.osbbId
             itemOsbbId == 0L || itemOsbbId == osbbId 
         }.sortedByDescending { it.timestamp }
       }

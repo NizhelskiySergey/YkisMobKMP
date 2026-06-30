@@ -143,7 +143,6 @@ class ApartmentScreenModel(
   fun onSecretCodeChanged(newCode: String) { _secretCode.value = newCode }
 
   fun observeUserProfile() {
-    firebaseService.uid ?: return
     observeJob?.cancel()
     observeJob = screenModelScope.launch {
       _uiState.update { it.copy(mainLoading = true) }
@@ -230,7 +229,7 @@ class ApartmentScreenModel(
                     osbbId = apt.osmdId,
                     addressId = apt.addressId,
                     addressText = apt.address,
-                    nanim = apt.nanim ?: "Мешканець"
+                    nanim = apt.nanim
                 )
             }
         }
@@ -340,7 +339,7 @@ class ApartmentScreenModel(
 
   fun getApartment(addressId: Long = _uiState.value.addressId) {
     if (addressId <= 0L) return
-    apartmentService.getApartment(uid ?: "", addressId).onEach { result ->
+    apartmentService.getApartment(uid, addressId).onEach { result ->
       when (result) {
         is Resource.Success -> {
           val data = result.data ?: ApartmentEntity()
@@ -354,7 +353,7 @@ class ApartmentScreenModel(
 
   fun deleteApartmentFromProfile(addressId: Long, onNavigateToAddScreen: () -> Unit) {
     launchCatching(showLoader = true) {
-      apartmentService.deleteApartment(addressId, uid ?: "").collect { result ->
+      apartmentService.deleteApartment(addressId, uid).collect { result ->
         if (result is Resource.Success) {
            _uiState.update { state ->
               val newList = state.apartments.filter { it.addressId != addressId }
@@ -374,7 +373,7 @@ class ApartmentScreenModel(
 
   fun onUpdateBti(phone: String, email: String) {
     val currentState = _uiState.value
-    apartmentService.updateBti(uid ?: "", currentState.addressId, phone, email).onEach { result ->
+    apartmentService.updateBti(uid, currentState.addressId, phone, email).onEach { result ->
       if (result is Resource.Success) {
           SnackbarManager.showMessage("Дані оновлено")
           getApartment(currentState.addressId)
@@ -405,8 +404,8 @@ class ApartmentScreenModel(
   fun addApartment() {
     val input = _secretCode.value.trim()
     if (input.isEmpty()) return
-    val currentUid = firebaseService.uid ?: return
-    val email = firebaseService.email ?: ""
+    val currentUid = firebaseService.uid
+    val email = firebaseService.email
     _secretCode.value = ""
     _uiState.update { it.copy(mainLoading = true) }
 

@@ -324,7 +324,7 @@ fun ListServiceDetails(listServiceEntity: List<ServiceEntity>) {
       itemsIndexed(
         items = listServiceEntity,
         // Безопасный, отказоустойчивый ключ на базе индекса строки для предотвращения коллизий
-        key = { index, item -> "item_${index}_${item.data ?: "0"}" }
+        key = { index, item -> "item_${index}_${item.data}" }
       ) { index, item ->
         ServiceDetailItem(serviceEntity = item)
       }

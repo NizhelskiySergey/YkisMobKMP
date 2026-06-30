@@ -41,7 +41,7 @@ class GetHeatMeterList(
 
       // 2. МЕРЕЖЕВИЙ ЗАПИТ
       val response = repository.getHeatMeterList(uid, addressId)
-      val remoteMeters = response.heatMeters ?: emptyList()
+      val remoteMeters = response.heatMeters
 
       if (response.success == 1) {
         emit(Resource.Success(remoteMeters))

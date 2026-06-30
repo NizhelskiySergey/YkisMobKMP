@@ -49,7 +49,7 @@ class GetHouseList(
       // 2. ЗАПРОС В СЕТЬ (Ktor HTTP Client через Репозиторий)
       println("[$className.$methodName]: [NETWORK_START] ID: $raionId")
       val response = repository.getHouseByRaionList(raionId)
-      val remoteHouses = response.houses ?: emptyList()
+      val remoteHouses = response.houses
 
       // 3. АТОМАРНАЯ СИНХРОНИЗАЦИЯ
       if (remoteHouses.isNotEmpty()) {

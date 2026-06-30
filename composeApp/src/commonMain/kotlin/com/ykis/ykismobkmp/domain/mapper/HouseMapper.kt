@@ -23,8 +23,8 @@ fun DbHouse.toDomainHouse(): DomainHouse {
 fun DomainHouse.toDbHouse(): DbHouse {
   return DbHouse(
     // Приводим Int домена к Long для первичных и внешних ключей базы данных
-    houseId = this.houseId.toLong(),
-    raionId = this.raionId.toLong(),
+    houseId = this.houseId,
+    raionId = this.raionId,
     house = this.house
   )
 }

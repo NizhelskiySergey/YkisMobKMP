@@ -340,7 +340,7 @@ class ChatScreenModel(
 
   fun handleSendMessage(baseUIState: BaseUIState) {
       val path = activeChatIdForNotifications ?: return
-      val myUid = firebaseService.uid ?: return
+      val myUid = firebaseService.uid
       val currentMessageText = _messageText.value
       if (currentMessageText.isBlank()) return
 
