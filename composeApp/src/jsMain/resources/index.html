@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>ЮКІС</title>
-    <!-- reCAPTCHA Enterprise Script (АКТУАЛЬНИЙ КЛЮЧ: 6Le1Kyct...) -->
-    <script src="https://www.google.com/recaptcha/enterprise.js?render=6Lez9CYtAAAAAPgyM25SAbdOdDMYhbTB4gH8d9hC"></script>
     <script>
         (function() {
             try {
@@ -65,18 +63,23 @@
         measurementId: "G-JNPZSDLKV9"
     };
 
+    let recaptchaVerifier = null;
+    let confirmationResult = null;
+
 
     if (firebase.apps.length === 0) {
         firebase.initializeApp(firebaseConfig);
         firebase.firestore().settings({ experimentalForceLongPolling: true });
     }
 
-    // ТА САМА РОБОЧА ФУНКЦІЯ З ХОРОШОЇ ВЕТКИ
+    // Исправленная активация App Check для Web
     window.initializeFirebaseAppCheck = function(siteKey) {
         try {
             const appCheck = firebase.appCheck();
-            appCheck.activate(siteKey, true);
-            console.log("[JS] App Check Ready (Standard Activate)");
+            // Создаем провайдер Enterprise, как указано в ваших API настройках
+            const provider = new firebase.appCheck.ReCaptchaEnterpriseProvider(siteKey);
+            appCheck.activate(provider, true);
+            console.log("[JS] App Check Ready (Enterprise Provider)");
         } catch (e) {
             console.warn("[JS] App Check Activation Warn:", e.message);
         }

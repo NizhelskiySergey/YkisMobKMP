@@ -86,15 +86,20 @@ class UserListScreen(
         }
       }
 
+      // Динамічне визначення можливості повернення назад (тільки для мешканців)
+      val canNavigateBack = remember(baseUIState.userRole) {
+        baseUIState.userRole == UserRole.StandardUser
+      }
+
       DefaultAppBar(
         title = appBarTitle,
         subtitle = if (baseUIState.userRole == UserRole.StandardUser) "Ваші адреси" else "Список чатів",
         onDrawerClick = onDrawerClicked,
-        canNavigateBack = baseUIState.userRole == UserRole.StandardUser,
+        canNavigateBack = canNavigateBack,
         navigationType = com.ykis.ykismobkmp.ui.navigation.LocalNavigationType.current,
         onBackClick = {
-          if (baseUIState.userRole == UserRole.StandardUser) {
-            println("[YkisLogKMP.$className.Content.onBackClick]: Скидання поточної служби та вихід у меню Хаба.")
+          if (canNavigateBack) {
+            println("[YkisLogKMP.$className.Content.onBackClick]: Повернення до вибору служби.")
             chatScreenModel.setSelectedService(null as TotalServiceDebt?)
             onDrawerClicked()
           }

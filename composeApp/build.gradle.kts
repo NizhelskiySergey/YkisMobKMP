@@ -209,7 +209,7 @@ kotlin {
 }
 
 android {
-  namespace = "com.ykis.ykismobkmp"
+  namespace = "com.ykis.ykismobkmp.compose"
   compileSdk = libs.versions.android.compileSdk.get().toInt()
 
   defaultConfig {

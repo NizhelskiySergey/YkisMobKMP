@@ -26,12 +26,19 @@ class SmsBroadcastReceiver(
     override fun onReceive(context: Context, intent: Intent) {
         if (SmsRetriever.SMS_RETRIEVED_ACTION == intent.action) {
             val extras = intent.extras ?: return
-            val status = extras.get(SmsRetriever.EXTRA_STATUS) as Status
+            
+            // Использование типизированного получения Status для предотвращения Warning в Android 13+
+            val status = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                extras.getParcelable(SmsRetriever.EXTRA_STATUS, Status::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                extras.get(SmsRetriever.EXTRA_STATUS) as? Status
+            } ?: return
 
             when (status.statusCode) {
                 CommonStatusCodes.SUCCESS -> {
-                    // Извлекаем сообщение целиком
-                    val message = extras.get(SmsRetriever.EXTRA_SMS_MESSAGE) as String
+                    // Извлекаем сообщение целиком (безопасное приведение)
+                    val message = extras.getString(SmsRetriever.EXTRA_SMS_MESSAGE) ?: ""
                     println("[YkisLogKMP.SmsBroadcastReceiver]: Получено SMS: $message")
 
                     // Регулярное выражение для поиска 6-значного цифрового кода

@@ -78,11 +78,13 @@ class AppScreenModel(
       firebaseService.reloadFirebaseUser()
       
       val user = firebaseService.currentUser
-      val isVerified = user?.isEmailVerified ?: true // Якщо нема юзера або провайдер інший, вважаємо ок
+      val userEmail = user?.email ?: ""
+      val isVerified = user?.isEmailVerified ?: true 
       
-      println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2.5] User: ${user?.email}, Verified: ${user?.isEmailVerified}")
+      println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2.5] User: $userEmail, Verified: $isVerified")
       
-      if (user?.isEmailVerified == false) {
+      // ИСПРАВЛЕНО: Якщо пошти немає (вхід по телефону) або вона вже верифікована — пропускаємо
+      if (userEmail.isNotBlank() && isVerified == false) {
           println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2.5] Email не підтверджений. Йдемо на VerifyEmail.")
           _startState.value = AppStartState.VerifyEmail
           return@launch

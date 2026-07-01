@@ -32,12 +32,20 @@ actual suspend fun performPlatformSendSms(
   // Извлекаем оригинальный нативный инстанс Google через свойство .android библиотеки GitLive
   val nativeAndroidAuth = auth.android
 
+  // Установка языка SMS на основе настроек (опционально, можно передавать из shared)
+  // nativeAndroidAuth.useAppLanguage() // Или явно .setLanguageCode("uk")
+
   val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
     override fun onVerificationCompleted(credential: PhoneAuthCredential) {
       println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_SMS] Автоматична миттєва верифікація")
       nativeAndroidAuth.signInWithCredential(credential)
         .addOnSuccessListener {
             println("[YkisLogKMP.FirebaseServiceImpl]: [ANDROID_SMS_AUTO_OK] Автоматичний вхід успішний")
+            // Если мы уже вошли, возвращаем "INSTANT_OK" вместо ID сессии
+            if (continuation.isActive) continuation.resume(Resource.Success("INSTANT_OK"))
+        }
+        .addOnFailureListener { e ->
+            if (continuation.isActive) continuation.resume(Resource.Error(e.message ?: "Instant Auth Failed"))
         }
     }
 

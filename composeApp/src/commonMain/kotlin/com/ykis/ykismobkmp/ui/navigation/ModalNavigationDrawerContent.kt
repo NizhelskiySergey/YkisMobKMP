@@ -155,7 +155,14 @@ fun ModalNavigationDrawerContent(
       HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
       Column(modifier = Modifier.weight(1f)) {
-        if (listMode != ListMode.RAIONS && isOrgAdmin && searchQuery.isEmpty()) {
+        val showBackInDrawer = remember(listMode, isOrgAdmin, baseUIState.userRole, houses.size, searchQuery) {
+          searchQuery.isEmpty() && (
+            (isOrgAdmin && listMode != ListMode.RAIONS) ||
+            (baseUIState.userRole == UserRole.OsbbUser && listMode == ListMode.APARTMENTS && houses.size > 1)
+          )
+        }
+
+        if (showBackInDrawer) {
           NavigationDrawerItem(
             label = { Text("Назад", fontWeight = FontWeight.Bold) },
             selected = false,

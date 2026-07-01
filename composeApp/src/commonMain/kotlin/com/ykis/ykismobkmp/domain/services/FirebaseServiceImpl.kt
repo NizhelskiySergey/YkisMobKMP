@@ -61,7 +61,16 @@ class FirebaseServiceImpl(
   override val isWiFiCheckConfig: Boolean get() = try { remoteConfig.getValue("loading_from_wifi").asBoolean() } catch (e: Exception) { true }
   override val isMobileCheckConfig: Boolean get() = try { remoteConfig.getValue("loading_from_mobile").asBoolean() } catch (e: Exception) { true }
   override val agreementTitle: String get() = try { remoteConfig.getValue("agreement_title").asString() } catch (e: Exception) { "Угода" }
-  override val agreementText: String get() = try { remoteConfig.getValue("agreement_text").asString() } catch (e: Exception) { "" }
+  override val agreementText: String get() = try { 
+    val raw = remoteConfig.getValue("agreement_text").asString()
+    if (raw.trim().startsWith("[")) {
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; isLenient = true }
+        val lines = json.decodeFromString<List<String>>(raw)
+        lines.joinToString("\n")
+    } else {
+        raw
+    }
+  } catch (e: Exception) { "" }
 
   override suspend fun getUid() = uid
   override suspend fun getEmail() = email
