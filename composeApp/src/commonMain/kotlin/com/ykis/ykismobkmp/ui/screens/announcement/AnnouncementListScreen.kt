@@ -261,9 +261,15 @@ fun AnnouncementItem(
         }
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // ДОДАНО: Інформація про адресата оголошення
+            val osbbLabel = stringResource(Res.string.osbb)
+            val author = item.authorName.takeIf { it.isNotBlank() } ?: "Адміністрація"
+
             Text(
-                text = if (item.osbbId == 0L) stringResource(Res.string.all_citizens) else stringResource(Res.string.residents_of, item.authorName),
+                text = when {
+                    item.osbbId == 0L -> stringResource(Res.string.all_citizens)
+                    item.authorRole.contains("Osbb", ignoreCase = true) -> stringResource(Res.string.residents_of, osbbLabel)
+                    else -> stringResource(Res.string.residents_of, author)
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 fontWeight = FontWeight.Medium

@@ -131,7 +131,7 @@
   <string name="desc_delete_appartment">Ви дійсно бажаєте видалити квартиру зі списку?</string>
   <string name="title_delete_appartment">Видалити квартиру?</string>
   <string name="delete_appartment">Видалити квартиру</string>
-  <string name="response_address_id">особовий рахунок %s</string>
+  <string name="response_address_id">особовий рахунок %1$s</string>
   <string name="cancel">Скасувати</string>
   <string name="delete">Видалити</string>
   <string name="save">Зберегти</string>
@@ -360,7 +360,7 @@
   <string name="add_reading_supporting_text">Показання можна видалити протягом поточної доби.</string>
   <string name="log_out">Вийти з акаунта</string>
   <string name="delete_acc">Видалити акаунт</string>
-  <string name="version">Версія %s</string>
+  <string name="version">Версія %1$s</string>
   <string name="version_info">ЮКІС версія %1$s KMP\n%2$s</string>
   <string name="water_meter_features">Технічні характеристики приладу</string>
   <string name="last_readings">Останні показання</string>
@@ -431,7 +431,7 @@
   <string name="my_osbb">мій ОСББ</string>
   <string name="izm">змінено</string>
   <string name="success_admin_auth">Адмін-доступ надано</string>
-  <string name="error_send_message">Помилка відправки повідомлення</string>
+  <string name="error_send_message">Помилка виряджання повідомлення</string>
   <string name="dispatcher">диспетчер</string>
   <string name="forwarded">переслано</string>
   <string name="forward_message">переслати повідомлення</string>
@@ -447,7 +447,7 @@
   <string name="no_announcements">Оголошень поки що немає</string>
   <string name="city_announcement">Міське оголошення</string>
   <string name="all_citizens">📍 Усім мешканцям міста</string>
-  <string name="residents_of">🏠 Мешканцям %s</string>
+  <string name="residents_of">🏠 Мешканцям %1$s</string>
   <string name="change_email">Змінити пошту</string>
   <string name="osbb">ОСББ</string>
 </resources>
