@@ -91,8 +91,8 @@
                 client_id: clientId,
                 ux_mode: 'popup',
                 auto_select: false,
-                use_fedcm_for_prompt: false,
-                itp_support: true, // Вимикаємо для перевірки, чи не воно блокує
+                use_fedcm_for_prompt: true,
+                itp_support: true,
                 callback: (response) => {
                     if (response.credential && window.onGoogleTokenReceived) {
                         window.onGoogleTokenReceived(response.credential);
@@ -106,12 +106,8 @@
                 shape: "pill"
             });
 
-            // Спроба викликати Prompt, але з повним ігноруванням помилок мережі (FedCM/NetworkError)
-            google.accounts.id.prompt((notification) => {
-                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                    console.log("[JS] One Tap info:", notification.getNotDisplayedReason());
-                }
-            });
+            // Викликаємо Prompt без callback-функції (найчистіший стандарт FedCM)
+            google.accounts.id.prompt();
         } catch (e) { console.error("[JS] Google Auth Error:", e); }
     };
 
