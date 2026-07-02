@@ -126,9 +126,10 @@ fun ChatScreenStateful(
     navigateBack = onBackClick,
     navigateToSendImageScreen = {
       val path = screenModel.selectedImagePath.value ?: ""
+      val fileName = screenModel.selectedFileName.value
       val addressText = baseUIState.address.ifBlank { "м. Южне" }
       val pathFromModel = screenModel.activeChatPath
-      navigator.push(SendImageScreen(imagePath = path, address = addressText, chatId = pathFromModel))
+      navigator.push(SendImageScreen(imagePath = path, address = addressText, chatId = pathFromModel, fileName = fileName))
     },
     navigateToCameraScreen = {
       navigator.push(CameraScreenDest())

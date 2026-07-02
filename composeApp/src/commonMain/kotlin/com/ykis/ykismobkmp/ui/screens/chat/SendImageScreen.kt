@@ -28,7 +28,8 @@ private const val tag = "SendImageScreen"
 class SendImageScreen(
   private val imagePath: String,
   private val address: String,
-  private val chatId: String? = null // Передаем ID чата напрямую
+  private val chatId: String? = null, // Передаем ID чата напрямую
+  private val fileName: String? = null
 ) : Screen {
   @Composable
   override fun Content() {
@@ -39,6 +40,7 @@ class SendImageScreen(
       imagePath = imagePath,
       address = address,
       chatId = chatId,
+      fileName = fileName,
       navigateBack = {
         navigator.pop()
       },
@@ -52,6 +54,7 @@ fun SendImageContent(
   imagePath: String,
   address: String,
   chatId: String?,
+  fileName: String?,
   navigateBack: () -> Unit,
   chatScreenModel: ChatScreenModel
 ) {
@@ -94,7 +97,7 @@ fun SendImageContent(
           )
           Spacer(Modifier.height(8.dp))
           Text(
-            text = "Документ готовий до відправки",
+            text = fileName ?: "Документ готовий до відправки",
             style = MaterialTheme.typography.titleMedium
           )
         }

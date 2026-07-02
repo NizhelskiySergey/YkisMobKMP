@@ -436,8 +436,23 @@ class ChatScreenModel(
                                   else if (filePath.startsWith("data:")) "photo_${currentTimeMillis()}.jpg"
                                   else filePath.split("/").lastOrNull() ?: "file"
               
-              val storagePath = "chat_images/chats/${osbbId}/${addressId}/${currentTimeMillis()}_$finalFileName"
-              val url = chatRepo.uploadFile(bytes, storagePath)
+              val folderPath = "chat_images/chats/"
+              val baseName = finalFileName.substringBeforeLast(".").replace(" ", "_")
+              val extension = finalFileName.substringAfterLast(".", "")
+              
+              var finalStoragePath = "$folderPath$baseName.$extension"
+              var counter = 1
+              
+              while (chatRepo.isFileExists(finalStoragePath)) {
+                  finalStoragePath = if (extension.isNotEmpty()) {
+                      "$folderPath$baseName($counter).$extension"
+                  } else {
+                      "$folderPath$baseName($counter)"
+                  }
+                  counter++
+              }
+
+              val url = chatRepo.uploadFile(bytes, finalStoragePath)
 
               writeToDatabaseInternal(
                   chatId = targetChatId,
