@@ -265,15 +265,13 @@ fun ApartmentNavigationRail(
       ) {
         if (isRailExpanded) {
           // Динамический расчет видимости кнопки "Назад"
-          val showBackInRail = remember(listMode, baseUIState.userRole, baseUIState.apartments, searchQuery) {
-            val isOsbbAdmin = baseUIState.userRole == UserRole.OsbbUser
-            val isServiceAdmin = baseUIState.userRole != UserRole.StandardUser && !isOsbbAdmin
-            
-            val houseCount = baseUIState.apartments.map { it.houseId }.distinct().size
+          val showBackInRail = remember(listMode, baseUIState.raions.size, houses.size, searchQuery) {
+            val raionCount = baseUIState.raions.size
+            val houseCount = houses.size
 
             searchQuery.isEmpty() && (
-              (isServiceAdmin && listMode != ListMode.RAIONS) ||
-              (isOsbbAdmin && listMode == ListMode.APARTMENTS && houseCount > 1)
+              (listMode == ListMode.APARTMENTS && houseCount > 1) ||
+              (listMode == ListMode.HOUSES && raionCount > 1)
             )
           }
 

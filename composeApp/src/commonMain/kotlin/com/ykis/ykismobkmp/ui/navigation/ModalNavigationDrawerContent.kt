@@ -67,7 +67,6 @@ fun ModalNavigationDrawerContent(
   val filteredResults by apartmentScreenModel.filteredApartments.collectAsState()
 
   val isUserAdmin = baseUIState.userRole != UserRole.StandardUser
-  val isOrgAdmin = baseUIState.userRole != UserRole.StandardUser && baseUIState.userRole != UserRole.OsbbUser
   val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
   val listMode = baseUIState.listMode
 
@@ -155,16 +154,13 @@ fun ModalNavigationDrawerContent(
       HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
       Column(modifier = Modifier.weight(1f)) {
-        val showBackInDrawer = remember(listMode, baseUIState.userRole, baseUIState.apartments, searchQuery) {
-          val isOsbbAdmin = baseUIState.userRole == UserRole.OsbbUser
-          val isServiceAdmin = baseUIState.userRole != UserRole.StandardUser && !isOsbbAdmin
-          
-          // Считаем количество уникальных домов напрямую из списка квартир
-          val houseCount = baseUIState.apartments.map { it.houseId }.distinct().size
+        val showBackInDrawer = remember(listMode, baseUIState.raions.size, houses.size, searchQuery) {
+          val raionCount = baseUIState.raions.size
+          val houseCount = houses.size
 
           searchQuery.isEmpty() && (
-            (isServiceAdmin && listMode != ListMode.RAIONS) ||
-            (isOsbbAdmin && listMode == ListMode.APARTMENTS && houseCount > 1)
+            (listMode == ListMode.APARTMENTS && houseCount > 1) ||
+            (listMode == ListMode.HOUSES && raionCount > 1)
           )
         }
 
@@ -221,7 +217,8 @@ fun ModalNavigationDrawerContent(
                 }
               }
               ListMode.APARTMENTS -> {
-                val aptList = if (isOrgAdmin) drawerApartments else baseUIState.apartments
+                // ПРАВИЛЬНИЙ СПИСОК: якщо адмін вибрав будинок, показуємо фільтрований список
+                val aptList = if (isUserAdmin && drawerApartments.isNotEmpty()) drawerApartments else baseUIState.apartments
                 items(aptList, key = { "a_${it.addressId}" }) { apt ->
                   val isSelected = baseUIState.addressId == apt.addressId
                   DrawerItemContent(
