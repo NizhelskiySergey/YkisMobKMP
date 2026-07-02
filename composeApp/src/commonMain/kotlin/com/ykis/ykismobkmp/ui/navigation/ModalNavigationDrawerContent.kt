@@ -155,10 +155,16 @@ fun ModalNavigationDrawerContent(
       HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
       Column(modifier = Modifier.weight(1f)) {
-        val showBackInDrawer = remember(listMode, isOrgAdmin, baseUIState.userRole, houses.size, searchQuery) {
+        val showBackInDrawer = remember(listMode, baseUIState.userRole, baseUIState.apartments, searchQuery) {
+          val isOsbbAdmin = baseUIState.userRole == UserRole.OsbbUser
+          val isServiceAdmin = baseUIState.userRole != UserRole.StandardUser && !isOsbbAdmin
+          
+          // Считаем количество уникальных домов напрямую из списка квартир
+          val houseCount = baseUIState.apartments.map { it.houseId }.distinct().size
+
           searchQuery.isEmpty() && (
-            (isOrgAdmin && listMode != ListMode.RAIONS) ||
-            (baseUIState.userRole == UserRole.OsbbUser && listMode == ListMode.APARTMENTS && houses.size > 1)
+            (isServiceAdmin && listMode != ListMode.RAIONS) ||
+            (isOsbbAdmin && listMode == ListMode.APARTMENTS && houseCount > 1)
           )
         }
 

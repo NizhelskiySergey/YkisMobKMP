@@ -200,6 +200,9 @@ class AuthScreenModel(
       _signInResponse.value = Resource.Loading()
       val result = firebaseService.signInWithSmsCode(vId, state.smsCode)
       if (result is Resource.Success) {
+        if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+          firebaseService.addUserFirestore()
+        }
         _signInResponse.value = Resource.Success(true)
         firebaseService.addUserFirestore(); firebaseService.addFcmToken(); appScreenModel.evaluateStartDestination(); onSuccess()
       } else { SnackbarManager.showMessage(Res.string.error_invalid_sms_code) }

@@ -12,17 +12,9 @@ import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.remoteconfig.remoteConfig
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.flow.*
 import kotlin.time.Duration.Companion.seconds
 import org.jetbrains.compose.resources.getString
 import ykismobkmp.composeapp.generated.resources.*
@@ -77,8 +69,6 @@ class FirebaseServiceImpl(
   override suspend fun getDisplayName() = displayName
 
   override suspend fun fetchConfiguration(): Boolean = try {
-    // ВСТАНОВЛЮЄМО МІНІМАЛЬНИЙ ІНТЕРВАЛ ДЛЯ ТЕСТІВ (0 секунд)
-    // Це змусить Firebase ігнорувати кэш і завжди завантажувати свіжі дані
     try {
         remoteConfig.fetch(0.seconds)
         remoteConfig.activate()
@@ -117,8 +107,21 @@ class FirebaseServiceImpl(
 
   override suspend fun addUserFirestore(): addUserFirestoreResponse {
     val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
+    
+    // Очікування ініціалізації сесії ТІЛЬКИ для Web
+    if (isWeb) {
+        var attempts = 0
+        while (uid.isBlank() && attempts < 25) {
+            delay(200)
+            attempts++
+        }
+    }
+
     val currentUid = uid
-    if (currentUid.isBlank()) return Resource.Error(message = "No UID")
+    if (currentUid.isBlank()) {
+        println("[YkisLogKMP.$className.addUserFirestore]: [ERROR] UID порожній")
+        return Resource.Error(message = "No UID")
+    }
 
     try {
       val currentUser = auth.currentUser ?: return Resource.Error(message = "No user")
@@ -129,27 +132,26 @@ class FirebaseServiceImpl(
       val userMap = mutableMapOf<String, Any>(
         "uid" to currentUid,
         "email" to userEmail,
-        "displayName" to (currentUser.displayName ?: "Мешканець"),
+        "displayName" to (currentUser.displayName ?: "Користувач"),
         "userRole" to "STANDARD_USER",
         "osbbId" to (if (isWeb) 0.0 else 0L),
         "addressId" to (if (isWeb) 0.0 else 0L)
       )
 
-      withTimeout(15000) {
-        db.collection("users").document(currentUid).set(data = userMap, merge = true)
-      }
+      db.collection("users").document(currentUid).set(data = userMap, merge = true)
 
-      println("[YkisLogKMP.$className.addUserFirestore]: [SUCCESS] Профіль створено")
-
-      try {
-        apartmentService.saveUserUid(currentUid, userEmail).filter { it !is Resource.Loading }.first()
-      } catch (e: Exception) {
-        println("[YkisLogKMP.$className.addUserFirestore]: [WARN] MySQL sync failed: ${e.message}")
+      // Запускаємо синхронізацію з MySQL у фоні, щоб не блокувати UI
+      @OptIn(DelicateCoroutinesApi::class)
+      GlobalScope.launch {
+          try {
+              apartmentService.saveUserUid(currentUid, userEmail).filter { it !is Resource.Loading }.first()
+          } catch (e: Exception) {
+              println("[YkisLogKMP.$className.addUserFirestore]: [WARN] MySQL sync failed: ${e.message}")
+          }
       }
 
       return Resource.Success(true)
     } catch (e: Exception) {
-      println("[YkisLogKMP.$className.addUserFirestore]: [ERROR] $e")
       return Resource.Error(message = e.message ?: "Process error")
     }
   }
@@ -168,9 +170,7 @@ class FirebaseServiceImpl(
       fio?.let { updates["fio"] = it }
       osbb?.let { updates["osbb"] = it }
 
-      withTimeout(10000) {
-        db.collection("users").document(uid).set(data = updates, merge = true)
-      }
+      db.collection("users").document(uid).set(data = updates, merge = true)
     } catch (e: Exception) { }
   }
 
@@ -180,26 +180,10 @@ class FirebaseServiceImpl(
         return@withContext UserFirebase(uid = "", email = "", userRole = "STANDARD_USER")
     }
     try {
-      val snapshot = withTimeout(10000) {
-        db.collection("users").document(currentUid).get()
-      }
-      
+      val snapshot = db.collection("users").document(currentUid).get()
       val data = snapshot.data<UserFirebase>()
-
-      UserFirebase(
-        uid = currentUid,
-        email = auth.currentUser?.email ?: data.email,
-        isEmailVerification = auth.currentUser?.isEmailVerified ?: data.isEmailVerification,
-        name = data.name,
-        userRole = data.userRole,
-        osbbId = data.osbbId,
-        addressId = data.addressId,
-        fio = data.fio,
-        osbb = data.osbb,
-        fcmTokens = data.fcmTokens
-      )
+      data.copy(uid = currentUid)
     } catch (e: Exception) {
-      println("[YkisLogKMP.$className.getUserProfile]: [ERROR] Fallback: ${e.message}")
       UserFirebase(uid = currentUid, email = email, userRole = "STANDARD_USER")
     }
   }
@@ -208,7 +192,6 @@ class FirebaseServiceImpl(
     try {
       val user = auth.currentUser ?: throw Exception(getString(Res.string.error_auth_session_expired))
       val currentUid = user.uid
-      if (currentUid.isBlank()) throw Exception(getString(Res.string.error_empty_uid))
       user.delete()
       db.collection("users").document(currentUid).delete()
       Resource.Success(true)
@@ -264,9 +247,7 @@ class FirebaseServiceImpl(
   override suspend fun firebaseSignUpWithEmailAndPassword(email: String, password: String): SignUpResponse = try {
     auth.createUserWithEmailAndPassword(email, password)
     addUserFirestore()
-    try {
-        auth.currentUser?.sendEmailVerification()
-    } catch (e: Exception) { }
+    auth.currentUser?.sendEmailVerification()
     Resource.Success(true)
   } catch (e: Exception) {
     Resource.Error(message = getString(Res.string.error_registration_failed))
@@ -300,19 +281,11 @@ class FirebaseServiceImpl(
       if (currentUid.isBlank()) return
       val token = getPlatformFcmToken() ?: return
       
-      println("[YkisLogKMP.$className.addFcmToken]: Спроба реєстрації токена: $token")
-      
       val updates = mutableMapOf<String, Any>()
-      // Залишаємо тільки один стандартний масив для токенів
       updates["fcmTokens"] = dev.gitlive.firebase.firestore.FieldValue.arrayUnion(token)
       
-      withTimeout(10000) {
-          db.collection("users").document(currentUid).set(data = updates, merge = true)
-      }
-      println("[YkisLogKMP.$className.addFcmToken]: Токен успішно збережено в fcmTokens")
-    } catch (e: Exception) {
-      println("[YkisLogKMP.$className.addFcmToken_ERROR]: ${e.message}")
-    }
+      db.collection("users").document(currentUid).set(data = updates, merge = true)
+    } catch (e: Exception) { }
   }
 
   override suspend fun getManualText(role: UserRole): String = try {
@@ -323,18 +296,12 @@ class FirebaseServiceImpl(
     val rawValue = remoteConfig.getValue(fullKey).asString()
     val finalRaw = if (rawValue.isNotBlank()) rawValue else remoteConfig.getValue(baseKey).asString()
     
-    // ПРОВІРКА: якщо це JSON-масив, розпарсимо його як список рядків
     if (finalRaw.trim().startsWith("[")) {
         try {
-            val json = kotlinx.serialization.json.Json { 
-                ignoreUnknownKeys = true 
-                isLenient = true
-            }
+            val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; isLenient = true }
             val lines = json.decodeFromString<List<String>>(finalRaw)
-            println("[FirebaseService]: JSON розпарсено успішно, отримано ${lines.size} рядків")
             lines.joinToString("\n")
         } catch (e: Exception) {
-            println("[FirebaseService_ERROR]: Помилка парсингу JSON мануала: ${e.message}")
             finalRaw
         }
     } else {

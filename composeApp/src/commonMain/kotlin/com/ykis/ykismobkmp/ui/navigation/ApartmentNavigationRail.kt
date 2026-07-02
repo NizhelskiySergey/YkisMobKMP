@@ -264,24 +264,32 @@ fun ApartmentNavigationRail(
           .weight(1f)
       ) {
         if (isRailExpanded) {
-          // Кнопка НАЗАД для будь-якого адміна, якщо він не в корені
-          if (listMode != ListMode.RAIONS && isAnyAdmin && searchQuery.isEmpty()) {
-            val isOsbbRoot = baseUIState.userRole == UserRole.OsbbUser && listMode == ListMode.HOUSES
+          // Динамический расчет видимости кнопки "Назад"
+          val showBackInRail = remember(listMode, baseUIState.userRole, baseUIState.apartments, searchQuery) {
+            val isOsbbAdmin = baseUIState.userRole == UserRole.OsbbUser
+            val isServiceAdmin = baseUIState.userRole != UserRole.StandardUser && !isOsbbAdmin
             
-            if (!isOsbbRoot) {
-                TextButton(
-                  onClick = {
-                    focusManager.clearFocus()
-                    selectedApartmentFocusRequester.requestFocus()
-                    apartmentViewModel.goBackLevel()
-                  },
-                  modifier = Modifier.padding(start = 8.dp, top = 8.dp)
-                ) {
-                  Icon(Icons.Default.ArrowBackIosNew, null, modifier = Modifier.size(16.dp))
-                  Spacer(Modifier.width(8.dp))
-                  Text(stringResource(Res.string.back_button))
-                }
-            }
+            val houseCount = baseUIState.apartments.map { it.houseId }.distinct().size
+
+            searchQuery.isEmpty() && (
+              (isServiceAdmin && listMode != ListMode.RAIONS) ||
+              (isOsbbAdmin && listMode == ListMode.APARTMENTS && houseCount > 1)
+            )
+          }
+
+          if (showBackInRail) {
+              TextButton(
+                onClick = {
+                  focusManager.clearFocus()
+                  selectedApartmentFocusRequester.requestFocus()
+                  apartmentViewModel.goBackLevel()
+                },
+                modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+              ) {
+                Icon(Icons.Default.ArrowBackIosNew, null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(Res.string.back_button))
+              }
           }
 
           LazyColumn(
