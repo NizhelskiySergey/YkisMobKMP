@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -264,16 +266,26 @@ fun AnnouncementItem(
             val osbbLabel = stringResource(Res.string.osbb)
             val author = item.authorName.takeIf { it.isNotBlank() } ?: "Адміністрація"
 
-            Text(
-                text = when {
-                    item.osbbId == 0L -> stringResource(Res.string.all_citizens)
-                    item.authorRole.contains("Osbb", ignoreCase = true) -> stringResource(Res.string.residents_of, osbbLabel)
-                    else -> stringResource(Res.string.residents_of, author)
-                },
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                fontWeight = FontWeight.Medium
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Векторна іконка замість емодзі (надійно для Web)
+                Icon(
+                    imageVector = if (item.osbbId == 0L) Icons.Default.Public else Icons.Default.Home,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = when {
+                        item.osbbId == 0L -> stringResource(Res.string.all_citizens).replace("📍 ", "")
+                        item.authorRole.contains("Osbb", ignoreCase = true) -> stringResource(Res.string.residents_of, osbbLabel).replace("🏠 ", "")
+                        else -> stringResource(Res.string.residents_of, author).replace("🏠 ", "")
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    fontWeight = FontWeight.Medium
+                )
+            }
             
             Spacer(modifier = Modifier.height(6.dp))
 

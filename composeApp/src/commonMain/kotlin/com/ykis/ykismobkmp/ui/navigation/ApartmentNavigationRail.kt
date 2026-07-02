@@ -253,179 +253,109 @@ fun ApartmentNavigationRail(
       }
     }
   ) {
-
     Column(modifier = Modifier.fillMaxSize()) {
-      Column(
-        modifier = Modifier
-          .fillMaxWidth()
-          .weight(1f)
-      ) {
+      // 1. ОСНОВНИЙ СПИСОК (Займає вільне місце)
+      Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
         if (isRailExpanded) {
-          // Динамический расчет видимости кнопки "Назад"
-          val showBackInRail = remember(listMode, baseUIState.raions.size, houses.size, searchQuery) {
-            val raionCount = baseUIState.raions.size
-            val houseCount = houses.size
-
-            searchQuery.isEmpty() && (
-              (listMode == ListMode.APARTMENTS && houseCount > 1) ||
-              (listMode == ListMode.HOUSES && raionCount > 1)
-            )
-          }
-
-          if (showBackInRail) {
-              TextButton(
-                onClick = {
-                  focusManager.clearFocus()
-                  selectedApartmentFocusRequester.requestFocus()
-                  apartmentViewModel.goBackLevel()
-                },
-                modifier = Modifier.padding(start = 8.dp, top = 8.dp)
-              ) {
-                Icon(Icons.Default.ArrowBackIosNew, null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(Res.string.back_button))
+          Column(modifier = Modifier.fillMaxSize()) {
+              // Кнопка НАЗАД
+              val showBackInRail = remember(listMode, baseUIState.raions.size, houses.size, searchQuery) {
+                val raionCount = baseUIState.raions.size
+                val houseCount = houses.size
+                searchQuery.isEmpty() && (
+                  (listMode == ListMode.APARTMENTS && houseCount > 1) ||
+                  (listMode == ListMode.HOUSES && raionCount > 1)
+                )
               }
-          }
 
-          LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(vertical = 8.dp)
-          ) {
-            if (searchQuery.isNotEmpty()) {
-              items(apartments, key = { "search_${it.addressId}" }) { item ->
-                val isSelected = baseUIState.addressId == item.addressId
-
-                Box(
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .then(
-                      if (isSelected) Modifier.focusRequester(selectedApartmentFocusRequester).focusTarget()
-                      else Modifier
-                    )
-                ) {
-                  RailItemContent(
-                    title = item.address,
-                    subtitle = item.nanim,
-                    extraInfo = "| ${item.addressId}",
-                    icon = if (listMode == ListMode.HOUSES) Icons.Default.Domain else Icons.Default.Home,
-                    isSelected = isSelected,
+              if (showBackInRail) {
+                  TextButton(
                     onClick = {
                       focusManager.clearFocus()
                       selectedApartmentFocusRequester.requestFocus()
-                      keyboardController?.hide()
-                      if (listMode == ListMode.HOUSES) {
-                        apartmentViewModel.onHouseSelected(item.addressId)
-                      } else {
-                        onSubModuleChange("InfoApartmentScreen")
-                        navigateToApartment(item.addressId)
-                      }
-                    }
-                  )
-                }
+                      apartmentViewModel.goBackLevel()
+                    },
+                    modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+                  ) {
+                    Icon(Icons.Default.ArrowBackIosNew, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(Res.string.back_button))
+                  }
               }
-            } else {
-              when (listMode) {
-                ListMode.RAIONS -> {
-                  items(raions, key = { "r_${it.raionId}" }) { raion ->
-                    val isSelected = baseUIState.selectedRaionId == raion.raionId
 
-                    Box(
-                      modifier = Modifier
-                        .fillMaxWidth()
-                        .then(
-                          if (isSelected) Modifier.focusRequester(selectedApartmentFocusRequester).focusTarget()
-                          else Modifier
-                        )
-                    ) {
+              LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp)
+              ) {
+                if (searchQuery.isNotEmpty()) {
+                  items(apartments, key = { "search_${it.addressId}" }) { item ->
+                    val isSelected = baseUIState.addressId == item.addressId
+                    Box(modifier = Modifier.fillMaxWidth().then(if (isSelected) Modifier.focusRequester(selectedApartmentFocusRequester).focusTarget() else Modifier)) {
                       RailItemContent(
-                        title = raion.raion,
-                        icon = Icons.Default.Map,
+                        title = item.address, subtitle = item.nanim, extraInfo = "| ${item.addressId}",
+                        icon = if (listMode == ListMode.HOUSES) Icons.Default.Domain else Icons.Default.Home,
                         isSelected = isSelected,
-                        onClick = {
-                          focusManager.clearFocus()
-                          selectedApartmentFocusRequester.requestFocus()
-                          apartmentViewModel.onRaionSelected(raion)
-                        }
-                      )
-                    }
-                  }
-                }
-
-                ListMode.HOUSES -> {
-                  items(houses, key = { "h_${it.houseId}" }) { house ->
-                    val isSelected = baseUIState.selectedHouseId == house.houseId
-
-                    Box(
-                      modifier = Modifier
-                        .fillMaxWidth()
-                        .then(
-                          if (isSelected) Modifier.focusRequester(selectedApartmentFocusRequester).focusTarget()
-                          else Modifier
-                        )
-                    ) {
-                      RailItemContent(
-                        title = house.house,
-                        icon = Icons.Default.Domain,
-                        isSelected = isSelected,
-                        onClick = {
-                          focusManager.clearFocus()
-                          selectedApartmentFocusRequester.requestFocus()
-                          apartmentViewModel.onHouseSelected(house.houseId)
-                        }
-                      )
-                    }
-                  }
-                }
-
-                ListMode.APARTMENTS -> {
-                  // Для адмінів ОСББ з декількома будинками теж використовуємо drawer список або основний
-                  val aptList = if (isAnyAdmin && drawerApartments.isNotEmpty()) drawerApartments else baseUIState.apartments
-
-                  items(aptList, key = { "a_${it.addressId}" }) { apartment ->
-                    val isSelected = baseUIState.addressId == apartment.addressId
-                    val badgeCount = apartmentBadges[apartment.addressId.toString()] ?: 0
-
-                    Box(
-                      modifier = Modifier
-                        .fillMaxWidth()
-                        .then(
-                          if (isSelected) Modifier.focusRequester(selectedApartmentFocusRequester).focusTarget()
-                          else Modifier
-                        )
-                    ) {
-                      RailItemContent(
-                        title = apartment.address,
-                        subtitle = apartment.nanim,
-                        extraInfo = "| ${apartment.addressId}",
-                        icon = Icons.Default.Home,
-                        isSelected = isSelected,
-                        badgeCount = badgeCount,
                         onClick = {
                           focusManager.clearFocus()
                           selectedApartmentFocusRequester.requestFocus()
                           keyboardController?.hide()
-                          navigateToApartment(apartment.addressId)
+                          if (listMode == ListMode.HOUSES) apartmentViewModel.onHouseSelected(item.addressId)
+                          else { onSubModuleChange("InfoApartmentScreen"); navigateToApartment(item.addressId) }
                         }
                       )
                     }
                   }
+                } else {
+                  when (listMode) {
+                    ListMode.RAIONS -> {
+                      items(raions, key = { "r_${it.raionId}" }) { raion ->
+                        val isSelected = baseUIState.selectedRaionId == raion.raionId
+                        Box(modifier = Modifier.fillMaxWidth().then(if (isSelected) Modifier.focusRequester(selectedApartmentFocusRequester).focusTarget() else Modifier)) {
+                          RailItemContent(title = raion.raion, icon = Icons.Default.Map, isSelected = isSelected,
+                            onClick = { focusManager.clearFocus(); selectedApartmentFocusRequester.requestFocus(); apartmentViewModel.onRaionSelected(raion) }
+                          )
+                        }
+                      }
+                    }
+                    ListMode.HOUSES -> {
+                      items(houses, key = { "h_${it.houseId}" }) { house ->
+                        val isSelected = baseUIState.selectedHouseId == house.houseId
+                        Box(modifier = Modifier.fillMaxWidth().then(if (isSelected) Modifier.focusRequester(selectedApartmentFocusRequester).focusTarget() else Modifier)) {
+                          RailItemContent(title = house.house, icon = Icons.Default.Domain, isSelected = isSelected,
+                            onClick = { focusManager.clearFocus(); selectedApartmentFocusRequester.requestFocus(); apartmentViewModel.onHouseSelected(house.houseId) }
+                          )
+                        }
+                      }
+                    }
+                    ListMode.APARTMENTS -> {
+                      val aptList = if (isAnyAdmin && drawerApartments.isNotEmpty()) drawerApartments else baseUIState.apartments
+                      items(aptList, key = { "a_${it.addressId}" }) { apartment ->
+                        val isSelected = baseUIState.addressId == apartment.addressId
+                        val badgeCount = apartmentBadges[apartment.addressId.toString()] ?: 0
+                        Box(modifier = Modifier.fillMaxWidth().then(if (isSelected) Modifier.focusRequester(selectedApartmentFocusRequester).focusTarget() else Modifier)) {
+                          RailItemContent(title = apartment.address, subtitle = apartment.nanim, extraInfo = "| ${apartment.addressId}", icon = Icons.Default.Home, isSelected = isSelected, badgeCount = badgeCount,
+                            onClick = { focusManager.clearFocus(); selectedApartmentFocusRequester.requestFocus(); keyboardController?.hide(); navigateToApartment(apartment.addressId) }
+                          )
+                        }
+                      }
+                    }
+                  }
                 }
               }
-            }
           }
         }
+      }
 
-        Spacer(Modifier.weight(1f))
-
+      // 2. НИЖНЯ ПАНЕЛЬ (Фіксована кнопка інструкції)
+      Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
         if (isRailExpanded) {
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            
             TextButton(
               onClick = {
                 focusManager.clearFocus()
                 navigator.push(ManualScreen(role = baseUIState.userRole, onBackClick = { navigator.pop() }))
               },
-              modifier = Modifier.fillMaxWidth().padding(8.dp)
+              modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
               Icon(Icons.AutoMirrored.Filled.HelpOutline, null, modifier = Modifier.size(20.dp))
               Spacer(Modifier.width(12.dp))
@@ -433,10 +363,8 @@ fun ApartmentNavigationRail(
             }
         } else {
             IconButton(
-                onClick = {
-                  navigator.push(ManualScreen(role = baseUIState.userRole, onBackClick = { navigator.pop() }))
-                },
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 16.dp)
+                onClick = { navigator.push(ManualScreen(role = baseUIState.userRole, onBackClick = { navigator.pop() })) },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
                 Icon(Icons.AutoMirrored.Filled.HelpOutline, null)
             }
@@ -445,6 +373,7 @@ fun ApartmentNavigationRail(
     }
   }
 }
+
 
 @Composable
 fun RailItemContent(

@@ -113,10 +113,9 @@ fun DefaultAppBar(
       },
       colors = TopAppBarDefaults.topAppBarColors(
         containerColor = MaterialTheme.colorScheme.surface,
-        scrolledContainerColor = Color.Unspecified,
-        navigationIconContentColor = Color.Unspecified,
-        titleContentColor = Color.Unspecified,
-        actionIconContentColor = Color.Unspecified
+        navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        actionIconContentColor = MaterialTheme.colorScheme.primary
       )
     )
   }

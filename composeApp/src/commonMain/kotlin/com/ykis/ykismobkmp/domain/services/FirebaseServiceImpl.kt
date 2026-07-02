@@ -296,18 +296,25 @@ class FirebaseServiceImpl(
     val rawValue = remoteConfig.getValue(fullKey).asString()
     val finalRaw = if (rawValue.isNotBlank()) rawValue else remoteConfig.getValue(baseKey).asString()
     
+    // ПРОВІРКА: якщо це JSON-масив, розпарсимо його як список рядків
     if (finalRaw.trim().startsWith("[")) {
         try {
-            val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; isLenient = true }
+            val json = kotlinx.serialization.json.Json { 
+                ignoreUnknownKeys = true 
+                isLenient = true
+            }
             val lines = json.decodeFromString<List<String>>(finalRaw)
+            println("[FirebaseService]: JSON розпарсено успішно, отримано ${lines.size} рядків")
             lines.joinToString("\n")
         } catch (e: Exception) {
+            println("[FirebaseService_ERROR]: Помилка парсингу JSON мануала: ${e.message}")
             finalRaw
         }
     } else {
         finalRaw
     }
   } catch (e: Exception) {
+    println("[FirebaseService_ERROR]: Помилка завантаження мануала: ${e.message}")
     ""
   }
 
