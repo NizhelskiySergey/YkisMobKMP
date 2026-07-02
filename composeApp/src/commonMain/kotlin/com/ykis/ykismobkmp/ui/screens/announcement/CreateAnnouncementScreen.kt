@@ -93,9 +93,11 @@ class CreateAnnouncementScreen : Screen {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
                     Button(
                         onClick = { navigator.push(CameraScreenDest(target = CameraTarget.ANNOUNCEMENT)) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        enabled = !isWeb
                     ) {
                         Icon(Icons.Default.CameraAlt, null)
                         Spacer(Modifier.width(8.dp))
@@ -126,7 +128,7 @@ class CreateAnnouncementScreen : Screen {
 
                 if (!screenState.announcementFilePath.isNullOrBlank()) {
                     AttachmentPreview(
-                        name = screenState.announcementFilePath?.substringAfterLast("/") ?: "Файл",
+                        name = screenState.announcementFileName ?: screenState.announcementFilePath?.substringAfterLast("/") ?: "Файл",
                         onClear = { announcementModel.setAnnouncementFilePath(null) }
                     )
                 }

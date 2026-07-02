@@ -403,6 +403,16 @@ class ChatRepository(
     } catch (e: Exception) { }
   }
 
+  suspend fun isFileExists(storagePath: String): Boolean {
+    if (_storage == null) return false
+    return try {
+      storage.reference(storagePath).getDownloadUrl()
+      true
+    } catch (e: Exception) {
+      false
+    }
+  }
+
   suspend fun uploadFile(imageData: ByteArray, storagePath: String): String {
     if (_storage == null) throw Exception("Storage not ready")
     val ref = storage.reference(storagePath)

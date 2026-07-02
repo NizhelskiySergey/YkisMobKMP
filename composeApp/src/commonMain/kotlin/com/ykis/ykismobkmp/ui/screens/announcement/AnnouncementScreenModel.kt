@@ -130,13 +130,27 @@ class AnnouncementScreenModel(
                 if (!filePath.isNullOrBlank()) {
                     try {
                         val fileData = chatRepo.readFileAsBytes(filePath)
-                        val ext = filePath.substringAfterLast(".", "file")
-                        
-                        // ФІКС: Використовуємо реальне ім'я файлу зі стейту
-                        fileName = screenState.announcementFileName ?: filePath.substringAfterLast("/")
+                        val realName = screenState.announcementFileName ?: filePath.substringAfterLast("/")
+                        fileName = realName
 
-                        val storagePath = "chat_images/announcements/docs/${targetOsbbId}_${currentTimeMillis()}.$ext"
-                        fileUrl = chatRepo.uploadFile(fileData, storagePath)
+                        val baseName = realName.substringBeforeLast(".").replace(" ", "_")
+                        val extension = realName.substringAfterLast(".", "")
+                        val folderPath = "chat_images/announcements/docs/"
+                        
+                        var finalStoragePath = "$folderPath$baseName.$extension"
+                        var counter = 1
+                        
+                        // Цикл перевірки наявності файлу з таким ім'ям
+                        while (chatRepo.isFileExists(finalStoragePath)) {
+                            finalStoragePath = if (extension.isNotEmpty()) {
+                                "$folderPath$baseName($counter).$extension"
+                            } else {
+                                "$folderPath$baseName($counter)"
+                            }
+                            counter++
+                        }
+                        
+                        fileUrl = chatRepo.uploadFile(fileData, finalStoragePath)
                     } catch (e: Exception) {
                         println("[AnnouncementScreenModel]: Помилка завантаження файлу: ${e.message}")
                     }

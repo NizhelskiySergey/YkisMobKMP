@@ -55,6 +55,8 @@ fun ComposeMessageBox(
     horizontalArrangement = Arrangement.Center
   ) {
     if (showAttachIcon) {
+      val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
+      
       // Кнопка ИИ Интеллектуальный ассистент Gemini
       IconButton(
         onClick = {
@@ -66,7 +68,7 @@ fun ComposeMessageBox(
         Icon(Icons.Default.SmartToy, null, tint = MaterialTheme.colorScheme.primary)
       }
 
-      // Кнопка вложений медиа и актов ГИОЦ
+      // Кнопка вкладень
       IconButton(
         onClick = {
           println("[YkisLogKMP.$className.onAttach]: Виклик системного FilePicker.")
@@ -78,20 +80,25 @@ fun ComposeMessageBox(
         },
         enabled = !isLoading
       ) {
-        Icon(imageVector = Icons.Default.AttachFile, contentDescription = "Прикріпити")
+        Icon(
+          imageVector = Icons.Default.AttachFile, 
+          contentDescription = "Прикріпити"
+        )
       }
 
-      // Кнопка камери (прихована для Web)
-      if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
-          IconButton(
-            onClick = {
-              println("[YkisLogKMP.$className.onCamera]: Ініціалізація апаратної камери.")
-              onCameraClick()
-            },
-            enabled = !isLoading
-          ) {
-            Icon(imageVector = Icons.Default.CameraAlt, contentDescription = "Камера")
-          }
+      // Кнопка камери (неактивна для Web)
+      IconButton(
+        onClick = {
+          println("[YkisLogKMP.$className.onCamera]: Ініціалізація апаратної камери.")
+          onCameraClick()
+        },
+        enabled = !isLoading && !isWeb
+      ) {
+        Icon(
+          imageVector = Icons.Default.CameraAlt, 
+          contentDescription = "Камера",
+          tint = if (!isWeb) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+        )
       }
     }
 
