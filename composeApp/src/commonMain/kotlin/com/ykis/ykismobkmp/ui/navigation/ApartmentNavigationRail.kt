@@ -161,11 +161,8 @@ fun ApartmentNavigationRail(
       Row(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.Start
       ) {
-        IconButton(onClick = onMenuClick) {
-          Icon(Icons.Default.Menu, contentDescription = "Menu")
-        }
         if (isRailExpanded && isUserAdmin) {
           val title = when (baseUIState.userRole) {
             UserRole.VodokanalUser -> stringResource(Res.string.vodokanal)
@@ -178,7 +175,7 @@ fun ApartmentNavigationRail(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(end = 16.dp)
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp)
           )
         }
       }

@@ -92,22 +92,24 @@ fun ModalNavigationDrawerContent(
     drawerContainerColor = MaterialTheme.colorScheme.surface
   ) {
     Column(modifier = Modifier.fillMaxSize()) {
-      if (isUserAdmin) {
-        val shortName = when (baseUIState.userRole) {
-          UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
-          UserRole.YtkeUser -> "КП тм \"ЮТКЕ\""
-          UserRole.TboUser -> "КП \"СПЕЦТРАНС\""
-          UserRole.OsbbUser -> baseUIState.osbb
-          else -> "Адмін"
-        }
-        Row(
-          modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 8.dp),
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+      val shortName = when (baseUIState.userRole) {
+        UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
+        UserRole.YtkeUser -> "КП тм \"ЮТКЕ\""
+        UserRole.TboUser -> "КП \"СПЕЦТРАНС\""
+        UserRole.OsbbUser -> baseUIState.osbb
+        else -> ""
+      }
+      Row(
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+      ) {
+        if (shortName.isNotBlank()) {
           Text(text = shortName, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-          IconButton(onClick = { onMenuClick() }) { Icon(Icons.Default.Close, contentDescription = "Закрити") }
+        } else {
+          Spacer(modifier = Modifier.weight(1f))
         }
+        IconButton(onClick = { onMenuClick() }) { Icon(Icons.Default.Menu, contentDescription = "Меню") }
       }
 
       Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {

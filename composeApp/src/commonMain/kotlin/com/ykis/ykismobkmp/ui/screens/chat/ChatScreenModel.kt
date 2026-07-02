@@ -466,13 +466,14 @@ class ChatScreenModel(
   private var lastTrackedOsbbId: Long? = null
   private var lastTrackedApartmentsCount: Int = -1
 
-  fun trackUserIdentifiersWithRole(role: UserRole, osbbId: Long, apartments: List<ApartmentEntity> = emptyList()) {
+  fun trackUserIdentifiersWithRole(role: UserRole, osbbId: Long, apartments: List<ApartmentEntity> = emptyList(), force: Boolean = false) {
     val myUid = chatRepo.currentUid ?: ""
     if (myUid.isBlank()) return
 
     // ОПТИМІЗАЦІЯ: Для мешканця важлива кількість квартир, для адміна - тільки роль та ID організації
     val isResident = role == UserRole.StandardUser
-    val shouldUpdate = lastTrackedRole != role || 
+    val shouldUpdate = force || 
+                       lastTrackedRole != role ||
                        lastTrackedOsbbId != osbbId || 
                        (isResident && lastTrackedApartmentsCount != apartments.size)
 

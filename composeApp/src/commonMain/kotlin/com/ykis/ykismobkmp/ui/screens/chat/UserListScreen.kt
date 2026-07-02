@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -102,6 +103,23 @@ class UserListScreen(
             println("[YkisLogKMP.$className.Content.onBackClick]: Повернення до вибору служби.")
             chatScreenModel.setSelectedService(null as TotalServiceDebt?)
             onDrawerClicked()
+          }
+        },
+        actionButton = {
+          IconButton(onClick = {
+            println("[YkisLogKMP.$className.Content.Refresh]: Примусове оновлення списку чатів...")
+            chatScreenModel.trackUserIdentifiersWithRole(
+              role = baseUIState.userRole,
+              osbbId = baseUIState.osbbId,
+              apartments = baseUIState.apartments,
+              force = true
+            )
+          }) {
+            Icon(
+              imageVector = Icons.Default.Refresh,
+              contentDescription = "Refresh",
+              modifier = Modifier.size(24.dp)
+            )
           }
         }
       )
