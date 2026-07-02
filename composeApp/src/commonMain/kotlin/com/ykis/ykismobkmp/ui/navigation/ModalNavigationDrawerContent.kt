@@ -97,7 +97,7 @@ fun ModalNavigationDrawerContent(
           UserRole.VodokanalUser -> "КП \"ЮЖВОДОКАНАЛ\""
           UserRole.YtkeUser -> "КП тм \"ЮТКЕ\""
           UserRole.TboUser -> "КП \"СПЕЦТРАНС\""
-          UserRole.OsbbUser -> baseUIState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "ОСББ"
+          UserRole.OsbbUser -> baseUIState.osbb
           else -> "Адмін"
         }
         Row(

@@ -165,7 +165,7 @@ class ApartmentScreenModel(
                 UserRole.VodokanalUser -> getString(Res.string.vodokanal)
                 UserRole.YtkeUser      -> getString(Res.string.ytke)
                 UserRole.TboUser       -> getString(Res.string.yzhtrans)
-                else -> "ОСББ"
+                else -> ""
             }
         }
 
@@ -318,8 +318,8 @@ class ApartmentScreenModel(
 
   private fun formatOsbbName(apt: ApartmentEntity, current: String?): String {
       val raw = apt.osbb
-      return if (raw.isNullOrBlank() || raw == "0") current ?: "ОСББ"
-      else if (raw.startsWith("ОСББ", true)) raw else "ОСББ \"$raw\""
+      return if (raw.isNullOrBlank() || raw == "0") current ?: ""
+      else raw
   }
 
   fun setAddressId(addressId: Long) {
