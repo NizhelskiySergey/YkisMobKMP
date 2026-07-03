@@ -241,7 +241,6 @@ class FirebaseServiceImpl(
 
   override suspend fun authenticate(email: String, password: String) { auth.signInWithEmailAndPassword(email, password) }
   override suspend fun sendRecoveryEmail(email: String) { auth.sendPasswordResetEmail(email) }
-  override suspend fun linkAccount(email: String, password: String) { }
   override suspend fun deleteAccount() { auth.currentUser?.delete() }
 
   override suspend fun firebaseSignUpWithEmailAndPassword(email: String, password: String): SignUpResponse = try {

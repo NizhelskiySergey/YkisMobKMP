@@ -119,7 +119,7 @@ object VerifyEmailScreen : Screen {
       onChangeEmailClick = {
           viewModel.signOutFromVerifyScreen {
               println("[YkisLogKMP.$className.Content]: [ACTION] Вихід для зміни пошти. Повернення на SignIn.")
-              navigator.replaceAll(com.ykis.ykismobkmp.ui.screens.auth.SignInScreen)
+              navigator.replaceAll(SignInScreen)
           }
       },
       email = viewModel.displayEmail,

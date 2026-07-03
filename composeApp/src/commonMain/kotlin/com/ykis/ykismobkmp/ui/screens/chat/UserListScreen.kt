@@ -44,7 +44,7 @@ class UserListScreen(
 
   @Composable
   override fun Content() {
-    val navigator = LocalNavigator.currentOrThrow
+    LocalNavigator.currentOrThrow
 
     // Кроссплатформенная инжекция Koin ScreenModel финансового и чат хаба ЮКІС
     val chatScreenModel = koinInject<ChatScreenModel>()

@@ -56,7 +56,7 @@ fun ModalNavigationDrawerContent(
   val focusManager = LocalFocusManager.current
 
   val selectedDrawerApartmentFocusRequester = remember { FocusRequester() }
-  val searchFocusRequester = remember { FocusRequester() }
+  remember { FocusRequester() }
 
   val apartmentScreenModel = koinInject<ApartmentScreenModel>()
   val chatScreenModel = koinInject<ChatScreenModel>()

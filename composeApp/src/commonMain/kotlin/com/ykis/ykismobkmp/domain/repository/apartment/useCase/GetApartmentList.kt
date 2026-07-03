@@ -17,7 +17,7 @@ class GetApartmentList(
   private val className = "GetApartmentList"
 
   operator fun invoke(uid: String): Flow<Resource<List<ApartmentEntity>>> = flow {
-    val methodName = "invoke"
+    "invoke"
 
     if (uid.isBlank()) {
       emit(Resource.Error("Помилка авторизації"))

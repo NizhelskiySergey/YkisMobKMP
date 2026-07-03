@@ -47,7 +47,7 @@ fun RootNavGraph(
   val appStartModel = koinInject<AppScreenModel>()
   val apartmentScreenModel = koinInject<ApartmentScreenModel>()
   val chatScreenModel = koinInject<ChatScreenModel>()
-  val firebaseService = apartmentScreenModel.firebaseService
+  apartmentScreenModel.firebaseService
 
   val currentStartState by appStartModel.startState.collectAsState()
   val baseUIState by apartmentScreenModel.uiState.collectAsState()

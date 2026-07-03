@@ -92,11 +92,13 @@ data class CameraScreenDest(
                 if (baseUIState.userRole == UserRole.StandardUser) {
                    chatScreenModel.analyzePhotoWithGemini(path, baseUIState.address)
                 }
-                navigator.replace(com.ykis.ykismobkmp.ui.screens.chat.SendImageScreen(
-                    imagePath = path, 
-                    address = baseUIState.address, 
-                    chatId = chatScreenModel.activeChatPath
-                ))
+                navigator.replace(
+                  SendImageScreen(
+                      imagePath = path,
+                      address = baseUIState.address,
+                      chatId = chatScreenModel.activeChatPath
+                  )
+                )
             }
             CameraTarget.ANNOUNCEMENT -> {
                 announcementModel.setAnnouncementImagePath(path)

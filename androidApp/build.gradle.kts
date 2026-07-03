@@ -20,6 +20,12 @@ android {
         versionName = libs.versions.app.version.get()
     }
 
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     val props = Properties()
     val localPropertiesFile = rootProject.file("local.properties")
     if (localPropertiesFile.exists()) {

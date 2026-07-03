@@ -58,7 +58,7 @@ fun formatTime24H(timestamp: Long): String {
   if (timestamp <= 0L) return ""
   return try {
     val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(timestamp)
-    val localDateTime = instant.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+    val localDateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
     val hourStr = localDateTime.hour.toString().padStart(2, '0')
     val minuteStr = localDateTime.minute.toString().padStart(2, '0')
     "$hourStr:$minuteStr"

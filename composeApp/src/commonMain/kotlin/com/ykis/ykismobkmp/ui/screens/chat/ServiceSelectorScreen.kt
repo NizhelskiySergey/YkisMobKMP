@@ -58,8 +58,8 @@ class ServiceSelectorScreen(
 
   @Composable
   override fun Content() {
-    val navigator = LocalNavigator.currentOrThrow
-    val adaptiveNavigationType = LocalContentType.current
+    LocalNavigator.currentOrThrow
+    LocalContentType.current
 
     val chatScreenModel = koinInject<ChatScreenModel>()
 

@@ -9,7 +9,7 @@ import app.cash.sqldelight.async.coroutines.synchronous
  */
 actual class DatabaseDriverFactory {
   actual fun createDriver(): SqlDriver {
-    val schema = com.ykis.ykismobkmp.db.YkisDatabases.Schema.synchronous()
+    val schema = YkisDatabases.Schema.synchronous()
     return try {
       // 1. Стандартная попытка открыть физический файл базы данных на iPhone
       NativeSqliteDriver(

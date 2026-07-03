@@ -57,7 +57,6 @@ class ApartmentDao(
       dbQueries.deleteAllWaterMeters()
       dbQueries.deleteAllHeatMeters()
       dbQueries.deleteAllService()
-      dbQueries.deleteAllPayment()
       dbQueries.deleteAllWaterReadings()
       dbQueries.deleteAllHeatReadings()
 

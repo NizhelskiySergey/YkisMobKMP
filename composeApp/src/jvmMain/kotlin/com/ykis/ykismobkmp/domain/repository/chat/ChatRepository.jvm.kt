@@ -1,14 +1,16 @@
 package com.ykis.ykismobkmp.domain.repository.chat
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
 import java.io.ByteArrayOutputStream
 import java.awt.Image
 
-actual suspend fun platformCompressImage(path: String): ByteArray {
+actual suspend fun platformCompressImage(path: String): ByteArray = withContext(Dispatchers.IO) {
   val file = File(path)
-  val image = ImageIO.read(file) ?: return byteArrayOf()
+  val image = ImageIO.read(file) ?: return@withContext byteArrayOf()
 
   // Ресайз до 1200px
   val width = 1200
@@ -23,9 +25,9 @@ actual suspend fun platformCompressImage(path: String): ByteArray {
 
   val out = ByteArrayOutputStream()
   ImageIO.write(bufferedResized, "jpg", out)
-  return out.toByteArray()
+  out.toByteArray()
 }
 
-actual suspend fun platformReadFileAsBytes(path: String): ByteArray {
-  return File(path).readBytes()
+actual suspend fun platformReadFileAsBytes(path: String): ByteArray = withContext(Dispatchers.IO) {
+  File(path).readBytes()
 }

@@ -355,7 +355,7 @@ fun ServiceDetailItem(
   val contentType = LocalContentType.current
   val isDualPane = contentType == ContentType.DUAL_PANE
 
-  val scrollState = rememberScrollState()
+  rememberScrollState()
   val formattedMonthHeader = remember(serviceEntity.data) { formatUkMonth(serviceEntity.data) }
 
   // Хелперы очистки и сокращения данных

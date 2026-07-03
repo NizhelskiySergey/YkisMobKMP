@@ -33,7 +33,6 @@ interface FirebaseService {
   suspend fun setUserAgreed(agreed: Boolean)
   suspend fun authenticate(email: String, password: String)
   suspend fun sendRecoveryEmail(email: String)
-  suspend fun linkAccount(email: String, password: String)
   suspend fun deleteAccount()
   suspend fun signOut()
   suspend fun firebaseSignInWithGoogle(idToken: String): SignInWithGoogleResponse

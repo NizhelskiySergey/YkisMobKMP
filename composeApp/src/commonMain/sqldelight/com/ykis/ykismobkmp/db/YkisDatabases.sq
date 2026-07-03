@@ -142,21 +142,7 @@ CREATE TABLE serviceEntity (
 );
 
 
-CREATE TABLE paymentEntity (
-    recId INTEGER  NOT NULL PRIMARY KEY,
-    addressId INTEGER  NOT NULL,
-    data TEXT NOT NULL DEFAULT 'Unknown',
-    kvartplata REAL  NOT NULL DEFAULT 0.0,
-    remont REAL  NOT NULL DEFAULT 0.0,
-    otoplenie REAL  NOT NULL DEFAULT 0.0,
-    voda REAL  NOT NULL DEFAULT 0.0,
-    tbo REAL  NOT NULL DEFAULT 0.0,
-    summa REAL  NOT NULL DEFAULT 0.0,
-    prixod TEXT NOT NULL DEFAULT 'Unknown',
-    kassa TEXT NOT NULL DEFAULT 'Unknown',
-    nomer TEXT NOT NULL DEFAULT 'Unknown',
-    dataIn TEXT NOT NULL DEFAULT 'Unknown'
-);
+
 
 
 -- Таблица счетчиков тепла
@@ -286,14 +272,8 @@ INSERT OR REPLACE INTO houseEntity VALUES ?;
 getHousesByRaion:
 SELECT * FROM houseEntity WHERE raionId = :raionId ORDER BY house ASC;
 
-getHouseList:
-SELECT * FROM houseEntity;
-
 deleteHousesByRaionId:
 DELETE FROM houseEntity WHERE raionId = :raionId;
-
-deleteAllHouses:
-DELETE FROM houseEntity;
 
 
 -- ====================================================================
@@ -306,17 +286,11 @@ INSERT OR REPLACE INTO apartmentEntity VALUES ?;
 getApartmentList:
 SELECT * FROM apartmentEntity;
 
-getApartmentsByUid:
-SELECT * FROM apartmentEntity WHERE uid = :uid;
-
 getFlatById:
 SELECT * FROM apartmentEntity WHERE addressId = :addressId;
 
 deleteFlat:
 DELETE FROM apartmentEntity WHERE addressId IN (:addressId);
-
-deleteApartmentsByUid:
-DELETE FROM apartmentEntity WHERE uid = :uid;
 
 deleteAllApartments:
 DELETE FROM apartmentEntity;
@@ -334,9 +308,6 @@ SELECT * FROM familyEntity WHERE addressId = :addressId;
 
 deleteFamilyByAddressId:
 DELETE FROM familyEntity WHERE addressId = :addressId;
-
-deleteFamilyByAddressIds:
-DELETE FROM familyEntity WHERE addressId IN (:addressIds);
 
 deleteAllFamily:
 DELETE FROM familyEntity;
@@ -378,18 +349,6 @@ DELETE FROM serviceEntity;
 -- ====================================================================
 -- --- 6. DAO PAYMENT (Платежи — Стратегия: Чистая Сеть / Буфер) ------
 -- ====================================================================
-
-insertPayment:
-INSERT OR REPLACE INTO paymentEntity VALUES ?;
-
-getPaymentFromFlat:
-SELECT * FROM paymentEntity WHERE addressId = :addressId ORDER BY data DESC;
-
-deletePaymentByAddressIds:
-DELETE FROM paymentEntity WHERE addressId IN (:addressIds);
-
-deleteAllPayment:
-DELETE FROM paymentEntity;
 
 
 -- ====================================================================
@@ -472,12 +431,7 @@ INSERT OR REPLACE INTO fastpayTokenEntity VALUES ?;
 getFastpayTokens:
 SELECT * FROM fastpayTokenEntity;
 
-deleteAllFastpayTokens:
-DELETE FROM fastpayTokenEntity;
-
-clearAllTables:
-    DELETE FROM apartmentEntity;
-    DELETE FROM familyEntity;
+DELETE FROM familyEntity;
     DELETE FROM raionEntity;
     DELETE FROM houseEntity;
     DELETE FROM heatMeterEntity;
@@ -485,5 +439,4 @@ clearAllTables:
     DELETE FROM waterReadingEntity;
     DELETE FROM heatReadingEntity;
     DELETE FROM serviceEntity;
-    DELETE FROM paymentEntity;
     DELETE FROM fastpayTokenEntity;

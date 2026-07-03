@@ -7,6 +7,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -116,8 +117,11 @@ private suspend fun launchCredManButtonUI(
   } catch (e: GetCredentialException) {
     when (e) {
       is GetCredentialCancellationException -> println("[$tag]: Пользователь отменил выбор аккаунта")
+      is NoCredentialException -> println("[$tag]: Аккаунты не найдены")
       else -> println("[$tag.Error]: ${e.message}")
     }
+  } catch (e: Exception) {
+    println("[$tag.Critical]: ${e.message}")
   } finally {
     onFinished()
   }

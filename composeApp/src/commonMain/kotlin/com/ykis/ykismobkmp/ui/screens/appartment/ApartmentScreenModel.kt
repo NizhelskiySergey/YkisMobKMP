@@ -398,7 +398,7 @@ class ApartmentScreenModel(
 
   fun clearAllData() {
     observeJob?.cancel()
-    _uiState.value = com.ykis.ykismobkmp.ui.BaseUIState(mainLoading = false)
+    _uiState.value = BaseUIState(mainLoading = false)
   }
 
   fun addApartment() {

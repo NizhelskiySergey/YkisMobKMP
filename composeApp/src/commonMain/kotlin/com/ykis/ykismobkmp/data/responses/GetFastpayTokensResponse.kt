@@ -28,7 +28,7 @@ data class GetFastpayTokensResponse(
                 coerceInputValues = true
             }
             if (_tokens != null && _tokens is JsonArray) {
-                println("[YkisLogKMP.FastPay_RAW]: ${_tokens.toString()}")
+                println("[YkisLogKMP.FastPay_RAW]: $_tokens")
                 jsonParser.decodeFromJsonElement<List<FastpayEntity>>(_tokens)
             } else {
                 println("[YkisLogKMP.FastPay_RAW]: Поле fastpayTokens не є масивом або порожнє: $_tokens")

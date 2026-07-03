@@ -42,7 +42,7 @@ class SaveUserUid(
         emit(Resource.Error(message = response.message))
       }
 
-    } catch (ce: kotlinx.coroutines.CancellationException) {
+    } catch (ce: CancellationException) {
       // ИСПРАВЛЕНО НАМЕРТВО: Используется явный кроссплатформенный CancellationException,
       // что полностью исключает падение линкера при сборке под iOS и Mac Desktop!
       println("[YkisLogKMP.$className.$methodName]: [CANCELLED] Операция отменена областью видимости корутины Хаба.")

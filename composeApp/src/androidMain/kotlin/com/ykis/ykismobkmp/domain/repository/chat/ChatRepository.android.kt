@@ -2,6 +2,7 @@ package com.ykis.ykismobkmp.domain.repository.chat
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.ykis.ykismobkmp.core.utils.Log
+import androidx.core.graphics.scale
 import java.io.File
 import java.io.ByteArrayOutputStream
 
@@ -23,8 +24,8 @@ actual suspend fun platformCompressImage(path: String): ByteArray {
     val width = 1200
     val height = (original.height.toFloat() * (width.toFloat() / original.width)).toInt()
 
-    // 4. Создаем масштабированную копию
-    val scaled = Bitmap.createScaledBitmap(original, width, height, true)
+    // 4. Создаем масштабированную копию с помощью KTX
+    val scaled = original.scale(width, height, true)
 
     val out = ByteArrayOutputStream()
     scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)

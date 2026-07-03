@@ -1,5 +1,6 @@
 package com.ykis.ykismobkmp
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
@@ -10,6 +11,7 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import com.russhwolf.settings.SharedPreferencesSettings
 import java.util.Locale
 
+@SuppressLint("AppBundleLocaleChanges")
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,7 +35,7 @@ class MainActivity : ComponentActivity() {
 
     private fun updateLocale(context: Context): Context {
         // Читаем язык из настроек. Если пусто - ставим "uk" (Украинский) по умолчанию.
-        val prefs = context.getSharedPreferences("com.ykis.ykismobkmp_preferences", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("com.ykis.ykismobkmp_preferences", MODE_PRIVATE)
         val settings = SharedPreferencesSettings(prefs)
         val lang = settings.getString("app_language", "uk")
         

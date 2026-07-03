@@ -7,6 +7,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +41,8 @@ actual fun triggerNativeGoogleSignIn(
   println("[YkisLogKMP.PlatformUtils]: [CREDENTIAL_MANAGER] Инициализация современного Google Credential Manager")
 
   // 1. Извлекаем default_web_client_id, автоматически сгенерированный Firebase из твоего google-services.json
+  // Используем подавление lint для getIdentifier, так как этот ID генерируется плагином динамически
+  @Suppress("DiscouragedApi")
   val webClientId = try {
     val resId = activity.resources.getIdentifier("default_web_client_id", "string", activity.packageName)
     if (resId != 0) activity.getString(resId) else ""
@@ -78,6 +82,12 @@ actual fun triggerNativeGoogleSignIn(
       println("[YkisLogKMP.PlatformUtils]: [CREDENTIAL_MANAGER_SUCCESS] JWT ID Токен успешно сгенерирован службами Google Play")
       onTokenReceived(realIdToken)
 
+    } catch (e: GetCredentialCancellationException) {
+      println("[YkisLogKMP.PlatformUtils]: [CREDENTIAL_MANAGER_CANCEL] Пользователь отменил вход")
+      onError("Canceled")
+    } catch (e: NoCredentialException) {
+      println("[YkisLogKMP.PlatformUtils]: [CREDENTIAL_MANAGER_NO_CRED] Аккаунты не найдены")
+      onError("No accounts found")
     } catch (e: Exception) {
       val errorMsg = e.message ?: "Сбой авторизации Credential Manager"
       println("[YkisLogKMP.PlatformUtils]: [CREDENTIAL_MANAGER_ERROR] $errorMsg")

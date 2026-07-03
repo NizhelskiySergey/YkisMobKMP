@@ -33,7 +33,7 @@ class MainServiceScreen(
 
   @Composable
   override fun Content() {
-    val navigator = LocalNavigator.currentOrThrow
+    LocalNavigator.currentOrThrow
     val adaptiveContentType = LocalContentType.current
 
     // 1. Инжектируем финансовую модель для обработки инвойсов и балансов ГИОЦ

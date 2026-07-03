@@ -46,7 +46,7 @@ actual fun CameraView(
       factory = {
         WebcamPanel(webcam).apply {
           // В Java-библиотеке Sarxos метод называется именно так:
-          setAntialiasingEnabled(true)
+          isAntialiasingEnabled = true
 
           // Для флагов вывода FPS и размера используем стандартные Java-сеттеры
           isFPSDisplayed = false

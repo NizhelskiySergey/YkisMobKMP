@@ -1,6 +1,5 @@
 package com.ykis.ykismobkmp.services
 
-import android.R
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,13 +9,13 @@ import android.content.Intent
 import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import androidx.compose.ui.res.painterResource
 import java.net.HttpURLConnection
 import java.net.URL
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.ykis.ykismobkmp.MainActivity
+import com.ykis.ykismobkmp.R
 import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import kotlinx.coroutines.CoroutineScope
@@ -89,7 +88,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
       badgeIntent.putExtra("badge_count_class_name", "com.ykis.ykismobkmp.MainActivity")
       sendBroadcast(badgeIntent)
       println("[YkisLogKMP.MessagingService]: Launcher Badge Update: $count")
-    } catch (e: Exception) { }
+    } catch (_: Exception) { }
   }
 
   @SuppressLint("WrongConstant")
@@ -107,8 +106,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
 
     val channelId = "ykis_chat_notifications"
     val notificationBuilder = NotificationCompat.Builder(this, channelId)
-//      .setSmallIcon(com.ykis.ykismobkmp.R.drawable.ykis)
-      .setSmallIcon(com.ykis.ykismobkmp.R.drawable.ykis)
+      .setSmallIcon(R.drawable.ykis)
       .setContentTitle(title)
       .setContentText(body)
       .setAutoCancel(true)
@@ -125,7 +123,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
       )
     }
 
-    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       val channel = NotificationChannel(
@@ -149,7 +147,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
         badgeIntent.putExtra("badge_count_package_name", packageName)
         badgeIntent.putExtra("badge_count_class_name", "com.ykis.ykismobkmp.MainActivity")
         sendBroadcast(badgeIntent)
-      } catch (e: Exception) { }
+      } catch (_: Exception) { }
     }
   }
 

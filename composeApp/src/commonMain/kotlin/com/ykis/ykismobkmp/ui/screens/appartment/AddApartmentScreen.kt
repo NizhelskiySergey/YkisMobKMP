@@ -54,7 +54,7 @@ class AddApartmentScreen(
 
   @Composable
   override fun Content() {
-    val navigator = LocalNavigator.currentOrThrow
+    LocalNavigator.currentOrThrow
     val keyboard = LocalSoftwareKeyboardController.current
     val screenModel = koinInject<ApartmentScreenModel>()
 

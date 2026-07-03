@@ -6,4 +6,6 @@ class JVMPlatform: Platform {
 
 actual fun getPlatform(): Platform = JVMPlatform()
 
-actual fun restartApp() { }
+actual fun restartApp() {
+    println("[JVMPlatform]: restartApp called (No-op placeholder)")
+}

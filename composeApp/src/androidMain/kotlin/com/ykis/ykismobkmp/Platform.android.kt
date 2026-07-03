@@ -9,6 +9,6 @@ class AndroidPlatform : Platform {
 actual fun getPlatform(): Platform = AndroidPlatform()
 
 actual fun restartApp() {
-    // На Android мова зазвичай змінюється через ресурси системи,
-    // але якщо потрібно програмно - Activity.recreate()
+    // На Android перезапуск зазвичай не потрібен для зміни локалі Compose
+    println("[AndroidPlatform]: restartApp called (No-op placeholder)")
 }

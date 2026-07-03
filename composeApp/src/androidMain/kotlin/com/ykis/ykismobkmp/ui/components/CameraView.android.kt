@@ -92,7 +92,7 @@ actual fun CameraView(
             val cameraProvider = cameraProviderFuture.get()
             val preview = Preview.Builder().build()
 
-            preview.setSurfaceProvider(previewView.surfaceProvider)
+            preview.surfaceProvider = previewView.surfaceProvider
             imageCapture = ImageCapture.Builder().build()
 
             cameraProvider.unbindAll()

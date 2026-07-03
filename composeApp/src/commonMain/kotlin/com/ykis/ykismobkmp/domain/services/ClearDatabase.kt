@@ -27,7 +27,6 @@ class ClearDatabase {
       queries.transaction {
         queries.deleteAllApartments()
         queries.deleteAllFamily()
-        queries.deleteAllPayment()
         queries.deleteAllHeatReadings()
         queries.deleteAllHeatMeters()
         queries.deleteAllWaterMeters()

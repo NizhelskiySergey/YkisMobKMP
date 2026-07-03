@@ -170,7 +170,6 @@ object SignInScreen : Screen {
     val keyboard = LocalSoftwareKeyboardController.current
     val screenModel = koinInject<AuthScreenModel>()
     val singInUiState by screenModel.authUiState.collectAsState()
-    val googleResponse by screenModel.signInWithGoogleResponse.collectAsState()
     val signInResponse by screenModel.signInResponse.collectAsState()
     val smsSendResponse by screenModel.smsSendResponse.collectAsState()
     val contextActivity = platformActivityContext()
