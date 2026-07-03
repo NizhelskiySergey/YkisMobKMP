@@ -38,13 +38,8 @@ class SaveUserUid(
         println("[YkisLogKMP.$className.$methodName]: [SUCCESS] Идентификатор пользователя UID успешно запечатан в MySQL.")
         emit(Resource.Success(response))
       } else {
-        val errorRes = when (response.message) {
-          "UserUIdExist"     -> Res.string.user_uid_exist
-          "SaveUserUidError" -> Res.string.error_save_uid
-          else               -> Res.string.error_server
-        }
         println("[YkisLogKMP.$className.$methodName]: [REJECT] Сервер отклонил сохранение UID: ${response.message}")
-        emit(Resource.Error(messageRes = errorRes, message = response.message))
+        emit(Resource.Error(message = response.message))
       }
 
     } catch (ce: kotlinx.coroutines.CancellationException) {
@@ -56,7 +51,7 @@ class SaveUserUid(
       println("[YkisLogKMP.$className.$methodName]: [FATAL_ERROR] Критический сбой регистрации UID в базе Южного: ${ex.message}")
 
       // ИСПРАВЛЕНО: Платформозависимый printStackTrace заменен на безопасный КМР-вывод логгера
-      emit(Resource.Error(messageRes = Res.string.generic_error))
+      emit(Resource.Error(message = "Generic error"))
     }
   }.flowOn(Dispatchers.Default) // Сетевой запрос и валидация выполняются в фоновом пуле корутин
 }

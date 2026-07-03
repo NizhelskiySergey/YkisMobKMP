@@ -86,6 +86,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.splashscreen)
+    implementation(libs.androidx.startup)
     implementation(libs.compose.material3.windowSizeClass)
     implementation(libs.koin.android)
     implementation(libs.voyager.screenmodel)

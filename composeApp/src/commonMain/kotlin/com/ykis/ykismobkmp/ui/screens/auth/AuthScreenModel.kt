@@ -92,7 +92,7 @@ class AuthScreenModel(
         appScreenModel.evaluateStartDestination()
         onSuccessNavigate()
       } catch (e: Exception) {
-        _signInResponse.value = Resource.Error(messageRes = mapFirebaseError(e.message))
+        _signInResponse.value = Resource.Error(message = "Firebase error")
         SnackbarManager.showMessage(mapFirebaseError(e.message))
       }
     }

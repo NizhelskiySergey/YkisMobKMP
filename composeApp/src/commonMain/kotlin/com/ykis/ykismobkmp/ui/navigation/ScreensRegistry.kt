@@ -30,7 +30,6 @@ import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.domain.services.UserRole
-import com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.appartment.InfoApartmentScreen
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreen
@@ -66,22 +65,6 @@ object VerifyEmailScreenDest : Screen {
   override fun Content() {
     println("[YkisLogKMP.$className.VerifyEmailScreen]: Маршрутизатор передає управління холсту верифікації пошти")
     com.ykis.ykismobkmp.ui.screens.auth.VerifyEmailScreen.Content()
-  }
-}
-object AddApartmentScreenDest : Screen {
-  @Composable
-  override fun Content() {
-    println("[YkisLogKMP.$className.AddApartmentScreen]: Маршрутизатор передає управління живому холсту прив'язки квартири")
-    com.ykis.ykismobkmp.ui.screens.appartment.AddApartmentScreen(
-      onDrawerClicked = { /* ... */ },
-      closeContentDetail = { /* ... */ }
-    ).Content()
-  }
-}
-object SendImageScreenDest : Screen {
-  @Composable
-  override fun Content() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Перегляд ІИ-фотографії лічильника") }
   }
 }
 enum class CameraTarget { CHAT, ANNOUNCEMENT }
@@ -128,24 +111,6 @@ data class CameraScreenDest(
     )
   }
 }
-object ProfileScreenDest : Screen {
-  @Composable
-  override fun Content() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Профіль користувача") }
-  }
-}
-object BtiScreenDest : Screen {
-  @Composable
-  override fun Content() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Дані БТІ") }
-  }
-}
-object FamilyScreenDest : Screen {
-  @Composable
-  override fun Content() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Склад сім'ї") }
-  }
-}
 data class ChatScreenDest(
   val chatId: String? = null
 ) : Screen {
@@ -176,21 +141,6 @@ data class ChatScreenDest(
     ).Content()
   }
 }
-data class InfoApartmentScreenDest(
-  val addressId: Long = 0L
-) : Screen {
-  override val key: ScreenKey get() = "InfoApartmentScreenDest_${addressId}"
-  @Composable
-  override fun Content() {
-    val classNameRegistry = "ScreensRegistry"
-    println("[YkisLogKMP.$classNameRegistry.InfoApartmentScreenDest]: Маршрутизатор передає управління ЖИВОМУ холсту БТІ для о/р: $addressId")
-    InfoApartmentScreen(
-      onDrawerClicked = {
-        println("[YkisLogKMP.$classNameRegistry.InfoApartmentScreenDest]: Клік по бургер-кнопці на екрані БТІ.")
-      }
-    )
-  }
-}
 data class ImageDetailScreenDest(
   val imageUrl: String
 ) : Screen {
@@ -212,46 +162,6 @@ data class WebViewScreenDest(
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
       Text("Платіжний шлюз Xpay: $formattedLink")
     }
-  }
-}
-object MainMeterScreenDest : Screen {
-  @Composable
-  override fun Content() {
-    println("[YkisLogKMP.$className.MainMeterScreenDest]: Маршрутизатор передає управління головному екрану лічильників")
-    MainMeterScreen()
-  }
-}
-data class MainServiceScreenDest(
-  val addressId: Long = 0L
-) : Screen {
-  override val key: ScreenKey get() = "MainServiceScreenDest_${addressId}"
-  @Composable
-  override fun Content() {
-    val classNameRegistry = "ScreensRegistry"
-    println("[YkisLogKMP.$classNameRegistry.MainServiceScreenDest]: Маршрутизатор передає управління ЖИВОМУ фінансовому хабу для о/р: $addressId")
-    val apartmentScreenModel = koinInject<ApartmentScreenModel>()
-    val baseUIState by apartmentScreenModel.uiState.collectAsState()
-    MainServiceScreen(
-      baseUIState = baseUIState,
-      onDrawerClick = {
-        println("[YkisLogKMP.$classNameRegistry.MainServiceScreenDest]: Клік по бургер-кнопці на екрані фінансів.")
-      }
-    )
-  }
-}
-
-object SettingsScreenDest : Screen {
-  @Composable
-  override fun Content() {
-    val classNameRegistry = "ScreensRegistry"
-    println("[YkisLogKMP.$classNameRegistry.SettingsScreenDest]: Маршрутизатор передає управління холсту системних налаштувань")
-    val navigator = LocalNavigator.currentOrThrow
-    SettingsScreen(
-      onDrawerClick = {
-        println("[YkisLogKMP.$classNameRegistry.SettingsScreenDest]: Запрос закрытия экрана настроек, возврат по стеку.")
-        navigator.pop()
-      }
-    )
   }
 }
 data class TopLevelDestination(

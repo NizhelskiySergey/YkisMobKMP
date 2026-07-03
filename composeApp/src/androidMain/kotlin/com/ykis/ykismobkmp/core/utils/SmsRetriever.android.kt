@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import androidx.core.content.ContextCompat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -82,17 +83,17 @@ class AndroidSmsRetriever(private val context: Context) : com.ykis.ykismobkmp.co
             
             // Регистрируем ресивер в системе с учетом флагов экспорта для Android 14+
             val intentFilter = IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(
-                    receiver, 
-                    intentFilter, 
-                    SmsRetriever.SEND_PERMISSION, 
-                    null, 
-                    Context.RECEIVER_EXPORTED
-                )
-            } else {
-                context.registerReceiver(receiver, intentFilter, SmsRetriever.SEND_PERMISSION, null)
-            }
+            
+            // Используем ContextCompat для безопасной регистрации с флагами на всех версиях Android
+            @Suppress("WrongConstant")
+            ContextCompat.registerReceiver(
+                context,
+                receiver,
+                intentFilter,
+                SmsRetriever.SEND_PERMISSION,
+                null,
+                ContextCompat.RECEIVER_EXPORTED
+            )
         }
 
         task.addOnFailureListener { e ->

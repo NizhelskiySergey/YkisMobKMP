@@ -266,7 +266,6 @@ class MainApartmentScreen(
             val showBottomBar = (baseUIState.addressId != 0L || baseUIState.userRole != UserRole.StandardUser) && !isChatRoomActive
             if (showBottomBar) {
                BottomNavigationBar(
-                 navigator = globalNavigator, 
                  baseUIState = baseUIState, 
                  activeSubModule = activeSubModule, 
                  onSubModuleChange = { activeSubModule = it }

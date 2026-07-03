@@ -22,14 +22,14 @@ import ykismobkmp.composeapp.generated.resources.*
 private const val className = "FirebaseServiceImpl"
 
 class FirebaseServiceImpl(
-  private val settings: Settings
+  private val settings: Settings,
 ) : FirebaseService {
 
   private val koin get() = org.koin.mp.KoinPlatform.getKoin()
   
   private val apartmentService: com.ykis.ykismobkmp.domain.repository.apartment.ApartmentService get() = koin.get()
-  private val auth: FirebaseAuth get() = try { koin.get() } catch (e: Exception) { Firebase.auth }
-  private val db: FirebaseFirestore get() = try { koin.get() } catch (e: Exception) { Firebase.firestore }
+  private val auth: FirebaseAuth get() = try { koin.get() } catch (_: Exception) { Firebase.auth }
+  private val db: FirebaseFirestore get() = try { koin.get() } catch (_: Exception) { Firebase.firestore }
   private val remoteConfig get() = Firebase.remoteConfig
 
   override val isUserAuthenticatedInFirebase: Boolean get() = auth.currentUser != null
@@ -80,7 +80,7 @@ class FirebaseServiceImpl(
     false
   }
 
-  override suspend fun isUserAgreed(): Boolean = settings.getBoolean(TERMS_ACCEPTED_KEY, false)
+  override suspend fun isUserAgreed(): Boolean = settings.getBoolean(TERMS_ACCEPTED_KEY, defaultValue = false)
   override suspend fun setUserAgreed(agreed: Boolean) { settings.putBoolean(TERMS_ACCEPTED_KEY, agreed) }
 
   override suspend fun firebaseSignInWithEmailAndPassword(email: String, password: String) {
@@ -111,7 +111,7 @@ class FirebaseServiceImpl(
     // Очікування ініціалізації сесії ТІЛЬКИ для Web
     if (isWeb) {
         var attempts = 0
-        while (uid.isBlank() && attempts < 25) {
+        while ((uid.isBlank()) && (attempts < 25)) {
             delay(200)
             attempts++
         }
@@ -294,7 +294,7 @@ class FirebaseServiceImpl(
     val fullKey = "${baseKey}_$lang"
     
     val rawValue = remoteConfig.getValue(fullKey).asString()
-    val finalRaw = if (rawValue.isNotBlank()) rawValue else remoteConfig.getValue(baseKey).asString()
+    val finalRaw = rawValue.ifBlank { remoteConfig.getValue(baseKey).asString() }
     
     // ПРОВІРКА: якщо це JSON-масив, розпарсимо його як список рядків
     if (finalRaw.trim().startsWith("[")) {
