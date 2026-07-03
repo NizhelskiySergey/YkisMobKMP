@@ -96,6 +96,10 @@ actual fun triggerNativeGoogleSignIn(
   }
 }
 
+actual fun encodeBase64(bytes: ByteArray): String {
+    return android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+}
+
 actual fun triggerNativeAppleSignIn(
     onTokenReceived: (String) -> Unit,
     onError: (String) -> Unit

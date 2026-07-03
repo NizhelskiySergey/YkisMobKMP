@@ -15,6 +15,11 @@ expect fun triggerNativeGoogleSignIn(
 )
 
 /**
+ * [encodeBase64] — Універсальне KMP-перетворення масиву байтів у рядок Base64.
+ */
+expect fun encodeBase64(bytes: ByteArray): String
+
+/**
  * [triggerNativeAppleSignIn] — Кроссплатформенный запуск нативного диалога Apple ID.
  */
 expect fun triggerNativeAppleSignIn(

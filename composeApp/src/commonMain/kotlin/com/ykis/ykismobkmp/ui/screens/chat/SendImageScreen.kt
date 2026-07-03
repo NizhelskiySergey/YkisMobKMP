@@ -61,6 +61,7 @@ fun SendImageContent(
   val aiAssistantResponse by chatScreenModel.assistantResponse.collectAsState()
   val messageText by chatScreenModel.messageText.collectAsState()
   val isLoadingAfterSending by chatScreenModel.isLoadingAfterSending.collectAsState()
+  val isAssistantLoading by chatScreenModel.isAssistantLoading.collectAsState()
 
   val isImage = remember(imagePath) {
     val path = imagePath.lowercase()
@@ -178,13 +179,8 @@ fun SendImageContent(
       },
       onImageSent = { _, _ -> },
       onCameraClick = {},
-      onAiClick = {
-        if (isImage) {
-          chatScreenModel.analyzePhotoWithGemini(imagePath, address)
-        }
-      },
       showAttachIcon = false,
-      isLoading = isLoadingAfterSending,
+      isLoading = isLoadingAfterSending || isAssistantLoading,
       canSend = messageText.isNotBlank() || isImage
     )
   }

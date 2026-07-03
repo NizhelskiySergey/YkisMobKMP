@@ -1,49 +1,65 @@
 package com.ykis.ykismobkmp.domain.ai
 
+import io.ktor.client.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import kotlinx.serialization.json.*
+import com.ykis.ykismobkmp.di.GEMINI_API_KEY
+import com.ykis.ykismobkmp.core.utils.Resource
 import dev.shreyaspatil.ai.client.generativeai.GenerativeModel
-import dev.shreyaspatil.ai.client.generativeai.type.content
 
 private const val tag = "GeminiCloudProvider"
 
 /**
- * [GeminiCloudProvider] — Реализация ИИ-диспетчера ЮКИС.
- * Совмещает кроссплатформенное облако и платформозависимый локальный движок expect/actual.
+ * [GeminiCloudProvider] — Реалізація ІІ-диспетчера ЮКІС.
+ * ПІДТРИМКА КЛЮЧІВ AQ ТА МОДЕЛІ 3.5 FLASH ЧЕРЕЗ ПРЯМИЙ REST (КМР стандарт).
  */
 class GeminiCloudProvider(
-  private val model: GenerativeModel,
-  private val localEngine: LocalAiEngine // Инжектируем expect-класс локального ИИ
+  private val model: GenerativeModel, // Залишаємо для сумісності з Koin
+  private val localEngine: LocalAiEngine,
+  private val httpClient: HttpClient // Використовуємо Ktor для прямого доступу
 ) : GeminiAiManager {
 
-  /**
-   * ПОШАГОВОЕ ВЫПОЛНЕНИЕ ДИСПЕТЧЕРИЗАЦИИ ЗАПРОСА ( processPrompt ):
-   */
+  private val modelId = "gemini-3.5-flash"
+  private val baseUrl = "https://generativelanguage.googleapis.com/v1/models/$modelId:generateContent"
+
   override suspend fun processPrompt(prompt: String): Result<String> {
-    println("[$tag.processPrompt]: [ШАГ 1] Получен запрос от UI: '$prompt'")
-
-    // ШАГ 2: Опрашиваем локальный движок LocalAiEngine (expect/actual)
-    println("[$tag.processPrompt]: [ШАГ 2] Попытка запустить локальную генерацию на чипе...")
     val localResponse = localEngine.generate(prompt)
-
-    // ШАГ 3: Если локальный движок вернул результат (Nano сработал на Android) — отдаем его
-    if (localResponse != null) {
-      println("[$tag.processPrompt]: [УСПЕХ] Запрос обработан локально через Gemini Nano (AICore)!")
-      return Result.success(localResponse)
-    }
-
-    // ШАГ 4: ФОЛБЭК (Откат). Если мы на Mac Desktop или старом Android — localResponse равен null.
-    // Перенаправляем запрос в облако Google.
-    println("[$tag.processPrompt]: [ОТКАТ] Локальный чип недоступен. Перенаправление в облако Gemini...")
+    if (localResponse != null) return Result.success(localResponse)
     return askAssistant(prompt)
   }
 
   override suspend fun askAssistant(prompt: String): Result<String> {
     return try {
-      val response = model.generateContent(prompt)
-      val textResult = response.text
-      if (textResult != null) {
-        Result.success(textResult)
+      println("[$tag]: >>> [REST_REQUEST_START] Модель: $modelId")
+      
+      val response = httpClient.post(baseUrl) {
+        header("x-goog-api-key", GEMINI_API_KEY)
+        contentType(ContentType.Application.Json)
+        setBody(buildJsonObject {
+          putJsonArray("contents") {
+            addJsonObject {
+              putJsonArray("parts") {
+                addJsonObject { put("text", prompt) }
+              }
+            }
+          }
+        })
+      }
+
+      if (response.status.isSuccess()) {
+        val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        val text = body["candidates"]?.jsonArray?.get(0)?.jsonObject
+          ?.get("content")?.jsonObject
+          ?.get("parts")?.jsonArray?.get(0)?.jsonObject
+          ?.get("text")?.jsonPrimitive?.content
+        
+        if (text != null) Result.success(text) 
+        else Result.failure(Exception("Порожня відповідь"))
       } else {
-        Result.failure(Exception("Порожня відповідь нейромережі"))
+        println("[$tag]: [REST_ERROR] Код: ${response.status}. Текст: ${response.bodyAsText()}")
+        Result.failure(Exception("Помилка API: ${response.status}"))
       }
     } catch (e: Exception) {
       Result.failure(e)
@@ -51,25 +67,42 @@ class GeminiCloudProvider(
   }
 
   override suspend fun analyzeMeterImage(prompt: String, imageData: ByteArray?): String? {
+    if (imageData == null) return null
     return try {
-      val response = if (imageData != null) {
-        model.generateContent(
-          content {
-            image(imageData)
-            text(prompt)
+      println("[$tag]: >>> [REST_VISION_START] Розмір: ${imageData.size} байт")
+      
+      val response = httpClient.post(baseUrl) {
+        header("x-goog-api-key", GEMINI_API_KEY)
+        contentType(ContentType.Application.Json)
+        setBody(buildJsonObject {
+          putJsonArray("contents") {
+            addJsonObject {
+              putJsonArray("parts") {
+                addJsonObject { put("text", prompt) }
+                addJsonObject {
+                  putJsonObject("inline_data") {
+                    put("mime_type", "image/jpeg")
+                    put("data", com.ykis.ykismobkmp.core.utils.encodeBase64(imageData))
+                  }
+                }
+              }
+            }
           }
-        )
+        })
+      }
+
+      if (response.status.isSuccess()) {
+        val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        body["candidates"]?.jsonArray?.get(0)?.jsonObject
+          ?.get("content")?.jsonObject
+          ?.get("parts")?.jsonArray?.get(0)?.jsonObject
+          ?.get("text")?.jsonPrimitive?.content
       } else {
-        model.generateContent(prompt)
+        println("[$tag]: [REST_VISION_ERROR] ${response.bodyAsText()}")
+        null
       }
-      val text = response.text
-      if (text == null) {
-          println("[$tag]: [WARN] Gemini повернув порожній текст. Можливо, контент заблоковано фільтрами безпеки.")
-      }
-      text
     } catch (e: Exception) {
-      println("[$tag]: [ERROR] Помилка мультимодального аналізу: ${e.message}")
-      e.printStackTrace()
+      println("[$tag]: [CRITICAL_ERROR] ${e.message}")
       null
     }
   }

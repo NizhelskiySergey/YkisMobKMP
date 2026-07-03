@@ -24,6 +24,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.datetime.*
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.success_send_message
 
@@ -658,42 +659,42 @@ class ChatScreenModel(
     screenModelScope.launch {
       _isAssistantLoading.value = true
       try {
-        // 1. СТИСКАЄМО ФОТО (критично для API Gemini, щоб не перевищувати ліміти)
-        println("[YkisLogKMP.Chat]: [AI_PREPARE] Стиснення фото перед аналізом...")
-        val compressedBytes = chatRepo.compressImage(path)
-        
-        if (compressedBytes.isEmpty()) {
-            println("[YkisLogKMP.Chat]: [AI_ERROR] Не вдалося прочитати або стиснути файл.")
-            return@launch
-        }
-        
-        println("[YkisLogKMP.Chat]: [AI_START] Аналіз фото... Розмір: ${compressedBytes.size} байт")
+        val fileBytes = chatRepo.compressImage(path)
+        println("[YkisLogKMP.Chat]: [AI_START] Аналіз... Розмір: ${fileBytes.size / 1024} КБ")
+
+        // Отримуємо поточну дату в форматі dd-mm-yyyy
+        val ts = currentTimeMillis()
+        val today = kotlinx.datetime.Instant.fromEpochMilliseconds(ts).toLocalDateTime(TimeZone.currentSystemDefault()).date
+        val parts = today.toString().split("-") // [yyyy, MM, dd]
+        val dateStr = "${parts[2]}-${parts[1]}-${parts[0]}"
 
         val prompt = """
-          Ти — асистент ЮКІС. Визнач, чи є на цьому фото лічильник води або тепла. 
-          ЯКЩО ЦЕ НЕ ЛІЧИЛЬНИК: Поверни тільки одне слово "IGNORE".
-          ЯКЩО ЦЕ ЛІЧИЛЬНИК:
-          1. Використай адресу: ${address ?: "м. Южне"}.
-          2. Знайди серійний номер лічильника (якщо видно).
-          3. Прочитай поточні показання (цифри в віконцях).
-          ЯКЩО ПОКАЗАННЯ Є: Поверни текст: [Адреса], лічильник №[Номер], показання [Число].
-          ЯКЩО ПОКАЗАННЯ НЕЧИТАБЕЛЬНІ: Поверни текст: [Адреса], лічильник №[Номер], показання.
-          ВІДПОВІДЬ МАЄ МІСТИТИ ТІЛЬКИ ЦЕЙ РЯДОК БЕЗ ЗАЙВИХ СЛІВ.
+          You are a technical assistant for a housing utility company (YKIS).
+          Analyze this image:
+          1. If it's a WATER or HEAT meter: find the serial number and reading value.
+          2. Return ONLY one line in Ukrainian: "${address ?: "м. Южне"}, лічильник №[Number], $dateStr, показання [Value]".
+          3. If the reading is not visible, return: "${address ?: "м. Южне"}, лічильник №[Number], $dateStr, показання".
+          4. If it's NOT a meter, return ONLY this word: "IGNORE_OBJECT".
+          Answer in Ukrainian as requested.
         """.trimIndent()
         
-        val result = chatRepo.analyzeMeterImage(prompt, compressedBytes)
+        val result = chatRepo.analyzeMeterImage(prompt, fileBytes)
         println("[YkisLogKMP.Chat]: [AI_RAW_RESULT]: $result")
         
-        if (result != null && !result.contains("IGNORE", ignoreCase = true)) {
-          _messageText.value = result.trim()
-          _assistantResponse.value = null 
-          println("[YkisLogKMP.Chat]: [AI_SUCCESS] Дані підставлено.")
+        if (result != null && !result.contains("IGNORE_OBJECT", ignoreCase = true)) {
+          // Якщо це не помилка зв'язку, підставляємо результат
+          if (!result.startsWith("Помилка") && !result.startsWith("ІІ не зміг") && !result.startsWith("Помилка зв'язку")) {
+              _messageText.value = result.trim()
+              _assistantResponse.value = null 
+              println("[YkisLogKMP.Chat]: [AI_SUCCESS] Дані підставлено.")
+          } else {
+              println("[YkisLogKMP.Chat]: [AI_FAILED_INTERNAL] $result")
+          }
         } else {
-          println("[YkisLogKMP.Chat]: [AI_IGNORE] Фото не розпізнано як лічильник або Gemini відмовив.")
+          println("[YkisLogKMP.Chat]: [AI_SKIP] Об'єкт проігноровано (або не лічильник).")
         }
       } catch (e: Exception) { 
-        println("[YkisLogKMP.Chat_ERROR]: Помилка ІІ: ${e.message}")
-        logService.logNonFatalCrash(e) 
+        println("[YkisLogKMP.Chat_ERROR]: ${e.message}")
       } finally { 
         _isAssistantLoading.value = false 
       }
@@ -701,12 +702,22 @@ class ChatScreenModel(
   }
 
   fun askAssistant(prompt: String, role: UserRole, address: String) {
+    println("[YkisLogKMP.Chat]: [AI_BUTTON_CLICKED] Текст: $prompt")
     screenModelScope.launch {
       _isAssistantLoading.value = true
       try {
-        val result = chatRepo.askAiAssistant("Роль: $role, Адреса: $address. Питання: $prompt")
-        _assistantResponse.value = result.getOrNull()
-      } catch (e: Exception) { logService.logNonFatalCrash(e) }
+        val finalPrompt = "Роль: $role, Адреса: $address. Питання: $prompt"
+        println("[YkisLogKMP.Chat]: [askAssistant_RUN] Final Prompt: $finalPrompt")
+        val result = chatRepo.askAiAssistant(finalPrompt)
+        
+        val responseText = result.getOrNull()
+        println("[YkisLogKMP.Chat]: [askAssistant_RESULT] Success: ${result.isSuccess}, Text: ${responseText?.take(20)}...")
+        
+        _assistantResponse.value = responseText
+      } catch (e: Exception) { 
+        println("[YkisLogKMP.Chat]: [askAssistant_ERROR] ${e.message}")
+        logService.logNonFatalCrash(e) 
+      }
       finally { _isAssistantLoading.value = false }
     }
   }

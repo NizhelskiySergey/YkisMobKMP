@@ -36,7 +36,6 @@ fun ComposeMessageBox(
   onSent: () -> Unit,
   onImageSent: (String, String?) -> Unit,
   onCameraClick: () -> Unit,
-  onAiClick: () -> Unit,
   text: String,
   onTextChanged: (String) -> Unit,
   showAttachIcon: Boolean = true,
@@ -60,17 +59,6 @@ fun ComposeMessageBox(
     if (showAttachIcon) {
       val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
       
-      // Кнопка ИИ Интеллектуальный ассистент Gemini
-      IconButton(
-        onClick = {
-          println("[YkisLogKMP.$className.onAiClick]: Запит ШІ-підказки асистента ЮКІС.")
-          onAiClick()
-        },
-        enabled = !isLoading
-      ) {
-        Icon(Icons.Default.SmartToy, null, tint = MaterialTheme.colorScheme.primary)
-      }
-
       // Кнопка вкладень
       IconButton(
         onClick = {

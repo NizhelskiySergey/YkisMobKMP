@@ -1,8 +1,22 @@
 package com.ykis.ykismobkmp.core.utils
 
 import androidx.compose.runtime.Composable
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
+import platform.Foundation.NSData
+import platform.Foundation.base64EncodedStringWithOptions
+import platform.Foundation.create
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.OAuthProvider
+
+@OptIn(ExperimentalForeignApi::class, kotlinx.cinterop.BetaInteropApi::class)
+actual fun encodeBase64(bytes: ByteArray): String {
+    return bytes.usePinned { pinned ->
+        NSData.create(bytes = pinned.addressOf(0), length = bytes.size.toULong())
+            .base64EncodedStringWithOptions(0UL)
+    }
+}
 
 @Composable
 actual fun platformActivityContext(): Any? = null

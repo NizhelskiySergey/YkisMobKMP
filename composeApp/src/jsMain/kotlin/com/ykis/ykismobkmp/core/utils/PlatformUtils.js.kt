@@ -9,7 +9,6 @@ actual fun platformActivityContext(): Any? = null
 
 /**
  * [triggerNativeGoogleSignIn] — Реалізація для браузера через Google Identity Services (GIS).
- * Викликає JavaScript функцію, визначену в index2.html.
  */
 actual fun triggerNativeGoogleSignIn(
   activityContext: Any?,
@@ -18,14 +17,12 @@ actual fun triggerNativeGoogleSignIn(
 ) {
   println("[YkisLogKMP.PlatformUtils]: [JS_WEB] Запуск Google Auth (GIS)...")
   
-  // Реєструємо глобальний колбек для JS
   (window.asDynamic()).onGoogleTokenReceived = { credential: String ->
     println("[YkisLogKMP.PlatformUtils]: [SUCCESS] Токен отримано через JS міст")
     onTokenReceived(credential)
   }
 
   try {
-    // Викликаємо функцію triggerGoogleAuth з index2.html
     val bridge = (window.asDynamic()).triggerGoogleAuth
     if (bridge != null) {
         bridge(WEB_GOOGLE_CLIENT_ID)
@@ -51,3 +48,16 @@ actual suspend fun performPlatformSignInWithApple(
     idToken: String,
     rawNonce: String?
 ): Resource<Boolean> = Resource.Error("Apple ID не підтримується в браузері")
+
+/**
+ * [encodeBase64] — Нативна JS реалізація для передачі зображень в ІІ.
+ */
+actual fun encodeBase64(bytes: ByteArray): String {
+    val dynamicBytes = bytes.asDynamic()
+    var binary = ""
+    val len = dynamicBytes.length as Int
+    for (i in 0 until len) {
+        binary += window.asDynamic().String.fromCharCode(dynamicBytes[i]).unsafeCast<String>()
+    }
+    return window.btoa(binary)
+}

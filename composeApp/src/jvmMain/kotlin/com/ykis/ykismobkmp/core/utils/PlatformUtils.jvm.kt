@@ -12,6 +12,10 @@ actual fun triggerNativeGoogleSignIn(
   onError("Вхід через Google доступний тільки на мобільних пристроях.")
 }
 
+actual fun encodeBase64(bytes: ByteArray): String {
+    return java.util.Base64.getEncoder().encodeToString(bytes)
+}
+
 actual fun triggerNativeAppleSignIn(
     onTokenReceived: (String) -> Unit,
     onError: (String) -> Unit

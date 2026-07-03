@@ -163,6 +163,7 @@ fun ChatScreenContent(
   val selectedService by screenModel.selectedService.collectAsState()
   val selectedServicePrefix by screenModel.selectedServicePrefix.collectAsState()
   val isLoadingAfterSending by screenModel.isLoadingAfterSending.collectAsState()
+  val isAssistantLoading by screenModel.isAssistantLoading.collectAsState()
 
   val keyboardController = LocalSoftwareKeyboardController.current
   val focusManager = LocalFocusManager.current
@@ -366,17 +367,12 @@ fun ChatScreenContent(
                     navigateToSendImageScreen()
                 }
             },
-            onAiClick = {
-              if (messageText.isNotBlank()) {
-                screenModel.askAssistant(messageText, baseUIState.userRole, baseUIState.address.ifBlank { "Южне" })
-              }
-            },
             onCameraClick = { 
               if (!com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
                   navigateToCameraScreen() 
               }
             },
-            isLoading = isLoadingAfterSending,
+            isLoading = isLoadingAfterSending || isAssistantLoading,
             canSend = messageText.isNotBlank() || editingMessage != null,
             filePicker = filePicker
           )
