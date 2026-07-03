@@ -119,11 +119,11 @@ fun ModalNavigationDrawerContent(
           // ФІКС: Пряме використання OutlinedTextField з мінімальними побічними ефектами
           OutlinedTextField(
             value = searchQuery,
-            onValueChange = { 
+           onValueChange = {
               apartmentScreenModel.onSearchQueryChanged(it) 
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Пошук о/р чи адреси", fontSize = 14.sp) },
+            placeholder = { Text(stringResource(Res.string.search_chats), fontSize = 14.sp) },
             leadingIcon = { Icon(Icons.Default.Search, null) },
             trailingIcon = {
               if (searchQuery.isNotEmpty()) {
@@ -243,7 +243,7 @@ fun ModalNavigationDrawerContent(
 
       // КНОПКА ДОПОМОГИ / ІНСТРУКЦІЇ
       NavigationDrawerItem(
-        label = { Text("Інструкція користувача", fontWeight = FontWeight.Medium) },
+        label = { Text(stringResource(Res.string.instruction_button), fontWeight = FontWeight.Medium) },
         selected = false,
         icon = { Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null) },
         onClick = {

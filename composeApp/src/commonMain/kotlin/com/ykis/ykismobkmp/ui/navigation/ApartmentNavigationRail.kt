@@ -359,7 +359,7 @@ fun ApartmentNavigationRail(
             ) {
               Icon(Icons.AutoMirrored.Filled.HelpOutline, null, modifier = Modifier.size(20.dp))
               Spacer(Modifier.width(12.dp))
-              Text("Інструкція", style = MaterialTheme.typography.labelLarge)
+              Text(stringResource(Res.string.instruction_button), style = MaterialTheme.typography.labelLarge)
             }
         } else {
             IconButton(

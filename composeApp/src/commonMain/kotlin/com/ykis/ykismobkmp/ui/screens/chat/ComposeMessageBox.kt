@@ -22,6 +22,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.Log
 import com.ykis.ykismobkmp.core.utils.FilePicker
+import org.jetbrains.compose.resources.stringResource
+import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.message_placeholder
 
 private const val className = "ComposeMessageBox"
 
@@ -123,7 +126,7 @@ fun ComposeMessageBox(
         ) {
           if (text.isEmpty()) {
             Text(
-              text = "Повідомлення",
+              text = stringResource(Res.string.message_placeholder),
               color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
               style = MaterialTheme.typography.bodyMedium
             )

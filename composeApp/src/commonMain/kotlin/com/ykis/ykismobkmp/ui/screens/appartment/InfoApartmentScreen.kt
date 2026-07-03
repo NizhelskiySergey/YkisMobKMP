@@ -58,6 +58,7 @@ import com.ykis.ykismobkmp.ui.navigation.LocalContentType
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
+import ykismobkmp.composeapp.generated.resources.addressed
 import ykismobkmp.composeapp.generated.resources.cancel
 import ykismobkmp.composeapp.generated.resources.delete
 import ykismobkmp.composeapp.generated.resources.title_delete_appartment
@@ -141,7 +142,7 @@ class InfoApartmentScreen(
       topBar = {
         DefaultAppBar(
           title = baseUIState.address,
-          subtitle = " о/р ${baseUIState.addressId}",
+          subtitle = "${stringResource(Res.string.addressed)} ${baseUIState.addressId}",
           canNavigateBack = false,
           onDrawerClick = onDrawerClicked,
           actionButton = {

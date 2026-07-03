@@ -658,10 +658,45 @@ class ChatScreenModel(
     screenModelScope.launch {
       _isAssistantLoading.value = true
       try {
-        val result = chatRepo.analyzeMeterImage("Проаналізуй фото лічильника для адреси ${address ?: "м. Южне"}", chatRepo.readFileAsBytes(path))
-        _assistantResponse.value = result
-      } catch (e: Exception) { logService.logNonFatalCrash(e) } 
-      finally { _isAssistantLoading.value = false }
+        // 1. СТИСКАЄМО ФОТО (критично для API Gemini, щоб не перевищувати ліміти)
+        println("[YkisLogKMP.Chat]: [AI_PREPARE] Стиснення фото перед аналізом...")
+        val compressedBytes = chatRepo.compressImage(path)
+        
+        if (compressedBytes.isEmpty()) {
+            println("[YkisLogKMP.Chat]: [AI_ERROR] Не вдалося прочитати або стиснути файл.")
+            return@launch
+        }
+        
+        println("[YkisLogKMP.Chat]: [AI_START] Аналіз фото... Розмір: ${compressedBytes.size} байт")
+
+        val prompt = """
+          Ти — асистент ЮКІС. Визнач, чи є на цьому фото лічильник води або тепла. 
+          ЯКЩО ЦЕ НЕ ЛІЧИЛЬНИК: Поверни тільки одне слово "IGNORE".
+          ЯКЩО ЦЕ ЛІЧИЛЬНИК:
+          1. Використай адресу: ${address ?: "м. Южне"}.
+          2. Знайди серійний номер лічильника (якщо видно).
+          3. Прочитай поточні показання (цифри в віконцях).
+          ЯКЩО ПОКАЗАННЯ Є: Поверни текст: [Адреса], лічильник №[Номер], показання [Число].
+          ЯКЩО ПОКАЗАННЯ НЕЧИТАБЕЛЬНІ: Поверни текст: [Адреса], лічильник №[Номер], показання.
+          ВІДПОВІДЬ МАЄ МІСТИТИ ТІЛЬКИ ЦЕЙ РЯДОК БЕЗ ЗАЙВИХ СЛІВ.
+        """.trimIndent()
+        
+        val result = chatRepo.analyzeMeterImage(prompt, compressedBytes)
+        println("[YkisLogKMP.Chat]: [AI_RAW_RESULT]: $result")
+        
+        if (result != null && !result.contains("IGNORE", ignoreCase = true)) {
+          _messageText.value = result.trim()
+          _assistantResponse.value = null 
+          println("[YkisLogKMP.Chat]: [AI_SUCCESS] Дані підставлено.")
+        } else {
+          println("[YkisLogKMP.Chat]: [AI_IGNORE] Фото не розпізнано як лічильник або Gemini відмовив.")
+        }
+      } catch (e: Exception) { 
+        println("[YkisLogKMP.Chat_ERROR]: Помилка ІІ: ${e.message}")
+        logService.logNonFatalCrash(e) 
+      } finally { 
+        _isAssistantLoading.value = false 
+      }
     }
   }
 

@@ -47,6 +47,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.services
+import ykismobkmp.composeapp.generated.resources.set_org
 
 private const val tag = "ServiceSelectorScreen"
 
@@ -141,7 +142,7 @@ fun ServiceSelectorContent(
   Column(modifier = modifier.fillMaxSize()) {
     DefaultAppBar(
       title = stringResource(Res.string.services),
-      subtitle = "Оберіть службу чату",
+      subtitle = stringResource(Res.string.set_org),
       onDrawerClick = onDrawerClicked,
       canNavigateBack = false
     )

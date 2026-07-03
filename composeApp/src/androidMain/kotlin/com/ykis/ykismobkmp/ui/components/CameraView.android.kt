@@ -54,6 +54,13 @@ actual fun CameraView(
   val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
   var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
 
+  // ДОДАНО: Стан відстеження дозволу в реальному часі
+  var hasPermission by remember {
+    mutableStateOf(
+      ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+    )
+  }
+
   // ИСПРАВЛЕНО: Состояние блокировки кнопок переведено на КМР rememberSaveable для защиты от рекомпозиций экрана
   var isCapturing by rememberSaveable { mutableStateOf(false) }
 
@@ -66,51 +73,54 @@ actual fun CameraView(
       onBack()
     } else {
       println("[$className.PERMISSION]: Доступ до камери надано.")
+      hasPermission = true // Оновлюємо стейт, що змусить UI перемалюватися
     }
   }
 
   // Триггер мгновенной проверки манифеста безопасности при входе на экран фотофиксации
   LaunchedEffect(Unit) {
-    val permissionStatus = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-    println("[$className.INIT]: Поточний статус дозволу на камеру: $permissionStatus")
-    
-    if (permissionStatus != PackageManager.PERMISSION_GRANTED) {
+    if (!hasPermission) {
       println("[$className.INIT]: Запит дозволу...")
       cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
     }
   }
 
-  Box(modifier = Modifier.fillMaxSize()) {
-    AndroidView(
-      factory = { ctx ->
-        val previewView = PreviewView(ctx).apply {
-          scaleType = PreviewView.ScaleType.FILL_CENTER
-        }
-
-        cameraProviderFuture.addListener({
-          try {
-            val cameraProvider = cameraProviderFuture.get()
-            val preview = Preview.Builder().build()
-
-            preview.surfaceProvider = previewView.surfaceProvider
-            imageCapture = ImageCapture.Builder().build()
-
-            cameraProvider.unbindAll()
-            cameraProvider.bindToLifecycle(
-              lifecycleOwner,
-              CameraSelector.DEFAULT_BACK_CAMERA,
-              preview,
-              imageCapture
-            )
-          } catch (e: Exception) {
-            println("[$className.init] Critical Binding Failed: ${e.message}")
+  Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    if (hasPermission) {
+      AndroidView(
+        factory = { ctx ->
+          val previewView = PreviewView(ctx).apply {
+            scaleType = PreviewView.ScaleType.FILL_CENTER
           }
-        }, ContextCompat.getMainExecutor(ctx))
 
-        previewView
-      },
-      modifier = Modifier.fillMaxSize()
-    )
+          cameraProviderFuture.addListener({
+            try {
+              val cameraProvider = cameraProviderFuture.get()
+              val preview = Preview.Builder().build()
+
+              preview.surfaceProvider = previewView.surfaceProvider
+              imageCapture = ImageCapture.Builder().build()
+
+              cameraProvider.unbindAll()
+              cameraProvider.bindToLifecycle(
+                lifecycleOwner,
+                CameraSelector.DEFAULT_BACK_CAMERA,
+                preview,
+                imageCapture
+              )
+            } catch (e: Exception) {
+              println("[$className.init] Critical Binding Failed: ${e.message}")
+            }
+          }, ContextCompat.getMainExecutor(ctx))
+
+          previewView
+        },
+        modifier = Modifier.fillMaxSize()
+      )
+    } else {
+      // Плейсхолдер поки дозвіл запитується
+      CircularProgressIndicator()
+    }
 
     // Кнопка возврата в родительский UI-модуль
     IconButton(

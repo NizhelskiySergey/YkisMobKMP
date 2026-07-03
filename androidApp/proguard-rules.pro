@@ -3,20 +3,21 @@
 -keep class kotlin.Metadata { *; }
 
 # --- Koin (Dependency Injection) ---
-# Koin предоставляет свои правила, оставляем только поддержку аннотаций если они используются
 -keepclassmembers class ** {
     @org.koin.core.annotation.** *;
 }
 
 # --- kotlinx.serialization ---
-# Сохраняем классы помеченные @Serializable и их сериализаторы
 -keepattributes *Annotation*, Signature
 -keep @kotlinx.serialization.Serializable class * { *; }
 -keepclassmembers class * {
     @kotlinx.serialization.SerialName <fields>;
 }
 -keepclassmembers class **$serializer {
-    public static INSTANCE;
+    public static ** INSTANCE;
+}
+-keepclassmembers class * {
+    *** Companion;
 }
 
 # --- Сохраняем UI-стейты и доменные сущности (важно для десериализации) ---

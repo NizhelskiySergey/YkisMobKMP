@@ -356,7 +356,11 @@ fun ChatScreenContent(
                 if (path.isNotBlank()) {
                     println("[YkisLogKMP.ChatScreen]: Файл отримано: $fileName")
                     screenModel.setSelectedImagePath(path, fileName)
-                    if (baseUIState.userRole == UserRole.StandardUser && path.contains("image")) {
+                    
+                    val isImage = path.contains("image", ignoreCase = true) || 
+                                  path.lowercase().let { it.endsWith(".jpg") || it.endsWith(".png") || it.endsWith(".jpeg") }
+                    
+                    if (baseUIState.userRole == UserRole.StandardUser && isImage) {
                         screenModel.analyzePhotoWithGemini(path, baseUIState.address)
                     }
                     navigateToSendImageScreen()

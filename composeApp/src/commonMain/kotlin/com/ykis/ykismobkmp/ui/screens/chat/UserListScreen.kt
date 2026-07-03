@@ -94,7 +94,7 @@ class UserListScreen(
 
       DefaultAppBar(
         title = appBarTitle,
-        subtitle = if (baseUIState.userRole == UserRole.StandardUser) "Ваші адреси" else "Список чатів",
+        subtitle = if (baseUIState.userRole == UserRole.StandardUser) stringResource(Res.string.own_address) else stringResource(Res.string.list_chats),
         onDrawerClick = onDrawerClicked,
         canNavigateBack = canNavigateBack,
         navigationType = com.ykis.ykismobkmp.ui.navigation.LocalNavigationType.current,
@@ -137,7 +137,7 @@ class UserListScreen(
           modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-          placeholder = { Text("Пошук за адресою або о/р...", fontSize = 14.sp) },
+          placeholder = { Text(stringResource(Res.string.search_chats), fontSize = 14.sp) },
           leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
           trailingIcon = {
             if (localSearchQuery.isNotEmpty()) {

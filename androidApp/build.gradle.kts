@@ -70,6 +70,11 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("release")
+            
+            // Включаем генерацию и упаковку нативных отладочных символов для Google Play
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
         }
         getByName("debug") {
             signingConfig = signingConfigs.getByName("debug")

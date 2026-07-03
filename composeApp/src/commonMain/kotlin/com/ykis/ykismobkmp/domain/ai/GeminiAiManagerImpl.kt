@@ -62,9 +62,14 @@ class GeminiCloudProvider(
       } else {
         model.generateContent(prompt)
       }
-      response.text
+      val text = response.text
+      if (text == null) {
+          println("[$tag]: [WARN] Gemini повернув порожній текст. Можливо, контент заблоковано фільтрами безпеки.")
+      }
+      text
     } catch (e: Exception) {
-      println("[$tag]: Ошибка мультимодального анализа: ${e.message}")
+      println("[$tag]: [ERROR] Помилка мультимодального аналізу: ${e.message}")
+      e.printStackTrace()
       null
     }
   }
