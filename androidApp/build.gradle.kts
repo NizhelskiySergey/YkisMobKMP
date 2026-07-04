@@ -75,6 +75,11 @@ android {
             ndk {
                 debugSymbolLevel = "FULL"
             }
+
+            // ДОБАВЛЕНО: Автоматическая загрузка нативных символов в Firebase Crashlytics
+            configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
+                nativeSymbolUploadEnabled = true
+            }
         }
         getByName("debug") {
             signingConfig = signingConfigs.getByName("debug")
