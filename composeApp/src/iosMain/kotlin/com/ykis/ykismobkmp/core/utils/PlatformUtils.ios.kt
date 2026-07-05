@@ -9,6 +9,12 @@ import platform.Foundation.base64EncodedStringWithOptions
 import platform.Foundation.create
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.OAuthProvider
+import kotlin.native.concurrent.ThreadLocal
+
+@ThreadLocal
+object IosAuthConnector {
+    var bridge: NativeAuthBridge? = null
+}
 
 @OptIn(ExperimentalForeignApi::class, kotlinx.cinterop.BetaInteropApi::class)
 actual fun encodeBase64(bytes: ByteArray): String {
@@ -28,27 +34,21 @@ actual fun triggerNativeGoogleSignIn(
 ) {
   val bridge = IosAuthConnector.bridge
   if (bridge != null) {
-      println("[YkisLogKMP.PlatformUtils]: [iOS_GOOGLE] Запуск нативного моста Swift")
       bridge.signInWithGoogle(
           onSuccess = { token -> onTokenReceived(token) },
           onError = { error -> onError(error) }
       )
   } else {
-      println("[YkisLogKMP.PlatformUtils]: [iOS_ERROR] NativeAuthBridge не ініціалізовано")
       onError("Нативна авторизація не налаштована")
   }
 }
 
-/**
- * [triggerNativeAppleSignIn] — Кроссплатформенный запуск нативного диалога Apple ID.
- */
 actual fun triggerNativeAppleSignIn(
     onTokenReceived: (String) -> Unit,
     onError: (String) -> Unit
 ) {
     val bridge = IosAuthConnector.bridge
     if (bridge != null) {
-        println("[YkisLogKMP.PlatformUtils]: [iOS_APPLE] Запуск нативного моста Apple")
         bridge.signInWithApple(
             onSuccess = { token -> onTokenReceived(token) },
             onError = { error -> onError(error) }
@@ -58,28 +58,21 @@ actual fun triggerNativeAppleSignIn(
     }
 }
 
-/**
- * [performPlatformSignInWithApple] — Спеціальна реалізація для iOS через OAuthProvider.
- */
 actual suspend fun performPlatformSignInWithApple(
     auth: FirebaseAuth,
     idToken: String,
     rawNonce: String?
 ): Resource<Boolean> = try {
-    println("[YkisLogKMP.PlatformUtils]: [iOS_APPLE_SIGN_IN] Створення креденшала для Apple")
-    
-    // Використовуємо іменовані аргументи для точності в KMP бібліотеці
     val appleCredential = OAuthProvider.credential(
         providerId = "apple.com",
         idToken = idToken,
         accessToken = "", 
         rawNonce = rawNonce
     )
-    
     auth.signInWithCredential(appleCredential)
-    println("[YkisLogKMP.PlatformUtils]: [iOS_APPLE_SIGN_IN] Вхід успішний")
     Resource.Success(true)
 } catch (e: Exception) {
-    println("[YkisLogKMP.PlatformUtils_ERROR]: Apple Auth Failed: ${e.message}")
     Resource.Error(message = e.message ?: "Apple Auth Failed")
 }
+
+actual fun getNativeBridge(): NativeAuthBridge? = IosAuthConnector.bridge

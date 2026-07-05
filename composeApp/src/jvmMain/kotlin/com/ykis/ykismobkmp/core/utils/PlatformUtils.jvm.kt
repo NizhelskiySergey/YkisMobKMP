@@ -29,3 +29,5 @@ actual suspend fun performPlatformSignInWithApple(
     rawNonce: String?
 ): Resource<Boolean> = Resource.Error("Apple ID не підтримується на Desktop")
 
+actual fun getNativeBridge(): NativeAuthBridge? = null
+

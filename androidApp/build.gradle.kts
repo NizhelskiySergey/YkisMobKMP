@@ -117,5 +117,6 @@ dependencies {
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.messaging.native)
     implementation(libs.firebase.appcheck.debug)
+    implementation(libs.firebase.ai)
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
 }

@@ -109,6 +109,8 @@ class AnnouncementScreenModel(
                 }
 
                 var imageUrl: String? = null
+                var finalImageWidth = 0
+                var finalImageHeight = 0
                 var fileUrl: String? = null
                 var fileName: String? = null
 
@@ -119,6 +121,26 @@ class AnnouncementScreenModel(
                         val fileData = chatRepo.compressImage(imgPath)
                         val storagePath = "chat_images/announcements/${targetOsbbId}_${currentTimeMillis()}.jpg"
                         imageUrl = chatRepo.uploadFile(fileData, storagePath)
+                        
+                        // Зберігаємо реальне ім'я фото, якщо немає окремого документа
+                        fileName = screenState.announcementImageName
+
+                        // Розраховуємо фінальні розміри після стиснення (як у чаті)
+                        val origW = screenState.announcementImageWidth
+                        val origH = screenState.announcementImageHeight
+                        if (origW > 0 && origH > 0) {
+                            val maxSide = 1600.0
+                            if (origW > origH && origW > maxSide) {
+                                finalImageHeight = (origH * maxSide / origW).toInt()
+                                finalImageWidth = maxSide.toInt()
+                            } else if (origH > maxSide) {
+                                finalImageWidth = (origW * maxSide / origH).toInt()
+                                finalImageHeight = maxSide.toInt()
+                            } else {
+                                finalImageWidth = origW
+                                finalImageHeight = origH
+                            }
+                        }
                     } catch (e: Exception) {
                         println("[AnnouncementScreenModel]: Помилка завантаження фото: ${e.message}")
                         SnackbarManager.showMessage("Помилка завантаження фото: ${e.message}")
@@ -171,6 +193,8 @@ class AnnouncementScreenModel(
                     osbbId = targetOsbbId,
                     timestamp = currentTimeMillis(),
                     imageUrl = imageUrl,
+                    imageWidth = finalImageWidth,
+                    imageHeight = finalImageHeight,
                     fileUrl = fileUrl,
                     fileName = fileName
                 )
@@ -213,8 +237,17 @@ class AnnouncementScreenModel(
         _uiState.update { it.copy(announcementDraftMessage = message) }
     }
 
-    fun setAnnouncementImagePath(path: String?) {
-        _uiState.update { it.copy(announcementImagePath = path) }
+    fun setAnnouncementImagePath(path: String?, name: String? = null, width: Int = 0, height: Int = 0) {
+        _uiState.update { it.copy(
+            announcementImagePath = path, 
+            announcementImageName = name ?: if (path != null) "Зображення_з_камери.jpg" else null,
+            announcementImageWidth = width, 
+            announcementImageHeight = height
+        ) }
+    }
+
+    fun onAnnouncementImageNameChanged(newName: String) {
+        _uiState.update { it.copy(announcementImageName = newName) }
     }
 
     fun setAnnouncementFilePath(path: String?, fileName: String? = null) {

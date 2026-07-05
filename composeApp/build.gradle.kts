@@ -137,12 +137,12 @@ kotlin {
         implementation(libs.coil.compose)
         implementation(libs.coil.network.ktor)
         implementation(libs.napier)
-        implementation(libs.generativeai.google)
       }
     }
 
     androidMain.dependencies {
-      implementation(project.dependencies.platform("com.google.firebase:firebase-bom:33.9.0"))
+      implementation(project.dependencies.platform(libs.firebase.bom))
+      implementation(libs.firebase.ai)
       implementation(libs.androidx.activity.compose)
       implementation(libs.androidx.splashscreen)
       implementation(libs.ktor.client.okhttp)

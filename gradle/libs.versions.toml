@@ -5,7 +5,6 @@ app-versionCode = "12"
 cameraCore = "1.6.1"
 composeWebviewMultiplatform = "2.0.3"
 datastorePreferencesCoreVersion = "1.1.1"
-generativeaiGoogle = "0.9.0-1.1.0"
 kotlin = "2.4.0"
 agp = "9.2.1"
 android-compileSdk = "37"
@@ -32,7 +31,7 @@ uiViewbinding = "1.11.1"
 voyager = "1.1.0-beta02"
 credentials-play-services-auth = "1.6.0"
 koin = "4.2.1"
-ktor = "3.4.3"
+ktor = "3.0.3"
 gitlive-firebase = "2.4.0"
 kotlinx-serialization = "1.11.0"
 coil = "3.4.0"
@@ -50,7 +49,7 @@ firebaseAppcheckDebug = "19.0.2"
 playServicesAuthApiPhone = "18.1.0"
 firebaseAnalytics = "22.3.0"
 firebaseCommonKtx = "21.0.0"
-firebaseBom = "33.9.0"
+firebaseBom = "34.14.0"
 firebaseMessaging = "25.0.2"
 androidxStartup = "1.2.0"
 
@@ -64,7 +63,11 @@ androidx-datastore-core = { module = "androidx.datastore:datastore-core", versio
 androidx-datastore-preferences-core = { module = "androidx.datastore:datastore-preferences-core", version.ref = "datastorePreferencesCoreVersion" }
 androidx-preference-ktx = { module = "androidx.preference:preference-ktx", version.ref = "preferenceKtx" }
 androidx-window = { module = "androidx.window:window", version.ref = "window" }
-generativeai-google = { module = "dev.shreyaspatil.generativeai:generativeai-google", version.ref = "generativeaiGoogle" }
+
+# Firebase AI Logic (Новітній SDK для App Check)
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-ai = { module = "com.google.firebase:firebase-ai" }
+
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatformSettings" }
 multiplatform-settings-no-arg = { module = "com.russhwolf:multiplatform-settings-no-arg", version.ref = "multiplatformSettings" }
 webcam-capture = { module = "com.github.sarxos:webcam-capture", version.ref = "webcamCapture" }
@@ -145,7 +148,6 @@ androidx-credentials = { module = "androidx.credentials:credentials", version.re
 # Изображения (Coil3 поддерживает KMP)
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
-firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-appcheck-debug = { group = "com.google.firebase", name = "firebase-appcheck-debug", version.ref = "firebaseAppcheckDebug" }
 
 
@@ -166,4 +168,3 @@ kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqlDelight" }
 crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlytics" }
-

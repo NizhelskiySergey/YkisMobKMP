@@ -112,3 +112,5 @@ actual suspend fun performPlatformSignInWithApple(
     idToken: String,
     rawNonce: String?
 ): Resource<Boolean> = Resource.Error("Apple ID не підтримується на Android")
+
+actual fun getNativeBridge(): NativeAuthBridge? = null

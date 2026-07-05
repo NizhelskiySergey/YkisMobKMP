@@ -4,67 +4,76 @@ import kotlinx.browser.window
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLImageElement
+import org.w3c.files.File
+import org.w3c.files.FileReader
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import org.khronos.webgl.Int8Array
+import org.khronos.webgl.ArrayBuffer
+import org.khronos.webgl.get
 
 /**
- * [platformReadFileAsBytes] — Web-реалізація перетворення Base64 у масив байтів.
+ * [platformReadFileAsBytes] — Web-реалізація отримання ОРИГІНАЛЬНИХ байтів файлу.
  */
-actual suspend fun platformReadFileAsBytes(path: String): ByteArray {
-    return try {
-        val base64Content = if (path.startsWith("data:")) path.substringAfter(",") else path
-        val binaryString = window.atob(base64Content)
-        val bytes = ByteArray(binaryString.length)
-        for (i in binaryString.indices) {
-            bytes[i] = binaryString[i].code.toByte()
-        }
-        bytes
-    } catch (e: Exception) {
-        println("[ChatRepository.Web]: Помилка декодування файлу: ${e.message}")
-        byteArrayOf()
+actual suspend fun platformReadFileAsBytes(path: String): ByteArray = suspendCoroutine { continuation ->
+    val file = (window.asDynamic()).lastSelectedFile as? File
+    if (file == null) {
+        continuation.resume(byteArrayOf())
+        return@suspendCoroutine
     }
+
+    val reader = FileReader()
+    reader.onload = { event ->
+        val buffer = event.target.asDynamic().result as ArrayBuffer
+        val int8Array = Int8Array(buffer)
+        val bytes = ByteArray(int8Array.length) { i -> int8Array[i] }
+        continuation.resume(bytes)
+    }
+    reader.onerror = { continuation.resume(byteArrayOf()) }
+    reader.readAsArrayBuffer(file)
 }
 
 /**
- * [platformCompressImage] — Стиснення зображення через Canvas у браузері.
+ * [platformCompressImage] — Нормалізація орієнтації та розмірів для Web.
+ * ВИКОРИСТОВУЄМО naturalWidth/Height для виправлення бага орієнтації Skia.
  */
 actual suspend fun platformCompressImage(path: String): ByteArray {
-    if (!path.startsWith("data:image")) return platformReadFileAsBytes(path)
-    
     return suspendCoroutine { continuation ->
         val img = window.document.createElement("img") as HTMLImageElement
+        img.crossOrigin = "anonymous"
         img.onload = {
             val canvas = window.document.createElement("canvas") as HTMLCanvasElement
             val ctx = canvas.getContext("2d") as CanvasRenderingContext2D
             
-            var width = img.width.toDouble()
-            var height = img.height.toDouble()
-            val maxSide = 1280.0
+            // ЧИТАЄМО ЕТАЛОННІ РОЗМІРИ (з урахуванням EXIF)
+            val realW = img.naturalWidth.toDouble()
+            val realH = img.naturalHeight.toDouble()
             
-            if (width > height && width > maxSide) {
-                height *= maxSide / width
-                width = maxSide
-            } else if (height > maxSide) {
-                width *= maxSide / height
-                height = maxSide
+            // Обмежуємо максимальну сторону для ЧАТУ та ШІ (1600px), зберігаючи еталонні пропорції
+            val maxSide = 1600.0
+            var targetW = realW
+            var targetH = realH
+            
+            if (realW > realH && realW > maxSide) {
+                targetH *= maxSide / realW
+                targetW = maxSide
+            } else if (realH > maxSide) {
+                targetW *= maxSide / realH
+                targetH = maxSide
             }
             
-            canvas.width = width.toInt()
-            canvas.height = height.toInt()
-            ctx.drawImage(img, 0.0, 0.0, width, height)
+            canvas.width = targetW.toInt()
+            canvas.height = targetH.toInt()
             
-            val compressedBase64 = canvas.toDataURL("image/jpeg", 0.7)
+            // ПЕРЕМАЛЬОВУЄМО: Браузер автоматично розверне пікселі правильно при drawImage
+            ctx.drawImage(img, 0.0, 0.0, targetW, targetH)
+            
+            val compressedBase64 = canvas.toDataURL("image/jpeg", 0.85) // Якість 85%
             val binaryString = window.atob(compressedBase64.substringAfter(","))
-            val bytes = ByteArray(binaryString.length)
-            for (i in binaryString.indices) {
-                bytes[i] = binaryString[i].code.toByte()
-            }
+            val bytes = ByteArray(binaryString.length) { i -> (binaryString[i].code and 0xFF).toByte() }
             continuation.resume(bytes)
         }
-        img.onerror = { _, _, _, _, _ ->
-            // В случае ошибки возвращаем пустой массив, чтобы не блокировать поток
-            continuation.resume(byteArrayOf())
-        }
+        img.onerror = { _, _, _, _, _ -> continuation.resume(byteArrayOf()) }
         img.src = path
     }
 }

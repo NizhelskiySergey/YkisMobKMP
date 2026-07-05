@@ -74,6 +74,32 @@ class AnnouncementListScreen(
             announcementModel.observeAnnouncements(baseUIState.osbbId)
         }
 
+        var announcementToDelete by remember { mutableStateOf<AnnouncementEntity?>(null) }
+
+        if (announcementToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { announcementToDelete = null },
+                title = { Text("Видалити оголошення?") },
+                text = { Text("Ця дія безповоротна. Оголошення зникне у всіх мешканців.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            announcementModel.deleteAnnouncement(announcementToDelete!!.id)
+                            announcementToDelete = null
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Видалити")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { announcementToDelete = null }) {
+                        Text("Скасувати")
+                    }
+                }
+            )
+        }
+
         Scaffold(
             topBar = {
                 Column {
@@ -131,7 +157,7 @@ class AnnouncementListScreen(
                                 groupedItems = groupedItems,
                                 isAdmin = baseUIState.userRole != UserRole.StandardUser,
                                 currentUid = baseUIState.uid ?: "",
-                                onDeleteClick = { id -> announcementModel.deleteAnnouncement(id) }
+                                onDeleteClick = { announcement -> announcementToDelete = announcement }
                             )
                         }
                     }
@@ -190,7 +216,7 @@ fun AnnouncementList(
     groupedItems: List<GroupedAnnouncement>,
     isAdmin: Boolean,
     currentUid: String,
-    onDeleteClick: (String) -> Unit
+    onDeleteClick: (AnnouncementEntity) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -210,7 +236,7 @@ fun AnnouncementList(
                             item = grouped.announcement,
                             isAdmin = isAdmin,
                             currentUid = currentUid,
-                            onDeleteClick = onDeleteClick
+                            onDeleteClick = { onDeleteClick(it) }
                         )
                     }
                 }
@@ -246,7 +272,7 @@ fun AnnouncementItem(
     item: AnnouncementEntity,
     isAdmin: Boolean,
     currentUid: String,
-    onDeleteClick: (String) -> Unit
+    onDeleteClick: (AnnouncementEntity) -> Unit
 ) {
     val isGlobal = item.osbbId == 0L
     val uriHandler = LocalUriHandler.current
@@ -302,10 +328,10 @@ fun AnnouncementItem(
                     )
                 }
 
-                // Кнопка удаления видна только если пользователь - админ И он автор объявления
-                if (isAdmin && item.authorUid == currentUid) {
+                // Кнопка видалення доступна всім адмінам
+                if (isAdmin) {
                     IconButton(
-                        onClick = { onDeleteClick(item.id) },
+                        onClick = { onDeleteClick(item) },
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
@@ -326,16 +352,47 @@ fun AnnouncementItem(
 
             // ИЗОБРАЖЕНИЕ (если есть)
             if (!item.imageUrl.isNullOrBlank()) {
+                val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
+                val ratio = if (item.imageWidth > 0 && item.imageHeight > 0) {
+                    item.imageWidth.toFloat() / item.imageHeight.toFloat()
+                } else null
+
                 Spacer(modifier = Modifier.height(12.dp))
                 AsyncImage(
                     model = item.imageUrl,
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 400.dp) // ИСПРАВЛЕНО: Ограничение максимальной высоты
+                        .then(if (ratio != null) Modifier.aspectRatio(ratio) else Modifier)
+                        .heightIn(max = 400.dp)
                         .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Fit
+                    contentScale = if (ratio != null && isWeb) ContentScale.FillBounds else ContentScale.Fit
                 )
+
+                // ДОДАНО: Посилання на завантаження фото (як у чаті)
+                val photoName = if (!item.fileName.isNullOrBlank()) item.fileName else "image.jpg"
+                Row(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .clickable { uriHandler.openUri(item.imageUrl) },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AttachFile,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = photoName,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
             }
 
             // ФАЙЛ (если есть)

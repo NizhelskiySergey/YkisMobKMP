@@ -7,6 +7,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.ContentScale
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -62,11 +65,18 @@ fun SendImageContent(
   val messageText by chatScreenModel.messageText.collectAsState()
   val isLoadingAfterSending by chatScreenModel.isLoadingAfterSending.collectAsState()
   val isAssistantLoading by chatScreenModel.isAssistantLoading.collectAsState()
+  
+  // Шлях до зображення (може бути оновлений нормалізованою версією в ChatScreenModel)
+  val liveImagePath by chatScreenModel.selectedImagePath.collectAsState()
+  val currentFileName by chatScreenModel.selectedFileName.collectAsState()
+  val currentPath = liveImagePath ?: imagePath
 
-  val isImage = remember(imagePath) {
-    val path = imagePath.lowercase()
-    path.endsWith(".jpg") || path.endsWith(".jpeg") ||
-      path.endsWith(".png") || path.contains("camera") || path.contains("image")
+  val isImage = remember(currentPath, fileName) {
+    val path = currentPath.lowercase()
+    val name = fileName?.lowercase() ?: ""
+    path.endsWith(".jpg") || path.endsWith(".jpeg") || path.endsWith(".png") || 
+      path.contains("image") || path.startsWith("blob:") || path.startsWith("data:image") ||
+      name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png")
   }
 
   Column(
@@ -79,15 +89,37 @@ fun SendImageContent(
     Box(
       modifier = Modifier
         .weight(1f)
-        .fillMaxWidth(),
+        .fillMaxWidth()
+        .background(Color.Black.copy(alpha = 0.05f)),
       contentAlignment = Alignment.Center
     ) {
       if (isImage) {
+        // ВИПРАВЛЕНО: Тепер використовуємо просту отрисовку.
+        // Завдяки нормалізації в ChatScreenModel, картинка вже приходить у Skia правильної орієнтації.
         AsyncImage(
-          model = imagePath,
+          model = currentPath,
           contentDescription = "Preview",
-          modifier = Modifier.fillMaxSize()
+          contentScale = ContentScale.Fit, 
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .align(Alignment.Center)
         )
+        
+        if (isAssistantLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color.White)
+                    Spacer(Modifier.height(8.dp))
+                    Text("ШІ аналізує фото...", color = Color.White)
+                }
+            }
+        }
       } else {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
           Icon(
@@ -136,6 +168,25 @@ fun SendImageContent(
       }
     }
 
+    // ДОДАНО: Редагування імені файлу
+    OutlinedTextField(
+        value = currentFileName ?: "",
+        onValueChange = { chatScreenModel.onFileNameChanged(it) },
+        label = { Text("Назва файлу", style = MaterialTheme.typography.labelSmall) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodySmall,
+        trailingIcon = {
+            if (!currentFileName.isNullOrBlank()) {
+                IconButton(onClick = { chatScreenModel.onFileNameChanged("") }) {
+                    Icon(Icons.Default.Close, null, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    )
+
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
     val apartmentLiveUiState by apartmentScreenModel.uiState.collectAsState()
     val targetUser by chatScreenModel.selectedUser.collectAsState()
@@ -151,8 +202,6 @@ fun SendImageContent(
         val curAddrId = if (role == UserRole.StandardUser) apartmentLiveUiState.addressId else (user?.addressId ?: 0L)
         val curOsbbId = if (role == UserRole.StandardUser) (apartmentLiveUiState.osmdId) else apartmentLiveUiState.osbbId
 
-        println("[YkisLogKMP]: [SEND_IMAGE_CLICK] UID: $myUid, Role: $role, AddrID: $curAddrId, OsbbID: $curOsbbId, ChatID: $chatId")
-
         val (displayName, displayAddr) = if (role == UserRole.StandardUser) {
             val surname = apartmentLiveUiState.nanim ?: ""
             val cleanSurname = if (surname.isNotBlank() && surname != "Мешканець") surname else "Жилець"
@@ -162,7 +211,7 @@ fun SendImageContent(
         }
 
         chatScreenModel.uploadFileAndSendMessage(
-          filePath = imagePath,
+          filePath = currentPath, // Використовуємо актуальний шлях (можливо нормалізований)
           chatId = chatId,
           senderUid = myUid,
           senderDisplayedName = displayName,
@@ -177,7 +226,7 @@ fun SendImageContent(
           }
         )
       },
-      onImageSent = { _, _ -> },
+      onImageSent = { _, _, _, _ -> },
       onCameraClick = {},
       showAttachIcon = false,
       isLoading = isLoadingAfterSending || isAssistantLoading,

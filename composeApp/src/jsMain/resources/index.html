@@ -43,14 +43,13 @@
 <div id="recaptcha-container"></div>
 
 <!-- FIREBASE SDK COMPAT (JS) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-remote-config-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-check-compat.js"></script>
 
 <script>
     const firebaseConfig = {
@@ -64,52 +63,38 @@
         measurementId: "G-JNPZSDLKV9"
     };
 
-    let recaptchaVerifier = null;
-    let confirmationResult = null;
-
-
     if (firebase.apps.length === 0) {
         firebase.initializeApp(firebaseConfig);
-        firebase.firestore().settings({ experimentalForceLongPolling: true });
     }
 
-    // Исправленная активация App Check для Web
-    window.initializeFirebaseAppCheck = function(siteKey) {
-        try {
-            const appCheck = firebase.appCheck();
-            // Создаем провайдер Enterprise, как указано в ваших API настройках
-            const provider = new firebase.appCheck.ReCaptchaEnterpriseProvider(siteKey);
-            appCheck.activate(provider, true);
-            console.log("[JS] App Check Ready (Enterprise Provider)");
-        } catch (e) {
-            console.warn("[JS] App Check Activation Warn:", e.message);
-        }
+    // ВИКОРИСТОВУЄМО ПРЯМИЙ REST ДЛЯ GEMINI 3.5 FLASH (щоб уникнути 404 у Vertex SDK)
+    window.generateAiContentWeb = async function(prompt, apiKey) {
+        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        const data = await response.json();
+        return data.candidates[0].content.parts[0].text;
     };
 
-    window.triggerGoogleAuth = function(clientId) {
-        try {
-            google.accounts.id.initialize({
-                client_id: clientId,
-                ux_mode: 'popup',
-                auto_select: false,
-                use_fedcm_for_prompt: true,
-                itp_support: true,
-                callback: (response) => {
-                    if (response.credential && window.onGoogleTokenReceived) {
-                        window.onGoogleTokenReceived(response.credential);
-                    }
-                }
-            });
-            google.accounts.id.renderButton(document.getElementById("google-signin-btn"), {
-                theme: "filled_blue",
-                size: "large",
-                width: 280,
-                shape: "pill"
-            });
-
-            // Викликаємо Prompt без callback-функції (найчистіший стандарт FedCM)
-            google.accounts.id.prompt();
-        } catch (e) { console.error("[JS] Google Auth Error:", e); }
+    window.analyzeAiImageWeb = async function(prompt, base64Data, apiKey) {
+        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+                    ]
+                }]
+            })
+        });
+        const data = await response.json();
+        return data.candidates[0].content.parts[0].text;
     };
 
     window.getWebFcmToken = async function(vapidKey) {
@@ -123,16 +108,44 @@
         const auth = firebase.auth();
         auth.languageCode = 'uk';
         try {
-            if (recaptchaVerifier) { try { recaptchaVerifier.clear(); } catch(e) {} }
-            recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 'size': 'invisible' });
-            confirmationResult = await auth.signInWithPhoneNumber(phoneNumber, recaptchaVerifier);
+            const recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 'size': 'invisible' });
+            const confirmationResult = await auth.signInWithPhoneNumber(phoneNumber, recaptchaVerifier);
+            window.confirmationResult = confirmationResult;
             return "SUCCESS";
         } catch (e) { throw e.message; }
     };
 
     window.verifySmsWeb = async function(smsCode) {
-        if (!confirmationResult) throw "Сесія не знайдена";
-        try { await confirmationResult.confirm(smsCode); return true; } catch (e) { throw "Невірний код"; }
+        if (!window.confirmationResult) throw "Сесія не знайдена";
+        try { await window.confirmationResult.confirm(smsCode); return true; } catch (e) { throw "Невірний код"; }
+    };
+
+    window.initializeFirebaseAppCheck = function(siteKey) {
+        try {
+            const appCheck = firebase.appCheck();
+            const provider = new firebase.appCheck.ReCaptchaEnterpriseProvider(siteKey);
+            appCheck.activate(provider, true);
+        } catch (e) {}
+    };
+
+    window.triggerGoogleAuth = function(clientId) {
+        try {
+            google.accounts.id.initialize({
+                client_id: clientId,
+                ux_mode: 'popup',
+                auto_select: false,
+                use_fedcm_for_prompt: true,
+                callback: (response) => {
+                    if (response.credential && window.onGoogleTokenReceived) {
+                        window.onGoogleTokenReceived(response.credential);
+                    }
+                }
+            });
+            google.accounts.id.renderButton(document.getElementById("google-signin-btn"), {
+                theme: "filled_blue", size: "large", width: 280, shape: "pill"
+            });
+            google.accounts.id.prompt();
+        } catch (e) { console.error("[JS] Google Auth Error:", e); }
     };
 </script>
 

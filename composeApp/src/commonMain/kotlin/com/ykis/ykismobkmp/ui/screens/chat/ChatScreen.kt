@@ -353,15 +353,18 @@ fun ChatScreenContent(
               if (editingMessage != null) screenModel.updateMessage(messageText)
               else screenModel.handleSendMessage(baseUIState)
             },
-            onImageSent = { path, fileName ->
+            onImageSent = { path, fileName, width, height ->
                 if (path.isNotBlank()) {
-                    println("[YkisLogKMP.ChatScreen]: Файл отримано: $fileName")
-                    screenModel.setSelectedImagePath(path, fileName)
+                    println("[YkisLogKMP.ChatScreen]: Файл отримано: $fileName | Dimensions: ${width}x${height}")
+                    screenModel.setSelectedImagePath(path, fileName, width, height)
                     
+                    val checkName = fileName?.lowercase() ?: ""
                     val isImage = path.contains("image", ignoreCase = true) || 
-                                  path.lowercase().let { it.endsWith(".jpg") || it.endsWith(".png") || it.endsWith(".jpeg") }
+                                  path.startsWith("blob:") ||
+                                  checkName.endsWith(".jpg") || checkName.endsWith(".png") || checkName.endsWith(".jpeg")
                     
-                    if (baseUIState.userRole == UserRole.StandardUser && isImage) {
+                    if (isImage) {
+                        println("[YkisLogKMP.Chat]: [AI_AUTO_START] Виявлено зображення, запускаємо аналіз...")
                         screenModel.analyzePhotoWithGemini(path, baseUIState.address)
                     }
                     navigateToSendImageScreen()

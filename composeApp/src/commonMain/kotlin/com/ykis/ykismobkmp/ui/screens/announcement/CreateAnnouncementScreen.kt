@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
@@ -106,8 +107,17 @@ class CreateAnnouncementScreen : Screen {
 
                     Button(
                         onClick = {
-                            filePicker.pickFile { path, name ->
-                                announcementModel.setAnnouncementFilePath(path, name)
+                            filePicker.pickFile { path, name, w, h ->
+                                val checkName = name?.lowercase() ?: ""
+                                val isImage = path.contains("image", ignoreCase = true) || 
+                                              path.startsWith("blob:") ||
+                                              checkName.endsWith(".jpg") || checkName.endsWith(".png") || checkName.endsWith(".jpeg")
+                                
+                                if (isImage) {
+                                    announcementModel.setAnnouncementImagePath(path, name, w, h)
+                                } else {
+                                    announcementModel.setAnnouncementFilePath(path, name)
+                                }
                             }
                         },
                         modifier = Modifier.weight(1f)
@@ -120,15 +130,19 @@ class CreateAnnouncementScreen : Screen {
 
                 // ПРЕДПРОСМОТР ВЛОЖЕНИЙ
                 if (!screenState.announcementImagePath.isNullOrBlank()) {
-                    AttachmentPreview(
-                        name = "Фотографія з камери",
+                    EditableAttachmentPreview(
+                        label = "Назва зображення",
+                        value = screenState.announcementImageName ?: "",
+                        onValueChange = { announcementModel.onAnnouncementImageNameChanged(it) },
                         onClear = { announcementModel.setAnnouncementImagePath(null) }
                     )
                 }
 
                 if (!screenState.announcementFilePath.isNullOrBlank()) {
-                    AttachmentPreview(
-                        name = screenState.announcementFileName ?: screenState.announcementFilePath?.substringAfterLast("/") ?: "Файл",
+                    EditableAttachmentPreview(
+                        label = "Назва файлу",
+                        value = screenState.announcementFileName ?: "",
+                        onValueChange = { announcementModel.setAnnouncementFilePath(screenState.announcementFilePath, it) },
                         onClear = { announcementModel.setAnnouncementFilePath(null) }
                     )
                 }
@@ -163,21 +177,37 @@ class CreateAnnouncementScreen : Screen {
     }
 
     @Composable
-    fun AttachmentPreview(name: String, onClear: () -> Unit) {
+    fun EditableAttachmentPreview(
+        label: String,
+        value: String,
+        onValueChange: (String) -> Unit,
+        onClear: () -> Unit
+    ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
         ) {
-            Row(
-                modifier = Modifier.padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.AttachFile, null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Close, null)
+            Column(modifier = Modifier.padding(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.AttachFile, null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.weight(1f))
+                    IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Close, null)
+                    }
                 }
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodySmall,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
+                    )
+                )
             }
         }
     }
