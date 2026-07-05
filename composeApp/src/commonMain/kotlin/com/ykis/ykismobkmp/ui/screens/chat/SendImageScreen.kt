@@ -7,6 +7,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -66,6 +68,7 @@ fun SendImageContent(
   
   // Шлях до зображення (може бути оновлений нормалізованою версією в ChatScreenModel)
   val liveImagePath by chatScreenModel.selectedImagePath.collectAsState()
+  val currentFileName by chatScreenModel.selectedFileName.collectAsState()
   val currentPath = liveImagePath ?: imagePath
 
   val isImage = remember(currentPath, fileName) {
@@ -164,6 +167,25 @@ fun SendImageContent(
         )
       }
     }
+
+    // ДОДАНО: Редагування імені файлу
+    OutlinedTextField(
+        value = currentFileName ?: "",
+        onValueChange = { chatScreenModel.onFileNameChanged(it) },
+        label = { Text("Назва файлу", style = MaterialTheme.typography.labelSmall) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodySmall,
+        trailingIcon = {
+            if (!currentFileName.isNullOrBlank()) {
+                IconButton(onClick = { chatScreenModel.onFileNameChanged("") }) {
+                    Icon(Icons.Default.Close, null, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    )
 
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
     val apartmentLiveUiState by apartmentScreenModel.uiState.collectAsState()

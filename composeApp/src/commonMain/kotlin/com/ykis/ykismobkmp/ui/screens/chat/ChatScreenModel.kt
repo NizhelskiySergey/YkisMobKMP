@@ -631,9 +631,13 @@ class ChatScreenModel(
 
   fun setSelectedImagePath(path: String?, fileName: String? = null, width: Int = 0, height: Int = 0) {
     _selectedImagePath.value = path
-    _selectedFileName.value = fileName
+    _selectedFileName.value = fileName ?: if (path != null) "Зображення_з_камери.jpg" else null
     _selectedImageWidth.value = width
     _selectedImageHeight.value = height
+  }
+
+  fun onFileNameChanged(newName: String) {
+    _selectedFileName.value = newName
   }
 
   fun setSelectedMessage(message: MessageEntity?) { _selectedMessage.value = message }

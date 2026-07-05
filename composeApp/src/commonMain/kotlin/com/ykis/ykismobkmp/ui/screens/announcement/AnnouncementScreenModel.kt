@@ -240,10 +240,14 @@ class AnnouncementScreenModel(
     fun setAnnouncementImagePath(path: String?, name: String? = null, width: Int = 0, height: Int = 0) {
         _uiState.update { it.copy(
             announcementImagePath = path, 
-            announcementImageName = name,
+            announcementImageName = name ?: if (path != null) "Зображення_з_камери.jpg" else null,
             announcementImageWidth = width, 
             announcementImageHeight = height
         ) }
+    }
+
+    fun onAnnouncementImageNameChanged(newName: String) {
+        _uiState.update { it.copy(announcementImageName = newName) }
     }
 
     fun setAnnouncementFilePath(path: String?, fileName: String? = null) {
