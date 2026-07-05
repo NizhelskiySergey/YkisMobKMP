@@ -80,7 +80,8 @@ android {
             // Настройка Firebase Crashlytics
             configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
                 nativeSymbolUploadEnabled = true
-                unstrippedNativeLibsDir = file("build/intermediates/merged_native_libs/release/out/lib")
+                // Уточненный путь для AGP 9.x
+                unstrippedNativeLibsDir = file("build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib")
             }
         }
         getByName("debug") {
