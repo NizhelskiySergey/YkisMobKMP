@@ -445,9 +445,6 @@ class ChatScreenModel(
                             checkPath.endsWith(".jpg") || checkPath.endsWith(".png") || checkPath.endsWith(".jpeg") ||
                             checkName.endsWith(".jpg") || checkName.endsWith(".png") || checkName.endsWith(".jpeg")
               
-              val bytes = chatRepo.readFileAsBytes(filePath)
-              if (bytes.isEmpty()) return@launchCatching
-              
               val originalName = _selectedFileName.value
               val finalFileName = if (!originalName.isNullOrBlank()) originalName 
                                   else if (filePath.startsWith("data:")) "photo_${currentTimeMillis()}.jpg"
@@ -469,9 +466,28 @@ class ChatScreenModel(
                   counter++
               }
 
-              // ПЕРЕДАЄМО РОЗМІРИ ЯВНО
+              // ПЕРЕДАЄМО РОЗМІРИ ТА СТИСКАЄМО
               val currentWidth = _selectedImageWidth.value
               val currentHeight = _selectedImageHeight.value
+              
+              val bytes = if (isImage) chatRepo.compressImage(filePath) else chatRepo.readFileAsBytes(filePath)
+              if (bytes.isEmpty()) return@launchCatching
+              
+              // Розраховуємо фінальні розміри після стиснення (для БД)
+              var finalWidth = currentWidth
+              var finalHeight = currentHeight
+              if (isImage && currentWidth > 0 && currentHeight > 0) {
+                  val maxSide = 1600.0 
+                  if (currentWidth > currentHeight && currentWidth > maxSide) {
+                      finalHeight = (currentHeight * maxSide / currentWidth).toInt()
+                      finalWidth = maxSide.toInt()
+                  } else if (currentHeight > maxSide) {
+                      finalWidth = (currentWidth * maxSide / currentHeight).toInt()
+                      finalHeight = maxSide.toInt()
+                  }
+              }
+
+              println("[YkisLogKMP.Chat]: [UPLOAD_START] Надсилання стисненого файлу. Розмір: ${bytes.size / 1024} КБ | Фінальні розміри: ${finalWidth}x${finalHeight}")
 
               val url = chatRepo.uploadFile(bytes, finalStoragePath)
 
@@ -485,8 +501,8 @@ class ChatScreenModel(
                   imageUrl = if (isImage) url else null,
                   fileUrl = if (!isImage) url else null,
                   fileName = finalFileName,
-                  imageWidth = if (isImage) currentWidth else 0,
-                  imageHeight = if (isImage) currentHeight else 0,
+                  imageWidth = if (isImage) finalWidth else 0,
+                  imageHeight = if (isImage) finalHeight else 0,
                   recipientTokens = recipientTokens,
                   onComplete = { 
                       _selectedImagePath.value = null
