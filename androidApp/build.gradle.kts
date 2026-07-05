@@ -72,13 +72,15 @@ android {
             signingConfig = signingConfigs.getByName("release")
             
             // Включаем генерацию и упаковку нативных отладочных символов для Google Play
+            // Это упакует символы прямо внутрь .aab файла
             ndk {
                 debugSymbolLevel = "FULL"
             }
 
-            // ДОБАВЛЕНО: Автоматическая загрузка нативных символов в Firebase Crashlytics
+            // Настройка Firebase Crashlytics
             configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
                 nativeSymbolUploadEnabled = true
+                unstrippedNativeLibsDir = file("build/intermediates/merged_native_libs/release/out/lib")
             }
         }
         getByName("debug") {
