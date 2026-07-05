@@ -20,8 +20,10 @@ import com.ykis.ykismobkmp.data.remote.meter.MeterRemoteRepositoryImpl
 import com.ykis.ykismobkmp.db.YkisDatabases
 import com.ykis.ykismobkmp.db.YkisDatabasesQueries
 import com.ykis.ykismobkmp.db.DatabaseSchemaInitializer
+import com.ykis.ykismobkmp.domain.ai.CloudAiEngine
 import com.ykis.ykismobkmp.domain.ai.GeminiAiManager
 import com.ykis.ykismobkmp.domain.ai.GeminiCloudProvider
+import com.ykis.ykismobkmp.domain.ai.LocalAiEngine
 import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentRepository
 import com.ykis.ykismobkmp.domain.repository.apartment.ApartmentRepositoryImpl
 import com.ykis.ykismobkmp.domain.repository.chat.ChatRepository
@@ -81,38 +83,10 @@ val commonModule = module {
   single { SnackbarManager }
   single { LogService() }
 
-  // Инициализация Gemini 3.5 Flash (Совместимость с ключами AQ. Эпоха Агентов)
-  single {
-    val modelName = "gemini-3.5-flash"
-    println("[YkisLogKMP.Koin]: Инициализация Gemini. Модель: $modelName (API v1)")
-    
-    dev.shreyaspatil.ai.client.generativeai.GenerativeModel(
-      modelName = modelName,
-      apiKey = GEMINI_API_KEY,
-      requestOptions = dev.shreyaspatil.ai.client.generativeai.type.RequestOptions(apiVersion = "v1"),
-      // Мы НЕ указываем apiVersion, чтобы библиотека использовала стандартный путь для Flash-моделей
-      safetySettings = listOf(
-        dev.shreyaspatil.ai.client.generativeai.type.SafetySetting(
-          dev.shreyaspatil.ai.client.generativeai.type.HarmCategory.HARASSMENT,
-          dev.shreyaspatil.ai.client.generativeai.type.BlockThreshold.NONE
-        ),
-        dev.shreyaspatil.ai.client.generativeai.type.SafetySetting(
-          dev.shreyaspatil.ai.client.generativeai.type.HarmCategory.HATE_SPEECH,
-          dev.shreyaspatil.ai.client.generativeai.type.BlockThreshold.NONE
-        ),
-        dev.shreyaspatil.ai.client.generativeai.type.SafetySetting(
-          dev.shreyaspatil.ai.client.generativeai.type.HarmCategory.SEXUALLY_EXPLICIT,
-          dev.shreyaspatil.ai.client.generativeai.type.BlockThreshold.NONE
-        ),
-        dev.shreyaspatil.ai.client.generativeai.type.SafetySetting(
-          dev.shreyaspatil.ai.client.generativeai.type.HarmCategory.DANGEROUS_CONTENT,
-          dev.shreyaspatil.ai.client.generativeai.type.BlockThreshold.NONE
-        )
-      )
-    )
-  }
-  single<GeminiAiManager> { GeminiCloudProvider(model = get(), localEngine = get(), httpClient = get()) }
-  
+  // Ініціалізація новітнього Firebase AI Logic (Гібридна архітектура 2026)
+  single { CloudAiEngine(apiKey = GEMINI_API_KEY) }
+  single<GeminiAiManager> { GeminiCloudProvider(localEngine = get(), cloudEngine = get()) }
+
   // Кроссплатформенное создание ChatRepository (GitLive)
   single {
     ChatRepository(
