@@ -34,7 +34,7 @@ private const val className = "ComposeMessageBox"
 @Composable
 fun ComposeMessageBox(
   onSent: () -> Unit,
-  onImageSent: (String, String?) -> Unit,
+  onImageSent: (String, String?, Int, Int) -> Unit,
   onCameraClick: () -> Unit,
   text: String,
   onTextChanged: (String) -> Unit,
@@ -64,9 +64,9 @@ fun ComposeMessageBox(
         onClick = {
           println("[YkisLogKMP.$className.onAttach]: Виклик системного FilePicker.")
           if (filePicker != null) {
-              filePicker.pickFile { path, name -> onImageSent(path, name) }
+              filePicker.pickFile { path, name, w, h -> onImageSent(path, name, w, h) }
           } else {
-              onImageSent("", null)
+              onImageSent("", null, 0, 0)
           }
         },
         enabled = !isLoading

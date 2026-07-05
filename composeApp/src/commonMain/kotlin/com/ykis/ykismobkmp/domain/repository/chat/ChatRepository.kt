@@ -366,7 +366,9 @@ class ChatRepository(
               "read" to message.read,
               "edited" to message.edited,
               "fromAdmin" to message.fromAdmin,
-              "forwarded" to message.isForwarded
+              "forwarded" to message.isForwarded,
+              "imageWidth" to message.imageWidth,
+              "imageHeight" to message.imageHeight
           )
           ref.child(key).setValue(dataMap)
       } else {

@@ -21,14 +21,14 @@ class IosFilePicker : FilePicker {
     // Хранимо посилання на делегат, щоб ARC (пам'ять) не видалила його під час вибору файлу
     private var currentDelegate: PickerDelegate? = null
 
-    private class PickerDelegate(private val onFilePicked: (String, String?) -> Unit) : NSObject(), UIDocumentPickerDelegateProtocol {
+    private class PickerDelegate(private val onFilePicked: (String, String?, Int, Int) -> Unit) : NSObject(), UIDocumentPickerDelegateProtocol {
         override fun documentPicker(controller: UIDocumentPickerViewController, didPickDocumentsAtURLs: List<*>) {
             val url = didPickDocumentsAtURLs.firstOrNull() as? NSURL
             val path = url?.path
             if (path != null) {
                 val fileName = url.lastPathComponent
                 println("[YkisLogKMP.FilePicker]: Файл успішно отримано: $fileName")
-                onFilePicked(path, fileName)
+                onFilePicked(path, fileName, 0, 0)
             }
         }
 
@@ -37,7 +37,7 @@ class IosFilePicker : FilePicker {
         }
     }
 
-    override fun pickFile(onFilePicked: (String, String?) -> Unit) {
+    override fun pickFile(onFilePicked: (String, String?, Int, Int) -> Unit) {
         val contentTypes = listOf(
             UTTypeImage,
             UTTypePDF,

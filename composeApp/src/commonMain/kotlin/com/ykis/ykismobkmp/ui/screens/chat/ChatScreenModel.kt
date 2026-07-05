@@ -84,6 +84,13 @@ class ChatScreenModel(
   private val _selectedFileName = MutableStateFlow<String?>(null)
   val selectedFileName = _selectedFileName.asStateFlow()
 
+  // ДОДАНО: Розміри обраного зображення (для фіксу пропорцій на Web)
+  private val _selectedImageWidth = MutableStateFlow(0)
+  val selectedImageWidth = _selectedImageWidth.asStateFlow()
+
+  private val _selectedImageHeight = MutableStateFlow(0)
+  val selectedImageHeight = _selectedImageHeight.asStateFlow()
+
   private val _selectedMessage = MutableStateFlow<MessageEntity?>(null)
   val selectedMessage: StateFlow<MessageEntity?> = _selectedMessage.asStateFlow()
 
@@ -375,6 +382,8 @@ class ChatScreenModel(
     imageUrl: String?,
     fileUrl: String?,
     fileName: String?,
+    imageWidth: Int = 0,
+    imageHeight: Int = 0,
     recipientTokens: List<String>,
     onComplete: () -> Unit
   ) {
@@ -394,6 +403,8 @@ class ChatScreenModel(
             imageUrl = imageUrl,
             fileUrl = fileUrl,
             fileName = fileName,
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
             timestamp = currentTimeMillis(),
             fromAdmin = fromAdmin
         )
@@ -426,10 +437,15 @@ class ChatScreenModel(
       launchCatching {
           _isLoadingAfterSending.value = true
           try {
-              val isImage = filePath.startsWith("data:image", ignoreCase = true) ||
-                            filePath.lowercase().let { it.endsWith(".jpg") || it.endsWith(".png") || it.endsWith(".jpeg") }
+              val checkPath = filePath.lowercase()
+              val checkName = _selectedFileName.value?.lowercase() ?: ""
+              // ПРОВЕРКА: Если ссылка начинается на blob:, это картинка в браузере
+              val isImage = filePath.startsWith("data:image", ignoreCase = true) || 
+                            filePath.startsWith("blob:", ignoreCase = true) ||
+                            checkPath.endsWith(".jpg") || checkPath.endsWith(".png") || checkPath.endsWith(".jpeg") ||
+                            checkName.endsWith(".jpg") || checkName.endsWith(".png") || checkName.endsWith(".jpeg")
               
-              val bytes = if (isImage) chatRepo.compressImage(filePath) else chatRepo.readFileAsBytes(filePath)
+              val bytes = chatRepo.readFileAsBytes(filePath)
               if (bytes.isEmpty()) return@launchCatching
               
               val originalName = _selectedFileName.value
@@ -453,6 +469,10 @@ class ChatScreenModel(
                   counter++
               }
 
+              // ПЕРЕДАЄМО РОЗМІРИ ЯВНО
+              val currentWidth = _selectedImageWidth.value
+              val currentHeight = _selectedImageHeight.value
+
               val url = chatRepo.uploadFile(bytes, finalStoragePath)
 
               writeToDatabaseInternal(
@@ -465,10 +485,14 @@ class ChatScreenModel(
                   imageUrl = if (isImage) url else null,
                   fileUrl = if (!isImage) url else null,
                   fileName = finalFileName,
+                  imageWidth = if (isImage) currentWidth else 0,
+                  imageHeight = if (isImage) currentHeight else 0,
                   recipientTokens = recipientTokens,
                   onComplete = { 
                       _selectedImagePath.value = null
                       _selectedFileName.value = null
+                      _selectedImageWidth.value = 0
+                      _selectedImageHeight.value = 0
                       onComplete() 
                   }
               )
@@ -589,9 +613,11 @@ class ChatScreenModel(
     }
   }
 
-  fun setSelectedImagePath(path: String?, fileName: String? = null) {
+  fun setSelectedImagePath(path: String?, fileName: String? = null, width: Int = 0, height: Int = 0) {
     _selectedImagePath.value = path
     _selectedFileName.value = fileName
+    _selectedImageWidth.value = width
+    _selectedImageHeight.value = height
   }
 
   fun setSelectedMessage(message: MessageEntity?) { _selectedMessage.value = message }
@@ -660,6 +686,15 @@ class ChatScreenModel(
       _isAssistantLoading.value = true
       try {
         val fileBytes = chatRepo.compressImage(path)
+        
+        // ФІКС ДЛЯ WEB: Оновлюємо шлях до зображення нормалізованими байтами
+        // Це усуває проблему розтягування (EXIF orientation) у прев'ю на Web
+        if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+            val normalizedBase64 = "data:image/jpeg;base64," + com.ykis.ykismobkmp.core.utils.encodeBase64(fileBytes)
+            _selectedImagePath.value = normalizedBase64
+            // РОЗМІРИ НЕ СКИНУТО! Зберігаємо оригінальні 1800x4000 для БД
+        }
+
         println("[YkisLogKMP.Chat]: [AI_START] Аналіз... Розмір: ${fileBytes.size / 1024} КБ")
 
         // Отримуємо поточну дату в форматі dd-mm-yyyy

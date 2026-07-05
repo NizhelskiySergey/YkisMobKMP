@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -187,6 +188,13 @@ fun MessageListItem(
       if (!messageEntity.imageUrl.isNullOrBlank()) {
         val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
         
+        // ФІКС РОЗТЯГУВАННЯ: Використовуємо aspectRatio з БД, якщо воно є
+        val ratio = if (messageEntity.imageWidth > 0 && messageEntity.imageHeight > 0) {
+            val r = messageEntity.imageWidth.toFloat() / messageEntity.imageHeight.toFloat()
+            println("[MessageListItem]: Фото: ${messageEntity.fileName} | Розміри з БД: ${messageEntity.imageWidth}x${messageEntity.imageHeight} | Ratio: $r")
+            r
+        } else null
+
         Column(modifier = Modifier.fillMaxWidth()) {
             AsyncImage(
               model = messageEntity.imageUrl,
@@ -194,9 +202,14 @@ fun MessageListItem(
               modifier = Modifier
                 .padding(vertical = 4.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .fillMaxWidth()
-                .heightIn(max = 400.dp), // ФІКС: Гнучка висота з обмеженням
-              contentScale = ContentScale.Fit, // ФІКС: Зберігаємо пропорції без обрізки
+                .then(
+                    if (ratio != null) Modifier.fillMaxWidth().aspectRatio(ratio) 
+                    else Modifier.widthIn(max = 260.dp)
+                )
+                .heightIn(max = 400.dp),
+              // ФІКС ДЛЯ WEB: FillBounds розтягне "лежачі" пікселі під вертикальну рамку,
+              // що візуально виправить орієнтацію без втрати якості.
+              contentScale = if (ratio != null && isWeb) ContentScale.FillBounds else ContentScale.Fit,
               onError = { error ->
                   if (isWeb) println("[${tag}_ERROR]: Ошибка загрузки картинки: ${error.result.throwable.message}")
               }

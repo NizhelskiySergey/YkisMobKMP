@@ -12,7 +12,7 @@ import java.io.FileOutputStream
 @Composable
 actual fun rememberFilePicker(): FilePicker {
     val context = LocalContext.current
-    var lastCallback by remember { mutableStateOf<((String, String?) -> Unit)?>(null) }
+    var lastCallback by remember { mutableStateOf<((String, String?, Int, Int) -> Unit)?>(null) }
     
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -21,7 +21,7 @@ actual fun rememberFilePicker(): FilePicker {
             val fileName = getFileName(context, it)
             val path = getFilePathFromUri(context, it, fileName)
             if (path != null) {
-                lastCallback?.invoke(path, fileName)
+                lastCallback?.invoke(path, fileName, 0, 0)
                 lastCallback = null
             }
         }
@@ -29,7 +29,7 @@ actual fun rememberFilePicker(): FilePicker {
     
     return remember(launcher) { 
         object : FilePicker {
-            override fun pickFile(onFilePicked: (String, String?) -> Unit) {
+            override fun pickFile(onFilePicked: (String, String?, Int, Int) -> Unit) {
                 lastCallback = onFilePicked
                 launcher.launch("*/*")
             }

@@ -63,13 +63,16 @@ fun SendImageContent(
   val messageText by chatScreenModel.messageText.collectAsState()
   val isLoadingAfterSending by chatScreenModel.isLoadingAfterSending.collectAsState()
   val isAssistantLoading by chatScreenModel.isAssistantLoading.collectAsState()
+  
+  // Шлях до зображення (може бути оновлений нормалізованою версією в ChatScreenModel)
+  val liveImagePath by chatScreenModel.selectedImagePath.collectAsState()
+  val currentPath = liveImagePath ?: imagePath
 
-  // ВИПРАВЛЕНО: Розширене визначення зображення для підтримки Blob/Web
-  val isImage = remember(imagePath, fileName) {
-    val path = imagePath.lowercase()
+  val isImage = remember(currentPath, fileName) {
+    val path = currentPath.lowercase()
     val name = fileName?.lowercase() ?: ""
     path.endsWith(".jpg") || path.endsWith(".jpeg") || path.endsWith(".png") || 
-      path.contains("image") || path.startsWith("blob:") ||
+      path.contains("image") || path.startsWith("blob:") || path.startsWith("data:image") ||
       name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png")
   }
 
@@ -88,18 +91,18 @@ fun SendImageContent(
       contentAlignment = Alignment.Center
     ) {
       if (isImage) {
-        // ВИПРАВЛЕНО: Використовуємо надійний спосіб центрування без розтягування
+        // ВИПРАВЛЕНО: Тепер використовуємо просту отрисовку.
+        // Завдяки нормалізації в ChatScreenModel, картинка вже приходить у Skia правильної орієнтації.
         AsyncImage(
-          model = imagePath,
+          model = currentPath,
           contentDescription = "Preview",
-          contentScale = ContentScale.Fit,
-          alignment = Alignment.Center,
+          contentScale = ContentScale.Fit, 
           modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .align(Alignment.Center)
         )
         
-        // ДОДАНО: Центровий лоадер поки ШІ думає
         if (isAssistantLoading) {
             Box(
                 modifier = Modifier
@@ -177,8 +180,6 @@ fun SendImageContent(
         val curAddrId = if (role == UserRole.StandardUser) apartmentLiveUiState.addressId else (user?.addressId ?: 0L)
         val curOsbbId = if (role == UserRole.StandardUser) (apartmentLiveUiState.osmdId) else apartmentLiveUiState.osbbId
 
-        println("[YkisLogKMP]: [SEND_IMAGE_CLICK] UID: $myUid, Role: $role, AddrID: $curAddrId, OsbbID: $curOsbbId, ChatID: $chatId")
-
         val (displayName, displayAddr) = if (role == UserRole.StandardUser) {
             val surname = apartmentLiveUiState.nanim ?: ""
             val cleanSurname = if (surname.isNotBlank() && surname != "Мешканець") surname else "Жилець"
@@ -188,7 +189,7 @@ fun SendImageContent(
         }
 
         chatScreenModel.uploadFileAndSendMessage(
-          filePath = imagePath,
+          filePath = currentPath, // Використовуємо актуальний шлях (можливо нормалізований)
           chatId = chatId,
           senderUid = myUid,
           senderDisplayedName = displayName,
@@ -203,7 +204,7 @@ fun SendImageContent(
           }
         )
       },
-      onImageSent = { _, _ -> },
+      onImageSent = { _, _, _, _ -> },
       onCameraClick = {},
       showAttachIcon = false,
       isLoading = isLoadingAfterSending || isAssistantLoading,

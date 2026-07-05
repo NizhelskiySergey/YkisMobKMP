@@ -29,5 +29,7 @@ data class MessageEntity(
   @SerialName("edited") val edited: Boolean = false,
   @SerialName("deletedFor") val deletedFor: List<String> = emptyList(),
   @SerialName("forwarded") val isForwarded: Boolean = false,
-  @SerialName("fromAdmin") val fromAdmin: Boolean = false
+  @SerialName("fromAdmin") val fromAdmin: Boolean = false,
+  @SerialName("imageWidth") val imageWidth: Int = 0,
+  @SerialName("imageHeight") val imageHeight: Int = 0
 )
