@@ -426,7 +426,7 @@ class ChatScreenModel(
       launchCatching {
           _isLoadingAfterSending.value = true
           try {
-              val isImage = filePath.startsWith("data:image", ignoreCase = true) || 
+              val isImage = filePath.startsWith("data:image", ignoreCase = true) ||
                             filePath.lowercase().let { it.endsWith(".jpg") || it.endsWith(".png") || it.endsWith(".jpeg") }
               
               val bytes = if (isImage) chatRepo.compressImage(filePath) else chatRepo.readFileAsBytes(filePath)

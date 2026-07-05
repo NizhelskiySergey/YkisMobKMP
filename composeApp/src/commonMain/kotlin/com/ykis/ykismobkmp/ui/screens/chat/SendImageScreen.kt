@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.ContentScale
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -63,10 +64,13 @@ fun SendImageContent(
   val isLoadingAfterSending by chatScreenModel.isLoadingAfterSending.collectAsState()
   val isAssistantLoading by chatScreenModel.isAssistantLoading.collectAsState()
 
-  val isImage = remember(imagePath) {
+  // ВИПРАВЛЕНО: Розширене визначення зображення для підтримки Blob/Web
+  val isImage = remember(imagePath, fileName) {
     val path = imagePath.lowercase()
-    path.endsWith(".jpg") || path.endsWith(".jpeg") ||
-      path.endsWith(".png") || path.contains("camera") || path.contains("image")
+    val name = fileName?.lowercase() ?: ""
+    path.endsWith(".jpg") || path.endsWith(".jpeg") || path.endsWith(".png") || 
+      path.contains("image") || path.startsWith("blob:") ||
+      name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png")
   }
 
   Column(
@@ -79,15 +83,37 @@ fun SendImageContent(
     Box(
       modifier = Modifier
         .weight(1f)
-        .fillMaxWidth(),
+        .fillMaxWidth()
+        .background(Color.Black.copy(alpha = 0.05f)),
       contentAlignment = Alignment.Center
     ) {
       if (isImage) {
+        // ВИПРАВЛЕНО: Використовуємо надійний спосіб центрування без розтягування
         AsyncImage(
           model = imagePath,
           contentDescription = "Preview",
-          modifier = Modifier.fillMaxSize()
+          contentScale = ContentScale.Fit,
+          alignment = Alignment.Center,
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
         )
+        
+        // ДОДАНО: Центровий лоадер поки ШІ думає
+        if (isAssistantLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color.White)
+                    Spacer(Modifier.height(8.dp))
+                    Text("ШІ аналізує фото...", color = Color.White)
+                }
+            }
+        }
       } else {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
           Icon(

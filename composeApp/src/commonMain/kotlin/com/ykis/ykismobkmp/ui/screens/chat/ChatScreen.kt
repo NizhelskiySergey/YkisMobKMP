@@ -359,9 +359,11 @@ fun ChatScreenContent(
                     screenModel.setSelectedImagePath(path, fileName)
                     
                     val isImage = path.contains("image", ignoreCase = true) || 
+                                  path.startsWith("blob:") ||
                                   path.lowercase().let { it.endsWith(".jpg") || it.endsWith(".png") || it.endsWith(".jpeg") }
                     
-                    if (baseUIState.userRole == UserRole.StandardUser && isImage) {
+                    if (isImage) {
+                        println("[YkisLogKMP.Chat]: [AI_AUTO_START] Виявлено зображення, запускаємо аналіз...")
                         screenModel.analyzePhotoWithGemini(path, baseUIState.address)
                     }
                     navigateToSendImageScreen()

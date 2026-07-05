@@ -49,15 +49,23 @@ actual suspend fun performPlatformSignInWithApple(
     rawNonce: String?
 ): Resource<Boolean> = Resource.Error("Apple ID не підтримується в браузері")
 
+actual fun getNativeBridge(): NativeAuthBridge? = null
+
 /**
- * [encodeBase64] — Нативна JS реалізація для передачі зображень в ІІ.
+ * [encodeBase64] — Універсальне та швидке перетворення для Web.
+ * ВИПРАВЛЕНО: Використовуємо нативний Uint8Array для правильного мапінгу байтів 0-255.
  */
 actual fun encodeBase64(bytes: ByteArray): String {
     val dynamicBytes = bytes.asDynamic()
-    var binary = ""
-    val len = dynamicBytes.length as Int
-    for (i in 0 until len) {
-        binary += window.asDynamic().String.fromCharCode(dynamicBytes[i]).unsafeCast<String>()
-    }
-    return window.btoa(binary)
+    return js("""
+        var uint8 = new Uint8Array(dynamicBytes);
+        var binary = '';
+        var len = uint8.byteLength;
+        var chunkSize = 0x4000; 
+        for (var i = 0; i < len; i += chunkSize) {
+            var chunk = uint8.subarray(i, Math.min(i + chunkSize, len));
+            binary += String.fromCharCode.apply(null, chunk);
+        }
+        return window.btoa(binary);
+    """) as String
 }

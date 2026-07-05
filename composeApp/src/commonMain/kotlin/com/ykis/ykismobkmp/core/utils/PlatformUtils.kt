@@ -36,3 +36,20 @@ expect suspend fun performPlatformSignInWithApple(
     rawNonce: String?
 ): Resource<Boolean>
 
+/**
+ * [NativeAuthBridge] — Інтерфейс для виклику нативних функцій ОС (Google, Apple, Firebase AI).
+ * Цей інтерфейс реалізується в Swift на стороні iOS.
+ */
+interface NativeAuthBridge {
+    fun signInWithGoogle(onSuccess: (String) -> Unit, onError: (String) -> Unit)
+    fun signInWithApple(onSuccess: (String) -> Unit, onError: (String) -> Unit)
+    
+    // FIREBASE AI LOGIC (iOS)
+    fun generateAiContent(prompt: String, onResult: (String?, String?) -> Unit)
+    fun analyzeAiImage(prompt: String, imageBase64: String, onResult: (String?, String?) -> Unit)
+}
+
+/**
+ * [getNativeBridge] — Отримання реалізації моста (тільки для iOS).
+ */
+expect fun getNativeBridge(): NativeAuthBridge?

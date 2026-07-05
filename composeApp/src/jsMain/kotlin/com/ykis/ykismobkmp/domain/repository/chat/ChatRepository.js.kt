@@ -6,21 +6,22 @@ import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLImageElement
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.await
+import org.khronos.webgl.Uint8Array
+import org.khronos.webgl.get
 
 /**
- * [platformReadFileAsBytes] — Web-реалізація перетворення Base64 у масив байтів.
+ * [platformReadFileAsBytes] — Web-реалізація отримання ОРИГІНАЛЬНИХ байтів файлу.
+ * ВИПРАВЛЕНО: Використовуємо fetch для отримання чистого ArrayBuffer з Blob/Data URL.
  */
 actual suspend fun platformReadFileAsBytes(path: String): ByteArray {
     return try {
-        val base64Content = if (path.startsWith("data:")) path.substringAfter(",") else path
-        val binaryString = window.atob(base64Content)
-        val bytes = ByteArray(binaryString.length)
-        for (i in binaryString.indices) {
-            bytes[i] = binaryString[i].code.toByte()
-        }
-        bytes
+        val response = window.fetch(path).await()
+        val buffer = response.arrayBuffer().await()
+        val uint8Array = Uint8Array(buffer)
+        ByteArray(uint8Array.length) { i -> uint8Array[i] }
     } catch (e: Exception) {
-        println("[ChatRepository.Web]: Помилка декодування файлу: ${e.message}")
+        println("[ChatRepository.Web]: Помилка читання файлу ($path): ${e.message}")
         byteArrayOf()
     }
 }
@@ -29,17 +30,18 @@ actual suspend fun platformReadFileAsBytes(path: String): ByteArray {
  * [platformCompressImage] — Стиснення зображення через Canvas у браузері.
  */
 actual suspend fun platformCompressImage(path: String): ByteArray {
-    if (!path.startsWith("data:image")) return platformReadFileAsBytes(path)
-    
+    if (!path.startsWith("data:image") && !path.startsWith("blob:")) return platformReadFileAsBytes(path)
+
     return suspendCoroutine { continuation ->
         val img = window.document.createElement("img") as HTMLImageElement
+        img.crossOrigin = "anonymous"
         img.onload = {
             val canvas = window.document.createElement("canvas") as HTMLCanvasElement
             val ctx = canvas.getContext("2d") as CanvasRenderingContext2D
             
-            var width = img.width.toDouble()
-            var height = img.height.toDouble()
-            val maxSide = 1280.0
+            var width = img.naturalWidth.toDouble()
+            var height = img.naturalHeight.toDouble()
+            val maxSide = 1200.0
             
             if (width > height && width > maxSide) {
                 height *= maxSide / width
@@ -57,12 +59,11 @@ actual suspend fun platformCompressImage(path: String): ByteArray {
             val binaryString = window.atob(compressedBase64.substringAfter(","))
             val bytes = ByteArray(binaryString.length)
             for (i in binaryString.indices) {
-                bytes[i] = binaryString[i].code.toByte()
+                bytes[i] = (binaryString[i].code and 0xFF).toByte()
             }
             continuation.resume(bytes)
         }
         img.onerror = { _, _, _, _, _ ->
-            // В случае ошибки возвращаем пустой массив, чтобы не блокировать поток
             continuation.resume(byteArrayOf())
         }
         img.src = path
