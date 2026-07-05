@@ -106,8 +106,17 @@ class CreateAnnouncementScreen : Screen {
 
                     Button(
                         onClick = {
-                            filePicker.pickFile { path, name, _, _ ->
-                                announcementModel.setAnnouncementFilePath(path, name)
+                            filePicker.pickFile { path, name, w, h ->
+                                val checkName = name?.lowercase() ?: ""
+                                val isImage = path.contains("image", ignoreCase = true) || 
+                                              path.startsWith("blob:") ||
+                                              checkName.endsWith(".jpg") || checkName.endsWith(".png") || checkName.endsWith(".jpeg")
+                                
+                                if (isImage) {
+                                    announcementModel.setAnnouncementImagePath(path, name, w, h)
+                                } else {
+                                    announcementModel.setAnnouncementFilePath(path, name)
+                                }
                             }
                         },
                         modifier = Modifier.weight(1f)
@@ -121,7 +130,7 @@ class CreateAnnouncementScreen : Screen {
                 // ПРЕДПРОСМОТР ВЛОЖЕНИЙ
                 if (!screenState.announcementImagePath.isNullOrBlank()) {
                     AttachmentPreview(
-                        name = "Фотографія з камери",
+                        name = screenState.announcementImageName ?: "Зображення",
                         onClear = { announcementModel.setAnnouncementImagePath(null) }
                     )
                 }

@@ -20,5 +20,7 @@ data class AnnouncementEntity(
     @SerialName("isPriority") val isPriority: Boolean = false,
     @SerialName("imageUrl") val imageUrl: String? = null,
     @SerialName("fileUrl") val fileUrl: String? = null,
-    @SerialName("fileName") val fileName: String? = null
+    @SerialName("fileName") val fileName: String? = null,
+    @SerialName("imageWidth") val imageWidth: Int = 0,
+    @SerialName("imageHeight") val imageHeight: Int = 0
 )
