@@ -74,6 +74,32 @@ class AnnouncementListScreen(
             announcementModel.observeAnnouncements(baseUIState.osbbId)
         }
 
+        var announcementToDelete by remember { mutableStateOf<AnnouncementEntity?>(null) }
+
+        if (announcementToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { announcementToDelete = null },
+                title = { Text("Видалити оголошення?") },
+                text = { Text("Ця дія безповоротна. Оголошення зникне у всіх мешканців.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            announcementModel.deleteAnnouncement(announcementToDelete!!.id)
+                            announcementToDelete = null
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Видалити")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { announcementToDelete = null }) {
+                        Text("Скасувати")
+                    }
+                }
+            )
+        }
+
         Scaffold(
             topBar = {
                 Column {
@@ -131,7 +157,7 @@ class AnnouncementListScreen(
                                 groupedItems = groupedItems,
                                 isAdmin = baseUIState.userRole != UserRole.StandardUser,
                                 currentUid = baseUIState.uid ?: "",
-                                onDeleteClick = { id -> announcementModel.deleteAnnouncement(id) }
+                                onDeleteClick = { announcement -> announcementToDelete = announcement }
                             )
                         }
                     }
@@ -190,7 +216,7 @@ fun AnnouncementList(
     groupedItems: List<GroupedAnnouncement>,
     isAdmin: Boolean,
     currentUid: String,
-    onDeleteClick: (String) -> Unit
+    onDeleteClick: (AnnouncementEntity) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -210,7 +236,7 @@ fun AnnouncementList(
                             item = grouped.announcement,
                             isAdmin = isAdmin,
                             currentUid = currentUid,
-                            onDeleteClick = onDeleteClick
+                            onDeleteClick = { onDeleteClick(it) }
                         )
                     }
                 }
@@ -246,7 +272,7 @@ fun AnnouncementItem(
     item: AnnouncementEntity,
     isAdmin: Boolean,
     currentUid: String,
-    onDeleteClick: (String) -> Unit
+    onDeleteClick: (AnnouncementEntity) -> Unit
 ) {
     val isGlobal = item.osbbId == 0L
     val uriHandler = LocalUriHandler.current
@@ -302,10 +328,10 @@ fun AnnouncementItem(
                     )
                 }
 
-                // Кнопка удаления видна только если пользователь - админ И он автор объявления
-                if (isAdmin && item.authorUid == currentUid) {
+                // Кнопка видалення доступна всім адмінам
+                if (isAdmin) {
                     IconButton(
-                        onClick = { onDeleteClick(item.id) },
+                        onClick = { onDeleteClick(item) },
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
