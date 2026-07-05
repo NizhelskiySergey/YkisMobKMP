@@ -12,6 +12,8 @@ import platform.UniformTypeIdentifiers.UTTypeImage
 import platform.UniformTypeIdentifiers.UTTypePDF
 import platform.UniformTypeIdentifiers.UTTypePlainText
 import platform.darwin.NSObject
+import platform.UIKit.UIImage
+import kotlinx.cinterop.useContents
 
 /**
  * [IosFilePicker] — Реалізація для iOS.
@@ -21,14 +23,21 @@ class IosFilePicker : FilePicker {
     // Хранимо посилання на делегат, щоб ARC (пам'ять) не видалила його під час вибору файлу
     private var currentDelegate: PickerDelegate? = null
 
+    @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
     private class PickerDelegate(private val onFilePicked: (String, String?, Int, Int) -> Unit) : NSObject(), UIDocumentPickerDelegateProtocol {
         override fun documentPicker(controller: UIDocumentPickerViewController, didPickDocumentsAtURLs: List<*>) {
             val url = didPickDocumentsAtURLs.firstOrNull() as? NSURL
             val path = url?.path
             if (path != null) {
                 val fileName = url.lastPathComponent
-                println("[YkisLogKMP.FilePicker]: Файл успішно отримано: $fileName")
-                onFilePicked(path, fileName, 0, 0)
+                
+                // ОТРИМУЄМО РОЗМІРИ ДЛЯ БД
+                val image = UIImage.imageWithContentsOfFile(path)
+                val width = image?.size?.useContents { width.toInt() } ?: 0
+                val height = image?.size?.useContents { height.toInt() } ?: 0
+                
+                println("[YkisLogKMP.FilePicker]: Файл успішно отримано: $fileName | Dimensions: ${width}x${height}")
+                onFilePicked(path, fileName, width, height)
             }
         }
 

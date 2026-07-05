@@ -2,6 +2,7 @@ package com.ykis.ykismobkmp.core.utils
 
 import android.content.Context
 import android.net.Uri
+import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
@@ -21,7 +22,25 @@ actual fun rememberFilePicker(): FilePicker {
             val fileName = getFileName(context, it)
             val path = getFilePathFromUri(context, it, fileName)
             if (path != null) {
-                lastCallback?.invoke(path, fileName, 0, 0)
+                // ОТРИМУЄМО РЕАЛЬНІ РОЗМІРИ ДЛЯ БД
+                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(path, options)
+                
+                // Перевіряємо EXIF орієнтацію, бо ширина/висота можуть бути переплутані
+                val exifInterface = try { android.media.ExifInterface(path) } catch (e: Exception) { null }
+                val orientation = exifInterface?.getAttributeInt(
+                    android.media.ExifInterface.TAG_ORIENTATION,
+                    android.media.ExifInterface.ORIENTATION_NORMAL
+                ) ?: android.media.ExifInterface.ORIENTATION_NORMAL
+                
+                val isRotated = orientation == android.media.ExifInterface.ORIENTATION_ROTATE_90 || 
+                                orientation == android.media.ExifInterface.ORIENTATION_ROTATE_270
+                
+                val finalW = if (isRotated) options.outHeight else options.outWidth
+                val finalH = if (isRotated) options.outWidth else options.outHeight
+                
+                println("[FilePicker.android]: $fileName | Dimensions: ${finalW}x${finalH}")
+                lastCallback?.invoke(path, fileName, finalW, finalH)
                 lastCallback = null
             }
         }
