@@ -458,4 +458,7 @@
   <string name="residents_of">🏠 Мешканцям %1$s</string>
   <string name="change_email">Змінити пошту</string>
   <string name="osbb">ОСББ</string>
+  <string name="ykis_tab">ЮКІС</string>
+  <string name="email_broadcast">Розсилка на Email</string>
+  <string name="email_broadcast_label">Надіслати копію на пошту жителів</string>
 </resources>

@@ -34,10 +34,15 @@ import com.ykis.ykismobkmp.domain.repository.meter.MeterRepositoryImpl
 import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.domain.services.FirebaseServiceImpl
 import com.ykis.ykismobkmp.domain.services.LogService
+import com.ykis.ykismobkmp.domain.services.MailService
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.database.FirebaseDatabase
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
+import dev.gitlive.firebase.auth.auth
+import dev.gitlive.firebase.database.database
+import dev.gitlive.firebase.firestore.firestore
+import dev.gitlive.firebase.storage.storage
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -79,9 +84,16 @@ val commonModule = module {
     }
   }
 
+  // Firebase Services (Базові інстанси для Koin)
+  single { Firebase.firestore }
+  single { Firebase.database }
+  single { Firebase.storage }
+  single { Firebase.auth }
+
   single { KtorApiService(get()) }
   single { SnackbarManager }
   single { LogService() }
+  single { MailService(getOrNull()) }
 
   // Ініціалізація новітнього Firebase AI Logic (Гібридна архітектура 2026)
   single { CloudAiEngine(apiKey = GEMINI_API_KEY) }

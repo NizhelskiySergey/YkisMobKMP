@@ -24,8 +24,24 @@ val navigationModule = module {
   single { ApartmentScreenModel(get(), get(), get()) }
   single { FamilyListScreenModel(getFamilyListUseCase = get(), logService = get()) }
   single { LedgerScreenModel(ledgerService = get(), logService = get()) }
-  single { ChatScreenModel(get(), get(), get()) }
-  single { AnnouncementScreenModel(get(), get(), get()) }
+  
+  single { 
+    ChatScreenModel(
+      chatRepo = get(),
+      firebaseService = get(),
+      logService = get()
+    ) 
+  }
+  
+  single { 
+    AnnouncementScreenModel(
+      chatRepo = get(),
+      appSettings = get(),
+      mailService = get(),
+      logService = get()
+    ) 
+  }
+
   single { MeterScreenModel(get(), get()) }
   factory { AuthScreenModel(get(), get(), get()) }
   factory { ClearDatabase() }

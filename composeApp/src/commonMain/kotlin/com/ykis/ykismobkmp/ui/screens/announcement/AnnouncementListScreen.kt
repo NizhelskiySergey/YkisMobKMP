@@ -137,8 +137,11 @@ class AnnouncementListScreen(
                     } else {
                         val filteredAnnouncements = remember(screenState.announcements, screenState.announcementFilterRole) {
                             val filter = screenState.announcementFilterRole
-                            if (filter == null) screenState.announcements
-                            else screenState.announcements.filter { it.authorRole.contains(filter.getSerialName(), true) }
+                            when {
+                                filter == null -> screenState.announcements
+                                filter == UserRole.Unknown -> screenState.announcements.filter { it.osbbId == 0L }
+                                else -> screenState.announcements.filter { it.authorRole.contains(filter.getSerialName(), true) }
+                            }
                         }
 
                         val groupedItems = remember(filteredAnnouncements) {
@@ -174,6 +177,7 @@ fun FilterChipsRow(
 ) {
     val filters = listOf(
         null to stringResource(Res.string.all),
+        UserRole.Unknown to stringResource(Res.string.ykis_tab),
         UserRole.VodokanalUser to stringResource(Res.string.vodokanal),
         UserRole.YtkeUser to stringResource(Res.string.ytke),
         UserRole.TboUser to stringResource(Res.string.yzhtrans),

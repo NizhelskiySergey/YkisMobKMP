@@ -8,9 +8,13 @@ import com.ykis.ykismobkmp.core.utils.currentTimeMillis
 import com.ykis.ykismobkmp.domain.entity.AnnouncementEntity
 import com.ykis.ykismobkmp.domain.repository.chat.ChatRepository
 import com.ykis.ykismobkmp.domain.services.LogService
+import com.ykis.ykismobkmp.domain.services.MailService
+import com.ykis.ykismobkmp.domain.services.UserFirebase
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseScreenModel
 import com.ykis.ykismobkmp.ui.BaseUIState
+import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.firestore.firestore
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -21,6 +25,7 @@ import kotlinx.coroutines.launch
 class AnnouncementScreenModel(
     private val chatRepo: ChatRepository,
     private val appSettings: Settings,
+    private val mailService: MailService,
     logService: LogService
 ) : BaseScreenModel(logService) {
     
@@ -203,14 +208,53 @@ class AnnouncementScreenModel(
                 
                 if (result.isSuccess) {
                     println("[AnnouncementScreenModel]: Оголошення успішно збережено в Firestore. Очікування тригера...")
+                    
+                    // --- НОВЕ: РОЗСИЛКА НА EMAIL ---
+                    if (screenState.announcementSendEmail) {
+                        launch {
+                            try {
+                                val usersCol = Firebase.firestore.collection("users")
+                                val snapshot = if (targetOsbbId == 0L) {
+                                    usersCol.get() // Всім користувачам міста
+                                } else {
+                                    // Тільки жильцям конкретного ОСББ
+                                    usersCol.where { "osbbId" equalTo targetOsbbId }.get()
+                                }
+                                
+                                val emails = snapshot.documents.mapNotNull { 
+                                    try { 
+                                        val profile = it.data<UserFirebase>()
+                                        profile.email.takeIf { e -> e.isNotBlank() && e.contains("@") }
+                                    } catch(e: Exception) { 
+                                        println("[AnnouncementScreenModel_WARN]: Помилка парсингу профілю ${it.id}: ${e.message}")
+                                        null 
+                                    }
+                                }
+                                
+                                if (emails.isEmpty()) {
+                                    println("[AnnouncementScreenModel]: РОЗСИЛКА СКАСОВАНА. Не знайдено жодного користувача з валідним Email.")
+                                } else {
+                                    println("[AnnouncementScreenModel]: Запуск розсилки на ${emails.size} адрес.")
+                                    emails.forEach { email ->
+                                        mailService.sendAnnouncementNotification(email, title, message)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                println("[AnnouncementScreenModel_ERROR]: Помилка розсилки: ${e.message}")
+                            }
+                        }
+                    }
+
                     _uiState.update { 
                         it.copy(
                             isAnnouncementUploading = false,
                             announcementImagePath = null,
+                            announcementImageName = null,
                             announcementFilePath = null,
                             announcementFileName = null,
                             announcementDraftTitle = "",
-                            announcementDraftMessage = ""
+                            announcementDraftMessage = "",
+                            announcementSendEmail = false
                         ) 
                     }
                     SnackbarManager.showMessage("Оголошення опубліковано")
@@ -252,6 +296,10 @@ class AnnouncementScreenModel(
 
     fun setAnnouncementFilePath(path: String?, fileName: String? = null) {
         _uiState.update { it.copy(announcementFilePath = path, announcementFileName = fileName) }
+    }
+
+    fun onSendEmailChanged(send: Boolean) {
+        _uiState.update { it.copy(announcementSendEmail = send) }
     }
 
     /**

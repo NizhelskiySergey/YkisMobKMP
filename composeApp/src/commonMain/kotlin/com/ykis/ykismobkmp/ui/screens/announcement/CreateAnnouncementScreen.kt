@@ -81,12 +81,28 @@ class CreateAnnouncementScreen : Screen {
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = recipientText,
-                        modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = recipientText,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Розсилка на Email",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Switch(
+                                checked = screenState.announcementSendEmail,
+                                onCheckedChange = { announcementModel.onSendEmailChanged(it) }
+                            )
+                        }
+                    }
                 }
 
                 // БЛОК ВЛОЖЕНИЙ
