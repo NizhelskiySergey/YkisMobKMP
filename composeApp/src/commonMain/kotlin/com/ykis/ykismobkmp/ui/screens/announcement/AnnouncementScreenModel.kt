@@ -215,10 +215,15 @@ class AnnouncementScreenModel(
                             try {
                                 val usersCol = Firebase.firestore.collection("users")
                                 val snapshot = if (targetOsbbId == 0L) {
-                                    usersCol.get() // Всім користувачам міста
+                                    println("[AnnouncementScreenModel]: Пошук ВСІХ користувачів для глобальної розсилки.")
+                                    usersCol.get() 
                                 } else {
-                                    // Тільки жильцям конкретного ОСББ
-                                    usersCol.where { "osbbId" equalTo targetOsbbId }.get()
+                                    println("[AnnouncementScreenModel]: Пошук жителів ОСББ з ID: $targetOsbbId")
+                                    if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
+                                        usersCol.where { "osbbId" equalTo targetOsbbId.toDouble() }.get()
+                                    } else {
+                                        usersCol.where { "osbbId" equalTo targetOsbbId }.get()
+                                    }
                                 }
                                 
                                 val emails = snapshot.documents.mapNotNull { 

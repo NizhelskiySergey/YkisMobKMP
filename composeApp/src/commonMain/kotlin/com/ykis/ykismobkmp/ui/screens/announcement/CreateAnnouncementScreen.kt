@@ -70,10 +70,10 @@ class CreateAnnouncementScreen : Screen {
                 )
 
                 // ДОДАНО: Візуалізація адресата перед публікацією
-                val recipientText = when (baseUIState.userRole) {
-                    UserRole.OsbbUser -> "🏠 Одержувачі: Мешканці вашого ОСББ (${baseUIState.osbb})"
-                    UserRole.VodokanalUser, UserRole.YtkeUser, UserRole.TboUser -> "📍 Одержувачі: Усі мешканці міста (Глобально)"
-                    else -> "Одержувачі: Невизначено"
+                val recipientText = when {
+                    baseUIState.userRole == UserRole.OsbbUser -> "🏠 Одержувачі: Мешканці вашого ОСББ (${baseUIState.osbb})"
+                    baseUIState.userRole.getSerialName().contains("SERVICE") -> "📍 Одержувачі: Усі мешканці міста (Глобально)"
+                    else -> "📍 Одержувачі: Усі мешканці міста (Глобально)"
                 }
 
                 Surface(
