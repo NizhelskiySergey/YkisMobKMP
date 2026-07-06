@@ -44,13 +44,6 @@ import dev.gitlive.firebase.database.database
 import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.storage.storage
 import io.ktor.client.HttpClient
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logger
-import io.ktor.client.plugins.logging.Logging
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
 import org.koin.dsl.KoinAppDeclaration
@@ -61,35 +54,9 @@ import org.koin.mp.KoinPlatform
 private const val KOIN_TAG = "YkisLogKMP.Koin"
 
 /**
- * [commonModule] — Инфраструктурный модуль.
+ * [commonModule] — Інфраструктурний модуль (без HttpClient, він у платформах).
  */
 val commonModule = module {
-  single {
-    HttpClient {
-      install(ContentNegotiation) {
-        json(Json { 
-          ignoreUnknownKeys = true 
-          isLenient = true 
-          encodeDefaults = true 
-          prettyPrint = true
-          coerceInputValues = true
-          allowSpecialFloatingPointValues = true
-        })
-      }
-      install(Logging) {
-        logger = object : Logger { override fun log(message: String) { println("[YkisLogKMP.Network]: $message") } }
-        level = LogLevel.ALL
-      }
-      install(HttpTimeout) { requestTimeoutMillis = 30_000; connectTimeoutMillis = 30_000 }
-    }
-  }
-
-  // Firebase Services (Базові інстанси для Koin)
-  single { Firebase.firestore }
-  single { Firebase.database }
-  single { Firebase.storage }
-  single { Firebase.auth }
-
   single { KtorApiService(get()) }
   single { SnackbarManager }
   single { LogService() }

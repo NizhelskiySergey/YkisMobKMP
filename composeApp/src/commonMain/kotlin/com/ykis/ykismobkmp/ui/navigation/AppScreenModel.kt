@@ -67,7 +67,7 @@ class AppScreenModel(
 
       val finalUid = firebaseService.uid
       if (finalUid.isBlank()) {
-          println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Сесія НЕ знайдена. SignIn.")
+          println("[YkisLogKMP.$className.evaluateStartDestination]: [ШАГ 2] Сесія НЕ знайдена. Прямий перехід на SignIn.")
           _startState.value = AppStartState.SignIn
           return@launch
       }

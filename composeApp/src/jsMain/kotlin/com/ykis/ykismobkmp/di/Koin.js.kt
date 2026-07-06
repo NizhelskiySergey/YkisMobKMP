@@ -39,7 +39,36 @@ import dev.gitlive.firebase.storage.FirebaseStorage
 import com.ykis.ykismobkmp.db.DatabaseSchemaInitializer
 import kotlinx.browser.window
 
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.js.Js
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.plugins.logging.Logger
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
+
 val jsPlatformModule: Module = module {
+  single {
+    HttpClient(Js) {
+      install(ContentNegotiation) {
+        json(Json { 
+          ignoreUnknownKeys = true 
+          isLenient = true 
+          encodeDefaults = true 
+          coerceInputValues = true
+          allowSpecialFloatingPointValues = true
+        })
+      }
+      install(Logging) {
+        logger = object : Logger { override fun log(message: String) { println("[YkisLogKMP.Network]: $message") } }
+        level = LogLevel.ALL
+      }
+      install(HttpTimeout) { requestTimeoutMillis = 30_000; connectTimeoutMillis = 30_000 }
+    }
+  }
+
   single<Settings> { StorageSettings() }
   single<AppSettingsRepository> { AppSettingsRepositoryJsImpl() }
   single { LocalAiEngine() }

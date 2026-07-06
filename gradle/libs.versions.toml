@@ -31,7 +31,7 @@ uiViewbinding = "1.11.1"
 voyager = "1.1.0-beta02"
 credentials-play-services-auth = "1.6.0"
 koin = "4.2.1"
-ktor = "3.0.3"
+ktor = "3.0.1"
 gitlive-firebase = "2.4.0"
 kotlinx-serialization = "1.11.0"
 coil = "3.4.0"
@@ -128,6 +128,7 @@ ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "k
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" } # Android
 ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }     # Desktop
 ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }         # Web/Wasm
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" } # iOS
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 
 # Firebase KMP (GitLive) - ВМЕСТО твоего старого firebase-bom

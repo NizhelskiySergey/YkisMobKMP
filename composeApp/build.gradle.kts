@@ -171,6 +171,7 @@ kotlin {
     val iosMain by creating {
       dependsOn(commonMain.get())
       dependencies {
+        implementation(libs.ktor.client.darwin)
         implementation(libs.firebase.crashlytics)
         implementation(libs.native.driver)
         implementation(libs.androidx.datastore.preferences.core)

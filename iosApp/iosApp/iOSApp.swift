@@ -46,7 +46,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
     // --- GOOGLE SIGN IN ---
     func signInWithGoogle(onSuccess: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
-        guard let rootViewController = UIApplication.shared.windows.first?.rootViewController else {
+        let window = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }
+
+        guard let rootViewController = window?.rootViewController else {
             onError("Root View Controller not found")
             return
         }
@@ -102,13 +107,28 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([[.banner, .sound, .badge]])
     }
+
+    // --- FIREBASE AI LOGIC (iOS) ---
+    func generateAiContent(prompt: String, onResult: @escaping (String?, String?) -> Void) {
+        // ЗАГЛУШКА
+        onResult(nil, "Firebase AI для iOS ще налаштовується")
+    }
+
+    func analyzeAiImage(prompt: String, imageBase64: String, onResult: @escaping (String?, String?) -> Void) {
+        // ЗАГЛУШКА
+        onResult(nil, "Firebase AI для iOS ще налаштовується")
+    }
 }
 
 // РЕАЛИЗАЦИЯ ДЕЛЕГАТОВ APPLE AUTH
 extension AppDelegate: ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
     
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        return UIApplication.shared.windows.first!
+        let window = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }
+        return window ?? UIWindow()
     }
     
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {

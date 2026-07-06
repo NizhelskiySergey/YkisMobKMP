@@ -36,10 +36,39 @@ import com.ykis.ykismobkmp.db.DatabaseSchemaInitializer
 import com.ykis.ykismobkmp.domain.services.FirebaseService
 import com.ykis.ykismobkmp.domain.services.FirebaseServiceImpl
 
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.darwin.Darwin
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.plugins.logging.Logger
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
+
 /**
  * [iosPlatformModule] — Граф нативних залежностей для iOS.
  */
 val iosPlatformModule: Module = module {
+  single {
+    HttpClient(Darwin) {
+      install(ContentNegotiation) {
+        json(Json { 
+          ignoreUnknownKeys = true 
+          isLenient = true 
+          encodeDefaults = true 
+          coerceInputValues = true
+          allowSpecialFloatingPointValues = true
+        })
+      }
+      install(Logging) {
+        logger = object : Logger { override fun log(message: String) { println("[YkisLogKMP.Network]: $message") } }
+        level = LogLevel.ALL
+      }
+      install(HttpTimeout) { requestTimeoutMillis = 30_000; connectTimeoutMillis = 30_000 }
+    }
+  }
+
   single<Settings> {
     NSUserDefaultsSettings(NSUserDefaults.standardUserDefaults)
   }
