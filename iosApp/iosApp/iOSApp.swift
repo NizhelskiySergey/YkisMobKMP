@@ -6,9 +6,14 @@ import UserNotifications
 import GoogleSignIn
 import AuthenticationServices
 import CryptoKit
+import FirebaseAILogic
 import ComposeApp
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate, NativeAuthBridge {
+    
+    // Ініціалізація згідно з документацією Firebase 2026
+    private lazy var ai = FirebaseAI.firebaseAI(backend: .googleAI())
+    private lazy var model = ai.generativeModel(modelName: "gemini-3.5-flash")
     
     // Переменная для хранения nonce (защита Apple Sign In)
     fileprivate var currentNonce: String?
@@ -110,13 +115,46 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
     // --- FIREBASE AI LOGIC (iOS) ---
     func generateAiContent(prompt: String, onResult: @escaping (String?, String?) -> Void) {
-        // ЗАГЛУШКА
-        onResult(nil, "Firebase AI для iOS ще налаштовується")
+        Task {
+            do {
+                // У нових версіях SDK метод очікує або рядок, або масив ModelContent
+                let response = try await model.generateContent(prompt)
+                DispatchQueue.main.async {
+                    onResult(response.text, nil)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    print("[YkisLogKMP.AI_ERROR]: \(error.localizedDescription)")
+                    onResult(nil, error.localizedDescription)
+                }
+            }
+        }
     }
 
     func analyzeAiImage(prompt: String, imageBase64: String, onResult: @escaping (String?, String?) -> Void) {
-        // ЗАГЛУШКА
-        onResult(nil, "Firebase AI для iOS ще налаштовується")
+        guard let data = Data(base64Encoded: imageBase64),
+              let image = UIImage(data: data) else {
+            onResult(nil, "Invalid image data")
+            return
+        }
+        
+        Task {
+            do {
+                // У FirebaseAILogic для Swift:
+                // String та UIImage автоматично відповідають протоколу PartsRepresentable.
+                // Ми передаємо їх прямо у метод generateContent.
+                let response = try await model.generateContent(prompt, image)
+
+                DispatchQueue.main.async {
+                    onResult(response.text, nil)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    print("[YkisLogKMP.AI_VISION_ERROR]: \(error.localizedDescription)")
+                    onResult(nil, error.localizedDescription)
+                }
+            }
+        }
     }
 }
 

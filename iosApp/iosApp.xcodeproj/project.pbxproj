@@ -19,6 +19,7 @@
 		4B1836822FBCB05400E2AB8C /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = 4B1836812FBCB05400E2AB8C /* FirebaseRemoteConfig */; };
 		4B1836842FBCB05400E2AB8C /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 4B1836832FBCB05400E2AB8C /* FirebaseStorage */; };
 		4BCDD97E2FBC72A5008D7B56 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 4BCDD97D2FBC72A5008D7B56 /* libsqlite3.tbd */; };
+		4BDD41BB2FFC3DED000D6110 /* FirebaseAILogic in Frameworks */ = {isa = PBXBuildFile; productRef = 4BDD41BA2FFC3DED000D6110 /* FirebaseAILogic */; };
 		4BF442632FC102A700B1150B /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF442622FC102A700B1150B /* FirebaseAppCheck */; };
 		4BF97BCA2FE7F05300484559 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF97BC92FE7F05300484559 /* GoogleSignIn */; };
 		4BF97BCC2FE7F05300484559 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF97BCB2FE7F05300484559 /* GoogleSignInSwift */; };
@@ -69,6 +70,7 @@
 				4B1836802FBCB05400E2AB8C /* FirebasePerformance in Frameworks */,
 				4B1836702FBCB05400E2AB8C /* FirebaseAnalytics in Frameworks */,
 				4B1836842FBCB05400E2AB8C /* FirebaseStorage in Frameworks */,
+				4BDD41BB2FFC3DED000D6110 /* FirebaseAILogic in Frameworks */,
 				4B1836722FBCB05400E2AB8C /* FirebaseAuth in Frameworks */,
 				4B18367C2FBCB05400E2AB8C /* FirebaseFunctions in Frameworks */,
 				4B1836762FBCB05400E2AB8C /* FirebaseCrashlytics in Frameworks */,
@@ -144,6 +146,7 @@
 				4BF442622FC102A700B1150B /* FirebaseAppCheck */,
 				4BF97BC92FE7F05300484559 /* GoogleSignIn */,
 				4BF97BCB2FE7F05300484559 /* GoogleSignInSwift */,
+				4BDD41BA2FFC3DED000D6110 /* FirebaseAILogic */,
 			);
 			productName = iosApp;
 			productReference = 3825B5DAA5E5BFEEC500E648 /* YkisMobKMP.app */;
@@ -517,6 +520,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4B18366E2FBCB05400E2AB8C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		4BDD41BA2FFC3DED000D6110 /* FirebaseAILogic */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4B18366E2FBCB05400E2AB8C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAILogic;
 		};
 		4BF442622FC102A700B1150B /* FirebaseAppCheck */ = {
 			isa = XCSwiftPackageProductDependency;
