@@ -73,7 +73,6 @@ class SettingsScreenModel(
   }
 
   fun getThemeValue() {
-    "getThemeValue"
     try {
       val savedTheme = settings.getString(key = THEME_KEY, defaultValue = "system")
       _theme.value = savedTheme

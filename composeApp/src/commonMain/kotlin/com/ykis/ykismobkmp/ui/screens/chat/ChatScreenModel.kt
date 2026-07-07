@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.success_send_message
+import kotlin.time.Instant
 
 private const val tag = "ChatViewModel"
 
@@ -215,7 +216,7 @@ class ChatScreenModel(
        val name = service.name.lowercase()
        val prefix = when {
           name.contains("водоканал") -> "WATER_SERVICE"
-          name.contains("тепло") -> "WARM_SERVICE"
+          name.contains("тепло") || name.contains("ютке") -> "WARM_SERVICE"
           name.contains("сміття") || name.contains("транс") -> "GARBAGE_SERVICE"
           else -> "OSBB"
        }
@@ -286,17 +287,21 @@ class ChatScreenModel(
     return "${servicePrefix}_${effectiveId}_${addressId}"
   }
 
-  fun readFromDatabase(role: UserRole, osbbId: Long, addressId: Long) {
+  fun readFromDatabase(role: UserRole, osbbId: Long, addressId: Long, forcePrefix: String? = null) {
     currentParams = Triple(role, osbbId, addressId)
     
-    val finalOsbbId = when (role) {
-        UserRole.VodokanalUser -> Constants.WATER_SERVICE_ID
-        UserRole.YtkeUser      -> Constants.WARM_SERVICE_ID
-        UserRole.TboUser       -> Constants.GARBAGE_SERVICE_ID
+    val servicePrefix = forcePrefix ?: _selectedServicePrefix.value
+    val finalOsbbId = when {
+        role == UserRole.VodokanalUser || servicePrefix == "WATER_SERVICE" -> Constants.WATER_SERVICE_ID
+        role == UserRole.YtkeUser || servicePrefix == "WARM_SERVICE" -> Constants.WARM_SERVICE_ID
+        role == UserRole.TboUser || servicePrefix == "GARBAGE_SERVICE" -> Constants.GARBAGE_SERVICE_ID
         else -> osbbId
     }
 
-    val targetPath = getChatPath(role, finalOsbbId, addressId)
+    // Примусово оновлюємо префікс у стейті, щоб uploadFileAndSendMessage теж знав куди слати
+    _selectedServicePrefix.value = servicePrefix
+
+    val targetPath = "${servicePrefix}_${finalOsbbId}_${addressId}"
     if (activeChatIdForNotifications == targetPath) return
 
     println("[YkisLogKMP]: [READ_START] Путь: $targetPath")
@@ -719,7 +724,7 @@ class ChatScreenModel(
 
         // Отримуємо поточну дату в форматі dd-mm-yyyy
         val ts = currentTimeMillis()
-        val today = kotlinx.datetime.Instant.fromEpochMilliseconds(ts).toLocalDateTime(TimeZone.currentSystemDefault()).date
+        val today = Instant.fromEpochMilliseconds(ts).toLocalDateTime(TimeZone.currentSystemDefault()).date
         val parts = today.toString().split("-") // [yyyy, MM, dd]
         val dateStr = "${parts[2]}-${parts[1]}-${parts[0]}"
 

@@ -29,8 +29,6 @@ class KtorApiService(private val client: HttpClient) {
   private val baseUrl = "https://is.yuzhny.com/YkisMobileRest/rest_api/"
 
   private suspend inline fun <reified T> postFormUrlEncoded(path: String, params: Map<String, String>): T {
-    "postFormUrlEncoded"
-
     val rawFormBodyBuilder = StringBuilder()
     params.forEach { (key, value) ->
       if (rawFormBodyBuilder.isNotEmpty()) rawFormBodyBuilder.append("&")

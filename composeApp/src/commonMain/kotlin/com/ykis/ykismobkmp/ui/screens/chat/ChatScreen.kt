@@ -186,9 +186,13 @@ fun ChatScreenContent(
   LaunchedEffect(baseUIState.addressId, baseUIState.userRole, chatUid, userEntity.uid, baseUIState.osbbId) {
     val role = baseUIState.userRole
     val addrId = if (role == UserRole.StandardUser) baseUIState.addressId else userEntity.addressId
-    val osbbId = baseUIState.osbbId
+    
+    // БЕРЕМО ПРЕФІКС, ЯКИЙ БУВ ОБРАНИЙ У СПИСКУ
+    val currentPrefix = screenModel.selectedServicePrefix.value
+    val osbbId = if (role == UserRole.StandardUser && currentPrefix != "OSBB") 0L else baseUIState.osbbId
+
     if (role != UserRole.Unknown && addrId > 0L) {
-      screenModel.readFromDatabase(role, osbbId, addrId)
+      screenModel.readFromDatabase(role, osbbId, addrId, forcePrefix = currentPrefix)
     }
   }
 

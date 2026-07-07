@@ -136,7 +136,6 @@ fun <T> ServiceListStateless(
               )
             }
           }
-          items
         }
       }
       Spacer(modifier = Modifier.height(16.dp))
