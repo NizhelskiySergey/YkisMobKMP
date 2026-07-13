@@ -138,7 +138,7 @@
   <string name="area_flat">Площа квартири (м2)</string>
   <string name="contacts">Контактні дані</string>
   <string name="PIB">ПІБ</string>
-  <string name="area_full">Загальна:</string>
+  <string name="area_full">Корисна:</string>
   <string name="area_life">Житлова:</string>
   <string name="area_extra">Додаткова:</string>
   <string name="area_otopl">Опалювальна:</string>
