@@ -30,11 +30,11 @@ fun RowScope.TableCell(
     modifier = modifier
       .weight(weight)
       .fillMaxWidth() // ДОДАНО: Гарантуємо, що текст займає всю ширину комірки для коректного TextAlign
-      .padding(horizontal = 2.dp, vertical = 6.dp),
+      .padding(horizontal = 1.dp, vertical = 4.dp), // Зменшили до мінімуму для економії місця
     style = when {
       isHeader -> MaterialTheme.typography.labelSmall.copy(
         fontWeight = FontWeight.Bold, 
-        fontSize = 11.sp
+        fontSize = 10.sp // Злегка зменшили заголовок
       )
       isSummary -> MaterialTheme.typography.bodySmall.copy(
         fontWeight = FontWeight.Bold, 

@@ -55,8 +55,6 @@ fun FastPayPaymentRow(
   ledgerUIState: BaseUIState
 ) {
   val uriHandler = LocalUriHandler.current
-  
-  // Визначаємо ЗАГАЛЬНИЙ борг по службі
   val totalServiceDebt = remember(contentDetail, ledgerUIState.totalDebt) {
     when (contentDetail) {
       ContentDetail.WATER_SERVICE   -> ledgerUIState.totalDebt.dolg1
@@ -67,7 +65,6 @@ fun FastPayPaymentRow(
     }
   }
 
-  // Стейт суми
   var paymentSum by remember(totalServiceDebt) { 
       mutableStateOf(if (totalServiceDebt > 0) totalServiceDebt.toString() else "") 
   }
@@ -83,7 +80,6 @@ fun FastPayPaymentRow(
       ledgerUIState.fastpayTokens.find { it.osbbId == targetOsbbId }?.token
   }
 
-  // Показуємо тільки мешканцю
   if (baseUIState.userRole != com.ykis.ykismobkmp.domain.services.UserRole.StandardUser) return
 
   Column(modifier = Modifier.fillMaxWidth()) {
@@ -115,8 +111,6 @@ fun FastPayPaymentRow(
                   val jsonParams = "{\"token\":\"$fastpayToken\",\"personalAccount\":\"$personalAccount\"}"
                   val encodedParams = jsonParams.replace("{", "%7B").replace("}", "%7D").replace("\"", "%22")
                   val url = "https://next.privat24.ua/payments/form/$encodedParams"
-
-                  println("[YkisLogKMP.FastPay]: >>> ВІДКРИВАЄМО ОПЛАТУ (ID: $personalAccount) >>>")
                   try { uriHandler.openUri(url) } catch (e: Exception) { }
               }
             },
@@ -125,12 +119,7 @@ fun FastPayPaymentRow(
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = if (fastpayToken.isNullOrBlank()) Color.Gray else Color(0xFF7CB342))
           ) {
-            Icon(
-              painter = painterResource(Res.drawable.privatbank), 
-              contentDescription = null, 
-              modifier = Modifier.size(54.dp).padding(top=4.dp),
-              tint = Color.Unspecified
-            )
+            Icon(painter = painterResource(Res.drawable.privatbank), contentDescription = null, modifier = Modifier.size(54.dp).padding(top=4.dp), tint = Color.Unspecified)
             Spacer(Modifier.width(8.dp))
             Text(if (fastpayToken.isNullOrBlank()) "Немає токена" else "Сплатити")
           }
@@ -139,7 +128,6 @@ fun FastPayPaymentRow(
       HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
   }
 }
-
 
 @Composable
 fun ServiceDetailScreen(
@@ -150,15 +138,10 @@ fun ServiceDetailScreen(
   screenModel: LedgerScreenModel,
   navigateToWebView: (String) -> Unit
 ) {
-  Column(
-    modifier = modifier.fillMaxSize()
-  ) {
+  Column(modifier = modifier.fillMaxSize()) {
     DefaultAppBar(
       canNavigateBack = true,
-      onBackClick = {
-        println("[YkisLogKMP.$className.onBackClick]: Возврат к списку. Служба: $contentDetail")
-        screenModel.closeContentDetail()
-      },
+      onBackClick = { screenModel.closeContentDetail() },
       title = when (contentDetail) {
         ContentDetail.OSBB -> "ОСББ"
         ContentDetail.WATER_SERVICE -> stringResource(Res.string.vodokanal)
@@ -168,22 +151,9 @@ fun ServiceDetailScreen(
       },
       subtitle = baseUIState.address
     )
-
-    // БЛОК ШВИДКОЇ ОПЛАТИ (FastPay)
-    FastPayPaymentRow(
-      contentDetail = contentDetail,
-      baseUIState = baseUIState,
-      ledgerUIState = ledgerUIState
-    )
-
+    FastPayPaymentRow(contentDetail = contentDetail, baseUIState = baseUIState, ledgerUIState = ledgerUIState)
     Box(modifier = Modifier.weight(1f)) {
-      ServiceDetailContentContainer(
-        modifier = Modifier.fillMaxSize(),
-        contentDetail = contentDetail,
-        baseUIState = baseUIState,
-        ledgerUIState = ledgerUIState,
-        screenModel = screenModel
-      )
+      ServiceDetailContentContainer(modifier = Modifier.fillMaxSize(), contentDetail = contentDetail, baseUIState = baseUIState, ledgerUIState = ledgerUIState, screenModel = screenModel)
     }
   }
 }
@@ -201,10 +171,8 @@ fun ServiceDetailContentContainer(
     val localDateTime = currentMoment.toLocalDateTime(TimeZone.currentSystemDefault())
     localDateTime.year.toString()
   }
-
   var selectedChip by rememberSaveable { mutableStateOf(currentYearString) }
 
-  // 1. Каскадний КМР-триггер перезавантаження таблиць (при зміні року або квартири)
   LaunchedEffect(key1 = selectedChip, key2 = contentDetail, key3 = baseUIState.addressId) {
     if (baseUIState.addressId != 0L) {
       baseUIState.uid?.let { currentUid ->
@@ -231,6 +199,7 @@ fun ServiceDetailContentContainer(
     year = currentYearString,
     serviceEntities = ledgerUIState.monthlyServices,
     selectedChip = selectedChip,
+    contentDetail = contentDetail, // Передаємо сюди
     onSelectedChanged = { selectedChip = it }
   )
 }
@@ -242,6 +211,7 @@ fun ServiceDetailContentStateless(
   year: String,
   serviceEntities: List<ServiceEntity>,
   selectedChip: String,
+  contentDetail: ContentDetail, // Додано параметр
   onSelectedChanged: (String) -> Unit
 ) {
   val yearsList = remember(year) {
@@ -249,222 +219,145 @@ fun ServiceDetailContentStateless(
     List(20) { index -> (baseYear - index).toString() }
   }
 
-  Column(
-    modifier = modifier.fillMaxSize(),
-    verticalArrangement = Arrangement.Top,
-    horizontalAlignment = Alignment.CenterHorizontally,
-  ) {
-    GroupFilterChip(
-      list = yearsList,
-      selectedChip = selectedChip,
-      onSelectedChanged = onSelectedChanged
-    )
-
-    Crossfade(
-      targetState = isLoading,
-      animationSpec = tween(300),
-      label = "ServiceDetailCrossfade"
-    ) { isCurrentlyLoading ->
-      if (isCurrentlyLoading) {
-        CenteredProgressIndicator()
-      } else {
-        ListServiceDetails(listServiceEntity = serviceEntities)
-      }
-    }
-  }
-}
-
-
-
-
-@Composable
-fun GroupFilterChip(
-  list: List<String>,
-  selectedChip: String,
-  onSelectedChanged: (String) -> Unit
-) {
-  Row(
-    modifier = Modifier.fillMaxWidth().padding(8.dp).horizontalScroll(rememberScrollState()),
-    horizontalArrangement = Arrangement.spacedBy(8.dp)
-  ) {
-    list.forEach { year ->
-      FilterChip(
-        selected = selectedChip == year,
-        onClick = { onSelectedChanged(year) },
-        label = { Text(year) }
-      )
+  Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
+    GroupFilterChip(list = yearsList, selectedChip = selectedChip, onSelectedChanged = onSelectedChanged)
+    Crossfade(targetState = isLoading, animationSpec = tween(300), label = "ServiceDetailCrossfade") { isCurrentlyLoading ->
+      if (isCurrentlyLoading) { CenteredProgressIndicator() } 
+      else { ListServiceDetails(listServiceEntity = serviceEntities, contentDetail = contentDetail) }
     }
   }
 }
 
 @Composable
-fun ListServiceDetails(listServiceEntity: List<ServiceEntity>) {
-
-  // Трассировка входящего списка по нашему железному правилу [Класс.Метод]
-  LaunchedEffect(listServiceEntity) {
-    println("[YkisLogKMP.ServiceDetailScreen.ListServiceDetails]: [UI_RECEIVE] Входящая коллекция месяцев на рендер. Размер: ${listServiceEntity.size} шт.")
-
-    listServiceEntity.forEachIndexed { index, item ->
-      println("[YkisLogKMP.ServiceDetailScreen.ListServiceDetails]: Идентификация строки [$index] -> Л/С: ${item.addressId}, Служба: ${item.service}, Дата: ${item.data}, Начислено: ${item.nachisleno}, Долг: ${item.dolg}")
-    }
+fun GroupFilterChip(list: List<String>, selectedChip: String, onSelectedChanged: (String) -> Unit) {
+  Row(modifier = Modifier.fillMaxWidth().padding(8.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    list.forEach { year -> FilterChip(selected = selectedChip == year, onClick = { onSelectedChanged(year) }, label = { Text(year) }) }
   }
+}
 
+@Composable
+fun ListServiceDetails(listServiceEntity: List<ServiceEntity>, contentDetail: ContentDetail) {
   if (listServiceEntity.isEmpty()) {
-    // Если в логах выведется Размер: 0 шт., значит, Use Case выдает пустой стейт из СУБД.
-    // Если в логах выведется Размер: 6 шт., но экран пустой, значит, LazyColumn спотыкается о дубликаты ключей key!
-    EmptyListState(
-      title = stringResource(Res.string.no_payment),
-      subtitle = stringResource(Res.string.no_payment_year)
-    )
+    EmptyListState(title = stringResource(Res.string.no_payment), subtitle = stringResource(Res.string.no_payment_year))
   } else {
-    LazyColumn(
-      modifier = Modifier.fillMaxSize(),
-      contentPadding = PaddingValues(vertical = 8.dp)
-    ) {
-      itemsIndexed(
-        items = listServiceEntity,
-        // Безопасный, отказоустойчивый ключ на базе индекса строки для предотвращения коллизий
-        key = { index, item -> "item_${index}_${item.data}" }
-      ) { index, item ->
-        ServiceDetailItem(serviceEntity = item)
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+      itemsIndexed(items = listServiceEntity, key = { index, item -> "item_${index}_${item.data}" }) { index, item ->
+        ServiceDetailItem(serviceEntity = item, contentDetail = contentDetail)
       }
     }
   }
 }
-
 
 private fun formatUkMonth(dateString: String?): String {
   if (dateString.isNullOrBlank() || !dateString.contains("-")) return "Звітний місяць"
   val parts = dateString.split("-")
   if (parts.size < 2) return "Звітний місяць"
-  val yearStr = parts[0]
   val monthInt = parts[1].toIntOrNull() ?: return "Звітний місяць"
   val monthName = when (monthInt) {
-    1 -> "Січень" 2 -> "Лютий" 3 -> "Березень" 4 -> "Квітень"
-    5 -> "Травень" 6 -> "Червень" 7 -> "Липень" 8 -> "Серпень"
-    9 -> "Вересень" 10 -> "Жовтень" 11 -> "Листопад" 12 -> "Грудень"
+    1 -> "Січень" 2 -> "Лютий" 3 -> "Березень" 4 -> "Квітень" 5 -> "Травень" 6 -> "Червень"
+    7 -> "Липень" 8 -> "Серпень" 9 -> "Вересень" 10 -> "Жовтень" 11 -> "Листопад" 12 -> "Грудень"
     else -> "Місяць"
   }
-  return "$monthName $yearStr"
+  return "$monthName ${parts[0]}"
 }
+
 @Composable
 fun ServiceDetailItem(
   modifier: Modifier = Modifier,
-  serviceEntity: ServiceEntity = ServiceEntity()
+  serviceEntity: ServiceEntity = ServiceEntity(),
+  contentDetail: ContentDetail
 ) {
   val contentType = LocalContentType.current
   val isDualPane = contentType == ContentType.DUAL_PANE
-
-  rememberScrollState()
   val formattedMonthHeader = remember(serviceEntity.data) { formatUkMonth(serviceEntity.data) }
 
-  // Хелперы очистки и сокращения данных
   val cleanStr: (Any?) -> String = { valStr ->
     val s = valStr?.toString() ?: ""
     val cleaned = if (s.equals("none", ignoreCase = true) || s.equals("null", ignoreCase = true)) "" else s
-    // ИСПРАВЛЕНО: Сокращаем название до 9 символов для экстремальной компактности таблицы
     if (cleaned.length > 9) cleaned.take(8) + "…" else cleaned
   }
-  val cleanNum: (Double?) -> String = { num ->
-    if (num == null || num == 0.0) "0.00" else num.toString()
-  }
+  val cleanNum: (Double?) -> String = { num -> if (num == null || num == 0.0) "0.00" else num.toString() }
 
-  BaseCard(
-    modifier = modifier
-      .fillMaxWidth()
-      .padding(vertical = 4.dp, horizontal = 12.dp)
-  ) {
-    Text(
-      text = formattedMonthHeader,
-      style = MaterialTheme.typography.bodyLarge, // Уменьшили шрифт месяца
-      fontWeight = FontWeight.Bold,
-      color = MaterialTheme.colorScheme.primary,
-      modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 8.dp)
-    )
+  BaseCard(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp, horizontal = 4.dp)) {
+    Text(text = formattedMonthHeader, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp))
 
-    // КОМПАКТНЫЙ КОНТЕЙНЕР ТАБЛИЦЫ
-    Column(
-      modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 4.dp, vertical = 2.dp)
-    ) {
-      // 1. ЗАГОЛОВКИ ТАБЛИЦЫ (В центре, 11.sp, жирный)
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        TableCell(
-          text = stringResource(Res.string.services), 
-          weight = 1.3f, 
-          isHeader = true, 
-          textAlign = TextAlign.Center // Заголовок "Послуги" тепер по центру
-        )
-        TableCell(
-          text = stringResource(if (isDualPane) Res.string.start_debt_full else Res.string.start_debt),
-          isHeader = true,
-          textAlign = TextAlign.End,
-//          weight = if (isDualPane) 1.2f else 1f // Даем чуть больше места длинным заголовкам
-        )
-        TableCell(
-          text = stringResource(if (isDualPane) Res.string.accrued_text_full else Res.string.accrued_text),
-          isHeader = true,
-          textAlign = TextAlign.End,
-//          weight = if (isDualPane) 1.2f else 1f
-        )
-        TableCell(
-          text = stringResource(if (isDualPane) Res.string.paid_full else Res.string.paid),
-          isHeader = true,
-          textAlign = TextAlign.End,
-//          weight = if (isDualPane) 1.2f else 1f
-        )
-        TableCell(
-          text = stringResource(if (isDualPane) Res.string.end_debt_full else Res.string.end_debt),
-          isHeader = true,
-          textAlign = TextAlign.End,
-//          weight = if (isDualPane) 1.2f else 1f
-        )
-      }
-      TableDivider()
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 0.dp, vertical = 0.dp)) {
+      if (contentDetail == ContentDetail.OSBB) {
+        // --- СТАРИЙ МАКЕТ ДЛЯ ОСББ ---
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+          TableCell(text = stringResource(Res.string.services), weight = 1.3f, isHeader = true, textAlign = TextAlign.Start)
+          TableCell(text = stringResource(if (isDualPane) Res.string.start_debt_full else Res.string.start_debt), isHeader = true, textAlign = TextAlign.End, weight = 1f)
+          TableCell(text = stringResource(if (isDualPane) Res.string.accrued_text_full else Res.string.accrued_text), isHeader = true, textAlign = TextAlign.End)
+          TableCell(text = stringResource(if (isDualPane) Res.string.paid_full else Res.string.paid), isHeader = true, textAlign = TextAlign.End)
+          TableCell(text = stringResource(if (isDualPane) Res.string.end_debt_full else Res.string.end_debt), isHeader = true, textAlign = TextAlign.End)
+        }
+        TableDivider()
 
-      // 2. СТРОКИ ДАННЫХ (Цифры справа, 12.sp, не жирный)
-      val servicesData = listOf(
-        cleanStr(serviceEntity.service1) to listOf(cleanNum(serviceEntity.zadol1), cleanNum(serviceEntity.nachisleno1), cleanNum(serviceEntity.oplacheno1), cleanNum(serviceEntity.dolg1)),
-        cleanStr(serviceEntity.service2) to listOf(cleanNum(serviceEntity.zadol2), cleanNum(serviceEntity.nachisleno2), cleanNum(serviceEntity.oplacheno2), cleanNum(serviceEntity.dolg2)),
-        cleanStr(serviceEntity.service3) to listOf(cleanNum(serviceEntity.zadol3), cleanNum(serviceEntity.nachisleno3), cleanNum(serviceEntity.oplacheno3), cleanNum(serviceEntity.dolg3)),
-        cleanStr(serviceEntity.service4) to listOf(cleanNum(serviceEntity.zadol4), cleanNum(serviceEntity.nachisleno4), cleanNum(serviceEntity.oplacheno4), cleanNum(serviceEntity.dolg4))
-      )
+        val rows = listOf(
+            Triple(serviceEntity.service1, serviceEntity.zadol1, listOf(serviceEntity.nachisleno1, serviceEntity.oplacheno1, serviceEntity.dolg1)),
+            Triple(serviceEntity.service2, serviceEntity.zadol2, listOf(serviceEntity.nachisleno2, serviceEntity.oplacheno2, serviceEntity.dolg2)),
+            Triple(serviceEntity.service3, serviceEntity.zadol3, listOf(serviceEntity.nachisleno3, serviceEntity.oplacheno3, serviceEntity.dolg3)),
+            Triple(serviceEntity.service4, serviceEntity.zadol4, listOf(serviceEntity.nachisleno4, serviceEntity.oplacheno4, serviceEntity.dolg4))
+        )
+        rows.forEach { (name, zadol, vals) ->
+          if (!name.isNullOrBlank() && name != "none") {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+              TableCell(text = cleanStr(name), weight = 1.3f, textAlign = TextAlign.Start)
+              TableCell(text = cleanNum(zadol), textAlign = TextAlign.End, weight = 1f)
+              vals.forEach { TableCell(text = cleanNum(it), textAlign = TextAlign.End) }
+            }
+            TableDivider()
+          }
+        }
+        Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)), verticalAlignment = Alignment.CenterVertically) {
+          TableCell(text = stringResource(Res.string.summary), weight = 1.3f, isSummary = true, textAlign = TextAlign.Start)
+          TableCell(text = cleanNum(serviceEntity.zadol), isSummary = true, textAlign = TextAlign.End)
+          TableCell(text = cleanNum(serviceEntity.nachisleno), isSummary = true, textAlign = TextAlign.End)
+          TableCell(text = cleanNum(serviceEntity.oplacheno), isSummary = true, textAlign = TextAlign.End)
+          TableCell(text = cleanNum(serviceEntity.dolg), isSummary = true, textAlign = TextAlign.End)
+        }
+      } else {
+        // --- НОВИЙ МАКЕТ ДЛЯ ІНШИХ ---
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+          TableCell(text = stringResource(if (isDualPane) Res.string.start_debt_full else Res.string.start_debt), isHeader = true, textAlign = TextAlign.Start, weight = 1f)
+          TableCell(text = stringResource(Res.string.services), weight = 1.3f, isHeader = true, textAlign = TextAlign.Start) // Вліво
+          TableCell(text = stringResource(if (isDualPane) Res.string.accrued_text_full else Res.string.accrued_text), isHeader = true, textAlign = TextAlign.End, weight = 1f)
+          TableCell(text = stringResource(if (isDualPane) Res.string.paid_full else Res.string.paid), isHeader = true, textAlign = TextAlign.End, weight = 1f)
+          TableCell(text = stringResource(if (isDualPane) Res.string.end_debt_full else Res.string.end_debt), isHeader = true, textAlign = TextAlign.End, weight = 1f)
+        }
+        TableDivider()
 
-      servicesData.forEach { (name, values) ->
-        if (name.isNotBlank()) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            TableCell(text = name, weight = 1.3f, textAlign = TextAlign.Start) // Название слева
-            values.forEach { valText -> TableCell(text = valText, textAlign = TextAlign.End) } // Цифры справа
+        val activeServices = remember(serviceEntity, contentDetail) {
+            val list = mutableListOf<Pair<String, Double>>()
+            fun addIf(n: String?, v: Double?) { if (!n.isNullOrBlank() && n.lowercase() != "none") list.add(n to (v ?: 0.0)) }
+            addIf(serviceEntity.service1, serviceEntity.nachisleno1)
+            addIf(serviceEntity.service2, serviceEntity.nachisleno2)
+            addIf(serviceEntity.service3, serviceEntity.nachisleno3)
+            addIf(serviceEntity.service4, serviceEntity.nachisleno4)
+            if (list.isEmpty() && (serviceEntity.nachisleno ?: 0.0) != 0.0) {
+                list.add((if(contentDetail==ContentDetail.WARM_SERVICE) "Опалення" else "Послуги") to (serviceEntity.nachisleno ?: 0.0))
+            }
+            list
+        }
+
+        if (activeServices.isNotEmpty()) {
+          Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            TableCell(text = cleanNum(serviceEntity.zadol), weight = 1f, textAlign = TextAlign.Start, isSummary = true)
+            Column(modifier = Modifier.weight(2.3f)) {
+              activeServices.forEachIndexed { i, (n, a) ->
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                  TableCell(text = cleanStr(n), weight = 1.3f, textAlign = TextAlign.Start)
+                  TableCell(text = cleanNum(a), weight = 1f, textAlign = TextAlign.End)
+                }
+                if (i < activeServices.size - 1) TableDivider()
+              }
+            }
+            TableCell(text = cleanNum(serviceEntity.oplacheno), weight = 1f, textAlign = TextAlign.End, isSummary = true)
+            TableCell(text = cleanNum(serviceEntity.dolg), weight = 1f, textAlign = TextAlign.End, isSummary = true)
           }
           TableDivider()
         }
       }
-
-      // 3. ИТОГОВАЯ СТРОКА (Жирный, 12.sp)
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)),
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        TableCell(text = stringResource(Res.string.summary), weight = 1.3f, isSummary = true, textAlign = TextAlign.Start)
-        TableCell(text = cleanNum(serviceEntity.zadol), isSummary = true, textAlign = TextAlign.End)
-        TableCell(text = cleanNum(serviceEntity.nachisleno), isSummary = true, textAlign = TextAlign.End)
-        TableCell(text = cleanNum(serviceEntity.oplacheno), isSummary = true, textAlign = TextAlign.End)
-        TableCell(text = cleanNum(serviceEntity.dolg), isSummary = true, textAlign = TextAlign.End)
-      }
     }
   }
 }
-
-
-
-
-
