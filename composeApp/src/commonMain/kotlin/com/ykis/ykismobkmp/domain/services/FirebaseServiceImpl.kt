@@ -84,7 +84,16 @@ class FirebaseServiceImpl(
   override suspend fun setUserAgreed(agreed: Boolean) { settings.putBoolean(TERMS_ACCEPTED_KEY, agreed) }
 
   override suspend fun firebaseSignInWithEmailAndPassword(email: String, password: String) {
-      auth.signInWithEmailAndPassword(email, password)
+      try {
+          println("[YkisLogKMP.$className.firebaseSignInWithEmailAndPassword]: Спроба входу для $email")
+          auth.signInWithEmailAndPassword(email, password)
+          println("[YkisLogKMP.$className.firebaseSignInWithEmailAndPassword]: Успішний вхід")
+      } catch (e: Exception) {
+          println("[YkisLogKMP.$className.firebaseSignInWithEmailAndPassword]: [ERROR] Помилка входу: ${e.message}")
+          // Можливо, тут FirebaseException, спробуємо отримати деталі
+          e.printStackTrace()
+          throw e
+      }
   }
 
   override suspend fun firebaseSignInWithGoogle(idToken: String): SignInWithGoogleResponse = try {

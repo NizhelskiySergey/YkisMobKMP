@@ -92,8 +92,10 @@ class AuthScreenModel(
         appScreenModel.evaluateStartDestination()
         onSuccessNavigate()
       } catch (e: Exception) {
-        _signInResponse.value = Resource.Error(message = "Firebase error")
-        SnackbarManager.showMessage(mapFirebaseError(e.message))
+        println("[YkisLogKMP.$className.onSignInClick]: [ERROR] Спіймано виключення: ${e.message}")
+        _signInResponse.value = Resource.Error(message = e.message ?: "Firebase error")
+        // Виводимо текст самої помилки, щоб побачити код
+        SnackbarManager.showMessage("Помилка: ${e.message}")
       }
     }
   }

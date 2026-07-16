@@ -274,7 +274,8 @@ fun ServiceDetailItem(
   val cleanStr: (Any?) -> String = { valStr ->
     val s = valStr?.toString() ?: ""
     val cleaned = if (s.equals("none", ignoreCase = true) || s.equals("null", ignoreCase = true)) "" else s
-    if (cleaned.length > 9) cleaned.take(8) + "…" else cleaned
+    // ВИПРАВЛЕНО ДЛЯ ВЕБ: Використовуємо звичайні крапки
+    if (cleaned.length > 12) cleaned.take(11) + "..." else cleaned
   }
   val cleanNum: (Double?) -> String = { num -> if (num == null || num == 0.0) "0.00" else num.toString() }
 
