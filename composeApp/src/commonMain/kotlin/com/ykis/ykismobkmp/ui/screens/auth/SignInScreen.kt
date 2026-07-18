@@ -68,7 +68,7 @@ import ykismobkmp.composeapp.generated.resources.verify_code_button
 private const val className = "SignInScreen"
 
 @Composable
-fun AppleAuthButton(isLoading: Boolean, onStart: () -> Unit, onTokenReceived: (String) -> Unit) {
+fun AppleAuthButton(isLoading: Boolean, onStart: () -> Unit, onDataReceived: (String, String?, String?) -> Unit) {
     val platform = com.ykis.ykismobkmp.getPlatform().name
     println("[YkisLogKMP.AppleAuthButton]: Поточна платформа: $platform")
 
@@ -86,16 +86,15 @@ fun AppleAuthButton(isLoading: Boolean, onStart: () -> Unit, onTokenReceived: (S
             onStart()
             println("[YkisLogKMP.AppleAuthButton]: [START] Запуск нативної авторизації Apple")
             com.ykis.ykismobkmp.core.utils.triggerNativeAppleSignIn(
-                onTokenReceived = { token ->
-                    println("[YkisLogKMP.AppleAuthButton]: [SUCCESS] Apple Token отримано")
-                    onTokenReceived(token)
+                onTokenReceived = { token, nonce, authCode ->
+                    println("[YkisLogKMP.AppleAuthButton]: [SUCCESS] Apple Token, Nonce та AuthCode отримано")
+                    onDataReceived(token, nonce, authCode)
                 },
                 onError = { error ->
                     println("[YkisLogKMP.AppleAuthButton]: [ERROR] $error")
                     if (error != "Canceled") {
                         SnackbarManager.showMessage(error)
                     }
-                    onTokenReceived("") // Скидаємо лоадер
                 }
             )
         },
@@ -254,10 +253,10 @@ object SignInScreen : Screen {
           println("[YkisLogKMP.$className.Content]: [NAVIGATION] Перехід на екран реєстрації SignUpScreen")
           navigator.push(SignUpScreenDest)
         },
-        onAppleTokenReceived = { idToken ->
-          println("[YkisLogKMP.$className.Content]: [EVENT] Получен Apple ID Token.")
-          screenModel.onSignUpWithApple(idToken) {
-            println("[YkisLogKMP.$className.Content]: [SUCCESS] Успех Apple Auth.")
+        onAppleDataReceived = { token, nonce, authCode ->
+          println("[YkisLogKMP.$className.Content]: [EVENT] Отримано Apple ID Token, Nonce та AuthCode. Запуск входу...")
+          screenModel.onSignUpWithApple(idToken = token, nonce = nonce, authCode = authCode) {
+            println("[YkisLogKMP.$className.Content]: [SUCCESS] Успіх Apple Auth.")
           }
         },
         onGoogleTokenReceived = { idToken ->
@@ -292,7 +291,7 @@ fun SignInScreenStateless(
   onForgotPasswordClick: () -> Unit,
   onSignUpClick: () -> Unit,
   onGoogleTokenReceived: (String) -> Unit,
-  onAppleTokenReceived: (String) -> Unit,
+  onAppleDataReceived: (String, String?, String?) -> Unit,
   onGoogleStart: () -> Unit,
   onGoogleError: () -> Unit,
   isGoogleLoading: Boolean
@@ -461,7 +460,7 @@ fun SignInScreenStateless(
           AppleAuthButton(
             isLoading = isGoogleLoading, 
             onStart = onGoogleStart,
-            onTokenReceived = onAppleTokenReceived
+            onDataReceived = onAppleDataReceived
           )
         }
         Spacer(modifier = Modifier.height(24.dp))

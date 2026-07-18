@@ -9,12 +9,13 @@ import platform.Foundation.base64EncodedStringWithOptions
 import platform.Foundation.create
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.OAuthProvider
-import kotlin.native.concurrent.ThreadLocal
-
-@ThreadLocal
-object IosAuthConnector {
-    var bridge: NativeAuthBridge? = null
-}
+import dev.gitlive.firebase.auth.PhoneAuthProvider
+import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.messaging.messaging
+import platform.UserNotifications.UNUserNotificationCenter
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.delay
+import kotlin.coroutines.resume
 
 @OptIn(ExperimentalForeignApi::class, kotlinx.cinterop.BetaInteropApi::class)
 actual fun encodeBase64(bytes: ByteArray): String {
@@ -44,13 +45,13 @@ actual fun triggerNativeGoogleSignIn(
 }
 
 actual fun triggerNativeAppleSignIn(
-    onTokenReceived: (String) -> Unit,
+    onTokenReceived: (String, String?, String?) -> Unit,
     onError: (String) -> Unit
 ) {
     val bridge = IosAuthConnector.bridge
     if (bridge != null) {
         bridge.signInWithApple(
-            onSuccess = { token -> onTokenReceived(token) },
+            onSuccess = { token, nonce, authCode -> onTokenReceived(token, nonce, authCode) },
             onError = { error -> onError(error) }
         )
     } else {
@@ -61,18 +62,73 @@ actual fun triggerNativeAppleSignIn(
 actual suspend fun performPlatformSignInWithApple(
     auth: FirebaseAuth,
     idToken: String,
-    rawNonce: String?
+    rawNonce: String?,
+    authCode: String?
 ): Resource<Boolean> = try {
     val appleCredential = OAuthProvider.credential(
         providerId = "apple.com",
         idToken = idToken,
-        accessToken = "", 
+        accessToken = authCode,
         rawNonce = rawNonce
     )
     auth.signInWithCredential(appleCredential)
     Resource.Success(true)
 } catch (e: Exception) {
     Resource.Error(message = e.message ?: "Apple Auth Failed")
+}
+
+actual suspend fun performPlatformSendSms(
+    auth: FirebaseAuth,
+    phoneNumber: String,
+    platformActivity: Any?
+): Resource<String> = suspendCancellableCoroutine { continuation ->
+    val bridge = IosAuthConnector.bridge
+    if (bridge != null) {
+        bridge.sendSmsCode(
+            phoneNumber = phoneNumber,
+            onSuccess = { vId -> 
+                continuation.resume(Resource.Success(vId)) 
+            },
+            onError = { err -> 
+                continuation.resume(Resource.Error(err)) 
+            }
+        )
+    } else {
+        continuation.resume(Resource.Error("Native Bridge not found"))
+    }
+}
+
+actual suspend fun performPlatformSignInWithSms(
+    auth: FirebaseAuth,
+    verificationId: String,
+    smsCode: String
+): Resource<String> = try {
+    val provider = PhoneAuthProvider(auth)
+    val credential = provider.credential(verificationId, smsCode)
+    val authResult = auth.signInWithCredential(credential)
+    val uid = authResult.user?.uid ?: ""
+    Resource.Success(uid)
+} catch (e: Exception) {
+    Resource.Error(message = e.message ?: "SMS Login Failed")
+}
+
+actual suspend fun getPlatformFcmToken(): String? {
+  repeat(3) { attempt ->
+    try {
+      val token = Firebase.messaging.getToken()
+      if (!token.isNullOrBlank()) return token
+    } catch (e: Exception) {
+      if (attempt < 2) delay(2000)
+    }
+  }
+  return null
+}
+
+actual fun performPlatformClearNotifications(chatId: String?) {
+  try {
+    val center = UNUserNotificationCenter.currentNotificationCenter()
+    center.removeAllDeliveredNotifications()
+  } catch (e: Exception) { }
 }
 
 actual fun getNativeBridge(): NativeAuthBridge? = IosAuthConnector.bridge

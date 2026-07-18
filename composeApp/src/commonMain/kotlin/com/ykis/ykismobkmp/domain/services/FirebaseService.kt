@@ -36,17 +36,17 @@ interface FirebaseService {
   suspend fun deleteAccount()
   suspend fun signOut()
   suspend fun firebaseSignInWithGoogle(idToken: String): SignInWithGoogleResponse
-  suspend fun firebaseSignInWithApple(idToken: String, rawNonce: String? = null): Resource<Boolean>
+  suspend fun firebaseSignInWithApple(idToken: String, rawNonce: String? = null, authCode: String? = null): Resource<Boolean>
   suspend fun firebaseSignUpWithEmailAndPassword(email: String, password: String): SignUpResponse
   suspend fun sendEmailVerification(): SendEmailVerificationResponse
   suspend fun sendPasswordResetEmail(email: String): SendPasswordResetEmailResponse
   suspend fun sendSmsCode(phoneNumber: String, platformActivity: Any?): Resource<String>
-  suspend fun signInWithSmsCode(verificationId: String, smsCode: String): Resource<Boolean>
+  suspend fun signInWithSmsCode(verificationId: String, smsCode: String): Resource<String>
   fun getProvider(viewModelScope: CoroutineScope): String
   suspend fun firebaseSignInWithEmailAndPassword(email: String, password: String)
   suspend fun reloadFirebaseUser(): ReloadUserResponse
   suspend fun revokeAccess(): Resource<Boolean>
-  suspend fun addUserFirestore(): addUserFirestoreResponse
+  suspend fun addUserFirestore(manualUid: String? = null): addUserFirestoreResponse
   fun getAuthState(viewModelScope: CoroutineScope): AuthStateResponse
   suspend fun getUserProfile(): UserFirebase
   suspend fun updateUserRoleAndPermissions(

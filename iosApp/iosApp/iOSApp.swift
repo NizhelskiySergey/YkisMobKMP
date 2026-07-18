@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseCore
+import FirebaseAuth
 import FirebaseAppCheck
 import FirebaseMessaging
 import UserNotifications
@@ -11,11 +12,9 @@ import ComposeApp
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate, NativeAuthBridge {
     
-    // Ініціалізація згідно з документацією Firebase 2026
     private lazy var ai = FirebaseAI.firebaseAI(backend: .googleAI())
     private lazy var model = ai.generativeModel(modelName: "gemini-3.5-flash")
     
-    // Переменная для хранения nonce (защита Apple Sign In)
     fileprivate var currentNonce: String?
     
     func application(_ application: UIApplication,
@@ -74,29 +73,40 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
     }
     
-    // --- APPLE SIGN IN ---
-    func signInWithApple(onSuccess: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
-        let nonce = randomNonceString()
-        currentNonce = nonce
+    // --- APPLE SIGN IN (Обновлено: теперь возвращает Token, Nonce и AuthCode) ---
+    func signInWithApple(onSuccess: @escaping (String, String?, String?) -> Void, onError: @escaping (String) -> Void) {
+        let rawNonce = randomNonceString()
+        currentNonce = rawNonce
         
         let appleIDProvider = ASAuthorizationAppleIDProvider()
         let request = appleIDProvider.createRequest()
         request.requestedScopes = [.fullName, .email]
-        request.nonce = sha256(nonce)
+        request.nonce = sha256(rawNonce)
         
         let authorizationController = ASAuthorizationController(authorizationRequests: [request])
         authorizationController.delegate = self
         authorizationController.presentationContextProvider = self
         
-        // Сохраняем колбэки во временных переменных для использования в делегате
         self.appleSuccessCallback = onSuccess
         self.appleErrorCallback = onError
         
         authorizationController.performRequests()
     }
     
-    private var appleSuccessCallback: ((String) -> Void)?
+    private var appleSuccessCallback: ((String, String?, String?) -> Void)?
     private var appleErrorCallback: ((String) -> Void)?
+
+    // --- SMS AUTH ---
+    func sendSmsCode(phoneNumber: String, onSuccess: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
+        PhoneAuthProvider.provider().verifyPhoneNumber(phoneNumber, uiDelegate: nil, completion: { (verificationID, error) in
+            if let error = error {
+                print("[YkisLogKMP.SWIFT_SMS_ERROR]: \(error.localizedDescription)")
+                onError(error.localizedDescription)
+                return
+            }
+            onSuccess(verificationID ?? "")
+        })
+    }
 
     // Уведомления
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
@@ -117,14 +127,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func generateAiContent(prompt: String, onResult: @escaping (String?, String?) -> Void) {
         Task {
             do {
-                // У нових версіях SDK метод очікує або рядок, або масив ModelContent
                 let response = try await model.generateContent(prompt)
                 DispatchQueue.main.async {
                     onResult(response.text, nil)
                 }
             } catch {
                 DispatchQueue.main.async {
-                    print("[YkisLogKMP.AI_ERROR]: \(error.localizedDescription)")
                     onResult(nil, error.localizedDescription)
                 }
             }
@@ -140,17 +148,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         Task {
             do {
-                // У FirebaseAILogic для Swift:
-                // String та UIImage автоматично відповідають протоколу PartsRepresentable.
-                // Ми передаємо їх прямо у метод generateContent.
                 let response = try await model.generateContent(prompt, image)
-
                 DispatchQueue.main.async {
                     onResult(response.text, nil)
                 }
             } catch {
                 DispatchQueue.main.async {
-                    print("[YkisLogKMP.AI_VISION_ERROR]: \(error.localizedDescription)")
                     onResult(nil, error.localizedDescription)
                 }
             }
@@ -171,12 +174,21 @@ extension AppDelegate: ASAuthorizationControllerDelegate, ASAuthorizationControl
     
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
         if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
+            // 1. Получаем ID Token (как строку)
             guard let identityToken = appleIDCredential.identityToken,
                   let idTokenString = String(data: identityToken, encoding: .utf8) else {
                 appleErrorCallback?("Unable to fetch identity token")
                 return
             }
-            appleSuccessCallback?(idTokenString)
+            
+            // 2. Получаем Authorization Code (как строку) - ЭТО КРИТИЧНО ДЛЯ ОШИБКИ 17004
+            var authCodeString: String? = nil
+            if let authCodeData = appleIDCredential.authorizationCode {
+                authCodeString = String(data: authCodeData, encoding: .utf8)
+            }
+            
+            // Возвращаем все три параметра: Token, Nonce и AuthCode
+            appleSuccessCallback?(idTokenString, currentNonce, authCodeString)
         }
     }
     
@@ -185,7 +197,6 @@ extension AppDelegate: ASAuthorizationControllerDelegate, ASAuthorizationControl
     }
 }
 
-// ХЕЛПЕРЫ ДЛЯ БЕЗОПАСНОСТИ APPLE AUTH
 private func randomNonceString(length: Int = 32) -> String {
     precondition(length > 0)
     let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")

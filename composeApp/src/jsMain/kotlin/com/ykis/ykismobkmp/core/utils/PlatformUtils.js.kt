@@ -37,7 +37,7 @@ actual fun triggerNativeGoogleSignIn(
 }
 
 actual fun triggerNativeAppleSignIn(
-    onTokenReceived: (String) -> Unit,
+    onTokenReceived: (String, String?, String?) -> Unit,
     onError: (String) -> Unit
 ) {
     onError("Apple ID не підтримується в браузері")
@@ -46,14 +46,29 @@ actual fun triggerNativeAppleSignIn(
 actual suspend fun performPlatformSignInWithApple(
     auth: dev.gitlive.firebase.auth.FirebaseAuth,
     idToken: String,
-    rawNonce: String?
+    rawNonce: String?,
+    authCode: String?
 ): Resource<Boolean> = Resource.Error("Apple ID не підтримується в браузері")
+
+actual suspend fun performPlatformSendSms(
+    auth: dev.gitlive.firebase.auth.FirebaseAuth,
+    phoneNumber: String,
+    platformActivity: Any?
+): Resource<String> = Resource.Error("SMS не підтримується")
+
+actual suspend fun performPlatformSignInWithSms(
+    auth: dev.gitlive.firebase.auth.FirebaseAuth,
+    verificationId: String,
+    smsCode: String
+): Resource<String> = Resource.Error("SMS не підтримується")
+
+actual suspend fun getPlatformFcmToken(): String? = null
+actual fun performPlatformClearNotifications(chatId: String?) { }
 
 actual fun getNativeBridge(): NativeAuthBridge? = null
 
 /**
  * [encodeBase64] — Універсальне та швидке перетворення для Web.
- * ВИПРАВЛЕНО: Використовуємо нативний Uint8Array для правильного мапінгу байтів 0-255.
  */
 actual fun encodeBase64(bytes: ByteArray): String {
     val dynamicBytes = bytes.asDynamic()

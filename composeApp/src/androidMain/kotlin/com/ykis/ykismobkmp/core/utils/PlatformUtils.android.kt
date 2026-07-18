@@ -1,7 +1,8 @@
 package com.ykis.ykismobkmp.core.utils
 
-
 import android.app.Activity
+import android.app.NotificationManager
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.credentials.ClearCredentialStateRequest
@@ -10,9 +11,20 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.firebase.FirebaseException
+import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.PhoneAuthOptions
+import com.google.firebase.auth.PhoneAuthProvider
+import com.google.firebase.messaging.FirebaseMessaging
+import dev.gitlive.firebase.auth.FirebaseAuth
+import dev.gitlive.firebase.auth.android
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.tasks.await
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
 
 /**
  * НАПРАВЛЯЕМ КОНТЕКСТ НА ANDROID: Извлекаем текущую Activity из Compose рантайма.
@@ -41,7 +53,6 @@ actual fun triggerNativeGoogleSignIn(
   println("[YkisLogKMP.PlatformUtils]: [CREDENTIAL_MANAGER] Инициализация современного Google Credential Manager")
 
   // 1. Извлекаем default_web_client_id, автоматически сгенерированный Firebase из твоего google-services.json
-  // Используем подавление lint для getIdentifier, так как этот ID генерируется плагином динамически
   @Suppress("DiscouragedApi")
   val webClientId = try {
     val resId = activity.resources.getIdentifier("default_web_client_id", "string", activity.packageName)
@@ -55,9 +66,9 @@ actual fun triggerNativeGoogleSignIn(
 
   // 2. Создаем современную опцию запроса Google ID Token
   val googleIdOption = GetGoogleIdOption.Builder()
-    .setFilterByAuthorizedAccounts(false) // Показывать ВСЕ Google-аккаунты на устройстве, а не только ранее входившие
+    .setFilterByAuthorizedAccounts(false)
     .setServerClientId(webClientId)
-    .setAutoSelectEnabled(false) // Дать пользователю явно кликнуть по своей почте
+    .setAutoSelectEnabled(false)
     .build()
 
   val request = GetCredentialRequest.Builder()
@@ -69,13 +80,11 @@ actual fun triggerNativeGoogleSignIn(
   // 3. Запускаем асинхронное всплывающее системное окно в фоновом Android-потоке
   CoroutineScope(Dispatchers.Main).launch {
     try {
-      // Принудительно очищаем старый кэш авторизации, чтобы шторка выбора аккаунта всплывала всегда
       credentialManager.clearCredentialState(ClearCredentialStateRequest())
 
       println("[YkisLogKMP.PlatformUtils]: [CREDENTIAL_MANAGER_LAUNCH] Вызов системного Bottom Sheet выбора аккаунтов")
       val result = credentialManager.getCredential(context = activity, request = request)
 
-      // Извлекаем полученный защищенный токен из системного ответа
       val googleIdTokenCredential = com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.createFrom(result.credential.data)
       val realIdToken = googleIdTokenCredential.idToken
 
@@ -101,16 +110,94 @@ actual fun encodeBase64(bytes: ByteArray): String {
 }
 
 actual fun triggerNativeAppleSignIn(
-    onTokenReceived: (String) -> Unit,
+    onTokenReceived: (String, String?, String?) -> Unit,
     onError: (String) -> Unit
 ) {
     onError("Apple ID не підтримується на Android")
 }
 
 actual suspend fun performPlatformSignInWithApple(
-    auth: dev.gitlive.firebase.auth.FirebaseAuth,
+    auth: FirebaseAuth,
     idToken: String,
-    rawNonce: String?
+    rawNonce: String?,
+    authCode: String?
 ): Resource<Boolean> = Resource.Error("Apple ID не підтримується на Android")
+
+actual suspend fun performPlatformSendSms(
+  auth: FirebaseAuth,
+  phoneNumber: String,
+  platformActivity: Any?
+): Resource<String> = suspendCancellableCoroutine { continuation ->
+  val activity = platformActivity as? Activity
+  if (activity == null) {
+    continuation.resume(Resource.Error("Android Activity отсутствует"))
+    return@suspendCancellableCoroutine
+  }
+
+  val nativeAndroidAuth = auth.android
+
+  val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+    override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+      nativeAndroidAuth.signInWithCredential(credential).addOnSuccessListener { result ->
+        if (continuation.isActive) continuation.resume(Resource.Success(result.user?.uid ?: "INSTANT_OK"))
+      }
+    }
+
+    override fun onVerificationFailed(e: FirebaseException) {
+      if (continuation.isActive) continuation.resume(Resource.Error(e.message ?: "SMS Error"))
+    }
+
+    override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
+      if (continuation.isActive) continuation.resume(Resource.Success(verificationId))
+    }
+  }
+
+  val options = PhoneAuthOptions.newBuilder(nativeAndroidAuth)
+    .setPhoneNumber(phoneNumber)
+    .setTimeout(60L, TimeUnit.SECONDS)
+    .setActivity(activity)
+    .setCallbacks(callbacks)
+    .build()
+
+  PhoneAuthProvider.verifyPhoneNumber(options)
+}
+
+actual suspend fun performPlatformSignInWithSms(
+  auth: FirebaseAuth,
+  verificationId: String,
+  smsCode: String
+): Resource<String> = suspendCancellableCoroutine { continuation ->
+  try {
+    val nativeCredential = PhoneAuthProvider.getCredential(verificationId, smsCode)
+    auth.android.signInWithCredential(nativeCredential)
+      .addOnSuccessListener { result ->
+        val uid = result.user?.uid ?: ""
+        continuation.resume(Resource.Success(uid))
+      }
+      .addOnFailureListener { e ->
+        continuation.resume(Resource.Error(e.message ?: "Помилка входу"))
+      }
+  } catch (e: Exception) {
+    continuation.resume(Resource.Error("Сбой рантайма"))
+  }
+}
+
+actual suspend fun getPlatformFcmToken(): String? = try {
+  FirebaseMessaging.getInstance().token.await()
+} catch (e: Exception) {
+  null
+}
+
+actual fun performPlatformClearNotifications(chatId: String?) {
+  try {
+    val context = com.google.firebase.FirebaseApp.getInstance().applicationContext
+    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    if (chatId != null) {
+      notificationManager.cancel(chatId.hashCode())
+    } else {
+      notificationManager.cancelAll()
+    }
+  } catch (e: Exception) { }
+}
 
 actual fun getNativeBridge(): NativeAuthBridge? = null

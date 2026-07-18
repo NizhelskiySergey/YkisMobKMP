@@ -146,24 +146,30 @@ class AuthScreenModel(
     }
   }
 
-  fun onSignUpWithApple(idToken: String, onFinishedNavigate: () -> Unit) {
+  fun onSignUpWithApple(idToken: String, nonce: String? = null, authCode: String? = null, onFinishedNavigate: () -> Unit) {
     screenModelScope.launch {
       try {
         _isGoogleLoading.value = true
-        // Використовуємо той самий стейт для спрощення
-        _signInWithGoogleResponse.value = Resource.Loading()
-        val result = firebaseService.firebaseSignInWithApple(idToken)
+        println("[YkisLogKMP.$className]: [FIREBASE_START] Вхід через Apple. Token: ${idToken.take(10)}..., Nonce: ${nonce != null}, AuthCode: ${authCode != null}")
+
+        val result = firebaseService.firebaseSignInWithApple(idToken, nonce, authCode)
+        
         if (result is Resource.Success) {
+          println("[YkisLogKMP.$className]: [FIREBASE_SUCCESS] Apple Auth успішний. Синхронізація профілю...")
           firebaseService.addUserFirestore()
           firebaseService.addFcmToken()
           appScreenModel.evaluateStartDestination()
           onFinishedNavigate()
+        } else {
+          val msg = (result as? Resource.Error)?.message ?: "Unknown Firebase Error"
+          println("[YkisLogKMP.$className]: [FIREBASE_ERROR] Firebase відхилив Apple токен: $msg")
+          SnackbarManager.showMessage("Помилка Firebase: $msg")
         }
       } catch (e: Exception) { 
-          println("[YkisLogKMP.$className]: Apple Auth Error: ${e.message}")
-          SnackbarManager.showMessage(Res.string.error_unknown) 
+          println("[YkisLogKMP.$className]: [CRITICAL_EXCEPTION] Помилка Apple Auth: ${e.message}")
+          SnackbarManager.showMessage("Критична помилка: ${e.message}")
       }
-      finally { _isGoogleLoading.value = false; _signInWithGoogleResponse.value = Resource.Success(false) }
+      finally { _isGoogleLoading.value = false }
     }
   }
 
@@ -202,11 +208,15 @@ class AuthScreenModel(
       _signInResponse.value = Resource.Loading()
       val result = firebaseService.signInWithSmsCode(vId, state.smsCode)
       if (result is Resource.Success) {
+        val newUid = result.data
         if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
-          firebaseService.addUserFirestore()
+          firebaseService.addUserFirestore(manualUid = newUid)
         }
         _signInResponse.value = Resource.Success(true)
-        firebaseService.addUserFirestore(); firebaseService.addFcmToken(); appScreenModel.evaluateStartDestination(); onSuccess()
+        firebaseService.addUserFirestore(manualUid = newUid)
+        firebaseService.addFcmToken()
+        appScreenModel.evaluateStartDestination()
+        onSuccess()
       } else { SnackbarManager.showMessage(Res.string.error_invalid_sms_code) }
     }
   }

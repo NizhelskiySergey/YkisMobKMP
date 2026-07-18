@@ -4,6 +4,10 @@ import com.russhwolf.settings.Settings
 import com.ykis.ykismobkmp.core.Constants.TERMS_ACCEPTED_KEY
 import com.ykis.ykismobkmp.core.utils.Resource
 import com.ykis.ykismobkmp.core.utils.performPlatformSignInWithApple
+import com.ykis.ykismobkmp.core.utils.performPlatformSendSms
+import com.ykis.ykismobkmp.core.utils.performPlatformSignInWithSms
+import com.ykis.ykismobkmp.core.utils.getPlatformFcmToken
+import com.ykis.ykismobkmp.core.utils.performPlatformClearNotifications
 import dev.gitlive.firebase.*
 import dev.gitlive.firebase.auth.FirebaseUser
 import dev.gitlive.firebase.auth.GoogleAuthProvider
@@ -90,8 +94,6 @@ class FirebaseServiceImpl(
           println("[YkisLogKMP.$className.firebaseSignInWithEmailAndPassword]: Успішний вхід")
       } catch (e: Exception) {
           println("[YkisLogKMP.$className.firebaseSignInWithEmailAndPassword]: [ERROR] Помилка входу: ${e.message}")
-          // Можливо, тут FirebaseException, спробуємо отримати деталі
-          e.printStackTrace()
           throw e
       }
   }
@@ -110,38 +112,42 @@ class FirebaseServiceImpl(
     Resource.Error(message = getString(Res.string.error_google_auth))
   }
 
-  override suspend fun firebaseSignInWithApple(idToken: String, rawNonce: String?): Resource<Boolean> {
-      return performPlatformSignInWithApple(auth, idToken, rawNonce)
+  override suspend fun firebaseSignInWithApple(idToken: String, rawNonce: String?, authCode: String?): Resource<Boolean> {
+      return performPlatformSignInWithApple(auth, idToken, rawNonce, authCode)
   }
 
-  override suspend fun addUserFirestore(): addUserFirestoreResponse {
-    val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
+  override suspend fun addUserFirestore(manualUid: String?): addUserFirestoreResponse {
+    val platform = com.ykis.ykismobkmp.getPlatform().name
+    val isWeb = platform.contains("Web", true)
+    val isIos = platform.contains("iOS", true) || platform.contains("iPad", true)
     
-    // Очікування ініціалізації сесії ТІЛЬКИ для Web
-    if (isWeb) {
+    var currentUid = manualUid ?: uid
+
+    if ((isWeb || isIos) && currentUid.isBlank()) {
+        println("[YkisLogKMP.$className.addUserFirestore]: Очікування синхронізації UID для $platform...")
         var attempts = 0
-        while ((uid.isBlank()) && (attempts < 25)) {
-            delay(200)
+        while (currentUid.isBlank() && attempts < 20) {
+            delay(250)
+            currentUid = uid
             attempts++
         }
     }
 
-    val currentUid = uid
     if (currentUid.isBlank()) {
         println("[YkisLogKMP.$className.addUserFirestore]: [ERROR] UID порожній")
         return Resource.Error(message = "No UID")
     }
 
     try {
-      val currentUser = auth.currentUser ?: return Resource.Error(message = "No user")
-      val userEmail = currentUser.email?.takeIf { it.isNotBlank() } ?: currentUser.phoneNumber ?: ""
+      val currentUser = auth.currentUser
+      val userEmail = currentUser?.email ?: currentUser?.phoneNumber ?: ""
 
-      println("[YkisLogKMP.$className.addUserFirestore]: [START] Синхронізація для $userEmail")
+      println("[YkisLogKMP.$className.addUserFirestore]: [START] Синхронізація для $userEmail (UID: $currentUid)")
 
       val userMap = mutableMapOf<String, Any>(
         "uid" to currentUid,
         "email" to userEmail,
-        "displayName" to (currentUser.displayName ?: "Користувач"),
+        "displayName" to (currentUser?.displayName ?: "Користувач"),
         "userRole" to "STANDARD_USER",
         "osbbId" to (if (isWeb) 0.0 else 0L),
         "addressId" to (if (isWeb) 0.0 else 0L)
@@ -149,7 +155,6 @@ class FirebaseServiceImpl(
 
       db.collection("users").document(currentUid).set(data = userMap, merge = true)
 
-      // Запускаємо синхронізацію з MySQL у фоні, щоб не блокувати UI
       @OptIn(DelicateCoroutinesApi::class)
       GlobalScope.launch {
           try {
@@ -271,8 +276,18 @@ class FirebaseServiceImpl(
     Resource.Error(message = e.message ?: getString(Res.string.error_process))
   }
 
-  override suspend fun sendSmsCode(phoneNumber: String, platformActivity: Any?): Resource<String> = performPlatformSendSms(auth, phoneNumber, platformActivity)
-  override suspend fun signInWithSmsCode(verificationId: String, smsCode: String): Resource<Boolean> = performPlatformSignInWithSms(auth, verificationId, smsCode)
+  override suspend fun sendSmsCode(phoneNumber: String, platformActivity: Any?): Resource<String> {
+      val cleanPhone = phoneNumber.filter { it.isDigit() }
+      val fullFormattedPhoneNumber = when {
+          phoneNumber.startsWith("+") -> phoneNumber
+          cleanPhone.startsWith("380") -> "+$cleanPhone"
+          cleanPhone.startsWith("0") -> "+380${cleanPhone.drop(1)}"
+          else -> "+380$cleanPhone"
+      }
+      return performPlatformSendSms(auth, fullFormattedPhoneNumber, platformActivity)
+  }
+
+  override suspend fun signInWithSmsCode(verificationId: String, smsCode: String): Resource<String> = performPlatformSignInWithSms(auth, verificationId, smsCode)
 
   override suspend fun sendPasswordResetEmail(email: String): SendPasswordResetEmailResponse = try {
     auth.sendPasswordResetEmail(email)
@@ -304,25 +319,18 @@ class FirebaseServiceImpl(
     val rawValue = remoteConfig.getValue(fullKey).asString()
     val finalRaw = rawValue.ifBlank { remoteConfig.getValue(baseKey).asString() }
     
-    // ПРОВІРКА: якщо це JSON-масив, розпарсимо його як список рядків
     if (finalRaw.trim().startsWith("[")) {
         try {
-            val json = kotlinx.serialization.json.Json { 
-                ignoreUnknownKeys = true 
-                isLenient = true
-            }
+            val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; isLenient = true }
             val lines = json.decodeFromString<List<String>>(finalRaw)
-            println("[FirebaseService]: JSON розпарсено успішно, отримано ${lines.size} рядків")
-            lines.joinToString("\n")
+            finalRaw
         } catch (e: Exception) {
-            println("[FirebaseService_ERROR]: Помилка парсингу JSON мануала: ${e.message}")
             finalRaw
         }
     } else {
         finalRaw
     }
   } catch (e: Exception) {
-    println("[FirebaseService_ERROR]: Помилка завантаження мануала: ${e.message}")
     ""
   }
 
@@ -338,8 +346,3 @@ class FirebaseServiceImpl(
 
   override fun clearNotifications(chatId: String?) { performPlatformClearNotifications(chatId) }
 }
-
-expect suspend fun getPlatformFcmToken(): String?
-expect fun performPlatformClearNotifications(chatId: String?)
-expect suspend fun performPlatformSendSms(auth: FirebaseAuth, phoneNumber: String, platformActivity: Any?): Resource<String>
-expect suspend fun performPlatformSignInWithSms(auth: FirebaseAuth, verificationId: String, smsCode: String): Resource<Boolean>
