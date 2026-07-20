@@ -323,7 +323,7 @@ class FirebaseServiceImpl(
         try {
             val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; isLenient = true }
             val lines = json.decodeFromString<List<String>>(finalRaw)
-            finalRaw
+            lines.joinToString("\n")
         } catch (e: Exception) {
             finalRaw
         }

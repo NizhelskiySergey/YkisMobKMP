@@ -6,6 +6,8 @@
 	<string>ЮКІС</string>
 	<key>CFBundleName</key>
 	<string>ЮКІС</string>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
 	<key>GIDClientID</key>
 	<string>1062920014188-6d9rg00vlffkgvb7h7vf3eq3401fhbp5.apps.googleusercontent.com</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>

@@ -108,9 +108,24 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         })
     }
 
-    // Уведомления
+    // Повідомлення
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         Messaging.messaging().apnsToken = deviceToken
+        
+        // Передаємо "сирий" токен в Firebase Auth для SMS
+        Auth.auth().setAPNSToken(deviceToken, type: .unknown)
+        
+        let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        print("[YkisLogKMP.AppDelegate]: APNs токен отримано: \(tokenString)")
+    }
+
+    // ДОДАНО: Ручна передача повідомлень для Firebase Auth (виправляє помилку входу по SMS)
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        if Auth.auth().canHandleNotification(userInfo) {
+            completionHandler(.noData)
+            return
+        }
+        // Якщо це не повідомлення для Auth, воно піде в Messaging (автоматично)
     }
 
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {

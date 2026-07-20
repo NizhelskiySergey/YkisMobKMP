@@ -2,7 +2,9 @@ package com.ykis.ykismobkmp.core.utils
 
 import androidx.compose.runtime.Composable
 import com.ykis.ykismobkmp.di.WEB_GOOGLE_CLIENT_ID
+import com.ykis.ykismobkmp.di.VAPID_KEY
 import kotlinx.browser.window
+import kotlinx.coroutines.await
 
 @Composable
 actual fun platformActivityContext(): Any? = null
@@ -54,16 +56,55 @@ actual suspend fun performPlatformSendSms(
     auth: dev.gitlive.firebase.auth.FirebaseAuth,
     phoneNumber: String,
     platformActivity: Any?
-): Resource<String> = Resource.Error("SMS не підтримується")
+): Resource<String> {
+    println("[YkisLogKMP.PlatformUtils]: [JS_WEB] Відправка SMS на $phoneNumber...")
+    return try {
+        val formattedPhone = if (phoneNumber.startsWith("+")) phoneNumber else "+380$phoneNumber"
+        val promise = window.asDynamic().sendSmsWeb(formattedPhone)
+        (promise as kotlin.js.Promise<String>).await()
+        Resource.Success("WEB_SMS_SESSION")
+    } catch (e: Exception) {
+        println("[YkisLogKMP.PlatformUtils_ERROR]: ${e.message}")
+        Resource.Error(e.message ?: "Помилка відправки SMS")
+    }
+}
 
 actual suspend fun performPlatformSignInWithSms(
     auth: dev.gitlive.firebase.auth.FirebaseAuth,
     verificationId: String,
     smsCode: String
-): Resource<String> = Resource.Error("SMS не підтримується")
+): Resource<String> {
+    println("[YkisLogKMP.PlatformUtils]: [JS_WEB] Підтвердження SMS коду...")
+    return try {
+        val promise = window.asDynamic().verifySmsWeb(smsCode)
+        (promise as kotlin.js.Promise<Boolean>).await()
+        // В Web-версії ми зазвичай отримуємо UID через auth.currentUser після виконання нативного JS-входу
+        val uid = auth.currentUser?.uid ?: "WEB_USER"
+        Resource.Success(uid)
+    } catch (e: Exception) {
+        println("[YkisLogKMP.PlatformUtils_ERROR]: ${e.message}")
+        Resource.Error(e.message ?: "Невірний код")
+    }
+}
 
-actual suspend fun getPlatformFcmToken(): String? = null
-actual fun performPlatformClearNotifications(chatId: String?) { }
+actual suspend fun getPlatformFcmToken(): String? {
+  println("[YkisLogKMP.PlatformUtils]: [JS_WEB] Запит FCM токена...")
+  return try {
+    val promise = window.asDynamic().getWebFcmToken(VAPID_KEY)
+    if (promise != null) {
+      val token = (promise as kotlin.js.Promise<String?>).await()
+      println("[YkisLogKMP.PlatformUtils]: [SUCCESS] Web Push Token отримано")
+      token
+    } else null
+  } catch (e: Exception) {
+    println("[YkisLogKMP.PlatformUtils_ERROR]: Не вдалося отримати Web Push Token: ${e.message}")
+    null
+  }
+}
+
+actual fun performPlatformClearNotifications(chatId: String?) {
+    println("[YkisLogKMP.PlatformUtils]: [JS_NOTIF_CLEAR] (Заглушка)")
+}
 
 actual fun getNativeBridge(): NativeAuthBridge? = null
 

@@ -118,8 +118,6 @@ class ManualScreen(
     private fun parseMarkdown(text: String): AnnotatedString {
         val cleanText = text
             .replace("\\n", "\n")
-            .replace(" #", "\n#")
-            .replace(" *", "\n*")
             .replace("\r", "")
         
         return buildAnnotatedString {
@@ -136,23 +134,33 @@ class ManualScreen(
                 when {
                     line.startsWith("#") -> {
                         val level = line.takeWhile { it == '#' }.length
-                        val headerContent = line.replace("#", "").trim()
-                        val fontSize = if (level == 1) 24.sp else 20.sp
+                        val headerContent = line.substring(level).trim()
+                        // Ще раз зменшено на 2sp
+                        val fontSize = if (level == 1) 18.sp else if (level == 2) 16.sp else 14.sp
                         
-                        withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold, fontSize = fontSize, color = primaryColor)) {
+                        withStyle(SpanStyle(
+                            fontWeight = FontWeight.ExtraBold, 
+                            fontSize = fontSize, 
+                            color = if (level == 1) primaryColor else Color.Unspecified
+                        )) {
                             appendInlineFormatted(headerContent)
                         }
                         append("\n")
                     }
-                    line.startsWith("*") -> {
+                    line.startsWith("* ") || line.startsWith("- ") -> {
                         append("  • ")
-                        appendInlineFormatted(line.removePrefix("*").trim())
+                        appendInlineFormatted(line.substring(2).trim())
+                    }
+                    line.getOrNull(0)?.isDigit() == true && line.contains(". ") -> {
+                        val dotIndex = line.indexOf(". ")
+                        append(line.substring(0, dotIndex + 2))
+                        appendInlineFormatted(line.substring(dotIndex + 2).trim())
                     }
                     else -> {
                         appendInlineFormatted(rawLine)
                     }
                 }
-                if (index < lines.size - 1) append("\n")
+                if (index < lines.size - 1 && !line.startsWith("#")) append("\n")
             }
         }
     }
