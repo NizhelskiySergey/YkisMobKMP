@@ -20,12 +20,23 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
-        #if DEBUG
+        // Включаем логгер самого Firebase на максимум для отладки
+        // FirebaseConfiguration.shared.setLoggerLevel(.debug)
+        
+        print("[YkisLogKMP] Forced App Check initialization...")
         let providerFactory = AppCheckDebugProviderFactory()
         AppCheck.setAppCheckProviderFactory(providerFactory)
-        #endif
         
         FirebaseApp.configure()
+        
+        // Принудительно запрашиваем новый токен с сервера (forcingRefresh: true)
+        AppCheck.appCheck().token(forcingRefresh: true) { token, error in
+            if let error = error {
+                print("[YkisLogKMP] App Check Error: \(error.localizedDescription)")
+            } else if let token = token {
+                print("[YkisLogKMP] App Check SUCCESS! Token: \(token.token)")
+            }
+        }
         
         AppInitializer().run(bridge: self)
         
@@ -112,8 +123,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         Messaging.messaging().apnsToken = deviceToken
         
-        // Передаємо "сирий" токен в Firebase Auth для SMS
-        Auth.auth().setAPNSToken(deviceToken, type: .unknown)
+        // Передаємо "сирий" токен в Firebase Auth для SMS (используем .sandbox для тестов)
+        Auth.auth().setAPNSToken(deviceToken, type: .sandbox)
         
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         print("[YkisLogKMP.AppDelegate]: APNs токен отримано: \(tokenString)")

@@ -18,6 +18,7 @@
 		4B1836802FBCB05400E2AB8C /* FirebasePerformance in Frameworks */ = {isa = PBXBuildFile; productRef = 4B18367F2FBCB05400E2AB8C /* FirebasePerformance */; };
 		4B1836822FBCB05400E2AB8C /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = 4B1836812FBCB05400E2AB8C /* FirebaseRemoteConfig */; };
 		4B1836842FBCB05400E2AB8C /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 4B1836832FBCB05400E2AB8C /* FirebaseStorage */; };
+		4B82F71730102A09002E2C68 /* DeviceCheck.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4B82F715301029E5002E2C68 /* DeviceCheck.framework */; };
 		4BCDD97E2FBC72A5008D7B56 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 4BCDD97D2FBC72A5008D7B56 /* libsqlite3.tbd */; };
 		4BDD41BB2FFC3DED000D6110 /* FirebaseAILogic in Frameworks */ = {isa = PBXBuildFile; productRef = 4BDD41BA2FFC3DED000D6110 /* FirebaseAILogic */; };
 		4BF442632FC102A700B1150B /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF442622FC102A700B1150B /* FirebaseAppCheck */; };
@@ -28,6 +29,7 @@
 /* Begin PBXFileReference section */
 		3825B5DAA5E5BFEEC500E648 /* YkisMobKMP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YkisMobKMP.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4B18366D2FBCAFB300E2AB8C /* libsqlite3.0.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.0.tbd; path = usr/lib/libsqlite3.0.tbd; sourceTree = SDKROOT; };
+		4B82F715301029E5002E2C68 /* DeviceCheck.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = DeviceCheck.framework; path = System/Library/Frameworks/DeviceCheck.framework; sourceTree = SDKROOT; };
 		4BCDD97D2FBC72A5008D7B56 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -63,6 +65,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4BF97BCC2FE7F05300484559 /* GoogleSignInSwift in Frameworks */,
+				4B82F71730102A09002E2C68 /* DeviceCheck.framework in Frameworks */,
 				4B1836822FBCB05400E2AB8C /* FirebaseRemoteConfig in Frameworks */,
 				4BF442632FC102A700B1150B /* FirebaseAppCheck in Frameworks */,
 				4B18367E2FBCB05400E2AB8C /* FirebaseMessaging in Frameworks */,
@@ -97,6 +100,7 @@
 		4BCDD97C2FBC72A5008D7B56 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				4B82F715301029E5002E2C68 /* DeviceCheck.framework */,
 				4B18366D2FBCAFB300E2AB8C /* libsqlite3.0.tbd */,
 				4BCDD97D2FBC72A5008D7B56 /* libsqlite3.tbd */,
 			);
@@ -240,15 +244,19 @@
 				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				DEVELOPMENT_TEAM = 8AHNTYBJZN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "ЮКІС";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Додаток використовує камеру для сканування показників лічильників та завантаження фото у чати підтримки.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -259,8 +267,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.2;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -274,15 +285,19 @@
 				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				DEVELOPMENT_TEAM = 8AHNTYBJZN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "ЮКІС";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Додаток використовує камеру для сканування показників лічильників та завантаження фото у чати підтримки.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -293,7 +308,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.2;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

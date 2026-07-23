@@ -13,21 +13,37 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.interop.UIKitView
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.readValue
+import kotlinx.cinterop.useContents
 import platform.AVFoundation.*
 import platform.CoreGraphics.CGRectZero
 import platform.UIKit.UIView
+import platform.UIKit.UIColor
 import platform.Foundation.NSUUID
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSData
 import platform.Foundation.writeToFile
-import platform.darwin.NSObject
+import platform.QuartzCore.CATransaction
+import platform.QuartzCore.kCATransactionDisableActions
+import platform.darwin.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private const val tag = "CameraView"
 
-/**
- * [PhotoCaptureDelegate] — Нативный Objective-C делегат для захвата фото.
- * Наследование от NSObject автоматически закрывает все системные методы Apple (hash, isEqual).
- */
+// Кастомна в'юшка для автоматичного керування розміром шару камери
+@OptIn(ExperimentalForeignApi::class)
+class CameraContainerView : UIView(CGRectZero.readValue()) {
+    var previewLayer: AVCaptureVideoPreviewLayer? = null
+
+    override fun layoutSubviews() {
+        super.layoutSubviews()
+        CATransaction.begin()
+        CATransaction.setValue(true, kCATransactionDisableActions)
+        previewLayer?.setFrame(this.bounds)
+        CATransaction.commit()
+    }
+}
+
 @OptIn(ExperimentalForeignApi::class)
 class PhotoCaptureDelegate(
   private val onCaptured: (String) -> Unit,
@@ -44,7 +60,7 @@ class PhotoCaptureDelegate(
       if (imageData != null) {
         val rawPath = NSTemporaryDirectory() + NSUUID.UUID().UUIDString() + ".jpg"
         imageData.writeToFile(rawPath, true)
-        println("[$tag.ios]: Фото збережено за шляхом: $rawPath")
+        println("[$tag.ios]: Фото збережено: $rawPath")
         onCaptured(rawPath)
       }
     } else {
@@ -54,9 +70,6 @@ class PhotoCaptureDelegate(
   }
 }
 
-/**
- * [CameraView] — iOS-реализация кроссплатформенного компонента камеры.
- */
 @OptIn(ExperimentalForeignApi::class)
 @Composable
 actual fun CameraView(
@@ -67,53 +80,74 @@ actual fun CameraView(
   val photoOutput = remember { AVCapturePhotoOutput() }
   var isCapturing by remember { mutableStateOf(false) }
   var isCameraAvailable by remember { mutableStateOf(true) }
+  var isPermissionGranted by remember { mutableStateOf(false) }
 
-  LaunchedEffect(Unit) {
-    captureSession.sessionPreset = AVCaptureSessionPresetPhoto
-    val device = AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo)
-    if (device == null) {
-      isCameraAvailable = false
-      return@LaunchedEffect
-    }
-
-    val input = AVCaptureDeviceInput.deviceInputWithDevice(device, null) as? AVCaptureDeviceInput
-    if (input == null) {
-      isCameraAvailable = false
-      return@LaunchedEffect
-    }
-
-    if (captureSession.canAddInput(input)) captureSession.addInput(input)
-    if (captureSession.canAddOutput(photoOutput)) captureSession.addOutput(photoOutput)
-
-    captureSession.startRunning()
+  val previewLayer = remember {
+      AVCaptureVideoPreviewLayer.layerWithSession(captureSession).apply {
+          videoGravity = AVLayerVideoGravityResizeAspectFill
+      }
   }
 
-  DisposableEffect(captureSession) {
+  LaunchedEffect(Unit) {
+    val status = AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)
+    if (status == AVAuthorizationStatusAuthorized) {
+        isPermissionGranted = true
+    } else if (status == AVAuthorizationStatusNotDetermined) {
+        AVCaptureDevice.requestAccessForMediaType(AVMediaTypeVideo) { granted ->
+            isPermissionGranted = granted
+        }
+    }
+
+    withContext(Dispatchers.Default) {
+        captureSession.beginConfiguration()
+        captureSession.sessionPreset = AVCaptureSessionPresetPhoto
+        val device = AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo)
+        if (device != null) {
+            val input = AVCaptureDeviceInput.deviceInputWithDevice(device, null) as? AVCaptureDeviceInput
+            if (input != null && captureSession.canAddInput(input)) captureSession.addInput(input)
+            if (captureSession.canAddOutput(photoOutput)) captureSession.addOutput(photoOutput)
+        } else {
+            isCameraAvailable = false
+        }
+        captureSession.commitConfiguration()
+        if (!captureSession.isRunning()) captureSession.startRunning()
+    }
+  }
+
+  DisposableEffect(Unit) {
     onDispose {
-      captureSession.stopRunning()
+        val queue = dispatch_get_global_queue(0L, 0u)
+        dispatch_async(queue) {
+            if (captureSession.isRunning()) captureSession.stopRunning()
+        }
     }
   }
 
   Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-    if (isCameraAvailable) {
+    if (isCameraAvailable && isPermissionGranted) {
       UIKitView(
         modifier = Modifier.fillMaxSize(),
         factory = {
-          UIView(frame = CGRectZero.readValue()).apply {
-            val previewLayer = AVCaptureVideoPreviewLayer.layerWithSession(captureSession).apply {
-              videoGravity = AVLayerVideoGravityResizeAspectFill
-              frame = layer.bounds
-            }
-            layer.addSublayer(previewLayer)
+          CameraContainerView().apply {
+            this.previewLayer = previewLayer
+            this.layer.addSublayer(previewLayer)
           }
-        }
+        },
+        update = { view ->
+            if (!captureSession.isRunning()) {
+                val queue = dispatch_get_global_queue(0L, 0u)
+                dispatch_async(queue) { captureSession.startRunning() }
+            }
+        },
+        interactive = true
       )
     } else {
       Column(
-        modifier = Modifier.align(Alignment.Center),
+        modifier = Modifier.align(Alignment.Center).padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
       ) {
-        Text("Камера недоступна", color = Color.White)
+        val message = if (!isCameraAvailable) "Камера недоступна" else "Очікування дозволу..."
+        Text(message, color = Color.White, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         Spacer(Modifier.height(16.dp))
         Button(onClick = onBack) {
           Text("Повернутися назад")
@@ -121,7 +155,6 @@ actual fun CameraView(
       }
     }
 
-    // Кнопка назад вгорі зліва (завжди доступна)
     IconButton(
       modifier = Modifier
         .statusBarsPadding()
@@ -137,20 +170,17 @@ actual fun CameraView(
       )
     }
 
-    if (isCameraAvailable) {
+    if (isCameraAvailable && isPermissionGranted) {
       Button(
-        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp),
+        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp),
         enabled = !isCapturing,
         onClick = {
           val connection = photoOutput.connectionWithMediaType(AVMediaTypeVideo)
-          
-          if (connection != null && connection.isActive()) {
+          if (connection?.isActive() == true) {
             isCapturing = true
-
             val photoSettings = AVCapturePhotoSettings.photoSettingsWithFormat(
               mapOf(AVVideoCodecKey to AVVideoCodecJPEG)
             )
-
             photoOutput.capturePhotoWithSettings(
               settings = photoSettings,
               delegate = PhotoCaptureDelegate(
@@ -158,8 +188,6 @@ actual fun CameraView(
                 onFinished = { isCapturing = false }
               )
             )
-          } else {
-            println("[$tag.ios]: Камера ще не готова")
           }
         }
       ) {
