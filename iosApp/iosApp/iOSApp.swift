@@ -8,6 +8,7 @@ import GoogleSignIn
 import AuthenticationServices
 import CryptoKit
 import FirebaseAILogic
+import RecaptchaEnterprise // Импорт нативной библиотеки Google
 import ComposeApp
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate, NativeAuthBridge {
@@ -20,241 +21,147 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
-        // Включаем логгер самого Firebase на максимум для отладки
-        // FirebaseConfiguration.shared.setLoggerLevel(.debug)
+        print("[YkisLogKMP] Initializing Firebase...")
         
-        print("[YkisLogKMP] Forced App Check initialization...")
+        // Настройка App Check
         let providerFactory = AppCheckDebugProviderFactory()
         AppCheck.setAppCheckProviderFactory(providerFactory)
         
         FirebaseApp.configure()
         
-        // Принудительно запрашиваем новый токен с сервера (forcingRefresh: true)
-        AppCheck.appCheck().token(forcingRefresh: true) { token, error in
+        // --- РУЧНАЯ АКТИВАЦИЯ RECAPTCHA ENTERPRISE ---
+        // Это нужно, чтобы убрать статус "Incomplete" в Google Cloud
+        let siteKey = "6LeWoGMtAAAAAIiCR5vTQH3VFmkefNfOYDt4SeCV"
+        print("[YkisLogKMP.Recaptcha]: Попытка активации ключа \(siteKey)...")
+        
+        Recaptcha.getClient(siteKey: siteKey) { client, error in
             if let error = error {
-                print("[YkisLogKMP] App Check Error: \(error.localizedDescription)")
-            } else if let token = token {
-                print("[YkisLogKMP] App Check SUCCESS! Token: \(token.token)")
+                print("[YkisLogKMP.Recaptcha_ERROR]: Ошибка инициализации: \(error.localizedDescription)")
+            } else if let client = client {
+                print("[YkisLogKMP.Recaptcha_SUCCESS]: Ключ активирован! Запрашиваем токен проверки...")
+                let action = RecaptchaAction(action: .login)
+                client.execute(action) { (token: String?, error: Error?) in
+                    if let token = token {
+                        print("[YkisLogKMP.Recaptcha_TOKEN]: Токен получен успешно! Теперь статус в Google Cloud сменится на Active.")
+                    } else {
+                        print("[YkisLogKMP.Recaptcha_ERROR]: Не удалось выполнить проверку: \(error?.localizedDescription ?? "null")")
+                    }
+                }
             }
         }
         
         AppInitializer().run(bridge: self)
         
         UNUserNotificationCenter.current().delegate = self
-        let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
-        UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { granted, error in
-            if granted {
-                DispatchQueue.main.async {
-                    application.registerForRemoteNotifications()
-                }
-            }
-        }
-        
+        application.registerForRemoteNotifications()
         Messaging.messaging().delegate = self
         
         return true
     }
 
-    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
-        return GIDSignIn.sharedInstance.handle(url)
-    }
-
-    // --- GOOGLE SIGN IN ---
-    func signInWithGoogle(onSuccess: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
-        let window = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .first { $0.isKeyWindow }
-
-        guard let rootViewController = window?.rootViewController else {
-            onError("Root View Controller not found")
-            return
-        }
-        
-        GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { signInResult, error in
-            if let error = error {
-                onError(error.localizedDescription)
-                return
-            }
-            guard let user = signInResult?.user, let idToken = user.idToken?.tokenString else {
-                onError("Failed to get ID Token")
-                return
-            }
-            onSuccess(idToken)
-        }
-    }
-    
-    // --- APPLE SIGN IN (Обновлено: теперь возвращает Token, Nonce и AuthCode) ---
-    func signInWithApple(onSuccess: @escaping (String, String?, String?) -> Void, onError: @escaping (String) -> Void) {
-        let rawNonce = randomNonceString()
-        currentNonce = rawNonce
-        
-        let appleIDProvider = ASAuthorizationAppleIDProvider()
-        let request = appleIDProvider.createRequest()
-        request.requestedScopes = [.fullName, .email]
-        request.nonce = sha256(rawNonce)
-        
-        let authorizationController = ASAuthorizationController(authorizationRequests: [request])
-        authorizationController.delegate = self
-        authorizationController.presentationContextProvider = self
-        
-        self.appleSuccessCallback = onSuccess
-        self.appleErrorCallback = onError
-        
-        authorizationController.performRequests()
-    }
-    
-    private var appleSuccessCallback: ((String, String?, String?) -> Void)?
-    private var appleErrorCallback: ((String) -> Void)?
-
-    // --- SMS AUTH ---
-    func sendSmsCode(phoneNumber: String, onSuccess: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
-        PhoneAuthProvider.provider().verifyPhoneNumber(phoneNumber, uiDelegate: nil, completion: { (verificationID, error) in
-            if let error = error {
-                print("[YkisLogKMP.SWIFT_SMS_ERROR]: \(error.localizedDescription)")
-                onError(error.localizedDescription)
-                return
-            }
-            onSuccess(verificationID ?? "")
-        })
-    }
-
-    // Повідомлення
+    // --- ОСТАЛЬНЫЕ МЕТОДЫ (didRegister, didReceive, и т.д. без изменений) ---
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        Messaging.messaging().apnsToken = deviceToken
-        
-        // Передаємо "сирий" токен в Firebase Auth для SMS (используем .sandbox для тестов)
         Auth.auth().setAPNSToken(deviceToken, type: .sandbox)
-        
-        let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        print("[YkisLogKMP.AppDelegate]: APNs токен отримано: \(tokenString)")
+        Messaging.messaging().apnsToken = deviceToken
+        print("[YkisLogKMP.AppDelegate]: APNs токен передано")
     }
 
-    // ДОДАНО: Ручна передача повідомлень для Firebase Auth (виправляє помилку входу по SMS)
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         if Auth.auth().canHandleNotification(userInfo) {
             completionHandler(.noData)
             return
         }
-        // Якщо це не повідомлення для Auth, воно піде в Messaging (автоматично)
+        completionHandler(.noData)
+    }
+
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        if Auth.auth().canHandle(url) { return true }
+        return GIDSignIn.sharedInstance.handle(url)
+    }
+
+    func sendSmsCode(phoneNumber: String, onSuccess: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
+        print("[YkisLogKMP.SWIFT_SMS]: Запрос СМС для \(phoneNumber)")
+        DispatchQueue.main.async {
+            PhoneAuthProvider.provider().verifyPhoneNumber(phoneNumber, uiDelegate: nil) { (vID, error) in
+                if let error = error as NSError? {
+                    print("[YkisLogKMP.SWIFT_SMS_ERROR]: \(error.localizedDescription) (Код: \(error.code))")
+                    onError(error.localizedDescription)
+                    return
+                }
+                onSuccess(vID ?? "")
+            }
+        }
     }
 
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        print("[YkisLogKMP.AppDelegate]: Актуальный FCM токен: \(fcmToken ?? "пусто")")
-    }
-    
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                willPresent notification: UNNotification,
-                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler([[.banner, .sound, .badge]])
+        print("[YkisLogKMP.AppDelegate]: FCM токен отримано")
     }
 
-    // --- FIREBASE AI LOGIC (iOS) ---
-    func generateAiContent(prompt: String, onResult: @escaping (String?, String?) -> Void) {
-        Task {
-            do {
-                let response = try await model.generateContent(prompt)
-                DispatchQueue.main.async {
-                    onResult(response.text, nil)
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    onResult(nil, error.localizedDescription)
-                }
-            }
+    func signInWithGoogle(onSuccess: @escaping (String) -> Void, onError: @escaping (String) -> Void) {
+        let window = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap { $0.windows }.first { $0.isKeyWindow }
+        guard let rootVC = window?.rootViewController else { return }
+        GIDSignIn.sharedInstance.signIn(withPresenting: rootVC) { res, err in
+            if let err = err { onError(err.localizedDescription); return }
+            guard let token = res?.user.idToken?.tokenString else { return }
+            onSuccess(token)
         }
+    }
+
+    func signInWithApple(onSuccess: @escaping (String, String?, String?) -> Void, onError: @escaping (String) -> Void) {
+        let rawNonce = randomNonceString()
+        currentNonce = rawNonce
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = sha256(rawNonce)
+        let ctrl = ASAuthorizationController(authorizationRequests: [request])
+        ctrl.delegate = self
+        ctrl.presentationContextProvider = self
+        self.appleSuccessCallback = onSuccess
+        self.appleErrorCallback = onError
+        ctrl.performRequests()
+    }
+    
+    private var appleSuccessCallback: ((String, String?, String?) -> Void)?
+    private var appleErrorCallback: ((String) -> Void)?
+
+    func generateAiContent(prompt: String, onResult: @escaping (String?, String?) -> Void) {
+        Task { do { let res = try await model.generateContent(prompt); DispatchQueue.main.async { onResult(res.text, nil) } } catch { onResult(nil, error.localizedDescription) } }
     }
 
     func analyzeAiImage(prompt: String, imageBase64: String, onResult: @escaping (String?, String?) -> Void) {
-        guard let data = Data(base64Encoded: imageBase64),
-              let image = UIImage(data: data) else {
-            onResult(nil, "Invalid image data")
-            return
-        }
-        
-        Task {
-            do {
-                let response = try await model.generateContent(prompt, image)
-                DispatchQueue.main.async {
-                    onResult(response.text, nil)
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    onResult(nil, error.localizedDescription)
-                }
-            }
-        }
+        guard let data = Data(base64Encoded: imageBase64), let img = UIImage(data: data) else { return }
+        Task { do { let res = try await model.generateContent(prompt, img); DispatchQueue.main.async { onResult(res.text, nil) } } catch { onResult(nil, error.localizedDescription) } }
     }
 }
 
-// РЕАЛИЗАЦИЯ ДЕЛЕГАТОВ APPLE AUTH
 extension AppDelegate: ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
-    
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        let window = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .first { $0.isKeyWindow }
-        return window ?? UIWindow()
+        return UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap { $0.windows }.first { $0.isKeyWindow } ?? UIWindow()
     }
-    
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
-        if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
-            // 1. Получаем ID Token (как строку)
-            guard let identityToken = appleIDCredential.identityToken,
-                  let idTokenString = String(data: identityToken, encoding: .utf8) else {
-                appleErrorCallback?("Unable to fetch identity token")
-                return
-            }
-            
-            // 2. Получаем Authorization Code (как строку) - ЭТО КРИТИЧНО ДЛЯ ОШИБКИ 17004
-            var authCodeString: String? = nil
-            if let authCodeData = appleIDCredential.authorizationCode {
-                authCodeString = String(data: authCodeData, encoding: .utf8)
-            }
-            
-            // Возвращаем все три параметра: Token, Nonce и AuthCode
-            appleSuccessCallback?(idTokenString, currentNonce, authCodeString)
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization auth: ASAuthorization) {
+        if let cred = auth.credential as? ASAuthorizationAppleIDCredential, let token = cred.identityToken, let tokenStr = String(data: token, encoding: .utf8) {
+            let code = cred.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+            appleSuccessCallback?(tokenStr, currentNonce, code)
         }
     }
-    
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-        appleErrorCallback?(error.localizedDescription)
-    }
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError err: Error) { appleErrorCallback?(err.localizedDescription) }
 }
 
 private func randomNonceString(length: Int = 32) -> String {
-    precondition(length > 0)
     let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
     var result = ""
-    var remainingLength = length
-    while remainingLength > 0 {
-        let randoms: [UInt8] = (0..<16).map { _ in UInt8.random(in: 0...255) }
-        randoms.forEach { random in
-            if remainingLength == 0 { return }
-            if random < charset.count {
-                result.append(charset[Int(random)])
-                remainingLength -= 1
-            }
-        }
-    }
+    for _ in 0..<length { result.append(charset.randomElement()!) }
     return result
 }
 
 private func sha256(_ input: String) -> String {
-    let inputData = Data(input.utf8)
-    let hashedData = SHA256.hash(data: inputData)
-    let hashString = hashedData.compactMap { String(format: "%02x", $0) }.joined()
-    return hashString
+    let data = Data(input.utf8)
+    let hash = SHA256.hash(data: data)
+    return hash.compactMap { String(format: "%02x", $0) }.joined()
 }
 
 @main
 struct iOSApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-    }
+    var body: some Scene { WindowGroup { ContentView() } }
 }

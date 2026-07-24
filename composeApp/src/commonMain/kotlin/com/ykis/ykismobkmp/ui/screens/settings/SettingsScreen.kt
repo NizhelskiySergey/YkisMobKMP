@@ -363,7 +363,7 @@ fun ActionButtons(
       modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
       text = stringResource(
           Res.string.version_info, 
-          com.ykis.ykismobkmp.AppConfig.APP_VERSION, 
+          getPlatform().appVersion,
           stringResource(Res.string.developer_info)
       ),
       style = MaterialTheme.typography.labelMedium,

@@ -164,12 +164,12 @@ fun HeatMeterDetail(
         LabelTextWithText(
           modifier = Modifier.padding(vertical = 2.dp),
           labelText = stringResource(Res.string.next_check_date) + " ",
-          valueText = heatMeterEntity.pdate
+          valueText = heatMeterEntity.fpdate
         )
         LabelTextWithText(
           modifier = Modifier.padding(vertical = 2.dp),
           labelText = stringResource(Res.string.last_check_date) + " ",
-          valueText = heatMeterEntity.fpdate
+          valueText = heatMeterEntity.pdate
         )
         LabelTextWithCheckBox(
           modifier = Modifier.padding(vertical = 2.dp),

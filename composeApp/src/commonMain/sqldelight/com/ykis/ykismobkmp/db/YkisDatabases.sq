@@ -1,16 +1,16 @@
 -- Таблица районов
-CREATE TABLE raionEntity (
+CREATE TABLE IF NOT EXISTS raionEntity (
     raionId INTEGER  NOT NULL PRIMARY KEY,
     raion TEXT NOT NULL DEFAULT ''
 );
 
-CREATE TABLE houseEntity (
+CREATE TABLE IF NOT EXISTS houseEntity (
     houseId INTEGER  NOT NULL PRIMARY KEY,
     raionId INTEGER  NOT NULL,
     house TEXT NOT NULL
 );
 
-CREATE TABLE apartmentEntity (
+CREATE TABLE IF NOT EXISTS apartmentEntity (
     addressId INTEGER NOT NULL PRIMARY KEY,
     uid TEXT DEFAULT NULL,
     address TEXT NOT NULL DEFAULT '',
@@ -86,7 +86,7 @@ CREATE TABLE apartmentEntity (
     pb INTEGER NOT NULL DEFAULT 0,
     mtb INTEGER NOT NULL DEFAULT 0
 );
-CREATE TABLE familyEntity (
+CREATE TABLE IF NOT EXISTS familyEntity (
     recId INTEGER NOT NULL PRIMARY KEY, -- Наш первичный ключ
     addressId INTEGER NOT NULL,
     rodstvo TEXT NOT NULL DEFAULT 'Unknown',
@@ -106,7 +106,7 @@ CREATE TABLE familyEntity (
     organ TEXT NOT NULL DEFAULT 'Unknown'
 );
 
-CREATE TABLE serviceEntity (
+CREATE TABLE IF NOT EXISTS serviceEntity (
     addressId INTEGER NOT NULL DEFAULT 0,
     service TEXT NOT NULL DEFAULT 'Unknown',
     service1 TEXT DEFAULT 'Unknown',
@@ -146,7 +146,7 @@ CREATE TABLE serviceEntity (
 
 
 -- Таблица счетчиков тепла
-CREATE TABLE heatMeterEntity (
+CREATE TABLE IF NOT EXISTS heatMeterEntity (
     teplomerId INTEGER  NOT NULL PRIMARY KEY, -- teplomer_id
     number TEXT NOT NULL DEFAULT 'Unknown',        -- nomer
     model TEXT NOT NULL DEFAULT 'Unknown',
@@ -163,7 +163,7 @@ CREATE TABLE heatMeterEntity (
     dataSpis TEXT NOT NULL DEFAULT 'Unknown',       -- data_spis
     work INTEGER  NOT NULL DEFAULT 0
 );
-CREATE TABLE heatReadingEntity (
+CREATE TABLE IF NOT EXISTS heatReadingEntity (
     addressId INTEGER  NOT NULL,
     pokId INTEGER  NOT NULL PRIMARY KEY, -- pok_id
     teplomerId INTEGER  NOT NULL,
@@ -188,7 +188,7 @@ CREATE TABLE heatReadingEntity (
     dateIn TEXT NOT NULL DEFAULT 'Unknown',
     operator TEXT NOT NULL DEFAULT 'Unknown'
 );
-CREATE TABLE waterMeterEntity (
+CREATE TABLE IF NOT EXISTS waterMeterEntity (
     vodomerId INTEGER  NOT NULL PRIMARY KEY, -- vodomer_id
     dvodomerId INTEGER  NOT NULL DEFAULT 0, -- dvodomer_id
     addressId INTEGER  NOT NULL DEFAULT 0,  -- address_id
@@ -210,7 +210,7 @@ CREATE TABLE waterMeterEntity (
     dataSpis TEXT NOT NULL DEFAULT 'Unknown',     -- data_spis
     work INTEGER  NOT NULL DEFAULT 0
 );
-CREATE TABLE waterReadingEntity (
+CREATE TABLE IF NOT EXISTS waterReadingEntity (
     addressId INTEGER  NOT NULL,
     pokId INTEGER  NOT NULL PRIMARY KEY, -- pok_id
     vodomerId INTEGER  NOT NULL,         -- vodomer_id

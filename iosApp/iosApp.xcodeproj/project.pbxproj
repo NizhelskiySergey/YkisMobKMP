@@ -19,6 +19,7 @@
 		4B1836822FBCB05400E2AB8C /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = 4B1836812FBCB05400E2AB8C /* FirebaseRemoteConfig */; };
 		4B1836842FBCB05400E2AB8C /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 4B1836832FBCB05400E2AB8C /* FirebaseStorage */; };
 		4B82F71730102A09002E2C68 /* DeviceCheck.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4B82F715301029E5002E2C68 /* DeviceCheck.framework */; };
+		4B9AB2833013EAE400D27AD8 /* RecaptchaEnterprise in Frameworks */ = {isa = PBXBuildFile; productRef = 4B9AB2823013EAE400D27AD8 /* RecaptchaEnterprise */; };
 		4BCDD97E2FBC72A5008D7B56 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 4BCDD97D2FBC72A5008D7B56 /* libsqlite3.tbd */; };
 		4BDD41BB2FFC3DED000D6110 /* FirebaseAILogic in Frameworks */ = {isa = PBXBuildFile; productRef = 4BDD41BA2FFC3DED000D6110 /* FirebaseAILogic */; };
 		4BF442632FC102A700B1150B /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF442622FC102A700B1150B /* FirebaseAppCheck */; };
@@ -81,6 +82,7 @@
 				4BCDD97E2FBC72A5008D7B56 /* libsqlite3.tbd in Frameworks */,
 				4B18367A2FBCB05400E2AB8C /* FirebaseFirestore in Frameworks */,
 				4BF97BCA2FE7F05300484559 /* GoogleSignIn in Frameworks */,
+				4B9AB2833013EAE400D27AD8 /* RecaptchaEnterprise in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -151,6 +153,7 @@
 				4BF97BC92FE7F05300484559 /* GoogleSignIn */,
 				4BF97BCB2FE7F05300484559 /* GoogleSignInSwift */,
 				4BDD41BA2FFC3DED000D6110 /* FirebaseAILogic */,
+				4B9AB2823013EAE400D27AD8 /* RecaptchaEnterprise */,
 			);
 			productName = iosApp;
 			productReference = 3825B5DAA5E5BFEEC500E648 /* YkisMobKMP.app */;
@@ -183,6 +186,7 @@
 			packageReferences = (
 				4B18366E2FBCB05400E2AB8C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				4BF97BC82FE7F05300484559 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				4B9AB2813013EAE400D27AD8 /* XCRemoteSwiftPackageReference "recaptcha-enterprise-mobile-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5EA57595E85066EF3C036872 /* Products */;
@@ -475,6 +479,14 @@
 				minimumVersion = 12.13.0;
 			};
 		};
+		4B9AB2813013EAE400D27AD8 /* XCRemoteSwiftPackageReference "recaptcha-enterprise-mobile-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/GoogleCloudPlatform/recaptcha-enterprise-mobile-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 18.9.1;
+			};
+		};
 		4BF97BC82FE7F05300484559 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/google/GoogleSignIn-iOS.git";
@@ -540,6 +552,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4B18366E2FBCB05400E2AB8C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		4B9AB2823013EAE400D27AD8 /* RecaptchaEnterprise */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4B9AB2813013EAE400D27AD8 /* XCRemoteSwiftPackageReference "recaptcha-enterprise-mobile-sdk" */;
+			productName = RecaptchaEnterprise;
 		};
 		4BDD41BA2FFC3DED000D6110 /* FirebaseAILogic */ = {
 			isa = XCSwiftPackageProductDependency;
