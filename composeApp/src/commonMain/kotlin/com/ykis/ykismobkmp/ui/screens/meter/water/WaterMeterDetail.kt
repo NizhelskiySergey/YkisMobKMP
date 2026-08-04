@@ -130,8 +130,13 @@ fun WaterMeterDetail(
         ) {
           LabelTextWithText(
             modifier = Modifier.padding(vertical = 2.dp),
-            labelText = stringResource(Res.string.water_meter_model) + " ",
+            labelText = stringResource(Res.string.meter_model) + " ",
             valueText = waterMeterEntity.model
+          )
+          LabelTextWithText(
+            modifier = Modifier.padding(vertical = 2.dp),
+            labelText = stringResource(Res.string.meter_id) + " ",
+            valueText = waterMeterEntity.vodomerId.toString()
           )
           LabelTextWithText(
             modifier = Modifier.padding(vertical = 2.dp),
@@ -184,12 +189,12 @@ fun WaterMeterDetail(
             LabelTextWithText(
               modifier = Modifier.padding(vertical = 2.dp),
               labelText = stringResource(Res.string.next_check_date) + " ",
-              valueText = waterMeterEntity.pdate
+              valueText = waterMeterEntity.fpdate
             )
             LabelTextWithText(
               modifier = Modifier.padding(vertical = 2.dp),
               labelText = stringResource(Res.string.last_check_date) + " ",
-              valueText = waterMeterEntity.fpdate
+              valueText = waterMeterEntity.pdate
             )
             LabelTextWithCheckBox(
               modifier = Modifier.padding(vertical = 2.dp),

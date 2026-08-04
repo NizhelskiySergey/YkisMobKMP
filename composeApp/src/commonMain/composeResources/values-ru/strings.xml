@@ -383,7 +383,6 @@
   <string name="verify_email_title">Подтверждение почты</string>
   <string name="success_delete">Последние показания удалены</string>
   <string name="developer_info">разработчик ФЛП Нижельский С.А.</string>
-  <string name="water_meter_model">Модель водомера:</string>
   <string name="factory_number">Заводской номер:</string>
   <string name="installation_place">Место установки:</string>
   <string name="node_position">Позиция в узле:</string>
@@ -418,7 +417,8 @@
   <string name="accrued_gkal">Начислено (Гкал):</string>
   <string name="active_tariff">Действующий тариф:</string>
   <string name="volume_qty">Объем (qty):</string>
-  <string name="heat_meter_model">Модель счетчика:</string>
+  <string name="meter_model">Модель счетчика:</string>
+    <string name="meter_id">ид счетчика:</string>
   <string name="unit_measurement">Единица измерения:</string>
   <string name="device_coefficient">Коэффициент прибора:</string>
   <string name="heating_area">Отопительная площадь:</string>

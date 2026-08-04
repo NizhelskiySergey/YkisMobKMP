@@ -1,10 +1,9 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import com.android.build.api.dsl.ApplicationExtension
 
 plugins {
   alias(libs.plugins.kotlinMultiplatform)
-  alias(libs.plugins.androidLibrary)
+  alias(libs.plugins.androidLibrary) 
   alias(libs.plugins.composeMultiplatform)
   alias(libs.plugins.composeCompiler)
   alias(libs.plugins.composeHotReload)
@@ -43,16 +42,8 @@ kotlin {
     }
   }
 
-  listOf(
-    iosArm64(),
-    iosSimulatorArm64()
-  ).forEach { iosTarget ->
-    iosTarget.binaries.framework {
-      baseName = "ComposeApp"
-      isStatic = true
-      freeCompilerArgs += listOf("-Xoverride-konan-properties=apple.sdk.iPhoneOS.targetSdkVersion=15.0;apple.sdk.iPhoneSimulator.targetSdkVersion=15.0")
-    }
-  }
+  iosArm64()
+  iosSimulatorArm64()
 
   jvm {
     compilerOptions {
@@ -60,7 +51,7 @@ kotlin {
     }
   }
 
-  js(IR) {
+  js {
     compilerOptions {
       freeCompilerArgs.add("-Xexpect-actual-classes")
     }
@@ -84,7 +75,6 @@ kotlin {
     commonMain {
       kotlin.srcDir(generateAppConfig.map { it.outputs.files.asPath })
       dependencies {
-        // 1. COMPOSE
         implementation(libs.compose.runtime)
         implementation(libs.compose.foundation)
         implementation(libs.compose.material3)
@@ -94,34 +84,28 @@ kotlin {
         implementation(libs.compose.ui.tooling.preview)
         implementation(libs.compose.components.resources)
 
-        // 2. ЖИЗНЕННЫЙ ЦИКЛ
         implementation(libs.androidx.lifecycle.viewmodelCompose)
         implementation(libs.androidx.lifecycle.runtimeCompose)
-        // 3. KOIN
         implementation(libs.koin.core)
         implementation(libs.koin.compose)
         implementation(libs.koin.compose.viewmodel)
 
-        // 4. VOYAGER (Навигация)
         implementation(libs.voyager.navigator)
         implementation(libs.voyager.tab.navigator)
         implementation(libs.voyager.screenmodel)
         implementation(libs.voyager.koin)
         implementation(libs.voyager.transitions)
 
-        // 5. KTOR (Сеть)
         implementation(libs.ktor.client.core)
         implementation(libs.ktor.client.content.negotiation)
         implementation(libs.ktor.serialization.json)
         implementation(libs.ktor.client.logging)
         implementation(libs.kotlinx.serialization.json)
 
-        // 6. SQL DELIGHT (БД)
         implementation(libs.sqldelight.runtime)
         implementation(libs.sqldelight.coroutines)
         implementation(libs.sqldelight.primitive.adapters)
 
-        // 7. FIREBASE KMP (GitLive) - Базовые модули
         implementation(libs.firebase.common)
         implementation(libs.firebase.auth)
         implementation(libs.firebase.functions)
@@ -133,7 +117,6 @@ kotlin {
         implementation(libs.multiplatform.settings)
         implementation(libs.multiplatform.settings.no.arg)
 
-        // 8. Coil
         implementation(libs.coil.compose)
         implementation(libs.coil.network.ktor)
         implementation(libs.napier)
@@ -178,7 +161,7 @@ kotlin {
         implementation(libs.androidx.datastore.core)
       }
     }
-
+    
     val iosArm64Main by getting { dependsOn(iosMain) }
     val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
 
@@ -217,14 +200,17 @@ android {
     minSdk = libs.versions.android.minSdk.get().toInt()
   }
 
+  buildTypes {
+    getByName("release") {
+      isMinifyEnabled = false
+      isShrinkResources = false
+    }
+  }
+
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
   }
-}
-
-dependencies {
-  debugImplementation(libs.compose.uiTooling)
 }
 
 compose.desktop {
@@ -244,5 +230,11 @@ sqldelight {
       packageName.set("com.ykis.ykismobkmp.db")
       generateAsync.set(true)
     }
+  }
+}
+
+compose {
+  resources {
+    packageOfResClass = "ykismobkmp.composeapp.generated.resources"
   }
 }

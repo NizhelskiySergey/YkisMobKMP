@@ -121,8 +121,13 @@ fun HeatMeterDetail(
     ) {
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),
-        labelText = stringResource(Res.string.heat_meter_model) + " ",
+        labelText = stringResource(Res.string.meter_model) + " ",
         valueText = heatMeterEntity.model
+      )
+      LabelTextWithText(
+        modifier = Modifier.padding(vertical = 2.dp),
+        labelText = stringResource(Res.string.meter_id) + " ",
+        valueText = heatMeterEntity.teplomerId.toString()
       )
       LabelTextWithText(
         modifier = Modifier.padding(vertical = 2.dp),

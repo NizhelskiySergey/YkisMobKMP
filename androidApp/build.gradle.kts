@@ -2,7 +2,8 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
-    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.android") // Возвращаем плагин для поддержки src/main/kotlin
+    alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.googleServices)
     alias(libs.plugins.crashlytics)
@@ -20,9 +21,10 @@ android {
         versionName = libs.versions.app.version.get()
     }
 
-    bundle {
-        language {
-            enableSplit = false
+    // Явно указываем, где лежит ваш код
+    sourceSets {
+        getByName("main") {
+            java.setSrcDirs(listOf("src/main/kotlin", "src/main/java"))
         }
     }
 
@@ -43,18 +45,8 @@ android {
                     keyAlias = props.getProperty("signing.keyAlias")
                     keyPassword = props.getProperty("signing.keyPassword")
                     println("[YkisLogKMP]: Signing config 'release' successfully initialized.")
-                } else {
-                    println("[YkisLogKMP_ERROR]: JKS file not found at path: $path")
                 }
-            } else {
-                println("[YkisLogKMP_ERROR]: 'signing.keyStorePath' is missing in local.properties")
             }
-        }
-    }
-
-    sourceSets {
-        getByName("main") {
-            java.srcDirs("src/main/kotlin", "src/main/java")
         }
     }
 
@@ -70,22 +62,10 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("release")
-            
-            // Включаем генерацию и упаковку нативных отладочных символов для Google Play
-            // Это упакует символы прямо внутрь .aab файла
-            ndk {
-                debugSymbolLevel = "FULL"
-            }
-
-            // Настройка Firebase Crashlytics
-            configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
-                nativeSymbolUploadEnabled = true
-                // Уточненный путь для AGP 9.x
-                unstrippedNativeLibsDir = file("build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib")
-            }
         }
         getByName("debug") {
-            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 
@@ -110,8 +90,8 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.voyager.screenmodel)
     implementation(libs.multiplatform.settings)
+    implementation(libs.compose.components.resources)
     
-    // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)

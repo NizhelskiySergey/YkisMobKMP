@@ -385,8 +385,7 @@
   <string name="verify_email_title">Підтвердження пошти</string>
   <string name="success_delete">Останні показання видалено</string>
   <string name="developer_info">розробник ФОП Ніжельський С.О.</string>
-  <string name="water_meter_model">Модель водоміра:</string>
-  <string name="factory_number">Заводський номер:</string>
+    <string name="factory_number">Заводський номер:</string>
   <string name="installation_place">Місце встановлення:</string>
   <string name="node_position">Позиція у вузлі:</string>
   <string name="consider_sewerage">Враховувати стоки (Водовідведення):</string>
@@ -420,7 +419,9 @@
   <string name="accrued_gkal">Нараховано (ГКал):</string>
   <string name="active_tariff">Діючий тариф:</string>
   <string name="volume_qty">Об’єм (qty):</string>
-  <string name="heat_meter_model">Модель лічильника:</string>
+  <string name="meter_model">Модель лічильника:</string>
+  <string name="meter_id">iд лічильника:</string>
+
   <string name="unit_measurement">Одиниця виміру:</string>
   <string name="device_coefficient">Коефіцієнт приладу:</string>
   <string name="heating_area">Опалювальна площа:</string>

@@ -1,7 +1,7 @@
 [versions]
 # Версія додатка ЮКІС (Source of truth)
-app-version = "1.5.3"
-app-versionCode = "16"
+app-version = "1.5.6"
+app-versionCode = "19"
 cameraCore = "1.6.1"
 composeWebviewMultiplatform = "2.0.3"
 datastorePreferencesCoreVersion = "1.2.1"
@@ -160,6 +160,7 @@ androidx-startup = { module = "androidx.startup:startup-runtime", version.ref = 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
+kotlinMultiplatformAndroid = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

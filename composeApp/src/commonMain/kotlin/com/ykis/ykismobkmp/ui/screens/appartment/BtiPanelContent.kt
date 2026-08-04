@@ -33,23 +33,7 @@ import com.ykis.ykismobkmp.ui.components.LabelTextWithCheckBox
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.absent_text
-import ykismobkmp.composeapp.generated.resources.area_extra
-import ykismobkmp.composeapp.generated.resources.area_flat
-import ykismobkmp.composeapp.generated.resources.area_full
-import ykismobkmp.composeapp.generated.resources.area_life
-import ykismobkmp.composeapp.generated.resources.area_otopl
-import ykismobkmp.composeapp.generated.resources.compound_text
-import ykismobkmp.composeapp.generated.resources.data_bti
-import ykismobkmp.composeapp.generated.resources.date_orde_colon
-import ykismobkmp.composeapp.generated.resources.elevator_colon
-import ykismobkmp.composeapp.generated.resources.employer_text_colon
-import ykismobkmp.composeapp.generated.resources.order_text
-import ykismobkmp.composeapp.generated.resources.podnan_text
-import ykismobkmp.composeapp.generated.resources.private_text_colon
-import ykismobkmp.composeapp.generated.resources.rooms_colon
-import ykismobkmp.composeapp.generated.resources.secret_сode
-import ykismobkmp.composeapp.generated.resources.tenant_text
+import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "BtiPanelContent"
 

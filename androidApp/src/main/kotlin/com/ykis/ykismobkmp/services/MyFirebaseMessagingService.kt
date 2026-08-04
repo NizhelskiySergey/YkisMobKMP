@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.graphics.Bitmap
@@ -26,69 +25,53 @@ import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+@SuppressLint("MissingFirebaseInstanceTokenRefresh")
 class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
 
+  private val job = SupervisorJob()
+  private val scope = CoroutineScope(Dispatchers.IO + job)
   private val firebaseService: FirebaseService by inject()
-  private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+  override fun onMessageReceived(remoteMessage: RemoteMessage) {
+    super.onMessageReceived(remoteMessage)
+
+    val title = remoteMessage.notification?.title ?: remoteMessage.data["title"] ?: "Нове повідомлення"
+    val body = remoteMessage.notification?.body ?: remoteMessage.data["body"] ?: ""
+    val chatId = remoteMessage.data["chatId"] ?: remoteMessage.data["chat_id"]
+    val imageUrl = remoteMessage.data["image"] ?: remoteMessage.notification?.imageUrl?.toString()
+
+    println("[MyFirebaseMessagingService]: Отримано пуш. Title: $title, ChatId: $chatId")
+
+    scope.launch {
+      val bitmap = if (!imageUrl.isNullOrBlank()) {
+        getBitmapFromUrl(imageUrl)
+      } else null
+
+      withContext(Dispatchers.Main) {
+        sendNotification(title, body, chatId, bitmap)
+      }
+    }
+  }
 
   override fun onNewToken(token: String) {
     super.onNewToken(token)
-    println("[YkisLogKMP.MessagingService]: Получен новый FCM токен: ${token.take(10)}...")
-    serviceScope.launch {
-      try {
-        firebaseService.addFcmToken()
-      } catch (e: Exception) {
-        println("[YkisLogKMP.MessagingService_ERROR]: Не удалось обновить токен: ${e.message}")
-      }
+    println("[MyFirebaseMessagingService]: Отримано новий токен: $token")
+    scope.launch {
+      firebaseService.addFcmToken()
     }
   }
 
-  override fun onMessageReceived(message: RemoteMessage) {
-    super.onMessageReceived(message)
-    println("[YkisLogKMP.MessagingService]: ПРИШЕЛ ПУШ! От: ${message.from}")
-    println("[YkisLogKMP.MessagingService]: Данные: ${message.data}")
-
-    // Поддержка и блока notification, и блока data (для универсальности)
-    val title = message.data["title"] ?: message.notification?.title ?: "ЮКІС"
-    val body = message.data["body"] ?: message.notification?.body ?: "Нове повідомлення"
-    val chatId = message.data["chatId"]
-    val imageUrl = message.data["image"] ?: message.data["imageUrl"] ?: message.notification?.imageUrl?.toString()
-
-    // Получаем число для бэйджа (из блока data или notification)
-    val badgeCount = (message.data["badge"]?.toIntOrNull())
-      ?: (message.notification?.notificationCount)
-      ?: 0
-
-    val activeChat = ChatScreenModel.activeChatIdForNotifications
-    println("[YkisLogKMP.MessagingService]: ПУШ ПОЛУЧЕН! Чат: $chatId, Бэйдж: $badgeCount")
-
-    if (chatId != null && chatId == activeChat) {
-      println("[YkisLogKMP.MessagingService]: Пуш подавлен (Чат уже открыт)")
-      // Сбрасываем бэйдж на иконке, раз мы уже в этом чате
-      updateLauncherBadge(0)
-      return
-    }
-
-    updateLauncherBadge(badgeCount)
-
-    serviceScope.launch {
-      val bitmap = if (!imageUrl.isNullOrBlank()) getBitmapFromUrl(imageUrl) else null
-      withContext(Dispatchers.Main) {
-        sendNotification(title, body, chatId, bitmap, badgeCount)
-      }
-    }
-  }
-
-  private fun updateLauncherBadge(count: Int) {
+  private suspend fun getBitmapFromUrl(imageUrl: String): Bitmap? = withContext(Dispatchers.IO) {
     try {
-      // Стандартный способ
-      val badgeIntent = Intent("android.intent.action.BADGE_COUNT_UPDATE")
-      badgeIntent.putExtra("badge_count", count)
-      badgeIntent.putExtra("badge_count_package_name", packageName)
-      badgeIntent.putExtra("badge_count_class_name", "com.ykis.ykismobkmp.MainActivity")
-      sendBroadcast(badgeIntent)
-      println("[YkisLogKMP.MessagingService]: Launcher Badge Update: $count")
-    } catch (_: Exception) { }
+      val url = URL(imageUrl)
+      val connection = url.openConnection() as HttpURLConnection
+      connection.doInput = true
+      connection.connect()
+      val input = connection.inputStream
+      BitmapFactory.decodeStream(input)
+    } catch (e: Exception) {
+      null
+    }
   }
 
   @SuppressLint("WrongConstant")
@@ -106,12 +89,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
 
     val channelId = "ykis_chat_notifications"
     val notificationBuilder = NotificationCompat.Builder(this, channelId)
-      .setSmallIcon(R.drawable.ykis)
+      .setSmallIcon(R.mipmap.ic_launcher) // Используем иконку приложения
       .setContentTitle(title)
       .setContentText(body)
       .setAutoCancel(true)
       .setContentIntent(pendingIntent)
-      .setNumber(badgeCount) // Передаем число в систему
+      .setNumber(badgeCount)
       .setPriority(NotificationCompat.PRIORITY_HIGH)
 
     if (image != null) {
@@ -119,7 +102,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
       notificationBuilder.setStyle(
         NotificationCompat.BigPictureStyle()
           .bigPicture(image)
-          .bigLargeIcon(null as Bitmap?)
+          .setSummaryText(body)
       )
     }
 
@@ -128,42 +111,19 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       val channel = NotificationChannel(
         channelId,
-        "Чат повідомлення ЮКІС",
+        "Чат повідомлення",
         NotificationManager.IMPORTANCE_HIGH
       ).apply {
-        setShowBadge(true)
+        description = "Сповіщення про нові повідомлення у чаті"
       }
       notificationManager.createNotificationChannel(channel)
     }
 
-    val notificationId = chatId?.hashCode() ?: currentTimeMillis().toInt()
-    notificationManager.notify(notificationId, notificationBuilder.build())
-
-    // Попытка отправить универсальный сигнал бэйджа для Samsung/Sony
-    if (badgeCount > 0) {
-      try {
-        val badgeIntent = Intent("android.intent.action.BADGE_COUNT_UPDATE")
-        badgeIntent.putExtra("badge_count", badgeCount)
-        badgeIntent.putExtra("badge_count_package_name", packageName)
-        badgeIntent.putExtra("badge_count_class_name", "com.ykis.ykismobkmp.MainActivity")
-        sendBroadcast(badgeIntent)
-      } catch (_: Exception) { }
-    }
+    notificationManager.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
   }
 
-  private suspend fun getBitmapFromUrl(imageUrl: String): Bitmap? = withContext(Dispatchers.IO) {
-    try {
-      val url = URL(imageUrl)
-      val connection = url.openConnection() as HttpURLConnection
-      connection.doInput = true
-      connection.connect()
-      val input = connection.inputStream
-      BitmapFactory.decodeStream(input)
-    } catch (e: Exception) {
-      println("[YkisLogKMP.MessagingService_ERROR]: Ошибка загрузки изображения для пуша: ${e.message}")
-      null
-    }
+  override fun onDestroy() {
+    job.cancel()
+    super.onDestroy()
   }
-
-  private fun currentTimeMillis(): Long = System.currentTimeMillis()
 }

@@ -48,22 +48,22 @@ import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import dev.gitlive.firebase.auth.auth
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.email_tab
+import ykismobkmp.composeapp.generated.resources.*
 import ykismobkmp.composeapp.generated.resources.forgot_password_link
 import ykismobkmp.composeapp.generated.resources.login_details
-import ykismobkmp.composeapp.generated.resources.no_account_text
+import ykismobkmp.composeapp.generated.resources.*
 import ykismobkmp.composeapp.generated.resources.or_divider
 import ykismobkmp.composeapp.generated.resources.phone_number_label
 import ykismobkmp.composeapp.generated.resources.phone_number_placeholder
-import ykismobkmp.composeapp.generated.resources.phone_tab
+import ykismobkmp.composeapp.generated.resources.*
 import ykismobkmp.composeapp.generated.resources.repeat_email_not_verified_message
-import ykismobkmp.composeapp.generated.resources.send_code_button
-import ykismobkmp.composeapp.generated.resources.sign_in_button
+import ykismobkmp.composeapp.generated.resources.*
+import ykismobkmp.composeapp.generated.resources.*
 import ykismobkmp.composeapp.generated.resources.sign_in_with_google
 import ykismobkmp.composeapp.generated.resources.sign_up_link
 import ykismobkmp.composeapp.generated.resources.sms_code_label
 import ykismobkmp.composeapp.generated.resources.sms_code_placeholder
-import ykismobkmp.composeapp.generated.resources.verify_code_button
+import ykismobkmp.composeapp.generated.resources.*
 
 private const val className = "SignInScreen"
 

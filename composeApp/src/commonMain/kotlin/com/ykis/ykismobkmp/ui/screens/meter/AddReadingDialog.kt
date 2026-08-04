@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import ykismobkmp.composeapp.generated.resources.Res
 import ykismobkmp.composeapp.generated.resources.add
-import ykismobkmp.composeapp.generated.resources.add_reading_supporting_text
+import ykismobkmp.composeapp.generated.resources.*
 import ykismobkmp.composeapp.generated.resources.add_reading_title
 import ykismobkmp.composeapp.generated.resources.cancel
 import ykismobkmp.composeapp.generated.resources.current_reading
