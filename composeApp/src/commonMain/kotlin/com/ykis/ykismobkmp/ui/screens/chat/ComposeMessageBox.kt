@@ -23,8 +23,8 @@ import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.core.utils.Log
 import com.ykis.ykismobkmp.core.utils.FilePicker
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.message_placeholder
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.message_placeholder
 
 private const val className = "ComposeMessageBox"
 

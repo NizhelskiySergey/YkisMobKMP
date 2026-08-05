@@ -36,8 +36,8 @@ import com.ykis.ykismobkmp.ui.BaseUIState
 import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.components.LabelTextWithText
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.*
 
 private const val className = "HeatMeterList"
 

@@ -39,7 +39,7 @@ import com.ykis.ykismobkmp.domain.entity.ApartmentEntity
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.ui.screens.help.ManualScreen
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 @Composable
 fun ModalNavigationDrawerContent(

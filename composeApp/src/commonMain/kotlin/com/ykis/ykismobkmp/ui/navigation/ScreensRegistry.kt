@@ -44,13 +44,13 @@ import com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementListScreen
 import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreen
 import org.jetbrains.compose.resources.StringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.accrued
-import ykismobkmp.composeapp.generated.resources.announcements
-import ykismobkmp.composeapp.generated.resources.chat
-import ykismobkmp.composeapp.generated.resources.info
-import ykismobkmp.composeapp.generated.resources.meters
-import ykismobkmp.composeapp.generated.resources.settings
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.accrued
+import com.ykis.ykismobkmp.announcements
+import com.ykis.ykismobkmp.chat
+import com.ykis.ykismobkmp.info
+import com.ykis.ykismobkmp.meters
+import com.ykis.ykismobkmp.settings
 
 private const val className = "ScreensRegistry"
 object SignUpScreenDest : Screen {

@@ -13,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 private const val className = "ProfileTopBar"
 

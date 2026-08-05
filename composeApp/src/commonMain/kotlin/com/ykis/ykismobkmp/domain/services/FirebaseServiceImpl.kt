@@ -21,7 +21,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlin.time.Duration.Companion.seconds
 import org.jetbrains.compose.resources.getString
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 private const val className = "FirebaseServiceImpl"
 

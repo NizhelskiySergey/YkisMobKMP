@@ -27,15 +27,15 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.email
-import ykismobkmp.composeapp.generated.resources.email_placeholder
-import ykismobkmp.composeapp.generated.resources.empty_phone
-import ykismobkmp.composeapp.generated.resources.number_double_placeholder
-import ykismobkmp.composeapp.generated.resources.number_int_placeholder
-import ykismobkmp.composeapp.generated.resources.password
-import ykismobkmp.composeapp.generated.resources.phone
-import ykismobkmp.composeapp.generated.resources.repeat_password
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.email
+import com.ykis.ykismobkmp.email_placeholder
+import com.ykis.ykismobkmp.empty_phone
+import com.ykis.ykismobkmp.number_double_placeholder
+import com.ykis.ykismobkmp.number_int_placeholder
+import com.ykis.ykismobkmp.password
+import com.ykis.ykismobkmp.phone
+import com.ykis.ykismobkmp.repeat_password
 
 private const val className = "TextFields"
 

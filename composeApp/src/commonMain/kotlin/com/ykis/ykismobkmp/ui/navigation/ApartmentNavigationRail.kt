@@ -76,7 +76,7 @@ import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.ui.screens.help.ManualScreen
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 private const val className = "ApartmentNavigationRail"
 

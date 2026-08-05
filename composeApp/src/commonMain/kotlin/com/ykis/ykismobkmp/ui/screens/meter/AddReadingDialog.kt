@@ -16,13 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.add
-import ykismobkmp.composeapp.generated.resources.*
-import ykismobkmp.composeapp.generated.resources.add_reading_title
-import ykismobkmp.composeapp.generated.resources.cancel
-import ykismobkmp.composeapp.generated.resources.current_reading
-import ykismobkmp.composeapp.generated.resources.new_reading
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.add
+import com.ykis.ykismobkmp.*
+import com.ykis.ykismobkmp.add_reading_title
+import com.ykis.ykismobkmp.cancel
+import com.ykis.ykismobkmp.current_reading
+import com.ykis.ykismobkmp.new_reading
 
 // Временная КМР-заглушка числового поля ввода, подставь свой импорт, если оно лежит в другом пакете
 @Composable

@@ -23,7 +23,7 @@ import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 private const val tag = "ServiceListScreen"
 
 data class TotalServiceDebt(

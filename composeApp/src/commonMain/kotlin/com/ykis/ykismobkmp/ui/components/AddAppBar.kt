@@ -24,7 +24,7 @@ import org.jetbrains.compose.resources.stringResource
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
 
 // ИМПОРТЫ КРОСС ПЛАТФОРМЕННЫХ РЕСУРСОВ СТРОК JETBRAINS
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 private const val className = "AddAppBar"
 

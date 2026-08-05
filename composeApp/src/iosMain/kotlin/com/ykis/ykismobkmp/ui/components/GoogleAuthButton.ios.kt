@@ -10,8 +10,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.painterResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.ic_google_logo
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.ic_google_logo
 
 
 @Composable

@@ -47,23 +47,23 @@ import com.ykis.ykismobkmp.ui.navigation.VerifyEmailScreenDest
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import dev.gitlive.firebase.auth.auth
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.*
-import ykismobkmp.composeapp.generated.resources.forgot_password_link
-import ykismobkmp.composeapp.generated.resources.login_details
-import ykismobkmp.composeapp.generated.resources.*
-import ykismobkmp.composeapp.generated.resources.or_divider
-import ykismobkmp.composeapp.generated.resources.phone_number_label
-import ykismobkmp.composeapp.generated.resources.phone_number_placeholder
-import ykismobkmp.composeapp.generated.resources.*
-import ykismobkmp.composeapp.generated.resources.repeat_email_not_verified_message
-import ykismobkmp.composeapp.generated.resources.*
-import ykismobkmp.composeapp.generated.resources.*
-import ykismobkmp.composeapp.generated.resources.sign_in_with_google
-import ykismobkmp.composeapp.generated.resources.sign_up_link
-import ykismobkmp.composeapp.generated.resources.sms_code_label
-import ykismobkmp.composeapp.generated.resources.sms_code_placeholder
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.*
+import com.ykis.ykismobkmp.forgot_password_link
+import com.ykis.ykismobkmp.login_details
+import com.ykis.ykismobkmp.*
+import com.ykis.ykismobkmp.or_divider
+import com.ykis.ykismobkmp.phone_number_label
+import com.ykis.ykismobkmp.phone_number_placeholder
+import com.ykis.ykismobkmp.*
+import com.ykis.ykismobkmp.repeat_email_not_verified_message
+import com.ykis.ykismobkmp.*
+import com.ykis.ykismobkmp.*
+import com.ykis.ykismobkmp.sign_in_with_google
+import com.ykis.ykismobkmp.sign_up_link
+import com.ykis.ykismobkmp.sms_code_label
+import com.ykis.ykismobkmp.sms_code_placeholder
+import com.ykis.ykismobkmp.*
 
 private const val className = "SignInScreen"
 

@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ykis.ykismobkmp.domain.entity.RaionEntity
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 private const val className = "RaionDropdownSelector"
 

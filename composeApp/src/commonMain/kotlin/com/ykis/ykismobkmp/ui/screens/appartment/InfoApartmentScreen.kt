@@ -57,14 +57,14 @@ import com.ykis.ykismobkmp.ui.navigation.ContentType
 import com.ykis.ykismobkmp.ui.navigation.LocalContentType
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.addressed
-import ykismobkmp.composeapp.generated.resources.cancel
-import ykismobkmp.composeapp.generated.resources.delete
-import ykismobkmp.composeapp.generated.resources.title_delete_appartment
-import ykismobkmp.composeapp.generated.resources.desc_delete_appartment
-import ykismobkmp.composeapp.generated.resources.info
-import ykismobkmp.composeapp.generated.resources.list_family
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.addressed
+import com.ykis.ykismobkmp.cancel
+import com.ykis.ykismobkmp.delete
+import com.ykis.ykismobkmp.title_delete_appartment
+import com.ykis.ykismobkmp.desc_delete_appartment
+import com.ykis.ykismobkmp.info
+import com.ykis.ykismobkmp.list_family
 private const val className = "InfoApartmentScreen"
 
 class InfoApartmentScreen(

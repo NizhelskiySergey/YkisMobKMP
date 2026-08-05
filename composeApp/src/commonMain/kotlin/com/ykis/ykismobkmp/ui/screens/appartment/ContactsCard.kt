@@ -17,7 +17,7 @@ import com.ykis.ykismobkmp.ui.components.EmailField
 import com.ykis.ykismobkmp.ui.components.LabelTextWithTextAndIcon
 import com.ykis.ykismobkmp.ui.components.PhoneField
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 @Composable
 fun ContactsCard(

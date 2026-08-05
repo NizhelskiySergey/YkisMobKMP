@@ -29,5 +29,13 @@
 -keep class com.google.firebase.** { *; }
 -keep class dev.gitlive.firebase.** { *; }
 
+# Google Sign-In & Credential Manager
+-keep class com.google.android.libraries.identity.googleid.** { *; }
+-keep class androidx.credentials.** { *; }
+
 # Сохраняем инициализаторы Startup
 -keep class * extends androidx.startup.Initializer { *; }
+
+# Compose Resources
+-keep class com.ykis.ykismobkmp.Res { *; }
+-keep class com.ykis.ykismobkmp.Res$* { *; }

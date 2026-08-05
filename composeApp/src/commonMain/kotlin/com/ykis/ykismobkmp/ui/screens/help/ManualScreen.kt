@@ -25,7 +25,7 @@ import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 /**
  * [ManualScreen] — Екран відображення інструкції користувача.

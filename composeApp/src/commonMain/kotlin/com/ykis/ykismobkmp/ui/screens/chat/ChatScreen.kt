@@ -43,8 +43,8 @@ import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.*
 
 sealed class ChatItem {
   data class DateHeader(val date: String) : ChatItem()

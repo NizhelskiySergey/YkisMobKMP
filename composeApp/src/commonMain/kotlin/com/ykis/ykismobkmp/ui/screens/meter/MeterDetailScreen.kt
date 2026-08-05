@@ -20,7 +20,7 @@ import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatReadings
 import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterDetail
 import com.ykis.ykismobkmp.ui.screens.meter.water.WaterReadings
 import org.jetbrains.compose.resources.painterResource
-import ykismobkmp.composeapp.generated.resources.Res
+import com.ykis.ykismobkmp.Res
 
 private const val className = "MeterDetailScreen"
 

@@ -27,9 +27,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.painterResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.ic_empty_box_dark
-import ykismobkmp.composeapp.generated.resources.ic_empty_box_light
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.ic_empty_box_dark
+import com.ykis.ykismobkmp.ic_empty_box_light
 
 private const val className = "EmptyListState"
 

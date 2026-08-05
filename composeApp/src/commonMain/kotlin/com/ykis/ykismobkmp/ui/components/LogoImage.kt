@@ -20,10 +20,10 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 // Подключаем ресурсы ЮКІС
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.app_name
-import ykismobkmp.composeapp.generated.resources.full_name
-import ykismobkmp.composeapp.generated.resources.ykis
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.app_name
+import com.ykis.ykismobkmp.full_name
+import com.ykis.ykismobkmp.ykis
 
 private const val className = "LogoImage"
 

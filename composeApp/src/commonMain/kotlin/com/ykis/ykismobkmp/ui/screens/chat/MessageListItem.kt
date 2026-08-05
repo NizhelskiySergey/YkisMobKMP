@@ -43,11 +43,11 @@ import com.ykis.ykismobkmp.ui.components.UserImage
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.choose_raion
-import ykismobkmp.composeapp.generated.resources.edit
-import ykismobkmp.composeapp.generated.resources.forward
-import ykismobkmp.composeapp.generated.resources.verify_email_title
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.choose_raion
+import com.ykis.ykismobkmp.edit
+import com.ykis.ykismobkmp.forward
+import com.ykis.ykismobkmp.verify_email_title
 
 private const val tag = "MessageListItem"
 

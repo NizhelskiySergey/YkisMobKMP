@@ -52,17 +52,8 @@ actual fun triggerNativeGoogleSignIn(
 
   println("[YkisLogKMP.PlatformUtils]: [CREDENTIAL_MANAGER] Инициализация современного Google Credential Manager")
 
-  // 1. Извлекаем default_web_client_id, автоматически сгенерированный Firebase из твоего google-services.json
-  @Suppress("DiscouragedApi")
-  val webClientId = try {
-    val resId = activity.resources.getIdentifier("default_web_client_id", "string", activity.packageName)
-    if (resId != 0) activity.getString(resId) else ""
-  } catch (e: Exception) { "" }
-
-  if (webClientId.isBlank()) {
-    onError("Не удалось найти default_web_client_id в ресурсах google-services.json")
-    return
-  }
+  // 1. Используем Web Client ID напрямую из google-services.json (Тип 3)
+  val webClientId = "1062920014188-8s41hcrkkik155m7mo2spj26jupp27e5.apps.googleusercontent.com"
 
   // 2. Создаем современную опцию запроса Google ID Token
   val googleIdOption = GetGoogleIdOption.Builder()

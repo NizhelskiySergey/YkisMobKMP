@@ -38,11 +38,11 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.add
-import ykismobkmp.composeapp.generated.resources.add_appartment
-import ykismobkmp.composeapp.generated.resources.secret_сode
-import ykismobkmp.composeapp.generated.resources.tooltip_code
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.add
+import com.ykis.ykismobkmp.add_appartment
+import com.ykis.ykismobkmp.secret_сode
+import com.ykis.ykismobkmp.tooltip_code
 
 
 private const val className = "AddApartmentScreen"

@@ -36,7 +36,7 @@ import com.ykis.ykismobkmp.ui.screens.meter.AddReadingDialog
 import com.ykis.ykismobkmp.ui.screens.meter.DeleteReadingDialog
 import com.ykis.ykismobkmp.ui.screens.meter.LastReadingCardButtons
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 private const val tag = "WaterMeterDetail"
 @Composable

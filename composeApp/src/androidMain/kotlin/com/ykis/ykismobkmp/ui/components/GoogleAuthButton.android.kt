@@ -24,8 +24,8 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.ic_google_logo
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.ic_google_logo
 
 private const val tag = "GoogleAuthButton"
 

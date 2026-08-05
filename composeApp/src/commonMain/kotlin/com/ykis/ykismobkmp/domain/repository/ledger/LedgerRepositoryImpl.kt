@@ -4,7 +4,7 @@ import com.ykis.ykismobkmp.data.remote.ledger.LedgerRemoteRepository
 import com.ykis.ykismobkmp.data.responses.GetFastpayTokensResponse
 import com.ykis.ykismobkmp.data.responses.GetServiceResponse
 import org.jetbrains.compose.resources.getString
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 /**
  * [LedgerRepositoryImpl] — Реалізація репозиторію нарахувань.

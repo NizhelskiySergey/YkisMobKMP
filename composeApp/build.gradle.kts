@@ -42,12 +42,18 @@ kotlin {
     }
   }
 
-  iosArm64()
-  iosSimulatorArm64()
-
-  jvm {
-    compilerOptions {
-      freeCompilerArgs.add("-Xexpect-actual-classes")
+  iosArm64 {
+    binaries.framework {
+      baseName = "ComposeApp"
+      isStatic = true
+      freeCompilerArgs += listOf("-Xoverride-konan-properties=apple.sdk.iPhoneOS.targetSdkVersion=15.0;apple.sdk.iPhoneSimulator.targetSdkVersion=15.0")
+    }
+  }
+  iosSimulatorArm64 {
+    binaries.framework {
+      baseName = "ComposeApp"
+      isStatic = true
+      freeCompilerArgs += listOf("-Xoverride-konan-properties=apple.sdk.iPhoneOS.targetSdkVersion=15.0;apple.sdk.iPhoneSimulator.targetSdkVersion=15.0")
     }
   }
 
@@ -72,9 +78,10 @@ kotlin {
   }
 
   sourceSets {
-    commonMain {
+    val commonMain by getting {
       kotlin.srcDir(generateAppConfig.map { it.outputs.files.asPath })
       dependencies {
+        // 1. COMPOSE
         implementation(libs.compose.runtime)
         implementation(libs.compose.foundation)
         implementation(libs.compose.material3)
@@ -84,28 +91,34 @@ kotlin {
         implementation(libs.compose.ui.tooling.preview)
         implementation(libs.compose.components.resources)
 
+        // 2. ЖИЗНЕННЫЙ ЦИКЛ
         implementation(libs.androidx.lifecycle.viewmodelCompose)
         implementation(libs.androidx.lifecycle.runtimeCompose)
+        // 3. KOIN
         implementation(libs.koin.core)
         implementation(libs.koin.compose)
         implementation(libs.koin.compose.viewmodel)
 
+        // 4. VOYAGER (Навигация)
         implementation(libs.voyager.navigator)
         implementation(libs.voyager.tab.navigator)
         implementation(libs.voyager.screenmodel)
         implementation(libs.voyager.koin)
         implementation(libs.voyager.transitions)
 
+        // 5. KTOR (Сеть)
         implementation(libs.ktor.client.core)
         implementation(libs.ktor.client.content.negotiation)
         implementation(libs.ktor.serialization.json)
         implementation(libs.ktor.client.logging)
         implementation(libs.kotlinx.serialization.json)
 
+        // 6. SQL DELIGHT (БД)
         implementation(libs.sqldelight.runtime)
         implementation(libs.sqldelight.coroutines)
         implementation(libs.sqldelight.primitive.adapters)
 
+        // 7. FIREBASE KMP (GitLive) - Базовые модули
         implementation(libs.firebase.common)
         implementation(libs.firebase.auth)
         implementation(libs.firebase.functions)
@@ -117,42 +130,45 @@ kotlin {
         implementation(libs.multiplatform.settings)
         implementation(libs.multiplatform.settings.no.arg)
 
+        // 8. Coil
         implementation(libs.coil.compose)
         implementation(libs.coil.network.ktor)
         implementation(libs.napier)
       }
     }
 
-    androidMain.dependencies {
-      implementation(project.dependencies.platform(libs.firebase.bom))
-      implementation(libs.firebase.ai)
-      implementation(libs.androidx.activity.compose)
-      implementation(libs.androidx.splashscreen)
-      implementation(libs.ktor.client.okhttp)
-      implementation(libs.koin.android)
-      implementation(libs.sqldelight.android)
-      implementation(libs.compose.uiTooling)
-      implementation(libs.firebase.crashlytics)
-      implementation(libs.firebase.analytics)
-      implementation(libs.firebase.common.ktx)
-      implementation(libs.androidx.preference.ktx)
-      implementation(libs.androidx.ui.viewbinding)
-      implementation(libs.androidx.camera.core)
-      implementation(libs.androidx.camera.camera2)
-      implementation(libs.androidx.camera.lifecycle)
-      implementation(libs.androidx.camera.view)
-      implementation(libs.androidx.window)
-      implementation(libs.firebase.appcheck.debug)
-      implementation(libs.googleid)
-      implementation(libs.androidx.credentials)
-      implementation(libs.androidx.credentials.play.services.auth)
-      implementation(libs.androidx.datastore.preferences.core)
-      implementation(libs.androidx.datastore.core)
-      implementation(libs.play.services.auth.api.phone)
+    val androidMain by getting {
+      dependencies {
+        implementation(project.dependencies.platform(libs.firebase.bom))
+        implementation(libs.firebase.ai)
+        implementation(libs.androidx.activity.compose)
+        implementation(libs.androidx.splashscreen)
+        implementation(libs.ktor.client.okhttp)
+        implementation(libs.koin.android)
+        implementation(libs.sqldelight.android)
+        implementation(libs.compose.uiTooling)
+        implementation(libs.firebase.crashlytics)
+        implementation(libs.firebase.analytics)
+        implementation(libs.firebase.common.ktx)
+        implementation(libs.androidx.preference.ktx)
+        implementation(libs.androidx.ui.viewbinding)
+        implementation(libs.androidx.camera.core)
+        implementation(libs.androidx.camera.camera2)
+        implementation(libs.androidx.camera.lifecycle)
+        implementation(libs.androidx.camera.view)
+        implementation(libs.androidx.window)
+        implementation(libs.firebase.appcheck.debug)
+        implementation(libs.googleid)
+        implementation(libs.androidx.credentials)
+        implementation(libs.androidx.credentials.play.services.auth)
+        implementation(libs.androidx.datastore.preferences.core)
+        implementation(libs.androidx.datastore.core)
+        implementation(libs.play.services.auth.api.phone)
+      }
     }
 
     val iosMain by creating {
-      dependsOn(commonMain.get())
+      dependsOn(commonMain)
       dependencies {
         implementation(libs.ktor.client.darwin)
         implementation(libs.firebase.crashlytics)
@@ -161,20 +177,13 @@ kotlin {
         implementation(libs.androidx.datastore.core)
       }
     }
-    
-    val iosArm64Main by getting { dependsOn(iosMain) }
-    val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
 
-    jvmMain.dependencies {
-      implementation(compose.desktop.currentOs)
-      implementation(libs.kotlinx.coroutinesSwing)
-      implementation(libs.sqldelight.jvm)
-      implementation(libs.ktor.client.java)
-      implementation(libs.ktor.client.okhttp)
-      implementation(libs.ktor.client.cio)
-      implementation(libs.webcam.capture)
-      implementation(libs.androidx.datastore.preferences.core)
-      implementation(libs.androidx.datastore.core)
+    val iosArm64Main by getting {
+      dependsOn(iosMain)
+    }
+
+    val iosSimulatorArm64Main by getting {
+      dependsOn(iosMain)
     }
 
     val jsMain by getting {
@@ -213,17 +222,6 @@ android {
   }
 }
 
-compose.desktop {
-  application {
-    mainClass = "com.ykis.ykismobkmp.MainKt"
-    nativeDistributions {
-      targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-      packageName = "com.ykis.ykismobkmp"
-      packageVersion = libs.versions.app.version.get()
-    }
-  }
-}
-
 sqldelight {
   databases {
     create("YkisDatabases") {
@@ -235,6 +233,6 @@ sqldelight {
 
 compose {
   resources {
-    packageOfResClass = "ykismobkmp.composeapp.generated.resources"
+    packageOfResClass = "com.ykis.ykismobkmp"
   }
 }

@@ -8,7 +8,7 @@ import com.ykis.ykismobkmp.data.responses.GetHousesResponse
 import com.ykis.ykismobkmp.data.responses.GetRaionsResponse
 import com.ykis.ykismobkmp.data.responses.GetSimpleResponse
 import org.jetbrains.compose.resources.getString
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 /**
  * [ApartmentRepositoryImpl] — Реалізація репозиторію, що пов'язує UseCases із мережевим шаром.

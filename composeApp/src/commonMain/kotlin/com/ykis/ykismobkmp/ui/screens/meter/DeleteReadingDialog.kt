@@ -13,10 +13,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.cancel
-import ykismobkmp.composeapp.generated.resources.delete_my_account
-import ykismobkmp.composeapp.generated.resources.delete_reading_title
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.cancel
+import com.ykis.ykismobkmp.delete_my_account
+import com.ykis.ykismobkmp.delete_reading_title
 
 private const val className = "DeleteReadingDialog"
 

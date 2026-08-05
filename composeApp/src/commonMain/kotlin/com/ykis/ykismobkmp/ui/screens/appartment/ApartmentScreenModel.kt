@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.getString
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 

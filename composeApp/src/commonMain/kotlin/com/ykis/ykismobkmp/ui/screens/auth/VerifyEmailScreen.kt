@@ -50,15 +50,15 @@ import com.ykis.ykismobkmp.ui.navigation.MainApartmentScreen
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.alredy_user
-import ykismobkmp.composeapp.generated.resources.change_email
-import ykismobkmp.composeapp.generated.resources.email_sent_to
-import ykismobkmp.composeapp.generated.resources.send_again
-import ykismobkmp.composeapp.generated.resources.repeat_email_not_verified_message
-import ykismobkmp.composeapp.generated.resources.terms_condition_down
-import ykismobkmp.composeapp.generated.resources.verify_email
-import ykismobkmp.composeapp.generated.resources.verify_email_title
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.alredy_user
+import com.ykis.ykismobkmp.change_email
+import com.ykis.ykismobkmp.email_sent_to
+import com.ykis.ykismobkmp.send_again
+import com.ykis.ykismobkmp.repeat_email_not_verified_message
+import com.ykis.ykismobkmp.terms_condition_down
+import com.ykis.ykismobkmp.verify_email
+import com.ykis.ykismobkmp.verify_email_title
 
 private const val className = "VerifyEmailScreen"
 

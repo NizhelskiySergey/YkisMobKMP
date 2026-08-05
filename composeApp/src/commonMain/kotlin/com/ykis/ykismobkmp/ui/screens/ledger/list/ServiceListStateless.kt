@@ -24,8 +24,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.uah
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.uah
 private const val className = "ServiceListStateless"
 
 @Composable

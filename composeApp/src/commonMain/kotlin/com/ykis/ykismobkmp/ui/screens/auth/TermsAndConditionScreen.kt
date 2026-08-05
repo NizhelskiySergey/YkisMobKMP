@@ -38,10 +38,10 @@ import com.ykis.ykismobkmp.ui.navigation.AppScreenModel
 import com.ykis.ykismobkmp.domain.services.UserRole
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.terms_condition
-import ykismobkmp.composeapp.generated.resources.terms_condition_accept
-import ykismobkmp.composeapp.generated.resources.terms_condition_down
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.terms_condition
+import com.ykis.ykismobkmp.terms_condition_accept
+import com.ykis.ykismobkmp.terms_condition_down
 
 private const val className = "TermsAndConditionScreen"
 

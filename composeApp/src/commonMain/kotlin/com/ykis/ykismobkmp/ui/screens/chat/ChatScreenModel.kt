@@ -25,8 +25,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.success_send_message
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.success_send_message
 import kotlin.time.Instant
 
 private const val tag = "ChatViewModel"

@@ -11,7 +11,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import kotlinx.serialization.json.Json
 import org.jetbrains.compose.resources.getString
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 @Suppress("NOTHING_TO_INLINE")
 val jsonWorker = Json { 

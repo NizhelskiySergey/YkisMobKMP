@@ -14,7 +14,7 @@ import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.ui.screens.meter.heat.HeatMeterList
 import com.ykis.ykismobkmp.ui.screens.meter.water.WaterMeterList
 import org.jetbrains.compose.resources.stringResource
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 private const val className = "MeterListScreen"
 

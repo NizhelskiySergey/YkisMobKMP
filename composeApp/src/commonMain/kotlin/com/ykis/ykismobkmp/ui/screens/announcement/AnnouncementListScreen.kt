@@ -42,7 +42,7 @@ import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.core.utils.formatDateFull
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 sealed class GroupedAnnouncement {
     data class DateHeader(val date: String) : GroupedAnnouncement()

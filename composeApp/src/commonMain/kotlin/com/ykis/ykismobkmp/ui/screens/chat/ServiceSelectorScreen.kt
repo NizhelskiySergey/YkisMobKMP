@@ -45,8 +45,8 @@ import com.ykis.ykismobkmp.ui.navigation.LocalContentType
 import com.ykis.ykismobkmp.ui.screens.ledger.list.TotalServiceDebt
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.*
 
 private const val tag = "ServiceSelectorScreen"
 

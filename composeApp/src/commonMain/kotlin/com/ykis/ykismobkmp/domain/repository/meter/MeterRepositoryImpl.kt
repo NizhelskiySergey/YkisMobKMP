@@ -3,7 +3,7 @@ package com.ykis.ykismobkmp.domain.repository.meter
 import com.ykis.ykismobkmp.data.remote.meter.MeterRemoteRepository
 import com.ykis.ykismobkmp.data.responses.*
 import org.jetbrains.compose.resources.getString
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 /**
  * [MeterRepositoryImpl] — Реалізація репозиторію лічильників.

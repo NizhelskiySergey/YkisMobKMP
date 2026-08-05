@@ -11,8 +11,8 @@ import androidx.compose.ui.unit.dp
 // КРОСС ПЛАТФОРМЕННЫЕ ИМПОРТЫ РЕСУРСОВ JETBRAINS И COIL 3 KMP:
 import coil3.compose.AsyncImage
 import org.jetbrains.compose.resources.painterResource
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.ic_account_circle
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.ic_account_circle
 
 private const val className = "UserImage"
 

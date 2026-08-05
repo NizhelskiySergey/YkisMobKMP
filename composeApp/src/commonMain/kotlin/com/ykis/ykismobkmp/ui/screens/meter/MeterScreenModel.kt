@@ -12,7 +12,7 @@ import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.*
 
 /**
  * [MeterScreenModel] — Кроссплатформенная модель управления списками счетчиков тепла и воды.

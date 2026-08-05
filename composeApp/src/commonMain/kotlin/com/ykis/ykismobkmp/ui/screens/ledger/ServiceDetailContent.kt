@@ -43,8 +43,8 @@ import com.ykis.ykismobkmp.ui.components.EmptyListState
 import com.ykis.ykismobkmp.ui.navigation.ContentDetail
 import com.ykis.ykismobkmp.ui.navigation.ContentType
 import com.ykis.ykismobkmp.ui.navigation.LocalContentType
-import ykismobkmp.composeapp.generated.resources.Res
-import ykismobkmp.composeapp.generated.resources.*
+import com.ykis.ykismobkmp.Res
+import com.ykis.ykismobkmp.*
 import kotlin.time.Clock
 private const val className = "ServiceDetailContent"
 
