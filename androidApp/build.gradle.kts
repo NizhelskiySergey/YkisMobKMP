@@ -92,6 +92,12 @@ dependencies {
     implementation(libs.multiplatform.settings)
     implementation(libs.compose.components.resources)
     
+    // Изображения (для уведомлений и UI)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.ktor)
+    implementation("io.coil-kt.coil3:coil-android:3.5.0")
+    implementation("io.coil-kt.coil3:coil-core:3.5.0")
+    
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)

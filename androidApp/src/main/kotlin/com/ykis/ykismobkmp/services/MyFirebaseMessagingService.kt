@@ -7,16 +7,17 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import java.net.HttpURLConnection
-import java.net.URL
 import androidx.core.app.NotificationCompat
+import coil3.ImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.allowHardware
+import coil3.toBitmap
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.ykis.ykismobkmp.MainActivity
 import com.ykis.ykismobkmp.R
 import com.ykis.ykismobkmp.domain.services.FirebaseService
-import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -44,7 +45,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
 
     scope.launch {
       val bitmap = if (!imageUrl.isNullOrBlank()) {
-        getBitmapFromUrl(imageUrl)
+        getBitmapWithCoil(imageUrl)
       } else null
 
       withContext(Dispatchers.Main) {
@@ -55,20 +56,24 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
 
   override fun onNewToken(token: String) {
     super.onNewToken(token)
-    println("[MyFirebaseMessagingService]: Отримано новий токен: $token")
     scope.launch {
       firebaseService.addFcmToken()
     }
   }
 
-  private suspend fun getBitmapFromUrl(imageUrl: String): Bitmap? = withContext(Dispatchers.IO) {
+  private suspend fun getBitmapWithCoil(imageUrl: String): Bitmap? = withContext(Dispatchers.IO) {
     try {
-      val url = URL(imageUrl)
-      val connection = url.openConnection() as HttpURLConnection
-      connection.doInput = true
-      connection.connect()
-      val input = connection.inputStream
-      BitmapFactory.decodeStream(input)
+      val loader = ImageLoader(this@MyFirebaseMessagingService)
+      val request = ImageRequest.Builder(this@MyFirebaseMessagingService)
+        .data(imageUrl)
+        .allowHardware(false)
+        .build()
+
+      val result = loader.execute(request)
+      if (result is SuccessResult) {
+        // Пытаемся получить Bitmap из Coil Image (Android extension)
+        result.image.toBitmap()
+      } else null
     } catch (e: Exception) {
       null
     }
@@ -79,7 +84,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
     val intent = Intent(this, MainActivity::class.java).apply {
       addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
       putExtra("chatId", chatId)
-      putExtra("chat_id", chatId)
     }
 
     val pendingIntent = PendingIntent.getActivity(
@@ -89,7 +93,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
 
     val channelId = "ykis_chat_notifications"
     val notificationBuilder = NotificationCompat.Builder(this, channelId)
-      .setSmallIcon(R.mipmap.ic_launcher) // Используем иконку приложения
+      .setSmallIcon(R.mipmap.ic_launcher)
       .setContentTitle(title)
       .setContentText(body)
       .setAutoCancel(true)
@@ -113,9 +117,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService(), KoinComponent {
         channelId,
         "Чат повідомлення",
         NotificationManager.IMPORTANCE_HIGH
-      ).apply {
-        description = "Сповіщення про нові повідомлення у чаті"
-      }
+      )
       notificationManager.createNotificationChannel(channel)
     }
 

@@ -335,8 +335,8 @@ fun ServiceDetailItem(
             addIf(serviceEntity.service2, serviceEntity.nachisleno2)
             addIf(serviceEntity.service3, serviceEntity.nachisleno3)
             addIf(serviceEntity.service4, serviceEntity.nachisleno4)
-            if (list.isEmpty() && (serviceEntity.nachisleno ?: 0.0) != 0.0) {
-                list.add((if(contentDetail==ContentDetail.WARM_SERVICE) "Опалення" else "Послуги") to (serviceEntity.nachisleno ?: 0.0))
+            if (list.isEmpty() && serviceEntity.nachisleno != 0.0) {
+                list.add((if(contentDetail==ContentDetail.WARM_SERVICE) "Опалення" else "Послуги") to serviceEntity.nachisleno)
             }
             list
         }

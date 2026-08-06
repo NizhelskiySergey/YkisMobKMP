@@ -1,41 +1,54 @@
-# Базовые правила для Android
+# 1. Глобальная оптимизация
+-optimizationpasses 5
+-allowaccessmodification
+-repackageclasses ''
+-mergeinterfacesaggressively
+
+# 2. Атрибуты
 -keepattributes *Annotation*, EnclosingMethod, Signature, InnerClasses
 
-# Compose Multiplatform
--keep class androidx.compose.** { *; }
--keep class org.jetbrains.compose.** { *; }
+# 3. Compose Multiplatform (Более точные правила)
+-keep class androidx.compose.runtime.ParcelableSnapshotMutationPolicy { *; }
+-keep class androidx.compose.ui.platform.AndroidComposeView { *; }
+-keep class org.jetbrains.compose.resources.** { *; }
 
-# Kotlin Serialization (сохраняем модели данных)
--keepnames class kotlinx.serialization.json.internal.** { *; }
--keepclassmembers class com.ykis.ykismobkmp.** {
+# 4. Kotlin Serialization (Критично для работы API)
+-keepattributes *Annotation*, Signature
+-keepclassmembers class com.ykis.ykismobkmp.data.models.** {
     *** get*();
     *** set*(***);
 }
 -keep class com.ykis.ykismobkmp.data.models.** { *; }
 -keep class com.ykis.ykismobkmp.domain.entity.** { *; }
 -keep class com.ykis.ykismobkmp.data.responses.** { *; }
+-keep @kotlinx.serialization.Serializable class * { *; }
+-keepclassmembers class * {
+    @kotlinx.serialization.SerialName <fields>;
+}
 
-# Koin
--keep class io.insertkoin.** { *; }
+# 5. Koin (Разрешаем обфускацию, сохраняем только жизненно важное)
+-keepclassmembers class * {
+    @org.koin.core.annotation.KoinInternalApi *;
+}
+-keepnames class io.insertkoin.** { *; }
 
-# Voyager (Навигация)
--keep class cafe.adriel.voyager.** { *; }
-
-# SQLDelight
+# 6. SQLDelight (Сохраняем только сгенерированные драйверы и адаптеры)
 -keep class com.ykis.ykismobkmp.db.** { *; }
--keep class app.cash.sqldelight.** { *; }
+-keepnames class app.cash.sqldelight.adapter.** { *; }
+-keepnames class app.cash.sqldelight.driver.android.** { *; }
 
-# Firebase
--keep class com.google.firebase.** { *; }
+# 7. Firebase & Google Auth
 -keep class dev.gitlive.firebase.** { *; }
-
-# Google Sign-In & Credential Manager
 -keep class com.google.android.libraries.identity.googleid.** { *; }
 -keep class androidx.credentials.** { *; }
 
-# Сохраняем инициализаторы Startup
--keep class * extends androidx.startup.Initializer { *; }
-
-# Compose Resources
+# 8. Compose Resources
 -keep class com.ykis.ykismobkmp.Res { *; }
 -keep class com.ykis.ykismobkmp.Res$* { *; }
+
+# 9. Сохраняем Startup Initializers
+-keep class * extends androidx.startup.Initializer { *; }
+
+# 10. Coil (Убираем предупреждения)
+-dontwarn coil3.**
+-dontwarn coil.**
