@@ -244,7 +244,7 @@ fun ChatScreenContent(
     baseUIState.userRole == UserRole.StandardUser -> {
       when(selectedServicePrefix) {
           "WATER_SERVICE"   -> stringResource(Res.string.vodokanal)
-          "WARM_SERVICE"    -> stringResource(Res.string.ytke)
+          "WARM_SERVICE"    -> stringResource(Res.string.ytke_short)
           "GARBAGE_SERVICE" -> stringResource(Res.string.yzhtrans)
           "OSBB" -> baseUIState.osbb.takeIf { it.isNotBlank() && it != "0" } ?: "Мій ОСББ"
           else -> selectedService?.name?.takeIf { it.isNotBlank() } ?: "Чат"

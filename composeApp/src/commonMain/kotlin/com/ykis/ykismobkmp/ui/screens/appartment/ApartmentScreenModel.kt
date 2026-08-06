@@ -163,7 +163,7 @@ class ApartmentScreenModel(
         val officialOrgName = if (!user.osbb.isNullOrBlank()) user.osbb else {
             when (currentUserRole) {
                 UserRole.VodokanalUser -> getString(Res.string.vodokanal)
-                UserRole.YtkeUser      -> getString(Res.string.ytke)
+                UserRole.YtkeUser      -> getString(Res.string.ytke_short)
                 UserRole.TboUser       -> getString(Res.string.yzhtrans)
                 else -> ""
             }

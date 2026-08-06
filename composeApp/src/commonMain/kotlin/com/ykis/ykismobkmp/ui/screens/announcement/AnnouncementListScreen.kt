@@ -179,7 +179,7 @@ fun FilterChipsRow(
         null to stringResource(Res.string.all),
         UserRole.Unknown to stringResource(Res.string.ykis_tab),
         UserRole.VodokanalUser to stringResource(Res.string.vodokanal),
-        UserRole.YtkeUser to stringResource(Res.string.ytke),
+        UserRole.YtkeUser to stringResource(Res.string.ytke_short),
         UserRole.TboUser to stringResource(Res.string.yzhtrans),
         UserRole.OsbbUser to stringResource(Res.string.osbb)
     )

@@ -145,7 +145,7 @@ fun ServiceDetailScreen(
       title = when (contentDetail) {
         ContentDetail.OSBB -> "ОСББ"
         ContentDetail.WATER_SERVICE -> stringResource(Res.string.vodokanal)
-        ContentDetail.WARM_SERVICE -> stringResource(Res.string.ytke)
+        ContentDetail.WARM_SERVICE -> stringResource(Res.string.ytke_short)
         ContentDetail.GARBAGE_SERVICE -> stringResource(Res.string.yzhtrans)
         else -> "Коммунальные услуги"
       },

@@ -65,7 +65,7 @@ class UserListScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
       val vodokanalTitle = stringResource(Res.string.vodokanal)
-      val ytkeTitle = stringResource(Res.string.ytke)
+      val ytkeTitle = stringResource(Res.string.ytke_short)
       val garbageTitle = stringResource(Res.string.yzhtrans)
 
       val appBarTitle = remember(baseUIState.userRole, selectedService, baseUIState.osbb, vodokanalTitle, ytkeTitle, garbageTitle) {

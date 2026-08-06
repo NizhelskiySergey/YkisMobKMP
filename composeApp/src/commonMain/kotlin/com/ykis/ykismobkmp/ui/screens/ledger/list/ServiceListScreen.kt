@@ -123,16 +123,7 @@ fun ServiceListScreen(
       title = stringResource(Res.string.accrued),
       subtitle = baseUIState.address,
       onDrawerClick = onDrawerClick,
-      canNavigateBack = false,
-      actionButton = {
-        IconButton(onClick = { setContentDetail(ContentDetail.PAYMENT_LIST) }) {
-          Icon(
-            imageVector = Icons.Default.History,
-            contentDescription = "История платежей",
-            tint = MaterialTheme.colorScheme.onSurface
-          )
-        }
-      }
+      canNavigateBack = false
     )
 
     Crossfade(

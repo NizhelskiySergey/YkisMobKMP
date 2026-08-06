@@ -45,8 +45,10 @@ import com.ykis.ykismobkmp.ui.screens.chat.ChatScreen
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import com.ykis.ykismobkmp.ui.screens.chat.ServiceSelectorScreen
 import com.ykis.ykismobkmp.ui.screens.chat.UserListScreen
+import com.ykis.ykismobkmp.ui.screens.ledger.LedgerScreenModel
 import com.ykis.ykismobkmp.ui.screens.ledger.MainServiceScreen
 import com.ykis.ykismobkmp.ui.screens.meter.MainMeterScreen
+import com.ykis.ykismobkmp.ui.screens.meter.MeterScreenModel
 import com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementListScreen
 import com.ykis.ykismobkmp.ui.screens.settings.SettingsScreen
 import kotlinx.coroutines.launch
@@ -84,8 +86,12 @@ class MainApartmentScreen(
     val apartmentScreenModel = koinInject<ApartmentScreenModel>()
     val chatScreenModel = koinInject<ChatScreenModel>()
     val announcementModel = koinInject<com.ykis.ykismobkmp.ui.screens.announcement.AnnouncementScreenModel>()
+    val meterScreenModel = koinInject<MeterScreenModel>()
+    val ledgerScreenModel = koinInject<LedgerScreenModel>()
 
     val baseUIState by apartmentScreenModel.uiState.collectAsState()
+    val meterUIState by meterScreenModel.uiState.collectAsState()
+    val ledgerUIState by ledgerScreenModel.uiState.collectAsState()
 
     // 1. Мониторинг объявлений (общий для всех)
     LaunchedEffect(baseUIState.osbbId) {
@@ -221,6 +227,11 @@ class MainApartmentScreen(
                    navigationType == NavigationType.NAVIGATION_RAIL_EXPANDED || 
                    navigationType == NavigationType.PERMANENT_NAVIGATION_DRAWER
 
+    val isChatRoomActive = activeSubModule == "chat_room_active"
+    val isMeterDetail = activeSubModule == "service_selector" && meterUIState.showDetail && contentType == ContentType.SINGLE_PANE
+    val isLedgerDetail = activeSubModule == "finance_selector" && ledgerUIState.showDetail && contentType == ContentType.SINGLE_PANE
+    val isAnyDetailActive = isChatRoomActive || isMeterDetail || isLedgerDetail
+
     Row(modifier = Modifier.fillMaxSize()) {
       if (showRail) {
         ApartmentNavigationRail(
@@ -242,7 +253,7 @@ class MainApartmentScreen(
 
       ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = !showRail,
+        gesturesEnabled = !showRail && !isAnyDetailActive,
         drawerContent = {
           ModalNavigationDrawerContent(
             baseUIState = baseUIState,
@@ -262,8 +273,9 @@ class MainApartmentScreen(
         Scaffold(
           contentWindowInsets = WindowInsets.statusBars,
           bottomBar = {
-            val isChatRoomActive = activeSubModule == "chat_room_active"
-            val showBottomBar = (baseUIState.addressId != 0L || baseUIState.userRole != UserRole.StandardUser) && !isChatRoomActive
+            val showBottomBar = (baseUIState.addressId != 0L || baseUIState.userRole != UserRole.StandardUser) && 
+                                !isAnyDetailActive
+            
             if (showBottomBar) {
                BottomNavigationBar(
                  baseUIState = baseUIState, 
@@ -273,8 +285,7 @@ class MainApartmentScreen(
             }
           }
         ) { paddingValues ->
-          val isChatRoomActive = activeSubModule == "chat_room_active"
-          Box(modifier = Modifier.fillMaxSize().padding(top = paddingValues.calculateTopPadding(), bottom = if (isChatRoomActive) 0.dp else paddingValues.calculateBottomPadding())) { 
+          Box(modifier = Modifier.fillMaxSize().padding(top = paddingValues.calculateTopPadding(), bottom = if (isAnyDetailActive) 0.dp else paddingValues.calculateBottomPadding())) {
             RenderSubContent() 
           }
         }

@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
 import com.ykis.ykismobkmp.Res
 import com.ykis.ykismobkmp.uah
@@ -87,7 +88,7 @@ fun ServiceRow(
       ) {
         Text(
           text = title,
-          style = typography.titleMedium,
+          style = typography.titleMedium.copy(fontSize = 14.sp),
           overflow = TextOverflow.Ellipsis,
           maxLines = 1,
           color = MaterialTheme.colorScheme.onSurface

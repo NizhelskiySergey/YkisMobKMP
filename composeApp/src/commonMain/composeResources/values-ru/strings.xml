@@ -55,7 +55,7 @@
   <string name="phone_tab">Телефон</string>
   <string name="forgot_password_link">Забыли пароль?</string>
   <string name="phone_number_label">Номер телефона</string>
-  <string name="phone_number_placeholder">93 846 81 41</string>
+  <string name="phone_number_placeholder">077 777 77 77</string>
   <string name="sms_code_label">Код из SMS</string>
   <string name="sms_code_placeholder">6 цифр</string>
   <string name="sign_in_button">Войти</string>
@@ -162,8 +162,7 @@
   <string name="empty_email">Додайте электронный адрес</string>
   <string name="vodokanal">КП ЮЖВОДОКАНАЛ</string>
   <string name="vodokanal_colon">KП ЮЖВОДОКАНАЛ:</string>
-  <string name="ytke">КП тс ЮТКЭ</string>
-  <string name="ytke_short">ЮТКЭ</string>
+  <string name="ytke_short">КП тс ЮТКЭ</string>
   <string name="ytke_colon">КП тс ЮТКЭ:</string>
   <string name="yzhtrans">КП СПЕЦТРАНС</string>
   <string name="yzhtrans_colon">КП СПЕЦТРАНС:</string>

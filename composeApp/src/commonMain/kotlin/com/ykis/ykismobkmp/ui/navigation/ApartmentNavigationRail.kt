@@ -166,7 +166,7 @@ fun ApartmentNavigationRail(
         if (isRailExpanded && isUserAdmin) {
           val title = when (baseUIState.userRole) {
             UserRole.VodokanalUser -> stringResource(Res.string.vodokanal)
-            UserRole.YtkeUser -> stringResource(Res.string.ytke)
+            UserRole.YtkeUser -> stringResource(Res.string.ytke_short)
             UserRole.TboUser -> stringResource(Res.string.yzhtrans)
             else -> baseUIState.osbb
           }
