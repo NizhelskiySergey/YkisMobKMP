@@ -122,6 +122,9 @@ class ChatScreenModel(
   private val _pendingPushChatId = MutableStateFlow<String?>(null)
   val pendingPushChatId = _pendingPushChatId.asStateFlow()
 
+  private val _isAdminJoined = MutableStateFlow(true)
+  val isAdminJoined = _isAdminJoined.asStateFlow()
+
   private val _forwardingMessage = MutableStateFlow<MessageEntity?>(null)
   val forwardingMessage = _forwardingMessage.asStateFlow()
 
@@ -291,6 +294,18 @@ class ChatScreenModel(
     currentParams = Triple(role, osbbId, addressId)
     
     val servicePrefix = forcePrefix ?: _selectedServicePrefix.value
+    
+    // ПРОВЕРКА АДМИНА ДЛЯ ОСББ
+    if (role == UserRole.StandardUser && servicePrefix == "OSBB" && osbbId != 0L) {
+       screenModelScope.launch {
+          val admins = chatRepo.fetchAdminsByOsbb(osbbId)
+          _isAdminJoined.value = admins.isNotEmpty()
+          println("[YkisLogKMP.Chat]: Проверка админов для OSBB $osbbId: Найдено ${admins.size}")
+       }
+    } else {
+       _isAdminJoined.value = true
+    }
+
     val finalOsbbId = when {
         role == UserRole.VodokanalUser || servicePrefix == "WATER_SERVICE" -> Constants.WATER_SERVICE_ID
         role == UserRole.YtkeUser || servicePrefix == "WARM_SERVICE" -> Constants.WARM_SERVICE_ID

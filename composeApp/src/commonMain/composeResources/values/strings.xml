@@ -461,4 +461,6 @@
   <string name="ykis_tab">ЮКІС</string>
   <string name="email_broadcast">Розсилка на Email</string>
   <string name="email_broadcast_label">Надіслати копію на пошту жителів</string>
+  <string name="admin_not_joined_title">Адміністратор ще не приєднався</string>
+  <string name="admin_not_joined_message">Ваш адміністратор ОСББ ще не використовує цей додаток. Ви можете писати повідомлення, але він побачить їх тільки після того, як зареєструється.</string>
 </resources>

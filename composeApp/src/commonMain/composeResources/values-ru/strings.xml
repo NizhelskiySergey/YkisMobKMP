@@ -455,5 +455,7 @@
   <string name="all_citizens">📍 Всем жителям города</string>
   <string name="residents_of">🏠 Жильцам %1$s</string>
   <string name="change_email">Изменить почту</string>
-  <string name="osbb">ОСББ</string>
+  <string name="osbb">ОСМД</string>
+  <string name="admin_not_joined_title">Администратор еще не присоединился</string>
+  <string name="admin_not_joined_message">Ваш администратор ОСМД еще не использует это приложение. Вы можете писать сообщения, но он увидит их только после того, как зарегистрируется.</string>
 </resources>

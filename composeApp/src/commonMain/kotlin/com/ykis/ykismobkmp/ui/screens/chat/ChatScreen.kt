@@ -26,9 +26,11 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cafe.adriel.voyager.core.annotation.InternalVoyagerApi
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import cafe.adriel.voyager.navigator.internal.BackHandler
 import com.ykis.ykismobkmp.domain.entity.MessageEntity
 import com.ykis.ykismobkmp.domain.entity.UserEntity
 import com.ykis.ykismobkmp.ui.BaseUIState
@@ -56,6 +58,7 @@ class ChatScreen(
   private val onBackClick: () -> Unit = {}
 ) : Screen {
 
+  @OptIn(InternalVoyagerApi::class)
   @Composable
   override fun Content() {
     val navigator = LocalNavigator.currentOrThrow
@@ -65,6 +68,18 @@ class ChatScreen(
     val baseUIState by apartmentScreenModel.uiState.collectAsState()
     val selectedUser by chatScreenModel.selectedUser.collectAsState()
     val pendingPushId by chatScreenModel.pendingPushChatId.collectAsState()
+
+    val isForwardingMode by chatScreenModel.isForwardingMode.collectAsState()
+
+    // Системне перехоплення кнопки Назад всередині чату
+    BackHandler(enabled = true) {
+       println("[YkisLogKMP.ChatScreen.BackHandler]: Системне повернення до списку користувачів.")
+       if (isForwardingMode) {
+          chatScreenModel.cancelForwarding()
+       } else {
+          onBackClick()
+       }
+    }
 
     LaunchedEffect(pendingPushId) {
         if (!pendingPushId.isNullOrBlank()) {
@@ -164,6 +179,7 @@ fun ChatScreenContent(
   val selectedServicePrefix by screenModel.selectedServicePrefix.collectAsState()
   val isLoadingAfterSending by screenModel.isLoadingAfterSending.collectAsState()
   val isAssistantLoading by screenModel.isAssistantLoading.collectAsState()
+  val isAdminJoined by screenModel.isAdminJoined.collectAsState()
 
   val keyboardController = LocalSoftwareKeyboardController.current
   val focusManager = LocalFocusManager.current
@@ -293,6 +309,9 @@ fun ChatScreenContent(
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding())) {
+      if (!isAdminJoined) {
+          AdminNotJoinedBanner()
+      }
       Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
         LazyColumn(
           modifier = Modifier.fillMaxSize(),
@@ -434,6 +453,33 @@ fun AiHintCard(text: String, title: String, onClose: () -> Unit, onApply: () -> 
       }
     }
   }
+}
+
+@Composable
+fun AdminNotJoinedBanner() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        color = Color(0xFFFFF9C4), // Желтоватый фон предупреждения
+        shape = RoundedCornerShape(12.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = stringResource(Res.string.admin_not_joined_title),
+                style = MaterialTheme.typography.titleSmall,
+                color = Color(0xFF625B39), // Темный текст для контраста
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(Res.string.admin_not_joined_message),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF625B39)
+            )
+        }
+    }
 }
 
 @Composable

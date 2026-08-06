@@ -227,10 +227,11 @@ class MainApartmentScreen(
                    navigationType == NavigationType.NAVIGATION_RAIL_EXPANDED || 
                    navigationType == NavigationType.PERMANENT_NAVIGATION_DRAWER
 
-    val isChatRoomActive = activeSubModule == "chat_room_active"
+    val isChatRoomActive = activeSubModule == "chat_room_active" && contentType == ContentType.SINGLE_PANE
+    val isChatUserList = activeSubModule == "chat_user_list" && baseUIState.userRole == UserRole.StandardUser && contentType == ContentType.SINGLE_PANE
     val isMeterDetail = activeSubModule == "service_selector" && meterUIState.showDetail && contentType == ContentType.SINGLE_PANE
     val isLedgerDetail = activeSubModule == "finance_selector" && ledgerUIState.showDetail && contentType == ContentType.SINGLE_PANE
-    val isAnyDetailActive = isChatRoomActive || isMeterDetail || isLedgerDetail
+    val isAnyDetailActive = isChatRoomActive || isChatUserList || isMeterDetail || isLedgerDetail
 
     Row(modifier = Modifier.fillMaxSize()) {
       if (showRail) {

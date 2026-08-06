@@ -24,9 +24,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cafe.adriel.voyager.core.annotation.InternalVoyagerApi
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import cafe.adriel.voyager.navigator.internal.BackHandler
 import com.ykis.ykismobkmp.domain.entity.UserEntity
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.components.DefaultAppBar
@@ -42,6 +44,7 @@ class UserListScreen(
   private val onUserClicked: (UserEntity) -> Unit = {}
 ) : Screen {
 
+  @OptIn(InternalVoyagerApi::class)
   @Composable
   override fun Content() {
     LocalNavigator.currentOrThrow
@@ -58,6 +61,18 @@ class UserListScreen(
     val isForwardingMode by chatScreenModel.isForwardingMode.collectAsState()
     val searchQuery by chatScreenModel.searchQuery.collectAsState()
     val selectedService by chatScreenModel.selectedService.collectAsState()
+
+    // Динамічне визначення можливості повернення назад (тільки для мешканців)
+    val canNavigateBack = remember(baseUIState.userRole) {
+      baseUIState.userRole == UserRole.StandardUser
+    }
+
+    // Системне перехоплення кнопки Назад
+    BackHandler(enabled = canNavigateBack) {
+       println("[YkisLogKMP.$className.BackHandler]: Системне повернення до вибору служби.")
+       chatScreenModel.setSelectedService(null as TotalServiceDebt?)
+       onDrawerClicked()
+    }
 
     LaunchedEffect(baseUIState.userRole, baseUIState.addressId) {
       println("[YkisLogKMP.$className.Content.LaunchedEffect]: [ENTER] Роль сесії: ${baseUIState.userRole} | Активна служба: ${selectedService?.name}")
