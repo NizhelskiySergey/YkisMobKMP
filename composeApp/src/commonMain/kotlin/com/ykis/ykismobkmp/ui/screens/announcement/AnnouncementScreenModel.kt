@@ -219,6 +219,7 @@ class AnnouncementScreenModel(
                                     usersCol.get() 
                                 } else {
                                     println("[AnnouncementScreenModel]: Пошук жителів ОСББ з ID: $targetOsbbId")
+                                    // ПРИНУДИТЕЛЬНО ПРИВОДИМ К Double НА WEB, ЧТОБЫ ИЗБЕЖАТЬ CRASH "a custom $e object"
                                     if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
                                         usersCol.where { "osbbId" equalTo targetOsbbId.toDouble() }.get()
                                     } else {

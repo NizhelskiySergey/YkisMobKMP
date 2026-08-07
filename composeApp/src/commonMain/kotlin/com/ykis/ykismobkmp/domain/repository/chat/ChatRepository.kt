@@ -46,8 +46,11 @@ class ChatRepository(
 
   // Вспомогательная функция для конвертации Long в Double для Web
   private fun safeNum(num: Long): Any {
-    return if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
-        num.toDouble()
+    val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
+    return if (isWeb) {
+        val d = num.toDouble()
+        println("[YkisLogKMP.ChatRepository]: safeNum converting Long($num) to Double($d) for Web")
+        d
     } else {
         num
     }
@@ -123,19 +126,25 @@ class ChatRepository(
 
   suspend fun fetchAdminsByOsbb(osbbId: Long): List<UserEntity> {
     if (_firestore == null) return emptyList()
+    val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
+    println("[YkisLogKMP.ChatRepository]: fetchAdminsByOsbb osbbId=$osbbId (isWeb=$isWeb)")
     return try {
-      // Виконуємо пошук за всіма можливими типами даних (Firestore дуже строгий до типів)
-      val q1 = firestore.collection("users").where { "osbbId" equalTo osbbId }.get()            // Long
-      val q2 = firestore.collection("users").where { "osbbId" equalTo osbbId.toDouble() }.get() // Double (Web)
-      val q3 = firestore.collection("users").where { "osbbId" equalTo osbbId.toString() }.get() // String
+      val q1 = if (isWeb) {
+          val d = osbbId.toDouble()
+          println("[YkisLogKMP.ChatRepository]: Web mode. Querying osbbId as Double: $d")
+          firestore.collection("users").where { "osbbId" equalTo d }.get()
+      } else {
+          firestore.collection("users").where { "osbbId" equalTo osbbId }.get()
+      }
       
-      val combined = (q1.documents + q2.documents + q3.documents).distinctBy { it.id }
+      val q2 = firestore.collection("users").where { "osbbId" equalTo osbbId.toString() }.get()
       
+      val combined = (q1.documents + q2.documents).distinctBy { it.id }
       combined.mapNotNull { doc ->
         try { 
             doc.data<com.ykis.ykismobkmp.domain.services.UserFirebase>().toEntity().copy(uid = doc.id) 
         } catch (e: Exception) { 
-            println("[ChatRepository]: Помилка парсингу адміна ${doc.id}: ${e.message}")
+            println("[ChatRepository]: Error parsing admin ${doc.id}: ${e.message}")
             null 
         }
       }.filter { it.userRole != UserRole.StandardUser && it.userRole != UserRole.Unknown }
@@ -147,15 +156,25 @@ class ChatRepository(
 
   suspend fun fetchUserByAddressId(addressId: Long): UserEntity? {
     if (_firestore == null) return null
+    val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
+    println("[YkisLogKMP.ChatRepository]: fetchUserByAddressId id=$addressId (isWeb=$isWeb)")
     return try {
-      val targetId = safeNum(addressId)
-      val resultNum = firestore.collection("users").where { "addressId" equalTo targetId }.get()
+      val resultNum = if (isWeb) {
+          val d = addressId.toDouble()
+          firestore.collection("users").where { "addressId" equalTo d }.get()
+      } else {
+          firestore.collection("users").where { "addressId" equalTo addressId }.get()
+      }
+
       val resultStr = firestore.collection("users").where { "addressId" equalTo addressId.toString() }.get()
       val doc = (resultNum.documents + resultStr.documents).firstOrNull()
       doc?.let { 
           it.data<com.ykis.ykismobkmp.domain.services.UserFirebase>().toEntity().copy(uid = it.id) 
       }
-    } catch (e: Exception) { null }
+    } catch (e: Exception) { 
+      println("[YkisLogKMP.ChatRepository_ERROR]: fetchUserByAddressId failed: ${e.message}")
+      null 
+    }
   }
 
   fun observeUnreadCounts(myUid: String): Flow<Map<String, Int>> {
@@ -223,9 +242,16 @@ class ChatRepository(
 
   suspend fun fetchAllUsersByAddressId(addressId: Long): List<UserEntity> {
     if (_firestore == null) return emptyList()
+    val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
+    println("[YkisLogKMP.ChatRepository]: fetchAllUsersByAddressId id=$addressId (isWeb=$isWeb)")
     return try {
-      val targetId = safeNum(addressId)
-      val resultNum = firestore.collection("users").where { "addressId" equalTo targetId }.get()
+      val resultNum = if (isWeb) {
+          val d = addressId.toDouble()
+          firestore.collection("users").where { "addressId" equalTo d }.get()
+      } else {
+          firestore.collection("users").where { "addressId" equalTo addressId }.get()
+      }
+
       val resultStr = firestore.collection("users").where { "addressId" equalTo addressId.toString() }.get()
       val combined = (resultNum.documents + resultStr.documents).distinctBy { it.id }
       combined.mapNotNull { doc -> 
@@ -233,7 +259,10 @@ class ChatRepository(
               doc.data<com.ykis.ykismobkmp.domain.services.UserFirebase>().toEntity().copy(uid = doc.id)
           } catch (e: Exception) { null }
       }
-    } catch (e: Exception) { emptyList() }
+    } catch (e: Exception) { 
+      println("[YkisLogKMP.ChatRepository_ERROR]: fetchAllUsersByAddressId failed: ${e.message}")
+      emptyList() 
+    }
   }
 
   fun sendGlobalNotification(title: String, body: String, osbbId: Long = 0L, imageUrl: String? = null) {

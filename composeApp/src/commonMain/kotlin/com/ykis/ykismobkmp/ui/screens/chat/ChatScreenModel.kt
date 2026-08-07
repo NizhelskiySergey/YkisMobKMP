@@ -298,9 +298,14 @@ class ChatScreenModel(
     // ПРОВЕРКА АДМИНА ДЛЯ ОСББ
     if (role == UserRole.StandardUser && servicePrefix == "OSBB" && osbbId != 0L) {
        screenModelScope.launch {
-          val admins = chatRepo.fetchAdminsByOsbb(osbbId)
-          _isAdminJoined.value = admins.isNotEmpty()
-          println("[YkisLogKMP.Chat]: Проверка админов для OSBB $osbbId: Найдено ${admins.size}")
+          println("[YkisLogKMP.Chat]: Launching fetchAdminsByOsbb for $osbbId")
+          try {
+              val admins = chatRepo.fetchAdminsByOsbb(osbbId)
+              _isAdminJoined.value = admins.isNotEmpty()
+              println("[YkisLogKMP.Chat]: fetchAdminsByOsbb SUCCESS: found ${admins.size}")
+          } catch (e: Exception) {
+              println("[YkisLogKMP.Chat_ERROR]: fetchAdminsByOsbb FAILED: ${e.message}")
+          }
        }
     } else {
        _isAdminJoined.value = true
