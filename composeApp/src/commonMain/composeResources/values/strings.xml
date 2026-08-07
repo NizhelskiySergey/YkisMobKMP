@@ -199,7 +199,7 @@
   <string name="paid_full">Сплачено</string>
   <string name="tbo">Управління ПВ:</string>
   <string name="prixod">Прихід:</string>
-  <string name="add">Додати</string>
+  <string name="add">Ввести нові показання</string>
   <string name="water_meter">Водяний</string>
   <string name="water_meter_label">Водяний лічильник</string>
   <string name="water_meter_placeholder">Виберіть лічильник для перегляду деталей</string>
@@ -258,7 +258,7 @@
   <string name="new_reading">Нове показання</string>
   <string name="add_reading_title">Додати нове показання?</string>
   <string name="current_reading">Поточне показання</string>
-  <string name="add_reading">Додати</string>
+  <string name="add_reading">Додати нове показання</string>
   <string name="delete_reading">Видалити показання</string>
   <string name="delete_reading_title">Видалити останнє показання?</string>
   <string name="mtb_text">МТБ БАНК</string>

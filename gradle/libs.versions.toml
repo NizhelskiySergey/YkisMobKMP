@@ -1,7 +1,7 @@
 [versions]
 # Версія додатка ЮКІС (Source of truth)
-app-version = "1.6.0"
-app-versionCode = "21"
+app-version = "1.6.1"
+app-versionCode = "22"
 cameraCore = "1.6.1"
 composeWebviewMultiplatform = "2.0.3"
 datastorePreferencesCoreVersion = "1.2.1"
