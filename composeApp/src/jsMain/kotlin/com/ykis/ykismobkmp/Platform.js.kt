@@ -10,5 +10,7 @@ class JsPlatform: Platform {
 actual fun getPlatform(): Platform = JsPlatform()
 
 actual fun restartApp() {
-    window.location.reload()
+    val currentUrl = window.location.href.substringBefore("?")
+    val timestamp = kotlin.js.Date().getTime()
+    window.location.assign("$currentUrl?v=$timestamp")
 }

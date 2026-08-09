@@ -126,20 +126,19 @@ class ChatRepository(
 
   suspend fun fetchAdminsByOsbb(osbbId: Long): List<UserEntity> {
     if (_firestore == null) return emptyList()
-    val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
-    println("[YkisLogKMP.ChatRepository]: fetchAdminsByOsbb osbbId=$osbbId (isWeb=$isWeb)")
+    println("[YkisLogKMP.ChatRepository]: fetchAdminsByOsbb osbbId=$osbbId")
     return try {
-      val q1 = if (isWeb) {
-          val d = osbbId.toDouble()
-          println("[YkisLogKMP.ChatRepository]: Web mode. Querying osbbId as Double: $d")
-          firestore.collection("users").where { "osbbId" equalTo d }.get()
-      } else {
-          firestore.collection("users").where { "osbbId" equalTo osbbId }.get()
-      }
+      val targetId = safeNum(osbbId)
       
+      println("[YkisLogKMP.ChatRepository]: q1 start (targetId=$targetId, type=${targetId::class})")
+      val q1 = firestore.collection("users").where { "osbbId" equalTo targetId }.get()
+      
+      println("[YkisLogKMP.ChatRepository]: q2 start (osbbId.toString())")
       val q2 = firestore.collection("users").where { "osbbId" equalTo osbbId.toString() }.get()
       
       val combined = (q1.documents + q2.documents).distinctBy { it.id }
+      println("[YkisLogKMP.ChatRepository]: Found ${combined.size} docs")
+      
       combined.mapNotNull { doc ->
         try { 
             doc.data<com.ykis.ykismobkmp.domain.services.UserFirebase>().toEntity().copy(uid = doc.id) 
@@ -156,16 +155,10 @@ class ChatRepository(
 
   suspend fun fetchUserByAddressId(addressId: Long): UserEntity? {
     if (_firestore == null) return null
-    val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
-    println("[YkisLogKMP.ChatRepository]: fetchUserByAddressId id=$addressId (isWeb=$isWeb)")
+    println("[YkisLogKMP.ChatRepository]: fetchUserByAddressId addressId=$addressId")
     return try {
-      val resultNum = if (isWeb) {
-          val d = addressId.toDouble()
-          firestore.collection("users").where { "addressId" equalTo d }.get()
-      } else {
-          firestore.collection("users").where { "addressId" equalTo addressId }.get()
-      }
-
+      val targetId = safeNum(addressId)
+      val resultNum = firestore.collection("users").where { "addressId" equalTo targetId }.get()
       val resultStr = firestore.collection("users").where { "addressId" equalTo addressId.toString() }.get()
       val doc = (resultNum.documents + resultStr.documents).firstOrNull()
       doc?.let { 
@@ -242,16 +235,10 @@ class ChatRepository(
 
   suspend fun fetchAllUsersByAddressId(addressId: Long): List<UserEntity> {
     if (_firestore == null) return emptyList()
-    val isWeb = com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)
-    println("[YkisLogKMP.ChatRepository]: fetchAllUsersByAddressId id=$addressId (isWeb=$isWeb)")
+    println("[YkisLogKMP.ChatRepository]: fetchAllUsersByAddressId addressId=$addressId")
     return try {
-      val resultNum = if (isWeb) {
-          val d = addressId.toDouble()
-          firestore.collection("users").where { "addressId" equalTo d }.get()
-      } else {
-          firestore.collection("users").where { "addressId" equalTo addressId }.get()
-      }
-
+      val targetId = safeNum(addressId)
+      val resultNum = firestore.collection("users").where { "addressId" equalTo targetId }.get()
       val resultStr = firestore.collection("users").where { "addressId" equalTo addressId.toString() }.get()
       val combined = (resultNum.documents + resultStr.documents).distinctBy { it.id }
       combined.mapNotNull { doc -> 
@@ -330,7 +317,7 @@ class ChatRepository(
   }
 
   fun observeMessages(chatUid: String, limit: Int = 50): Flow<List<MessageEntity>> {
-    if (_realtime == null) return flow { emit(emptyList()) }
+    if (_realtime == null) return flow { emit(emptyMap<String, MessageEntity>().values.toList()) }
     return realtime.reference("chats/$chatUid")
       .limitToLast(limit)
       .valueEvents

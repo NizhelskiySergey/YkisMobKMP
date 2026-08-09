@@ -66,4 +66,5 @@ interface FirebaseService {
   suspend fun getManualText(role: UserRole): String
   fun clearNotifications(chatId: String? = null)
   fun stopAllListeners()
+  suspend fun fetchAppUpdateConfig(): com.ykis.ykismobkmp.domain.entity.AppUpdateConfig?
 }

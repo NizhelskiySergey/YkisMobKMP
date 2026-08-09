@@ -1,25 +1,22 @@
 package com.ykis.ykismobkmp.ui.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.annotation.InternalVoyagerApi
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.transitions.SlideTransition
@@ -31,6 +28,7 @@ import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
+import com.ykis.ykismobkmp.*
 
 private const val className = "RootNavGraph"
 
@@ -50,6 +48,7 @@ fun RootNavGraph(
   apartmentScreenModel.firebaseService
 
   val currentStartState by appStartModel.startState.collectAsState()
+  val updateConfig by appStartModel.updateConfig.collectAsState()
   val baseUIState by apartmentScreenModel.uiState.collectAsState()
   val pendingChatId by chatScreenModel.pendingPushChatId.collectAsState()
 
@@ -75,59 +74,75 @@ fun RootNavGraph(
       containerColor = MaterialTheme.colorScheme.surfaceContainer,
       snackbarHost = { SnackbarHost(hostState = appState.snackbarHostState) { data -> Snackbar(data) } }
     ) { paddingValues ->
-      Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-        if (currentStartState == AppStartState.Loading) {
-          Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
-          }
-        } else {
-          val stableStartScreen = remember {
-            when (currentStartState) {
-              AppStartState.TermsAndConditions -> TermsAndConditionScreen(appStartModel.cachedTermsText)
-              AppStartState.SignIn -> SignInScreen
-              AppStartState.VerifyEmail -> VerifyEmailScreenDest
-              else -> MainApartmentScreen(contentType = contentType, navigationType = navigationType)
+      Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        // БАННЕР ОБНОВЛЕНИЯ
+        AnimatedVisibility(
+            visible = updateConfig != null,
+            enter = slideInVertically() + fadeIn(),
+            exit = slideOutVertically() + fadeOut()
+        ) {
+            updateConfig?.let { cfg ->
+                AppUpdateBanner(
+                    config = cfg,
+                    onDismiss = { appStartModel.dismissUpdateBanner() }
+                )
             }
-          }
-
-          Navigator(screen = stableStartScreen) { navigator ->
-            SlideTransition(navigator)
-
-            LaunchedEffect(currentStartState) {
-              val currentRoute = navigator.lastItem
-              if (currentRoute is ChatScreenDest || pendingChatId != null) return@LaunchedEffect
-
+        }
+        
+        Box(modifier = Modifier.weight(1f)) {
+          if (currentStartState == AppStartState.Loading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+              CircularProgressIndicator(strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
+            }
+          } else {
+            val stableStartScreen = remember {
               when (currentStartState) {
-                AppStartState.TermsAndConditions -> {
-                  if (currentRoute !is TermsAndConditionScreen) navigator.replaceAll(TermsAndConditionScreen(appStartModel.cachedTermsText))
-                }
-                AppStartState.SignIn -> {
-                  if (currentRoute != SignInScreen && currentRoute != SignUpScreenDest) navigator.replaceAll(SignInScreen)
-                }
-                AppStartState.VerifyEmail -> {
-                  if (currentRoute != VerifyEmailScreenDest) navigator.replaceAll(VerifyEmailScreenDest)
-                }
-                AppStartState.AddApartment, AppStartState.InfoApartment, AppStartState.UserList -> {
-                  if (currentRoute !is MainApartmentScreen) {
-                    navigator.replaceAll(MainApartmentScreen(contentType = contentType, navigationType = navigationType))
-                  }
-                }
-                else -> {}
+                AppStartState.TermsAndConditions -> TermsAndConditionScreen(appStartModel.cachedTermsText)
+                AppStartState.SignIn -> SignInScreen
+                AppStartState.VerifyEmail -> VerifyEmailScreenDest
+                else -> MainApartmentScreen(contentType = contentType, navigationType = navigationType)
               }
             }
 
-            LaunchedEffect(pendingChatId) {
-              if (pendingChatId != null) {
-                snapshotFlow { baseUIState }.first { it.userRole != UserRole.Unknown && !it.mainLoading }
-                val addrId = pendingChatId!!.split("_").lastOrNull()?.toLongOrNull() ?: 0L
-                if (addrId != 0L) {
-                   snapshotFlow { baseUIState }.first { it.addressId == addrId }
-                   delay(300)
-                   // Перевіряємо чи ми вже не в чаті
-                   if (navigator.lastItem !is ChatScreenDest) {
-                       navigator.push(ChatScreenDest(chatId = pendingChatId))
-                   }
-                   chatScreenModel.setPendingPushChatId(null)
+            Navigator(screen = stableStartScreen) { navigator ->
+              SlideTransition(navigator)
+
+              LaunchedEffect(currentStartState) {
+                val currentRoute = navigator.lastItem
+                if (currentRoute is ChatScreenDest || pendingChatId != null) return@LaunchedEffect
+
+                when (currentStartState) {
+                  AppStartState.TermsAndConditions -> {
+                    if (currentRoute !is TermsAndConditionScreen) navigator.replaceAll(TermsAndConditionScreen(appStartModel.cachedTermsText))
+                  }
+                  AppStartState.SignIn -> {
+                    if (currentRoute != SignInScreen && currentRoute != SignUpScreenDest) navigator.replaceAll(SignInScreen)
+                  }
+                  AppStartState.VerifyEmail -> {
+                    if (currentRoute != VerifyEmailScreenDest) navigator.replaceAll(VerifyEmailScreenDest)
+                  }
+                  AppStartState.AddApartment, AppStartState.InfoApartment, AppStartState.UserList -> {
+                    if (currentRoute !is MainApartmentScreen) {
+                      navigator.replaceAll(MainApartmentScreen(contentType = contentType, navigationType = navigationType))
+                    }
+                  }
+                  else -> {}
+                }
+              }
+
+              LaunchedEffect(pendingChatId) {
+                if (pendingChatId != null) {
+                  snapshotFlow { baseUIState }.first { it.userRole != UserRole.Unknown && !it.mainLoading }
+                  val addrId = pendingChatId!!.split("_").lastOrNull()?.toLongOrNull() ?: 0L
+                  if (addrId != 0L) {
+                     snapshotFlow { baseUIState }.first { it.addressId == addrId }
+                     delay(300)
+                     // Перевіряємо чи ми вже не в чаті
+                     if (navigator.lastItem !is ChatScreenDest) {
+                         navigator.push(ChatScreenDest(chatId = pendingChatId))
+                     }
+                     chatScreenModel.setPendingPushChatId(null)
+                  }
                 }
               }
             }
@@ -136,4 +151,70 @@ fun RootNavGraph(
       }
     }
   }
+}
+
+@Composable
+fun AppUpdateBanner(
+    config: com.ykis.ykismobkmp.domain.entity.AppUpdateConfig,
+    onDismiss: () -> Unit
+) {
+    val uriHandler = LocalUriHandler.current
+    val platform = getPlatform().name.lowercase()
+    
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        color = Color(0xFF4CAF50), // Ярко-зеленый цвет (Material Green 500)
+        shape = RoundedCornerShape(24.dp),
+        tonalElevation = 4.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    println("[YkisLogKMP.UpdateBanner]: Клик! Платформа: $platform")
+                    val url = when {
+                        platform.contains("android") -> config.androidUrl
+                        platform.contains("ios") || platform.contains("iphone") || platform.contains("ipad") || platform.contains("apple") -> config.iosUrl
+                        platform.contains("web") -> config.webUrl
+                        else -> config.webUrl
+                    }
+                    
+                    if (url.isNotBlank() && url != "reload") {
+                        try { 
+                            uriHandler.openUri(url) 
+                        } catch (_: Exception) {
+                            if (config.webUrl.isNotBlank() && config.webUrl != "reload") {
+                                try { uriHandler.openUri(config.webUrl) } catch(_: Exception) {}
+                            }
+                        }
+                    } else if (url == "reload" && platform.contains("web")) {
+                        restartApp()
+                    }
+                }
+                .padding(vertical = 8.dp, horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SystemUpdate,
+                    contentDescription = null,
+                    tint = Color.White, // Белая иконка на зеленом фоне
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Доступна нова версія",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White, // Белый текст на зеленом фоне
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
 }

@@ -29,6 +29,9 @@ class AppScreenModel(
   private val _startState = MutableStateFlow<AppStartState>(AppStartState.Loading)
   val startState: StateFlow<AppStartState> = _startState.asStateFlow()
 
+  private val _updateConfig = MutableStateFlow<com.ykis.ykismobkmp.domain.entity.AppUpdateConfig?>(null)
+  val updateConfig: StateFlow<com.ykis.ykismobkmp.domain.entity.AppUpdateConfig?> = _updateConfig.asStateFlow()
+
   var cachedTermsText by mutableStateOf("")
     private set
 
@@ -40,6 +43,23 @@ class AppScreenModel(
     screenModelScope.launch {
       println("[YkisLogKMP.$className.evaluateStartDestination]: >>> ЗАПУСК ПЕРЕВІРКИ (v.${com.ykis.ykismobkmp.AppConfig.APP_VERSION}) <<<")
       
+      // Фонова перевірка оновлень
+      launch {
+          println("[YkisLogKMP.$className]: Запит конфігурації оновлень...")
+          val config = firebaseService.fetchAppUpdateConfig()
+          if (config != null) {
+              println("[YkisLogKMP.$className]: Отримано з БД: latest=${config.latestVersion}, current=${com.ykis.ykismobkmp.AppConfig.APP_VERSION}")
+              if (config.latestVersion.isNotBlank() && config.latestVersion != com.ykis.ykismobkmp.AppConfig.APP_VERSION) {
+                  println("[YkisLogKMP.$className]: УВАГА! Доступна нова версія!")
+                  _updateConfig.value = config
+              } else {
+                  println("[YkisLogKMP.$className]: Версія актуальна.")
+              }
+          } else {
+              println("[YkisLogKMP.$className]: Документ конфігурації не знайдено або помилка.")
+          }
+      }
+
       if (com.ykis.ykismobkmp.getPlatform().name.contains("Web", true)) {
           delay(1000)
       }
@@ -142,5 +162,9 @@ class AppScreenModel(
       evaluateStartDestination()
       onSuccess()
     }
+  }
+
+  fun dismissUpdateBanner() {
+    _updateConfig.value = null
   }
 }

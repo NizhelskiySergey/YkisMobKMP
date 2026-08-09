@@ -345,4 +345,34 @@ class FirebaseServiceImpl(
   }
 
   override fun clearNotifications(chatId: String?) { performPlatformClearNotifications(chatId) }
+
+  override suspend fun fetchAppUpdateConfig(): com.ykis.ykismobkmp.domain.entity.AppUpdateConfig? {
+    return try {
+        val doc = db.collection("config").document("version").get()
+        if (doc.exists) {
+            // Читаємо поля по одному. Це найнадійніший спосіб у KMP без проблем із серіалізацією Map
+            val latest = try { doc.get<String?>("latestVersion") ?: "" } catch (e: Exception) { "" }
+            val android = try { doc.get<String?>("androidUrl") ?: "" } catch (e: Exception) { "" }
+            val ios = try { doc.get<String?>("iosUrl") ?: "" } catch (e: Exception) { "" }
+            val web = try { doc.get<String?>("webUrl") ?: "" } catch (e: Exception) { "" }
+            val critical = try { doc.get<Boolean?>("isCritical") ?: false } catch (e: Exception) { false }
+
+            println("[YkisLogKMP.Firebase]: Config Loaded -> latest='$latest', android='$android'")
+
+            com.ykis.ykismobkmp.domain.entity.AppUpdateConfig(
+                latestVersion = latest,
+                androidUrl = android,
+                iosUrl = ios,
+                webUrl = web,
+                isCritical = critical
+            )
+        } else {
+            println("[YkisLogKMP.Firebase]: Document config/version not found")
+            null
+        }
+    } catch (e: Exception) {
+        println("[YkisLogKMP.Firebase_ERROR]: ${e.message}")
+        null
+    }
+  }
 }
