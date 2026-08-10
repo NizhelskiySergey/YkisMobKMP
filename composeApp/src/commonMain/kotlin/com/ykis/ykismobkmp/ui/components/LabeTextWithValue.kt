@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 private const val className = "LabelTexts"
@@ -36,7 +37,7 @@ fun LabelTextWithText(
   ) {
     Text(
       text = labelText,
-      modifier = Modifier.weight(1f), // Занимает всё свободное место, прижимая значение вправо
+      modifier = Modifier.padding(end = 8.dp), // Даем небольшой отступ до значения
       style = MaterialTheme.typography.titleSmall.copy(
         fontWeight = FontWeight.Normal,
         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -44,6 +45,8 @@ fun LabelTextWithText(
     )
     Text(
       text = valueText,
+      modifier = Modifier.weight(1f), // Значение теперь расширяется и переносится
+      textAlign = TextAlign.End,
       style = MaterialTheme.typography.bodyLarge.copy(
         fontWeight = FontWeight.Light,
         color = MaterialTheme.colorScheme.onSurface
@@ -74,7 +77,7 @@ fun LabelTextWithTextAndIcon(
     )
     Text(
       text = labelText,
-      modifier = Modifier.weight(1f).padding(start = 8.dp), // Изолированное выравнивание
+      modifier = Modifier.padding(start = 8.dp, end = 8.dp), 
       style = MaterialTheme.typography.titleMedium.copy(
         fontWeight = FontWeight.Normal,
         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -82,6 +85,8 @@ fun LabelTextWithTextAndIcon(
     )
     Text(
       text = valueText,
+      modifier = Modifier.weight(1f), // Значение забирает остаток и переносится при длине
+      textAlign = TextAlign.End,
       style = MaterialTheme.typography.bodyLarge.copy(
         fontWeight = FontWeight.Light,
         color = MaterialTheme.colorScheme.onSurface
