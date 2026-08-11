@@ -180,9 +180,22 @@ class MainApartmentScreen(
     }
 
     val finalizeApartmentSelection: (Long) -> Unit = { id ->
+      // Принудительно сбрасываем детали при смене квартиры
+      meterScreenModel.closeContentDetail()
+      ledgerScreenModel.closeContentDetail()
+      
       activeSubModule = "InfoApartmentScreen"
       apartmentScreenModel.setAddressId(id)
       coroutineScope.launch { if (drawerState.isOpen) drawerState.close() }
+    }
+
+    val changeSubModule: (String) -> Unit = { newModule ->
+      // При любом переключении разделов через меню сбрасываем состояние деталей
+      if (newModule != activeSubModule) {
+        meterScreenModel.closeContentDetail()
+        ledgerScreenModel.closeContentDetail()
+        activeSubModule = newModule
+      }
     }
 
     @Composable
@@ -239,7 +252,7 @@ class MainApartmentScreen(
           baseUIState = baseUIState,
           navigator = globalNavigator,
           activeSubModule = activeSubModule,
-          onSubModuleChange = { activeSubModule = it },
+          onSubModuleChange = changeSubModule,
           isRailExpanded = isRailExpanded,
           onMenuClick = {
             apartmentScreenModel.onSearchQueryChanged("")
@@ -260,7 +273,7 @@ class MainApartmentScreen(
             baseUIState = baseUIState,
             navigator = globalNavigator,
             activeSubModule = activeSubModule,
-            onSubModuleChange = { activeSubModule = it },
+            onSubModuleChange = changeSubModule,
             onMenuClick = {
               localKeyboardController?.hide()
               localFocusManager.clearFocus()
@@ -281,7 +294,7 @@ class MainApartmentScreen(
                BottomNavigationBar(
                  baseUIState = baseUIState, 
                  activeSubModule = activeSubModule, 
-                 onSubModuleChange = { activeSubModule = it }
+                 onSubModuleChange = changeSubModule
                )
             }
           }

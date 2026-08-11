@@ -36,6 +36,8 @@ fun BottomNavigationBar(
 
   val unreadCounts by chatScreenModel.unreadCounts.collectAsState()
   val announcementState by announcementModel.uiState.collectAsState()
+  val meterScreenModel = koinInject<com.ykis.ykismobkmp.ui.screens.meter.MeterScreenModel>()
+  val ledgerScreenModel = koinInject<com.ykis.ykismobkmp.ui.screens.ledger.LedgerScreenModel>()
 
   val totalUnread = remember(unreadCounts) { unreadCounts.values.sum() }
   val unreadAnnouncements = announcementState.unreadAnnouncementsCount
@@ -82,6 +84,7 @@ fun BottomNavigationBar(
               onSubModuleChange("InfoApartmentScreen")
             }
             "MainMeterScreenDest", "MeterScreen", "service_selector" -> {
+              meterScreenModel.closeContentDetail()
               chatScreenModel.setSelectedService(null as TotalServiceDebt?)
               onSubModuleChange("service_selector")
             }
@@ -90,6 +93,7 @@ fun BottomNavigationBar(
               onSubModuleChange(targetRoute)
             }
             "MainServiceScreenDest", "ServiceListScreen", "finance_selector" -> {
+              ledgerScreenModel.closeContentDetail()
               onSubModuleChange("finance_selector")
             }
             "announcements" -> {
