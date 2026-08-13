@@ -49,87 +49,6 @@ import kotlin.time.Clock
 private const val className = "ServiceDetailContent"
 
 @Composable
-fun FastPayPaymentRow(
-  contentDetail: ContentDetail,
-  baseUIState: BaseUIState,
-  ledgerUIState: BaseUIState
-) {
-  val uriHandler = LocalUriHandler.current
-  val totalServiceDebt = remember(contentDetail, ledgerUIState.totalDebt) {
-    when (contentDetail) {
-      ContentDetail.WATER_SERVICE   -> ledgerUIState.totalDebt.dolg1
-      ContentDetail.WARM_SERVICE    -> ledgerUIState.totalDebt.dolg2
-      ContentDetail.GARBAGE_SERVICE -> ledgerUIState.totalDebt.dolg3
-      ContentDetail.OSBB            -> ledgerUIState.totalDebt.dolg4
-      else -> 0.0
-    }
-  }
-
-  var paymentSum by remember(totalServiceDebt) { 
-      mutableStateOf(if (totalServiceDebt > 0) totalServiceDebt.toString() else "") 
-  }
-
-  val targetOsbbId = when (contentDetail) {
-      ContentDetail.WATER_SERVICE   -> Constants.WATER_SERVICE_ID
-      ContentDetail.WARM_SERVICE    -> Constants.WARM_SERVICE_ID
-      ContentDetail.GARBAGE_SERVICE -> Constants.GARBAGE_SERVICE_ID
-      else -> baseUIState.osmdId
-  }
-  
-  val fastpayToken = remember(targetOsbbId, ledgerUIState.fastpayTokens) {
-      ledgerUIState.fastpayTokens.find { it.osbbId == targetOsbbId }?.token
-  }
-
-  if (baseUIState.userRole != com.ykis.ykismobkmp.domain.services.UserRole.StandardUser) return
-
-  Column(modifier = Modifier.fillMaxWidth()) {
-      Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        tonalElevation = 1.dp
-      ) {
-        Row(
-          modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-          OutlinedTextField(
-            value = paymentSum,
-            onValueChange = { },
-            modifier = Modifier.weight(1f),
-            label = { Text("Сума до сплати", fontSize = 11.sp) },
-            suffix = { Text("грн") },
-            readOnly = true,
-            singleLine = true,
-            shape = RoundedCornerShape(12.dp)
-          )
-
-          Button(
-            onClick = {
-              if (!fastpayToken.isNullOrBlank()) {
-                  val personalAccount = baseUIState.addressId.toString()
-                  val jsonParams = "{\"token\":\"$fastpayToken\",\"personalAccount\":\"$personalAccount\"}"
-                  val encodedParams = jsonParams.replace("{", "%7B").replace("}", "%7D").replace("\"", "%22")
-                  val url = "https://next.privat24.ua/payments/form/$encodedParams"
-                  try { uriHandler.openUri(url) } catch (e: Exception) { }
-              }
-            },
-            enabled = !fastpayToken.isNullOrBlank(),
-            modifier = Modifier.height(64.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = if (fastpayToken.isNullOrBlank()) Color.Gray else Color(0xFF7CB342))
-          ) {
-            Icon(painter = painterResource(Res.drawable.privatbank), contentDescription = null, modifier = Modifier.size(54.dp).padding(top=4.dp), tint = Color.Unspecified)
-            Spacer(Modifier.width(8.dp))
-            Text(if (fastpayToken.isNullOrBlank()) "Немає токена" else "Сплатити")
-          }
-        }
-      }
-      HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-  }
-}
-
-@Composable
 fun ServiceDetailScreen(
   modifier: Modifier = Modifier,
   contentDetail: ContentDetail,
@@ -143,15 +62,14 @@ fun ServiceDetailScreen(
       canNavigateBack = true,
       onBackClick = { screenModel.closeContentDetail() },
       title = when (contentDetail) {
-        ContentDetail.OSBB -> "ОСББ"
+        ContentDetail.OSBB -> baseUIState.osbb.ifBlank { "ОСББ" }
         ContentDetail.WATER_SERVICE -> stringResource(Res.string.vodokanal)
         ContentDetail.WARM_SERVICE -> stringResource(Res.string.ytke_short)
         ContentDetail.GARBAGE_SERVICE -> stringResource(Res.string.yzhtrans)
-        else -> "Коммунальные услуги"
+        else -> "Фінанси"
       },
       subtitle = baseUIState.address
     )
-    FastPayPaymentRow(contentDetail = contentDetail, baseUIState = baseUIState, ledgerUIState = ledgerUIState)
     Box(modifier = Modifier.weight(1f)) {
       ServiceDetailContentContainer(modifier = Modifier.fillMaxSize(), contentDetail = contentDetail, baseUIState = baseUIState, ledgerUIState = ledgerUIState, screenModel = screenModel)
     }

@@ -200,6 +200,7 @@
   <string name="tbo">Управління ПВ:</string>
   <string name="prixod">Прихід:</string>
   <string name="add">Ввести нові показання</string>
+  <string name="add_app">Додати</string>
   <string name="water_meter">Водяний</string>
   <string name="water_meter_label">Водяний лічильник</string>
   <string name="water_meter_placeholder">Виберіть лічильник для перегляду деталей</string>

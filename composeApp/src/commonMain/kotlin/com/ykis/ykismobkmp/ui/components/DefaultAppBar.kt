@@ -1,6 +1,7 @@
 package com.ykis.ykismobkmp.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
@@ -55,29 +56,24 @@ fun DefaultAppBar(
       // ИСПРАВЛЕНО НАМЕРТВО: Сбросили скрытые инсеты windowInsets, чтобы убрать микро-сжатие иконок и кнопок!
       windowInsets = WindowInsets(0, 0, 0, 0),
       title = {
-        Row(
-          verticalAlignment = Alignment.CenterVertically, // Центрируем адрес идеально по линии тулбара
-          horizontalArrangement = Arrangement.Center
+        Column(
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.Center
         ) {
-          // Текст адреса или службы остается КРУПНЫМ, сочным и отлично читаемым!
           Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
-            softWrap = false,
             overflow = TextOverflow.Ellipsis
           )
 
           if (!subtitle.isNullOrBlank()) {
             Text(
-              text = " | $subtitle",
+              text = subtitle,
               style = MaterialTheme.typography.labelSmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-              fontWeight = FontWeight.Bold,
-              modifier = Modifier.padding(start = 4.dp),
               maxLines = 1,
-              softWrap = false,
               overflow = TextOverflow.Ellipsis
             )
           }

@@ -40,6 +40,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import com.ykis.ykismobkmp.Res
 import com.ykis.ykismobkmp.add
+import com.ykis.ykismobkmp.add_app
 import com.ykis.ykismobkmp.add_appartment
 import com.ykis.ykismobkmp.secret_сode
 import com.ykis.ykismobkmp.tooltip_code
@@ -148,7 +149,7 @@ fun AddApartmentScreenStateless(
               contentPadding = PaddingValues(horizontal = 16.dp) // Более компактные внутренние поля
             ) {
               Text(
-                text = stringResource(Res.string.add),
+                text = stringResource(Res.string.add_app),
                 style = MaterialTheme.typography.labelLarge
               )
             }

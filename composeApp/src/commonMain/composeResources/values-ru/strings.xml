@@ -198,6 +198,7 @@
   <string name="tbo">Управление ТБО:</string>
   <string name="prixod">Приход:</string>
   <string name="add">Ввести новые показания</string>
+  <string name="add_app">Добавить</string>
   <string name="water_meter">Водяной</string>
   <string name="water_meter_label">Водяной счетчик</string>
   <string name="water_meter_placeholder">Выберите счетчик для просмотра деталей</string>

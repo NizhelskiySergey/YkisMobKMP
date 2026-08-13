@@ -1,20 +1,11 @@
 package com.ykis.ykismobkmp.ui.screens.ledger.list
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -23,9 +14,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import com.ykis.ykismobkmp.Res
-import com.ykis.ykismobkmp.uah
+import com.ykis.ykismobkmp.*
+
 private const val className = "ServiceListStateless"
 
 @Composable
@@ -61,6 +55,8 @@ fun <T> ServiceListStateless(
   debts: (T) -> Double,
   total: Double,
   circleLabel: String,
+  onPayClick: (() -> Unit)? = null, // Новое действие для оплаты
+  isPayEnabled: Boolean = true,      // Состояние активности кнопки
   rows: @Composable (T) -> Unit
 ) {
   BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -110,6 +106,35 @@ fun <T> ServiceListStateless(
             fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.onSurface
           )
+
+          if (onPayClick != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+              onClick = onPayClick,
+              enabled = isPayEnabled,
+              colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF7CB342),
+                contentColor = Color.White,
+                disabledContainerColor = Color.Gray.copy(alpha = 0.5f),
+                disabledContentColor = Color.White.copy(alpha = 0.5f)
+              ),
+              shape = RoundedCornerShape(12.dp),
+              contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+              modifier = Modifier.height(48.dp)
+            ) {
+              Icon(
+                painter = painterResource(Res.drawable.privatbank),
+                contentDescription = null,
+                modifier = Modifier.size(40.dp).padding(end = 8.dp),
+                tint = Color.Unspecified
+              )
+              Text(
+                text = stringResource(Res.string.pay),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold
+              )
+            }
+          }
         }
       }
       Card(
@@ -166,4 +191,3 @@ private fun <T> List<T>.extractProportionsKmp(selector: (T) -> Double): List<Flo
   if (total <= 0.0) return this.map { 1f / this.size }
   return this.map { (selector(it) / total).toFloat() }
 }
-

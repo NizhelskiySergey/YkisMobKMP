@@ -16,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
+import com.ykis.ykismobkmp.core.Constants
 import com.ykis.ykismobkmp.domain.repository.ledger.LedgerParams
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.BaseUIState
@@ -46,7 +48,7 @@ fun assembleServiceList(
   if (baseUIState.osmdId != 0L) {
     serviceList.add(
       TotalServiceDebt(
-        name = "ОСББ",
+        name = baseUIState.osbb.ifBlank { "ОСББ" },
         color = MaterialTheme.colorScheme.primary,
         debt = ledgerUIState.totalDebt.dolg4,
         icon = Icons.Default.CorporateFare,
@@ -88,9 +90,16 @@ fun ServiceListScreen(
   onDrawerClick: () -> Unit,
   ledgerUIState: BaseUIState,
   getTotalServiceDebt: (LedgerParams) -> Unit,
+  getFastpayTokenByOsbb: (String, Long) -> Unit,
   setContentDetail: (ContentDetail) -> Unit
 ) {
   val methodName = "ServiceListScreen"
+  val uriHandler = LocalUriHandler.current
+
+  // Извлекаем токен Водоканала (9999) для быстрой оплаты из круга
+  val vodokanalToken = remember(ledgerUIState.fastpayTokens) {
+    ledgerUIState.fastpayTokens.find { it.osbbId == Constants.WATER_SERVICE_ID }?.token
+  }
 
   // ИСПРАВЛЕНО НАМЕРТВО: Фиксация на один стартовый запрос сводного тотала!
   LaunchedEffect(key1 = baseUIState.addressId) {
@@ -101,6 +110,7 @@ fun ServiceListScreen(
     println("[YkisLogKMP.$tag.$methodName]: Запрос баланса для о/р: $addrId")
 
     if (addrId > 0L) {
+      // 1. Запит загальних боргів
       getTotalServiceDebt(
         LedgerParams(
           uid = uid,
@@ -111,6 +121,10 @@ fun ServiceListScreen(
           year = "2026"
         )
       )
+      // 2. Примусове завантаження токена для Водоканалу (9999) для кнопки оплати
+      if (baseUIState.userRole == UserRole.StandardUser) {
+          getFastpayTokenByOsbb(uid, Constants.WATER_SERVICE_ID)
+      }
     }
   }
 
@@ -166,6 +180,23 @@ fun ServiceListScreen(
           colors = { it.color },
           total = displayTotal,
           circleLabel = stringResource(Res.string.summary),
+          isPayEnabled = !vodokanalToken.isNullOrBlank(),
+          onPayClick = if (baseUIState.userRole == UserRole.StandardUser) {
+            {
+              if (!vodokanalToken.isNullOrBlank()) {
+                  val personalAccount = baseUIState.addressId.toString()
+                  val jsonParams = "{\"token\":\"$vodokanalToken\",\"personalAccount\":\"$personalAccount\"}"
+                  val encodedParams = jsonParams.replace("{", "%7B").replace("}", "%7D").replace("\"", "%22")
+                  val url = "https://next.privat24.ua/payments/form/$encodedParams"
+                  try {
+                    println("[YkisLogKMP.$tag]: Запуск быстрой оплаты Водоканала из главного экрана")
+                    uriHandler.openUri(url)
+                  } catch (e: Exception) {
+                    println("[YkisLogKMP.${tag}_ERROR]: Не удалось открыть ссылку оплаты: ${e.message}")
+                  }
+              }
+            }
+          } else null,
           rows = { item ->
             ServiceRow(
               color = item.color,

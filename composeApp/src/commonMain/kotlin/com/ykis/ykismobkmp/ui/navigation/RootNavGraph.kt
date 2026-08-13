@@ -74,22 +74,12 @@ fun RootNavGraph(
       containerColor = MaterialTheme.colorScheme.surfaceContainer,
       snackbarHost = { SnackbarHost(hostState = appState.snackbarHostState) { data -> Snackbar(data) } }
     ) { paddingValues ->
-      Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-        // БАННЕР ОБНОВЛЕНИЯ
-        AnimatedVisibility(
-            visible = updateConfig != null,
-            enter = slideInVertically() + fadeIn(),
-            exit = slideOutVertically() + fadeOut()
-        ) {
-            updateConfig?.let { cfg ->
-                AppUpdateBanner(
-                    config = cfg,
-                    onDismiss = { appStartModel.dismissUpdateBanner() }
-                )
-            }
-        }
-        
-        Box(modifier = Modifier.weight(1f)) {
+      Box(modifier = Modifier.fillMaxSize()) {
+        // ОСНОВНИЙ КОНТЕНТ (Navigator)
+        // Ми НЕ додаємо paddingValues.calculateTopPadding() сюди, 
+        // бо екрани всередині (MainApartmentScreen) самі обробляють інсети статус-бару.
+        // Це виправить "подвійний відступ" і зміщення меню вниз.
+        Box(modifier = Modifier.fillMaxSize().padding(bottom = paddingValues.calculateBottomPadding())) {
           if (currentStartState == AppStartState.Loading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
               CircularProgressIndicator(strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
@@ -147,6 +137,24 @@ fun RootNavGraph(
               }
             }
           }
+        }
+
+        // БАННЕР ОБНОВЛЕНИЯ (Overlay)
+        // Малюємо поверх контенту, щоб не штовхати меню вниз
+        AnimatedVisibility(
+            visible = updateConfig != null,
+            modifier = Modifier.align(Alignment.TopCenter),
+            enter = slideInVertically() + fadeIn(),
+            exit = slideOutVertically() + fadeOut()
+        ) {
+            Box(modifier = Modifier.padding(top = paddingValues.calculateTopPadding())) {
+                updateConfig?.let { cfg ->
+                    AppUpdateBanner(
+                        config = cfg,
+                        onDismiss = { appStartModel.dismissUpdateBanner() }
+                    )
+                }
+            }
         }
       }
     }

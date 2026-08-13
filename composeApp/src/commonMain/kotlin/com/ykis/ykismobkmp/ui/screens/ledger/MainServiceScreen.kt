@@ -63,6 +63,9 @@ class MainServiceScreen(
             getTotalServiceDebt = { params ->
               ledgerScreenModel.getTotalServiceDebt(params.uid, params.addressId, params.houseId, params.year, params.service, params.total)
             },
+            getFastpayTokenByOsbb = { uid, osbbId ->
+              ledgerScreenModel.getFastpayTokenByOsbb(uid, osbbId)
+            },
             setContentDetail = { content ->
               ledgerScreenModel.setContentDetail(content, currentLiveState.uid, currentLiveState.osmdId)
             }
@@ -166,6 +169,9 @@ fun SinglePanelService(
         ledgerUIState = liveDebtState,
         getTotalServiceDebt = { params ->
           screenModel.getTotalServiceDebt(params.uid, params.addressId, params.houseId, params.year, params.service, params.total)
+        },
+        getFastpayTokenByOsbb = { uid, osbbId ->
+          screenModel.getFastpayTokenByOsbb(uid, osbbId)
         },
         setContentDetail = { content ->
           screenModel.setContentDetail(content, baseUIState.uid, baseUIState.osmdId)
