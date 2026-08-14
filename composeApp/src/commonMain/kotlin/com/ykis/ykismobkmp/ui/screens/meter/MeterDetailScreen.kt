@@ -32,6 +32,8 @@ fun MeterDetailScreen(
   viewModel: MeterScreenModel,
   baseUIState: BaseUIState // Возвращаем базовый стейт (с UID и адресом)
 ) {
+  val contentType = com.ykis.ykismobkmp.ui.navigation.LocalContentType.current
+  
   LaunchedEffect(contentDetail) {
     println("[$className.Content]: Отрисовка формы ввода или истории ГИОЦ. Активный контент: $contentDetail")
   }
@@ -39,6 +41,7 @@ fun MeterDetailScreen(
   Column(modifier = modifier.fillMaxSize()) {
     // 1. НАСТРОЙКА КРОСС ПЛАТФОРМЕННОГО ТУЛБАРА DefaultAppBar
     DefaultAppBar(
+      canNavigateBack = contentType == com.ykis.ykismobkmp.ui.navigation.ContentType.SINGLE_PANE,
       title = when (contentDetail) {
         ContentDetail.WATER_METER -> "Водомір: ${meterUIState.selectedWaterMeter.model}"
         ContentDetail.HEAT_METER -> "Лічильник тепла: ${meterUIState.selectedHeatMeter.model}"

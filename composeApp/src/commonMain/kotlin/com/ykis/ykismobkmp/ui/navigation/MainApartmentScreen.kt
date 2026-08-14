@@ -240,11 +240,19 @@ class MainApartmentScreen(
                    navigationType == NavigationType.NAVIGATION_RAIL_EXPANDED || 
                    navigationType == NavigationType.PERMANENT_NAVIGATION_DRAWER
 
-    val isChatRoomActive = activeSubModule == "chat_room_active" && contentType == ContentType.SINGLE_PANE
-    val isChatUserList = activeSubModule == "chat_user_list" && baseUIState.userRole == UserRole.StandardUser && contentType == ContentType.SINGLE_PANE
-    val isMeterDetail = activeSubModule == "service_selector" && meterUIState.showDetail && contentType == ContentType.SINGLE_PANE
-    val isLedgerDetail = activeSubModule == "finance_selector" && ledgerUIState.showDetail && contentType == ContentType.SINGLE_PANE
-    val isAnyDetailActive = isChatRoomActive || isChatUserList || isMeterDetail || isLedgerDetail
+    val isChatRoomActive = activeSubModule == "chat_room_active"
+    val isChatUserList = activeSubModule == "chat_user_list" && baseUIState.userRole == UserRole.StandardUser
+    val isMeterDetail = (activeSubModule == "service_selector" || activeSubModule == "MeterScreen") && meterUIState.showDetail
+    val isLedgerDetail = (activeSubModule == "finance_selector" || activeSubModule == "ServiceListScreen") && ledgerUIState.showDetail
+    
+    // ГЛОБАЛЬНА ПЕРЕВІРКА:
+    // 1. У режимі SINGLE_PANE (телефон/портретний планшет) - ХОВАЄМО меню, якщо відкриті деталі
+    // 2. У режимі DUAL_PANE (ландшафтний планшет) - ЗАЛИШАЄМО меню завжди (isAnyDetailActive буде false)
+    val isAnyDetailActive = if (contentType == ContentType.SINGLE_PANE) {
+        isChatRoomActive || isChatUserList || isMeterDetail || isLedgerDetail
+    } else {
+        false
+    }
 
     Row(modifier = Modifier.fillMaxSize()) {
       if (showRail) {
@@ -285,8 +293,12 @@ class MainApartmentScreen(
         }
       ) {
         Scaffold(
-          contentWindowInsets = WindowInsets.statusBars,
+          // ИСПРАВЛЕНО: Отключаем автоматические инсеты, так как они уже учтены в RootNavGraph
+          contentWindowInsets = WindowInsets(0, 0, 0, 0), 
           bottomBar = {
+            // Умова показу нижнього меню:
+            // 1. Обрано квартиру (або ми адмін)
+            // 2. Ми НЕ в режимі деталей для SINGLE_PANE (телефон/вертикальний планшет)
             val showBottomBar = (baseUIState.addressId != 0L || baseUIState.userRole != UserRole.StandardUser) && 
                                 !isAnyDetailActive
             
@@ -298,8 +310,10 @@ class MainApartmentScreen(
                )
             }
           }
-        ) { paddingValues ->
-          Box(modifier = Modifier.fillMaxSize().padding(top = paddingValues.calculateTopPadding(), bottom = if (isAnyDetailActive) 0.dp else paddingValues.calculateBottomPadding())) {
+        )
+ { paddingValues ->
+          // Используем только нижний отступ для меню, верхний уже в Column родителя
+          Box(modifier = Modifier.fillMaxSize().padding(bottom = paddingValues.calculateBottomPadding())) {
             RenderSubContent() 
           }
         }

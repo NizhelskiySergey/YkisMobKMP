@@ -38,6 +38,7 @@ import com.ykis.ykismobkmp.ui.components.DefaultAppBar
 import com.ykis.ykismobkmp.domain.services.UserRole
 import com.ykis.ykismobkmp.ui.navigation.CameraScreenDest
 import com.ykis.ykismobkmp.ui.navigation.LocalContentType
+import com.ykis.ykismobkmp.ui.navigation.ContentType
 import com.ykis.ykismobkmp.ui.navigation.NavigationType
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.core.utils.rememberFilePicker
@@ -280,12 +281,14 @@ fun ChatScreenContent(
   Scaffold(
     modifier = modifier.fillMaxSize(),
     containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    contentWindowInsets = WindowInsets(0, 0, 0, 0), // ИСПРАВЛЕНО: Убираем двойной отступ статус-бара
     topBar = {
+      val contentType = LocalContentType.current
       Column {
         DefaultAppBar(
           title = appBarTitle,
           subtitle = appBarSubtitle,
-          canNavigateBack = true,
+          canNavigateBack = contentType == ContentType.SINGLE_PANE,
           onBackClick = {
             keyboardController?.hide()
             focusManager.clearFocus()

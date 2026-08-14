@@ -57,9 +57,10 @@ fun ServiceDetailScreen(
   screenModel: LedgerScreenModel,
   navigateToWebView: (String) -> Unit
 ) {
+  val contentType = LocalContentType.current
   Column(modifier = modifier.fillMaxSize()) {
     DefaultAppBar(
-      canNavigateBack = true,
+      canNavigateBack = contentType == ContentType.SINGLE_PANE,
       onBackClick = { screenModel.closeContentDetail() },
       title = when (contentDetail) {
         ContentDetail.OSBB -> baseUIState.osbb.ifBlank { "ОСББ" }
