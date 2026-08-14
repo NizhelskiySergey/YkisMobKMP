@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,46 +16,41 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.core.annotation.InternalVoyagerApi
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.transitions.SlideTransition
-import com.ykis.ykismobkmp.domain.services.UserRole
+import com.ykis.ykismobkmp.getPlatform
+import com.ykis.ykismobkmp.restartApp
 import com.ykis.ykismobkmp.ui.screens.appartment.ApartmentScreenModel
 import com.ykis.ykismobkmp.ui.screens.auth.SignInScreen
 import com.ykis.ykismobkmp.ui.screens.auth.TermsAndConditionScreen
 import com.ykis.ykismobkmp.ui.screens.chat.ChatScreenModel
-import kotlinx.coroutines.flow.first
+import com.ykis.ykismobkmp.domain.entity.AppUpdateConfig
+import com.ykis.ykismobkmp.domain.services.UserRole
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import org.koin.compose.koinInject
-import com.ykis.ykismobkmp.*
 
-private const val className = "RootNavGraph"
-
-val LocalContentType = compositionLocalOf<ContentType> { ContentType.SINGLE_PANE }
-val LocalNavigationType = compositionLocalOf<NavigationType> { NavigationType.BOTTOM_NAVIGATION }
-
-@OptIn(InternalVoyagerApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RootNavGraph(
-  appState: YkisPamAppState,
   contentType: ContentType,
-  navigationType: NavigationType
+  navigationType: NavigationType,
+  appStartModel: AppScreenModel = koinInject()
 ) {
-  val appStartModel = koinInject<AppScreenModel>()
-  val apartmentScreenModel = koinInject<ApartmentScreenModel>()
-  val chatScreenModel = koinInject<ChatScreenModel>()
-  apartmentScreenModel.firebaseService
+    val appState = rememberYkisPamAppState()
+    val currentStartState by appStartModel.startState.collectAsState()
+    val updateConfig by appStartModel.updateConfig.collectAsState()
+    
+    val apartmentScreenModel = koinInject<ApartmentScreenModel>()
+    val chatScreenModel = koinInject<ChatScreenModel>()
+    val baseUIState by apartmentScreenModel.uiState.collectAsState()
+    val pendingChatId by chatScreenModel.pendingPushChatId.collectAsState()
 
-  val currentStartState by appStartModel.startState.collectAsState()
-  val updateConfig by appStartModel.updateConfig.collectAsState()
-  val baseUIState by apartmentScreenModel.uiState.collectAsState()
-  val pendingChatId by chatScreenModel.pendingPushChatId.collectAsState()
+    LaunchedEffect(Unit) {
+      appStartModel.evaluateStartDestination()
+    }
 
-  CompositionLocalProvider(
-    LocalContentType provides contentType,
-    LocalNavigationType provides navigationType
-  ) {
-    LaunchedEffect(pendingChatId) {
+    LaunchedEffect(currentStartState, pendingChatId) {
       if (pendingChatId != null) {
         snapshotFlow { currentStartState }.first { it != AppStartState.Loading }
         snapshotFlow { baseUIState }.first { it.userRole != UserRole.Unknown && !it.mainLoading }
@@ -74,12 +68,29 @@ fun RootNavGraph(
       containerColor = MaterialTheme.colorScheme.surfaceContainer,
       snackbarHost = { SnackbarHost(hostState = appState.snackbarHostState) { data -> Snackbar(data) } }
     ) { paddingValues ->
-      Box(modifier = Modifier.fillMaxSize()) {
-        // ОСНОВНИЙ КОНТЕНТ (Navigator)
-        // Ми НЕ додаємо paddingValues.calculateTopPadding() сюди, 
-        // бо екрани всередині (MainApartmentScreen) самі обробляють інсети статус-бару.
-        // Це виправить "подвійний відступ" і зміщення меню вниз.
-        Box(modifier = Modifier.fillMaxSize().padding(bottom = paddingValues.calculateBottomPadding())) {
+      Column(
+          modifier = Modifier
+              .fillMaxSize()
+              .statusBarsPadding() // Тепер відступ статус-бару є ЗАВЖДИ
+              .padding(bottom = paddingValues.calculateBottomPadding())
+      ) {
+        // 1. БАННЕР ОБНОВЛЕНИЯ
+        AnimatedVisibility(
+            visible = updateConfig != null,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            AppUpdateBanner(
+                config = updateConfig!!,
+                onDismiss = { appStartModel.dismissUpdateBanner() }
+            )
+        }
+
+        // 2. ОСНОВНОЙ КОНТЕНТ (Navigator)
+        Box(modifier = Modifier
+            .weight(1f)
+            .consumeWindowInsets(WindowInsets.statusBars)
+        ) {
           if (currentStartState == AppStartState.Loading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
               CircularProgressIndicator(strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
@@ -127,7 +138,6 @@ fun RootNavGraph(
                   if (addrId != 0L) {
                      snapshotFlow { baseUIState }.first { it.addressId == addrId }
                      delay(300)
-                     // Перевіряємо чи ми вже не в чаті
                      if (navigator.lastItem !is ChatScreenDest) {
                          navigator.push(ChatScreenDest(chatId = pendingChatId))
                      }
@@ -138,32 +148,13 @@ fun RootNavGraph(
             }
           }
         }
-
-        // БАННЕР ОБНОВЛЕНИЯ (Overlay)
-        // Малюємо поверх контенту, щоб не штовхати меню вниз
-        AnimatedVisibility(
-            visible = updateConfig != null,
-            modifier = Modifier.align(Alignment.TopCenter),
-            enter = slideInVertically() + fadeIn(),
-            exit = slideOutVertically() + fadeOut()
-        ) {
-            Box(modifier = Modifier.padding(top = paddingValues.calculateTopPadding())) {
-                updateConfig?.let { cfg ->
-                    AppUpdateBanner(
-                        config = cfg,
-                        onDismiss = { appStartModel.dismissUpdateBanner() }
-                    )
-                }
-            }
-        }
       }
     }
-  }
 }
 
 @Composable
 fun AppUpdateBanner(
-    config: com.ykis.ykismobkmp.domain.entity.AppUpdateConfig,
+    config: AppUpdateConfig,
     onDismiss: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
@@ -173,7 +164,7 @@ fun AppUpdateBanner(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        color = Color(0xFF4CAF50), // Ярко-зеленый цвет (Material Green 500)
+        color = Color(0xFF4CAF50),
         shape = RoundedCornerShape(24.dp),
         tonalElevation = 4.dp
     ) {
@@ -181,7 +172,6 @@ fun AppUpdateBanner(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable {
-                    println("[YkisLogKMP.UpdateBanner]: Клик! Платформа: $platform")
                     val url = when {
                         platform.contains("android") -> config.androidUrl
                         platform.contains("ios") || platform.contains("iphone") || platform.contains("ipad") || platform.contains("apple") -> config.iosUrl
@@ -211,14 +201,14 @@ fun AppUpdateBanner(
                 Icon(
                     imageVector = Icons.Default.SystemUpdate,
                     contentDescription = null,
-                    tint = Color.White, // Белая иконка на зеленом фоне
+                    tint = Color.White,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Доступна нова версія",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color.White, // Белый текст на зеленом фоне
+                    color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )

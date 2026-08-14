@@ -39,6 +39,8 @@ class ApartmentScreenModel(
   private val chatRepo: ChatRepository by inject()
   private val className = "ApartmentScreenModel"
 
+  private var newlyAddedAddressId: Long? = null // Тимчасове сховище для нового ID
+
   val uid get() = firebaseService.uid
   val email get() = firebaseService.email
 
@@ -240,7 +242,14 @@ class ApartmentScreenModel(
       val combined = incoming 
       
       if (combined.isNotEmpty()) {
-        val target = if (state.addressId == 0L) combined.first() else (combined.find { it.addressId == state.addressId } ?: combined.first())
+        // Пріоритет вибору: 1. Щойно додана квартира, 2. Вже вибрана, 3. Перша зі списку
+        val targetId = newlyAddedAddressId ?: state.addressId
+        val target = if (targetId == 0L) combined.first() else (combined.find { it.addressId == targetId } ?: combined.first())
+        
+        println("[YkisLogKMP.$className]: Вибір квартири. Пріоритетний ID: $newlyAddedAddressId, Поточний ID: ${state.addressId}, Обрано: ${target.addressId}")
+
+        newlyAddedAddressId = null // Скидаємо прапор після використання
+
         val finalOsbbName = if (target.osbb.isNullOrBlank() || target.osbb == "0") "Мій ОСББ" else target.osbb
         
         screenModelScope.launch {
@@ -411,16 +420,27 @@ class ApartmentScreenModel(
 
     if (input.all { it.isDigit() }) {
       apartmentService.addApartment(input, currentUid, email).onEach { result ->
-        if (result is Resource.Success) {
-            SnackbarManager.showMessage("Рахунок успішно прив'язаний")
-            screenModelScope.launch {
-                observeUserProfile()
-                delay(2000)
-                if (_uiState.value.mainLoading) _uiState.update { it.copy(mainLoading = false) }
+        when (result) {
+          is Resource.Success -> {
+            val newId = result.data?.addressId ?: 0L
+            println("[YkisLogKMP.$className]: Квартиру успішно додано. ID: $newId. Запускаємо синхронізацію профілю...")
+            
+            // Встановлюємо ID як пріоритетний для наступного оновлення списку
+            if (newId != 0L) {
+                newlyAddedAddressId = newId
             }
-        } else if (result is Resource.Error) {
+            
+            SnackbarManager.showMessage("Рахунок успішно прив'язаний")
+            observeUserProfile()
+          }
+          is Resource.Error -> {
+            println("[YkisLogKMP.$className]: Помилка при додаванні квартири: ${result.message}")
             _uiState.update { it.copy(mainLoading = false) }
             SnackbarManager.showMessage(result.message ?: "Помилка")
+          }
+          is Resource.Loading -> {
+            _uiState.update { it.copy(mainLoading = true) }
+          }
         }
       }.launchIn(screenModelScope)
     } else {

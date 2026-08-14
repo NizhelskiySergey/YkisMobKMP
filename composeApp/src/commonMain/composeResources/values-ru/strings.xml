@@ -133,7 +133,7 @@
   <string name="cancel">Отмена</string>
   <string name="delete">Удалить</string>
   <string name="save">Сохранить</string>
-  <string name="area_flat">Площадь квартиры (м2)</string>
+  <string name="area_flat">Площадь квартиры (м²)</string>
   <string name="contacts">Контактные данные</string>
   <string name="PIB">ФИО</string>
   <string name="area_full">Полезная:</string>

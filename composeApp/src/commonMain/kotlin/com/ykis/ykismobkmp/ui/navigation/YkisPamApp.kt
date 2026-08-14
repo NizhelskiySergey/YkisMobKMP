@@ -18,6 +18,10 @@ import org.koin.compose.koinInject
 import kotlin.time.Clock
 
 private const val className = "YkisPamApp"
+
+val LocalNavigationType = staticCompositionLocalOf { NavigationType.BOTTOM_NAVIGATION }
+val LocalContentType = staticCompositionLocalOf { ContentType.SINGLE_PANE }
+
 @OptIn(InternalVoyagerApi::class)
 @Composable
 fun YkisPamApp(
@@ -36,32 +40,37 @@ fun YkisPamApp(
         windowSize = windowSize,
         displayFeatures = displayFeatures
       )
-      var lastBackPressTime by remember { mutableStateOf(0L) }
-      val snackbarManager = koinInject<SnackbarManager>()
-      BackHandler(enabled = true) {
-        val currentTime = Clock.System.now().toEpochMilliseconds()
-        if (currentTime - lastBackPressTime < 2000) {
-          println("[YkisLogKMP.$className.BackHandler]: Повторне натискання зафіксовано. Вихід з системи.")
-          closeApplication()
-        } else {
-          lastBackPressTime = currentTime
-          println("[YkisLogKMP.$className.BackHandler]: Перше натискання кнопки Назад. Вивід сповіщення.")
-          snackbarManager.showMessage("Натисніть ще раз для виходу з програми")
+      
+      CompositionLocalProvider(
+        LocalNavigationType provides navigationType,
+        LocalContentType provides contentType
+      ) {
+        var lastBackPressTime by remember { mutableStateOf(0L) }
+        val snackbarManager = koinInject<SnackbarManager>()
+        BackHandler(enabled = true) {
+          val currentTime = Clock.System.now().toEpochMilliseconds()
+          if (currentTime - lastBackPressTime < 2000) {
+            println("[YkisLogKMP.$className.BackHandler]: Повторне натискання зафіксовано. Вихід з системи.")
+            closeApplication()
+          } else {
+            lastBackPressTime = currentTime
+            println("[YkisLogKMP.$className.BackHandler]: Перше натискання кнопки Назад. Вивід сповіщення.")
+            snackbarManager.showMessage("Натисніть ще раз для виходу з програми")
+          }
         }
+        LaunchedEffect(navigationType, contentType) {
+          println("[YkisLogKMP.$className.YkisPamApp]: Конфігурація геометрії прийнята. Навігація=$navigationType, Контент=$contentType")
+        }
+        RootNavGraph(
+          contentType = contentType,
+          navigationType = navigationType
+        )
       }
-      LaunchedEffect(navigationType, contentType) {
-        println("[YkisLogKMP.$className.YkisPamApp]: Конфігурація геометрії прийнята. Навігація=$navigationType, Контент=$contentType")
-      }
-      RootNavGraph(
-        appState = rememberAppState(),
-        contentType = contentType,
-        navigationType = navigationType
-      )
     }
   }
 }
 @Composable
-fun rememberAppState(
+fun rememberYkisPamAppState(
   snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
   snackbarManager: SnackbarManager = koinInject(),
   coroutineScope: CoroutineScope = rememberCoroutineScope(),
