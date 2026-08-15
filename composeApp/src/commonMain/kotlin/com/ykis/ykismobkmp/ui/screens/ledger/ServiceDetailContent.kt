@@ -134,8 +134,10 @@ fun ServiceDetailContentStateless(
   onSelectedChanged: (String) -> Unit
 ) {
   val yearsList = remember(year) {
-    val baseYear = year.toIntOrNull() ?: 2026
-    List(20) { index -> (baseYear - index).toString() }
+    val currentYear = Clock.System.now()
+        .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).year
+    val baseYear = year.toIntOrNull() ?: currentYear
+    List(10) { index -> (baseYear - index).toString() }
   }
 
   Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
